@@ -1,0 +1,67 @@
+{
+    "name": "AI Memory",
+    "module": "AI Agent",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "fields": [
+        {
+            "fieldname": "user",
+            "fieldtype": "Link",
+            "options": "User",
+            "reqd": 1,
+            "in_list_view": 1,
+            "label": "User"
+        },
+        {
+            "fieldname": "scope",
+            "fieldtype": "Select",
+            "options": "User\nCompany\nAgent",
+            "default": "User",
+            "reqd": 1,
+            "in_list_view": 1,
+            "label": "Scope"
+        },
+        {
+            "fieldname": "memory_type",
+            "fieldtype": "Select",
+            "options": "Preference\nContext\nSummary",
+            "reqd": 1,
+            "in_list_view": 1,
+            "label": "Memory Type"
+        },
+        {
+            "fieldname": "content",
+            "fieldtype": "Long Text",
+            "reqd": 1,
+            "label": "Content"
+        },
+        {
+            "fieldname": "expires_at",
+            "fieldtype": "Datetime",
+            "label": "Expires At"
+        },
+        {
+            "fieldname": "sensitivity",
+            "fieldtype": "Select",
+            "options": "Low\nMedium\nHigh",
+            "default": "Low",
+            "label": "Sensitivity"
+        }
+    ],
+    "permissions": [
+        {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "submit": 0,
+            "cancel": 0,
+            "amend": 0
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "title_field": "content",
+    "track_changes": 1
+}

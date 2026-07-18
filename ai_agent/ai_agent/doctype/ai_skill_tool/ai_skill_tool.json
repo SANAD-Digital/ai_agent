@@ -1,0 +1,44 @@
+{
+ "$schema": "https://frappeframework.io/files/v16_docfield.json",
+ "name": "AI Skill Tool",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "document_type": "Document",
+ "is_submittable": 0,
+ "issingle": 0,
+ "istable": 1,
+ "is_tree": 0,
+ "editable_grid": 1,
+ "track_changes": 0,
+ "fields": [
+  {
+   "fieldname": "tool_name",
+   "fieldtype": "Select",
+   "label": "Tool Name",
+   "options": "actions.prepare_document\nactions.request_bulk_create\nactions.request_cancel\nactions.request_create_draft\nactions.request_submit\nactions.request_update\nactions.request_workflow_action\nactions.validate_document\nartifacts.create_chart\nartifacts.create_document_links\nartifacts.create_table\ndata.count\ndata.get_child_records\ndata.get_document\ndata.query\nreports.describe\nreports.run\nreports.search\nschema.describe_doctype\nschema.describe_links\nschema.describe_workflow\nschema.search_doctypes\nskills.list\nskills.load\nskills.read_reference",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "access_level",
+   "fieldtype": "Select",
+   "label": "Access Level",
+   "options": "Read\nPrepare\nWrite\nDestructive",
+   "default": "Read",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "requires_approval",
+   "fieldtype": "Check",
+   "label": "Requires Approval",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "maximum_calls",
+   "fieldtype": "Int",
+   "label": "Maximum Calls"
+  }
+ ],
+ "permissions": []
+}

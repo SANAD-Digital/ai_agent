@@ -1,0 +1,130 @@
+{
+ "actions": [],
+ "creation": "2026-07-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "run",
+  "step",
+  "call_id",
+  "tool_name",
+  "skill",
+  "arguments_json",
+  "result_preview",
+  "result_hash",
+  "status",
+  "permission_decision",
+  "started_at",
+  "completed_at",
+  "duration_ms"
+ ],
+ "fields": [
+  {
+   "fieldname": "run",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "Run",
+   "options": "AI Run",
+   "reqd": 1
+  },
+  {
+   "fieldname": "step",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "Step",
+   "options": "AI Run Step"
+  },
+  {
+   "fieldname": "call_id",
+   "fieldtype": "Data",
+   "in_list_view": 0,
+   "label": "Call ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tool_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tool Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "skill",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "Skill",
+   "options": "AI Skill"
+  },
+  {
+   "fieldname": "arguments_json",
+   "fieldtype": "Code",
+   "label": "Arguments JSON",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "result_preview",
+   "fieldtype": "Long Text",
+   "label": "Result Preview"
+  },
+  {
+   "fieldname": "result_hash",
+   "fieldtype": "Data",
+   "label": "Result Hash"
+  },
+  {
+   "default": "Requested",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Requested\nAuthorized\nExecuted\nDenied\nFailed"
+  },
+  {
+   "fieldname": "permission_decision",
+   "fieldtype": "Small Text",
+   "label": "Permission Decision"
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At"
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At"
+  },
+  {
+   "fieldname": "duration_ms",
+   "fieldtype": "Int",
+   "label": "Duration (ms)"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-07-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Tool Call",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "tool_name",
+ "track_changes": 0
+}

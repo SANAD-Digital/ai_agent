@@ -1,0 +1,174 @@
+{
+ "app": "ai_agent",
+ "charts": [],
+ "content": "[{\"id\":\"ai-agent-title\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>AI Agent</b></span>\",\"col\":12}},{\"id\":\"ai-agent-intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Run ERP AI analysis, review approvals, monitor tool activity, and configure agents from one workspace.\",\"col\":12}},{\"id\":\"ai-agent-shortcut-workspace\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agent Workspace\",\"col\":3}},{\"id\":\"ai-agent-shortcut-runs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Runs\",\"col\":3}},{\"id\":\"ai-agent-shortcut-approvals\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Approvals\",\"col\":3}},{\"id\":\"ai-agent-shortcut-agents\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agents\",\"col\":3}},{\"id\":\"ai-agent-spacer-1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"ai-agent-card-start\",\"type\":\"card\",\"data\":{\"card_name\":\"Start\",\"col\":4}},{\"id\":\"ai-agent-card-monitoring\",\"type\":\"card\",\"data\":{\"card_name\":\"Monitoring\",\"col\":4}},{\"id\":\"ai-agent-card-setup\",\"type\":\"card\",\"data\":{\"card_name\":\"Setup\",\"col\":4}}]",
+ "creation": "2026-07-14 00:00:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "bot",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "AI Agent",
+ "links": [
+  {
+   "type": "Card Break",
+   "label": "Start",
+   "link_count": 3,
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "Agent Workspace",
+   "link_type": "Page",
+   "link_to": "agent-workspace",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Run",
+   "link_type": "DocType",
+   "link_to": "AI Run",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Approval Request",
+   "link_type": "DocType",
+   "link_to": "AI Approval Request",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Card Break",
+   "label": "Monitoring",
+   "link_count": 2,
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Tool Call",
+   "link_type": "DocType",
+   "link_to": "AI Tool Call",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Memory",
+   "link_type": "DocType",
+   "link_to": "AI Memory",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Card Break",
+   "label": "Setup",
+   "link_count": 4,
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Settings",
+   "link_type": "DocType",
+   "link_to": "AI Settings",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Agent",
+   "link_type": "DocType",
+   "link_to": "AI Agent",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Skill",
+   "link_type": "DocType",
+   "link_to": "AI Skill",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  },
+  {
+   "type": "Link",
+   "label": "AI Skill Grant",
+   "link_type": "DocType",
+   "link_to": "AI Skill Grant",
+   "hidden": 0,
+   "is_query_report": 0,
+   "onboard": 0,
+   "link_count": 0
+  }
+ ],
+ "modified": "2026-07-14 00:00:00",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Agent",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 4.0,
+ "shortcuts": [
+  {
+   "type": "Page",
+   "label": "Agent Workspace",
+   "link_to": "agent-workspace",
+   "color": "Blue"
+  },
+  {
+   "type": "DocType",
+   "label": "Runs",
+   "link_to": "AI Run",
+   "color": "Green"
+  },
+  {
+   "type": "DocType",
+   "label": "Approvals",
+   "link_to": "AI Approval Request",
+   "color": "Orange"
+  },
+  {
+   "type": "DocType",
+   "label": "Agents",
+   "link_to": "AI Agent",
+   "color": "Purple"
+  }
+ ],
+ "title": "AI Agent",
+ "type": "Workspace"
+}

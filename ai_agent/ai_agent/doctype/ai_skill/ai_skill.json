@@ -1,0 +1,129 @@
+{
+ "$schema": "https://frappeframework.io/files/v16_docfield.json",
+ "name": "AI Skill",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "document_type": "Document",
+ "is_submittable": 0,
+ "issingle": 0,
+ "istable": 0,
+ "is_tree": 0,
+ "editable_grid": 0,
+ "track_changes": 1,
+ "autoname": "field:skill_name",
+ "naming_rule": "By fieldname",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "fields": [
+  {
+   "fieldname": "skill_name",
+   "fieldtype": "Data",
+   "label": "Skill Name",
+   "unique": 1,
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_general",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "label": "Source Type",
+   "options": "App File\nDatabase",
+   "default": "App File"
+  },
+  {
+   "fieldname": "skill_path",
+   "fieldtype": "Data",
+   "label": "Skill Path",
+   "depends_on": "eval:doc.source_type == 'App File'"
+  },
+  {
+   "fieldname": "section_behavior",
+   "fieldtype": "Section Break",
+   "label": "Behavior"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "allow_implicit_invocation",
+   "fieldtype": "Check",
+   "label": "Allow Implicit Invocation",
+   "default": "1"
+  },
+  {
+   "fieldname": "trusted",
+   "fieldtype": "Check",
+   "label": "Trusted"
+  },
+  {
+   "fieldname": "column_break_behavior",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "read_only",
+   "fieldtype": "Check",
+   "label": "Read Only"
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "label": "Version"
+  },
+  {
+   "fieldname": "content_hash",
+   "fieldtype": "Data",
+   "label": "Content Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_instructions",
+   "fieldtype": "Section Break",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "instructions",
+   "fieldtype": "Long Text",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "section_tools",
+   "fieldtype": "Section Break",
+   "label": "Tools"
+  },
+  {
+   "fieldname": "tools",
+   "fieldtype": "Table",
+   "label": "Tools",
+   "options": "AI Skill Tool"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ]
+}

@@ -1,0 +1,83 @@
+{
+  "name": "AI Run Step",
+  "module": "AI Agent",
+  "doctype": "DocType",
+  "document_type": "Document",
+  "engine": "InnoDB",
+  "custom": 0,
+  "is_submittable": 0,
+  "issingle": 0,
+  "istable": 1,
+  "editable_grid": 1,
+  "track_changes": 0,
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "fields": [
+    {
+      "fieldname": "run",
+      "fieldtype": "Link",
+      "label": "Run",
+      "options": "AI Run",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "sequence",
+      "fieldtype": "Int",
+      "label": "Sequence",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "step_type",
+      "fieldtype": "Select",
+      "label": "Step Type",
+      "options": "Plan\nSkill\nTool\nApproval\nArtifact\nFinal\nError",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "title",
+      "fieldtype": "Data",
+      "label": "Title",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "summary",
+      "fieldtype": "Long Text",
+      "label": "Summary"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Started\nCompleted\nFailed\nWaiting",
+      "default": "Started",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "started_at",
+      "fieldtype": "Datetime",
+      "label": "Started At"
+    },
+    {
+      "fieldname": "completed_at",
+      "fieldtype": "Datetime",
+      "label": "Completed At"
+    },
+    {
+      "fieldname": "duration_ms",
+      "fieldtype": "Int",
+      "label": "Duration (ms)"
+    },
+    {
+      "fieldname": "is_user_visible",
+      "fieldtype": "Check",
+      "label": "User Visible",
+      "default": 1
+    }
+  ],
+  "permissions": [],
+  "sort_field": "sequence",
+  "sort_order": "ASC"
+}

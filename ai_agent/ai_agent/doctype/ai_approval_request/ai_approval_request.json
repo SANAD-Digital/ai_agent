@@ -1,0 +1,179 @@
+{
+  "name": "AI Approval Request",
+  "module": "AI Agent",
+  "doctype": "DocType",
+  "document_type": "Document",
+  "engine": "InnoDB",
+  "is_submittable": 0,
+  "is_tree": 0,
+  "is_calendar_and_gantt": 0,
+  "editable_grid": 1,
+  "track_changes": 1,
+  "autofetch_autoname": 0,
+  "fields": [
+    {
+      "fieldname": "run",
+      "fieldtype": "Link",
+      "label": "AI Run",
+      "options": "AI Run",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "approval_id",
+      "fieldtype": "Data",
+      "label": "Approval ID",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "action_type",
+      "fieldtype": "Select",
+      "label": "Action Type",
+      "options": "\nCreate\nBulk Create\nUpdate\nSubmit\nCancel\nWorkflow\nApproved Method",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "doctype_name",
+      "fieldtype": "Link",
+      "label": "DocType",
+      "options": "DocType",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "document_name",
+      "fieldtype": "Data",
+      "label": "Document Name",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "action_summary",
+      "fieldtype": "Small Text",
+      "label": "Action Summary",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "impact_summary",
+      "fieldtype": "Long Text",
+      "label": "Impact Summary",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "payload_json",
+      "fieldtype": "Code",
+      "label": "Payload JSON",
+      "options": "JSON",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "payload_hash",
+      "fieldtype": "Data",
+      "label": "Payload Hash",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "expected_modified",
+      "fieldtype": "Datetime",
+      "label": "Expected Modified",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "\nPending\nApproved\nRejected\nExpired\nExecuted\nFailed",
+      "default": "Pending",
+      "reqd": 0,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "requested_by",
+      "fieldtype": "Link",
+      "label": "Requested By",
+      "options": "User",
+      "reqd": 1,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "approved_by",
+      "fieldtype": "Link",
+      "label": "Approved By",
+      "options": "User",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "requested_at",
+      "fieldtype": "Datetime",
+      "label": "Requested At",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "expires_at",
+      "fieldtype": "Datetime",
+      "label": "Expires At",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "decided_at",
+      "fieldtype": "Datetime",
+      "label": "Decided At",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "executed_at",
+      "fieldtype": "Datetime",
+      "label": "Executed At",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "execution_result",
+      "fieldtype": "Long Text",
+      "label": "Execution Result",
+      "reqd": 0,
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "idempotency_key",
+      "fieldtype": "Data",
+      "label": "Idempotency Key",
+      "unique": 1,
+      "reqd": 0,
+      "in_list_view": 0
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "submit": 0,
+      "cancel": 0,
+      "amend": 0,
+      "report": 1,
+      "export": 1,
+      "import": 1,
+      "print": 1,
+      "email": 1,
+      "share": 1
+    }
+  ],
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "title_field": "approval_id"
+}

@@ -1,0 +1,111 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2025-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "agent",
+  "skill",
+  "grant_type",
+  "role",
+  "user",
+  "company",
+  "enabled",
+  "valid_from",
+  "valid_until"
+ ],
+ "fields": [
+  {
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Agent",
+   "options": "AI Agent",
+   "reqd": 1
+  },
+  {
+   "fieldname": "skill",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Skill",
+   "options": "AI Skill",
+   "reqd": 1
+  },
+  {
+   "fieldname": "grant_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Grant Type",
+   "options": "All Users\nRole\nUser",
+   "reqd": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "Role",
+   "options": "Role",
+   "depends_on": "eval:dco.grant_type=='Role'"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "User",
+   "options": "User",
+   "depends_on": "eval:dco.grant_type=='User'"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled",
+   "default": 1
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Datetime",
+   "in_list_view": 0,
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_until",
+   "fieldtype": "Datetime",
+   "in_list_view": 0,
+   "label": "Valid Until"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2025-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Skill Grant",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "agent",
+ "track_changes": 0
+}

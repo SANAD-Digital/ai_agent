@@ -1,0 +1,19 @@
+{
+ "content": null,
+ "creation": "2026-07-14 22:38:11.508799",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-07-14 22:38:11.508799",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "agent-workspace",
+ "owner": "Administrator",
+ "page_name": "agent-workspace",
+ "roles": [],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Agent Workspace"
+}

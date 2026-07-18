@@ -1,0 +1,200 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "AI Settings",
+ "creation": "2025-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "provider_type",
+  "base_url",
+  "api_key",
+  "cb_general",
+  "default_model",
+  "enable_thinking_mode",
+  "default_reasoning_effort",
+  "strict_tool_calling",
+  "section_limits",
+  "request_timeout",
+  "maximum_run_seconds",
+  "maximum_steps",
+  "maximum_tool_calls",
+  "maximum_rows_per_query",
+  "maximum_result_bytes",
+  "store_full_tool_results",
+  "cb_approval",
+  "default_approval_ttl_minutes",
+  "section_memory",
+  "enable_memory",
+  "memory_retention_days",
+  "section_instructions",
+  "system_instructions"
+ ],
+ "fields": [
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1"
+  },
+  {
+   "fieldname": "provider_type",
+   "fieldtype": "Select",
+   "label": "Provider Type",
+   "options": "OpenAI\nOpenAI Compatible\nOllama",
+   "default": "OpenAI",
+   "reqd": 1
+  },
+  {
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "Base URL",
+   "depends_on": "eval:doc.provider_type != 'OpenAI'"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key",
+   "depends_on": "eval:doc.provider_type != 'Ollama'"
+  },
+  {
+   "fieldname": "cb_general",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_model",
+   "fieldtype": "Data",
+   "label": "Default Model",
+   "default": "gpt-4o",
+   "reqd": 1
+  },
+  {
+   "fieldname": "enable_thinking_mode",
+   "fieldtype": "Check",
+   "label": "Thinking Mode",
+   "default": "0",
+   "depends_on": "eval:doc.provider_type == 'OpenAI Compatible'"
+  },
+  {
+   "fieldname": "default_reasoning_effort",
+   "fieldtype": "Select",
+   "label": "Default Reasoning Effort",
+   "options": "low\nmedium\nhigh",
+   "default": "medium"
+  },
+  {
+   "fieldname": "strict_tool_calling",
+   "fieldtype": "Check",
+   "label": "Strict Tool Calling",
+   "default": "0"
+  },
+  {
+   "fieldname": "section_limits",
+   "fieldtype": "Section Break",
+   "label": "Limits & Timeouts"
+  },
+  {
+   "fieldname": "request_timeout",
+   "fieldtype": "Int",
+   "label": "Request Timeout (seconds)",
+   "default": "120"
+  },
+  {
+   "fieldname": "maximum_run_seconds",
+   "fieldtype": "Int",
+   "label": "Maximum Run Seconds",
+   "default": "300"
+  },
+  {
+   "fieldname": "maximum_steps",
+   "fieldtype": "Int",
+   "label": "Maximum Steps",
+   "default": "12"
+  },
+  {
+   "fieldname": "maximum_tool_calls",
+   "fieldtype": "Int",
+   "label": "Maximum Tool Calls",
+   "default": "25"
+  },
+  {
+   "fieldname": "maximum_rows_per_query",
+   "fieldtype": "Int",
+   "label": "Maximum Rows Per Query",
+   "default": "500"
+  },
+  {
+   "fieldname": "maximum_result_bytes",
+   "fieldtype": "Int",
+   "label": "Maximum Result Bytes",
+   "default": "102400"
+  },
+  {
+   "fieldname": "store_full_tool_results",
+   "fieldtype": "Check",
+   "label": "Store Full Tool Results"
+  },
+  {
+   "fieldname": "cb_approval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_approval_ttl_minutes",
+   "fieldtype": "Int",
+   "label": "Default Approval TTL (minutes)",
+   "default": "30"
+  },
+  {
+   "fieldname": "section_memory",
+   "fieldtype": "Section Break",
+   "label": "Memory"
+  },
+  {
+   "fieldname": "enable_memory",
+   "fieldtype": "Check",
+   "label": "Enable Memory"
+  },
+  {
+   "fieldname": "memory_retention_days",
+   "fieldtype": "Int",
+   "label": "Memory Retention Days",
+   "default": "30",
+   "depends_on": "eval:doc.enable_memory"
+  },
+  {
+   "fieldname": "section_instructions",
+   "fieldtype": "Section Break",
+   "label": "System Instructions"
+  },
+  {
+   "fieldname": "system_instructions",
+   "fieldtype": "Long Text",
+   "label": "System Instructions"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

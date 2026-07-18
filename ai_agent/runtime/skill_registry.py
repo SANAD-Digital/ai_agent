@@ -1,0 +1,273 @@
+import os
+import json
+import hashlib
+import frappe
+from frappe import _
+from ai_agent.runtime.constants import SKILL_INSTRUCTIONS_DIR
+from ai_agent.runtime.exceptions import SkillNotFound, SkillDenied
+
+
+SKILLS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), SKILL_INSTRUCTIONS_DIR)
+
+
+class SkillRegistry:
+    """Manages skill discovery, loading, and grant resolution."""
+
+    def __init__(self):
+        self._metadata_cache = {}
+        self._permission_cache = {}
+
+    def list_effective_skills(self, user, agent_name, company=None):
+        """List skills available to a user for a given agent."""
+        cache_key = f"{user}:{agent_name}:{company or ''}"
+        if cache_key in self._permission_cache:
+            return self._permission_cache[cache_key]
+
+        grants = self._get_matching_grants(user, agent_name, company)
+        skills = []
+        for grant in grants:
+            skill_name = grant.skill
+            skill_doc = frappe.get_doc("AI Skill", skill_name)
+            if not skill_doc or not skill_doc.enabled:
+                continue
+            meta = self._get_skill_metadata(skill_name)
+            if meta:
+                skills.append(meta)
+
+        self._permission_cache[cache_key] = skills
+        return skills
+
+    def get_skill_metadata(self, skill_name, user, agent_name, company=None):
+        """Get metadata for a specific skill."""
+        return self._get_skill_metadata(skill_name)
+
+    def load_skill(self, skill_name, user, agent_name, company=None):
+        """Load full skill instructions and tool list."""
+        if not self._is_skill_granted(skill_name, user, agent_name, company):
+            raise SkillDenied(f"Skill '{skill_name}' is not granted to this user/agent.")
+
+        skill_doc = frappe.get_doc("AI Skill", skill_name)
+        if not skill_doc or not skill_doc.enabled:
+            raise SkillNotFound(f"Skill '{skill_name}' not found or disabled.")
+
+        instructions = ""
+        if skill_doc.source_type == "App File" and skill_doc.skill_path:
+            instructions = self._read_app_file_skill(skill_doc.skill_path)
+        elif skill_doc.source_type == "Database":
+            instructions = skill_doc.instructions or ""
+
+        tools = []
+        for tool_row in skill_doc.tools:
+            tools.append({
+                "tool_name": tool_row.tool_name,
+                "access_level": tool_row.access_level,
+                "requires_approval": tool_row.requires_approval,
+                "maximum_calls": tool_row.maximum_calls,
+            })
+
+        return {
+            "name": skill_name,
+            "title": skill_doc.title,
+            "description": skill_doc.description,
+            "instructions": instructions,
+            "tools": tools,
+            "version": skill_doc.version,
+        }
+
+    def sync_app_skills(self):
+        """Scan the skills directory and sync SKILL.md files to AI Skill DocType."""
+        if not os.path.isdir(SKILLS_DIR):
+            return
+
+        for entry in os.listdir(SKILLS_DIR):
+            skill_dir = os.path.join(SKILLS_DIR, entry)
+            if not os.path.isdir(skill_dir):
+                continue
+            skill_file = os.path.join(skill_dir, "SKILL.md")
+            if not os.path.isfile(skill_file):
+                continue
+
+            content = self._read_skill_file(skill_file)
+            meta = self._parse_frontmatter(content)
+            if not meta.get("name"):
+                continue
+
+            skill_name = meta["name"]
+            description = meta.get("description", "")
+            allow_implicit_invocation = self._as_bool(meta.get("allow_implicit_invocation"))
+            instructions = self._extract_instructions(content)
+            content_hash = hashlib.sha256(content.encode()).hexdigest()
+
+            existing = frappe.db.exists("AI Skill", skill_name)
+            if existing:
+                skill_doc = frappe.get_doc("AI Skill", skill_name)
+                changed = False
+                standard_values = {
+                    "title": skill_name.replace("-", " ").title(),
+                    "description": description,
+                    "source_type": "App File",
+                    "skill_path": entry,
+                    "instructions": instructions,
+                    "enabled": 1,
+                    "allow_implicit_invocation": allow_implicit_invocation,
+                    "trusted": 1,
+                    "content_hash": content_hash,
+                }
+                for field, value in standard_values.items():
+                    if skill_doc.get(field) != value:
+                        skill_doc.set(field, value)
+                        changed = True
+                if changed:
+                    skill_doc.save(ignore_permissions=True)
+            else:
+                skill_doc = frappe.get_doc({
+                    "doctype": "AI Skill",
+                    "skill_name": skill_name,
+                    "title": skill_name.replace("-", " ").title(),
+                    "description": description,
+                    "source_type": "App File",
+                    "skill_path": entry,
+                    "instructions": instructions,
+                    "enabled": 1,
+                    "allow_implicit_invocation": allow_implicit_invocation,
+                    "trusted": 1,
+                    "content_hash": content_hash,
+                })
+                skill_doc.insert(ignore_permissions=True)
+            if allow_implicit_invocation:
+                self._ensure_implicit_skill_grants(skill_name)
+
+        frappe.db.commit()
+
+    def _get_skill_metadata(self, skill_name):
+        if skill_name in self._metadata_cache:
+            return self._metadata_cache[skill_name]
+
+        try:
+            skill_doc = frappe.get_doc("AI Skill", skill_name)
+        except frappe.DoesNotExistError:
+            return None
+
+        meta = {
+            "name": skill_name,
+            "title": skill_doc.title,
+            "description": skill_doc.description,
+            "enabled": skill_doc.enabled,
+            "allow_implicit_invocation": skill_doc.allow_implicit_invocation,
+            "instructions": skill_doc.instructions if skill_doc.allow_implicit_invocation else "",
+        }
+        self._metadata_cache[skill_name] = meta
+        return meta
+
+    def _ensure_implicit_skill_grants(self, skill_name):
+        agents = frappe.get_all("AI Agent", filters={"enabled": 1}, pluck="name")
+        for agent_name in agents:
+            if self._global_skill_grant_exists(agent_name, skill_name):
+                continue
+            grant = frappe.get_doc({
+                "doctype": "AI Skill Grant",
+                "agent": agent_name,
+                "skill": skill_name,
+                "grant_type": "All Users",
+                "company": None,
+                "enabled": 1,
+            })
+            grant.insert(ignore_permissions=True)
+            frappe.db.set_value("AI Skill Grant", grant.name, "company", None, update_modified=False)
+
+    def _global_skill_grant_exists(self, agent_name, skill_name):
+        return bool(frappe.db.sql(
+            """
+            select name
+            from `tabAI Skill Grant`
+            where agent = %s
+              and skill = %s
+              and grant_type = 'All Users'
+              and ifnull(company, '') = ''
+            limit 1
+            """,
+            (agent_name, skill_name),
+        ))
+
+    def _as_bool(self, value):
+        if isinstance(value, bool):
+            return value
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+    def _get_matching_grants(self, user, agent_name, company=None):
+        """Find all grants matching user/agent/company."""
+        conditions = {"enabled": 1, "agent": agent_name}
+        grants = frappe.get_all("AI Skill Grant", filters=conditions, fields=["*"])
+
+        matched = []
+        user_roles = set(frappe.get_roles(user))
+
+        for grant in grants:
+            if grant.grant_type == "All Users":
+                matched.append(grant)
+            elif grant.grant_type == "Role" and grant.role in user_roles:
+                matched.append(grant)
+            elif grant.grant_type == "User" and grant.user == user:
+                matched.append(grant)
+
+            if company and grant.company and grant.company != company:
+                if grant in matched:
+                    matched.remove(grant)
+
+            if grant.valid_from and grant.valid_until:
+                now = frappe.utils.now_datetime()
+                if now < grant.valid_from or now > grant.valid_until:
+                    if grant in matched:
+                        matched.remove(grant)
+
+        return matched
+
+    def _is_skill_granted(self, skill_name, user, agent_name, company=None):
+        grants = self._get_matching_grants(user, agent_name, company)
+        return any(g.skill == skill_name for g in grants)
+
+    def _read_app_file_skill(self, skill_path):
+        safe_path = os.path.normpath(skill_path)
+        if ".." in safe_path:
+            return ""
+        full_path = os.path.join(SKILLS_DIR, safe_path, "SKILL.md")
+        if not os.path.isfile(full_path):
+            return ""
+        with open(full_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def _read_skill_file(self, path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def _parse_frontmatter(self, content):
+        if not content.startswith("---"):
+            return {}
+        try:
+            end = content.index("---", 3)
+            block = content[3:end].strip()
+            result = {}
+            for line in block.split("\n"):
+                if ":" in line:
+                    key, val = line.split(":", 1)
+                    result[key.strip()] = val.strip()
+            return result
+        except (ValueError, IndexError):
+            return {}
+
+    def _extract_instructions(self, content):
+        if content.startswith("---"):
+            try:
+                end = content.index("---", 3)
+                return content[end + 3:].strip()
+            except ValueError:
+                pass
+        return content.strip()
+
+    def clear_cache(self, user=None, agent_name=None):
+        """Clear permission and metadata caches."""
+        self._permission_cache.clear()
+        if user or agent_name:
+            keys_to_remove = [k for k in self._permission_cache if k.startswith(f"{user or ''}:{agent_name or ''}")]
+            for k in keys_to_remove:
+                del self._permission_cache[k]

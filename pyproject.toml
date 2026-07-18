@@ -1,0 +1,26 @@
+[project]
+name = "ai_agent"
+authors = [
+    { name = "a", email = "a@a.com"}
+]
+description = "AI Agent"
+requires-python = ">=3.13"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "Pillow>=10.0.0",
+    "pypdf>=5.0.0",
+    "PyMuPDF>=1.24.0",
+    "pytesseract>=0.3.10",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[deploy.dependencies.apt]
+packages = [
+    "tesseract-ocr",
+    "tesseract-ocr-ara",
+    "tesseract-ocr-eng",
+]

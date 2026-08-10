@@ -187,7 +187,7 @@ class Orchestrator:
                     attempt_key = self._tool_attempt_key(tool_name, arguments)
                     state["tool_attempts"][attempt_key] = state["tool_attempts"].get(attempt_key, 0) + 1
 
-                    step = self._add_step("Tool", f"Calling {tool_name}")
+                    step = self._add_step("Tool", self._tool_step_title(tool_name, arguments))
                     self.trace.update_run_status(
                         self.run_name,
                         RUN_STATUS_RUNNING,
@@ -210,7 +210,7 @@ class Orchestrator:
                         self.tool_gateway.skill_tools = result.get("tools", [])
                     self.trace.complete_step(
                         step.name,
-                        summary=self._summarize_tool_result(tool_name, result),
+                        summary=self._summarize_tool_result(tool_name, result, arguments),
                     )
 
                     model_result = self._compact_tool_result_for_model(tool_name, result)
@@ -235,7 +235,7 @@ class Orchestrator:
                     state["messages"].append({
                         "role": "tool",
                         "tool_call_id": tc.get("id", ""),
-                        "content": json.dumps(model_result, default=str, ensure_ascii=False)[:4000],
+                        "content": self._tool_result_content_for_model(tool_name, model_result),
                     })
 
                     if self._is_terminal_tool_result(tool_name, model_result):
@@ -257,7 +257,24 @@ class Orchestrator:
                 self.trace.complete_step(final_step.name)
                 return message["content"]
             else:
-                break
+                finish_reason = choice.get("finish_reason") or "unknown"
+                final_answer = self._try_final_answer_without_more_tools(
+                    state,
+                    "The prior model response had no content or tool calls. "
+                    "Produce the requested final answer now from the complete available evidence.",
+                )
+                if final_answer:
+                    final_step = self._add_step(
+                        "Final",
+                        "Recovering final answer after an empty model response",
+                        summary=final_answer[:500],
+                    )
+                    self.trace.complete_step(final_step.name)
+                    return final_answer
+                return self._complete_graceful_stop(
+                    state,
+                    f"The model returned no content or tool calls (finish reason: {finish_reason}).",
+                )
 
         if state.get("last_successful_report"):
             final_answer = self._answer_from_successful_report(state["last_successful_report"])
@@ -277,6 +294,7 @@ class Orchestrator:
     def _select_context_skills(self, effective_skills):
         priority = {
             "core-agent-behavior": 0,
+            "whatsapp-business-support": 1,
             "compound-document-operations": 1,
             "document-creation": 2,
             "document-workflow": 3,
@@ -289,6 +307,8 @@ class Orchestrator:
         return ordered[:12]
 
     def _try_local_fast_answer(self):
+        if self._is_whatsapp_support_agent():
+            return None
         if self._has_current_attachments():
             return None
         prompt = self._normalize_prompt(self.run.prompt)
@@ -334,6 +354,9 @@ class Orchestrator:
         )
 
     def _try_direct_answer_without_tools(self, context):
+        if self._is_whatsapp_support_agent():
+            return None
+
         user_message = ""
         for message in reversed(context.get("messages") or []):
             if message.get("role") == "user":
@@ -380,6 +403,21 @@ class Orchestrator:
             return route.get("answer")
         return None
 
+    def _is_whatsapp_support_agent(self):
+        if self.agent.name == "WhatsApp Technical Support":
+            return True
+        if self.agent.get("agent_name") == "WhatsApp Technical Support":
+            return True
+        try:
+            skills = self.skill_registry.list_effective_skills(
+                self.run.user,
+                self.run.agent,
+                self.run.company,
+            )
+        except Exception:
+            return False
+        return any(skill.get("name") == "whatsapp-business-support" for skill in skills or [])
+
     def _has_current_attachments(self):
         try:
             return bool(FileContextService().get_run_files(self.run_name))
@@ -414,7 +452,7 @@ class Orchestrator:
             )
             self._record_model_usage(response)
         except Exception:
-            return self._answer_from_tool_observations(state, reason)
+            return None
 
         choice = response.get("choices", [{}])[0]
         content = (choice.get("message", {}) or {}).get("content") or ""
@@ -469,7 +507,15 @@ class Orchestrator:
         return False
 
     def _complete_graceful_stop(self, state, reason):
-        final_answer = self._answer_from_tool_observations(state, reason)
+        final_answer = self._try_final_answer_without_more_tools(
+            state,
+            f"{reason} Use only the available tool results and produce a customer-facing final answer. Do not mention limits, tool names, debug details, or internal execution.",
+        )
+        if not final_answer:
+            final_answer = (
+                "تم استلام طلبك، لكن لم أتمكن من تجهيز النتيجة النهائية بالكامل الآن. "
+                "سأتابع البيانات المتاحة وأعود لك بالرد المناسب."
+            )
         final_step = self._add_step(
             "Final",
             "Graceful stop with available results",
@@ -494,7 +540,7 @@ class Orchestrator:
             "tool": tool_name,
             "arguments": arguments,
             "result": result,
-            "summary": self._summarize_tool_result(tool_name, result),
+            "summary": self._summarize_tool_result(tool_name, result, arguments),
         })
         if len(observations) > 12:
             del observations[:-12]
@@ -579,29 +625,25 @@ class Orchestrator:
     def _answer_from_tool_observations(self, state, reason):
         observations = state.get("tool_observations") or []
         if not observations:
-            return (
-                "لم أصل لإجابة نهائية لأن التنفيذ توقف قبل توفر نتائج كافية.\n\n"
-                f"- السبب التقني: {reason}\n"
-                "- لم يتم تنفيذ أدوات كافية يمكن تلخيصها.\n"
-                "- جرّب السؤال مرة أخرى بصياغة أوضح، أو حدّد نوع البيانات/الفترة المطلوبة."
-            )
+            return "تم استلام طلبك، ولم أتمكن من تجهيز النتيجة النهائية الآن. سيتم متابعة الطلب والرد عليك بالتفاصيل المناسبة."
 
         useful_observations = self._select_useful_observations(observations)
+        first = useful_observations[0] if useful_observations else {}
+        result = first.get("result") if isinstance(first, dict) else None
+        if isinstance(result, dict) and cint(result.get("row_count")) > 0:
+            rows = result.get("sample_rows") or result.get("rows") or []
+            summary = [f"تم العثور على {cint(result.get('row_count'))} سجل مطابق."]
+            if rows:
+                summary.append(f"أبرز نتيجة: {self._compact_summary(rows[0], limit=500)}")
+            return " ".join(summary)
+
         lines = [
-            "أوقفت التنفيذ بشكل آمن قبل الاستمرار في استهلاك خطوات إضافية، وهذه خلاصة ما توفر:",
-            "",
-            f"- السبب التقني: {reason}",
-            f"- الأدوات المنفذة: **{state.get('tool_call_count', len(observations))}**",
+            "وجدت نتائج مرتبطة بطلبك، لكن لم أتمكن من صياغة الرد النهائي بالكامل الآن.",
         ]
 
-        for observation in useful_observations[:5]:
+        for observation in useful_observations[:2]:
             lines.extend(self._format_observation(observation))
 
-        lines.append("")
-        lines.append(
-            "لم أترك التشغيل كـ Failed لأن عندي نتائج يمكن عرضها، "
-            "لكن الإجابة قد تكون جزئية إذا كانت الأدوات لم تصل لكل البيانات المطلوبة."
-        )
         return "\n".join(lines)
 
     def _select_useful_observations(self, observations):
@@ -679,26 +721,78 @@ class Orchestrator:
         lines.append(f"- النتيجة: `{self._compact_summary(result, limit=500)}`")
         return lines
 
-    def _summarize_tool_result(self, tool_name, result):
+    def _tool_step_title(self, tool_name, arguments):
+        if tool_name == "data.query":
+            spec = self._query_spec(arguments)
+            doctype = spec.get("doctype") or "السجلات"
+            return f"البحث في {doctype}"
+
+        if tool_name == "data.count":
+            return f"عدّ سجلات {arguments.get('doctype') or 'النظام'}"
+
+        if tool_name == "reports.run":
+            report_name = arguments.get("report_name") or arguments.get("name") or arguments.get("report") or ""
+            return f"تشغيل تقرير {report_name}".strip()
+
+        if tool_name == "reports.search":
+            return "البحث عن التقارير"
+
+        if tool_name == "reports.describe":
+            return "قراءة إعداد التقرير"
+
+        if tool_name == "schema.search_doctypes":
+            return "استكشاف أنواع المستندات"
+
+        if tool_name == "schema.describe_doctype":
+            return "قراءة بنية نوع المستند"
+
+        if tool_name == "skills.list":
+            return "فحص المهارات المتاحة"
+
+        if tool_name == "skills.load":
+            return f"تحميل مهارة {arguments.get('skill_name') or ''}".strip()
+
+        if tool_name.startswith("actions.request_"):
+            return "طلب موافقة"
+
+        if tool_name.startswith("actions.prepare_"):
+            return "تجهيز مستند"
+
+        if tool_name.startswith("actions.validate_"):
+            return "التحقق من مستند"
+
+        return f"تشغيل {tool_name}"
+
+    def _summarize_tool_result(self, tool_name, result, arguments=None):
+        arguments = arguments or {}
         if not isinstance(result, dict):
             return self._compact_summary(result)
 
         if result.get("error"):
-            return f"Error: {result.get('error')}"
+            return f"تعذر تنفيذ {self._tool_action_phrase(tool_name, arguments)}: {result.get('error')}"
+
+        if tool_name == "data.query":
+            return self._summarize_data_query(arguments, result)
+
+        if tool_name == "data.count":
+            return self._summarize_data_count(arguments, result)
 
         if tool_name == "reports.run":
+            report_name = arguments.get("report_name") or arguments.get("name") or arguments.get("report") or result.get("report", "Report")
+            filters_text = self._human_filters(arguments.get("filters") or result.get("filters") or {})
             if result.get("is_pending") or result.get("prepared_status") in ("Queued", "Started"):
                 return (
-                    f"{result.get('report', 'Report')}: prepared report "
-                    f"{result.get('prepared_status') or 'Pending'} "
-                    f"name={result.get('prepared_report_name') or 'unknown'}"
+                    f"شغلت التقرير {report_name}"
+                    f"{filters_text}. التقرير يحتاج تجهيز مسبق؛ الحالة "
+                    f"{result.get('prepared_status') or 'Pending'}، "
+                    f"Prepared Report={result.get('prepared_report_name') or 'unknown'}"
                 )
             summary = result.get("summary") or {}
             numeric_fields = summary.get("numeric_fields") or []
             return (
-                f"{result.get('report', 'Report')}: {result.get('row_count', 0)} rows, "
-                f"mode={result.get('payload_mode', 'compact')}, "
-                f"numeric_fields={', '.join(numeric_fields[:8]) or 'none'}"
+                f"شغلت التقرير {report_name}{filters_text}. "
+                f"رجع {result.get('row_count', 0)} صفوف، "
+                f"والحقول الرقمية المتاحة: {', '.join(numeric_fields[:8]) or 'لا يوجد'}"
             )
 
         if tool_name.startswith("actions."):
@@ -706,46 +800,121 @@ class Orchestrator:
             payload_summary = self._summarize_payload(payload) if payload else {}
             parts = []
             if result.get("doctype"):
-                parts.append(f"doctype={result.get('doctype')}")
+                parts.append(f"المستند={result.get('doctype')}")
             if result.get("approval_required"):
-                parts.append(f"approval={result.get('approval_id')}")
+                parts.append(f"بطاقة الموافقة={result.get('approval_id')}")
             if result.get("missing_fields"):
-                parts.append(f"missing={len(result.get('missing_fields') or [])}")
+                parts.append(f"حقول ناقصة={len(result.get('missing_fields') or [])}")
             if payload_summary:
                 parts.append(
-                    f"payload_fields={payload_summary.get('field_count', 0)} "
-                    f"child_rows={payload_summary.get('total_child_rows', 0)}"
+                    f"حقول={payload_summary.get('field_count', 0)} "
+                    f"صفوف فرعية={payload_summary.get('total_child_rows', 0)}"
                 )
             return "; ".join(parts) or self._compact_summary(result)
 
         if "doctypes" in result:
             names = [row.get("name") for row in result.get("doctypes", []) if row.get("name")]
-            return f"Found {result.get('count', len(names))} DocTypes: {', '.join(names[:10]) or 'none'}"
+            return f"وجدت {result.get('count', len(names))} DocTypes: {', '.join(names[:10]) or 'لا يوجد'}"
 
         if "fields" in result:
             return (
                 f"{result.get('name', tool_name)}: "
-                f"{len(result.get('fields', []))} fields, "
-                f"{len(result.get('links', []))} links, "
-                f"{len(result.get('child_tables', []))} child tables."
+                f"{len(result.get('fields', []))} حقول، "
+                f"{len(result.get('links', []))} روابط، "
+                f"{len(result.get('child_tables', []))} جداول فرعية."
             )
 
         if "rows" in result:
             rows = result.get("rows") or []
             if not rows:
-                return f"Query returned 0 rows. row_count={result.get('row_count', 0)}"
+                return f"{self._tool_action_phrase(tool_name, arguments)} ولم ترجع أي صفوف."
             return (
-                f"Query returned {result.get('row_count', len(rows))} rows. "
-                f"First row: {self._compact_summary(rows[0], limit=700)}"
+                f"{self._tool_action_phrase(tool_name, arguments)} ورجعت {result.get('row_count', len(rows))} صفوف. "
+                f"أول نتيجة: {self._compact_summary(rows[0], limit=700)}"
             )
 
         if "count" in result:
-            return f"Count: {result.get('count')}"
+            return f"{self._tool_action_phrase(tool_name, arguments)}. العدد: {result.get('count')}"
 
         if result.get("approval_required"):
-            return f"Approval required: {result.get('approval_id')}"
+            return f"تحتاج موافقة: {result.get('approval_id')}"
 
         return self._compact_summary(result)
+
+    def _summarize_data_query(self, arguments, result):
+        spec = self._query_spec(arguments)
+        doctype = spec.get("doctype") or "records"
+        fields = self._human_fields(spec.get("fields") or [])
+        filters = self._human_filters(spec.get("filters") or [])
+        order = f"، الترتيب: {spec.get('order_by')}" if spec.get("order_by") else ""
+        limit = f"، الحد: {spec.get('limit')}" if spec.get("limit") else ""
+        rows = result.get("rows") or []
+        prefix = f"بحثت في {doctype} عن {fields}{filters}{order}{limit}"
+        if not rows:
+            return f"{prefix}. النتيجة: لا توجد سجلات مطابقة."
+        return (
+            f"{prefix}. النتيجة: {result.get('row_count', len(rows))} سجلات. "
+            f"أول سجل: {self._compact_summary(rows[0], limit=700)}"
+        )
+
+    def _summarize_data_count(self, arguments, result):
+        doctype = arguments.get("doctype") or "records"
+        filters = self._human_filters(arguments.get("filters") or [])
+        return f"عديت سجلات {doctype}{filters}. النتيجة: {result.get('count', 0)}."
+
+    def _tool_action_phrase(self, tool_name, arguments):
+        if tool_name == "data.query":
+            spec = self._query_spec(arguments)
+            return f"بحثت في {spec.get('doctype') or 'السجلات'}"
+        if tool_name == "data.count":
+            return f"عديت سجلات {arguments.get('doctype') or 'النظام'}"
+        if tool_name == "reports.run":
+            return f"شغلت التقرير {arguments.get('report_name') or arguments.get('name') or arguments.get('report') or ''}".strip()
+        if tool_name == "skills.load":
+            return f"تحميل المهارة {arguments.get('skill_name') or ''}".strip()
+        return f"تنفيذ {tool_name}"
+
+    def _query_spec(self, arguments):
+        spec = arguments.get("specification") if isinstance(arguments, dict) else None
+        if isinstance(spec, dict):
+            return spec
+        return arguments if isinstance(arguments, dict) else {}
+
+    def _human_fields(self, fields):
+        if not fields:
+            return "الحقول الأساسية"
+        labels = []
+        for field in fields[:8]:
+            if isinstance(field, dict):
+                name = field.get("alias") or field.get("field") or field.get("aggregate")
+                aggregate = field.get("aggregate")
+                labels.append(f"{aggregate}({field.get('field')}) as {name}" if aggregate else str(name))
+            else:
+                labels.append(str(field))
+        suffix = "..." if len(fields) > 8 else ""
+        return ", ".join(labels) + suffix
+
+    def _human_filters(self, filters):
+        if not filters:
+            return ""
+        if isinstance(filters, dict):
+            items = [f"{key}={value}" for key, value in list(filters.items())[:8]]
+            suffix = "..." if len(filters) > 8 else ""
+            return f" مع الفلاتر: {', '.join(items)}{suffix}"
+        if isinstance(filters, list):
+            items = []
+            for flt in filters[:8]:
+                if isinstance(flt, dict):
+                    items.append(
+                        f"{flt.get('field')} {flt.get('operator') or '='} {flt.get('value')}"
+                    )
+                elif isinstance(flt, (list, tuple)) and len(flt) >= 3:
+                    items.append(f"{flt[0]} {flt[1]} {flt[2]}")
+                else:
+                    items.append(str(flt))
+            suffix = "..." if len(filters) > 8 else ""
+            return f" مع الفلاتر: {', '.join(items)}{suffix}"
+        return f" مع الفلاتر: {self._compact_summary(filters, limit=300)}"
 
     def _compact_summary(self, value, limit=900):
         text = json.dumps(value, ensure_ascii=False, default=str)
@@ -803,6 +972,13 @@ class Orchestrator:
             return compact or result
 
         return result
+
+    def _tool_result_content_for_model(self, tool_name, result):
+        """Preserve complete OCR session text while keeping ordinary tool results compact."""
+        content = json.dumps(result, default=str, ensure_ascii=False)
+        if tool_name == "financial_attachments.get_session_ocr_text":
+            return content
+        return content[:4000]
 
     def _summarize_payload(self, payload):
         if not isinstance(payload, dict):
@@ -1107,6 +1283,7 @@ class Orchestrator:
         if not final_answer:
             raise MYSYSAgentError("The model did not produce a final answer.")
 
+        final_answer = self._ensure_required_json_final(final_answer)
         final_answer = self._sanitize_final_answer(final_answer)
         self.run.reload()
         self.run.final_answer = final_answer
@@ -1121,8 +1298,101 @@ class Orchestrator:
         frappe.db.commit()
         self.trace.publish_realtime(REALTIME_EVENTS["run_completed"], self.run_name)
 
+    def _ensure_required_json_final(self, final_answer):
+        if not self._requires_json_final():
+            return final_answer
+        parsed = self._extract_json_object(final_answer)
+        if parsed is not None:
+            return json.dumps(parsed, ensure_ascii=False, default=str)
+
+        repair_step = self._add_step(
+            "Final",
+            "Repairing final JSON contract",
+            summary="The model returned prose where this run requires a JSON object.",
+        )
+        repaired = self._repair_json_final_answer(final_answer)
+        repaired_parsed = self._extract_json_object(repaired)
+        if repaired_parsed is None:
+            self.trace.complete_step(repair_step.name, summary="JSON repair failed; saved a reviewable fallback JSON response.")
+            return json.dumps(self._fallback_json_final_answer(final_answer), ensure_ascii=False, default=str)
+        self.trace.complete_step(repair_step.name, summary="JSON contract repaired.")
+        return json.dumps(repaired_parsed, ensure_ascii=False, default=str)
+
+    def _requires_json_final(self):
+        prompt = self.run.prompt or ""
+        markers = (
+            "Return one complete valid JSON object only",
+            "Return compact valid JSON only",
+            "The first character of the final answer must be `{`",
+        )
+        return any(marker in prompt for marker in markers)
+
+    def _repair_json_final_answer(self, final_answer):
+        prompt = self.run.prompt or ""
+        repair_prompt = (
+            "The previous answer violated the required JSON-only contract.\n"
+            "Convert the previous answer into one valid JSON object that follows the requested schema and preserves all visible facts.\n"
+            "Do not add Markdown fences, prose, or explanations. Return JSON only.\n\n"
+            "Original task prompt:\n"
+            f"{prompt[:12000]}\n\n"
+            "Previous invalid answer:\n"
+            f"{str(final_answer or '')[:12000]}"
+        )
+        response = self.provider.create_step(
+            instructions={
+                "messages": [
+                    {"role": "system", "content": "You repair invalid final answers into strict JSON only."},
+                    {"role": "user", "content": repair_prompt},
+                ],
+                "model": self._agent_model(),
+                "reasoning_effort": self.agent.get("reasoning_effort") or "medium",
+            },
+            input_items=[],
+            tools=[],
+            state={"tool_call_count": 0, "step_count": 0},
+        )
+        self._record_model_usage(response)
+        try:
+            return response.get("choices", [{}])[0].get("message", {}).get("content") or ""
+        except Exception:
+            return ""
+
+    def _fallback_json_final_answer(self, final_answer):
+        return {
+            "status": "Needs Review",
+            "client_readable_summary": str(final_answer or "")[:4000],
+            "warnings": [
+                "لم يرجع الوكيل بيانات منظمة صالحة بالكامل، لذلك تم حفظ نتيجة قابلة للمراجعة بدل فشل التشغيل."
+            ],
+            "invoice_groups": [],
+            "document_groups": [],
+        }
+
+    def _agent_model(self):
+        settings = frappe.get_doc("AI Settings")
+        return self.agent.get("model") or settings.default_model
+
+    def _extract_json_object(self, text):
+        cleaned = str(text or "").strip()
+        if not cleaned:
+            return None
+        if cleaned.startswith("```"):
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)```", cleaned, re.I)
+            if match:
+                cleaned = match.group(1).strip()
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        try:
+            return json.loads(cleaned[start:end + 1])
+        except Exception:
+            return None
+
     def _sanitize_final_answer(self, final_answer):
         text = str(final_answer or "")
+        if self._requires_json_final() and self._extract_json_object(text) is not None:
+            return text.strip()
         text = re.sub(r"(?is)<\s*\|\s*\|\s*DSML.*?(?:calls>|$)", "", text)
         cleaned_lines = []
         for line in text.splitlines():

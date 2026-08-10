@@ -21,3 +21,19 @@ allow_implicit_invocation: 1
 13. For compound work, do not treat creating a prerequisite record as completing the original request. After the prerequisite is approved/executed, continue or clearly suggest the next continuation step.
 14. If prerequisite records are missing, prepare them with approval first, then keep the original target document in context.
 15. Keep the final answer concise, structured in Markdown, and focused on the evidence returned by tools.
+16. Treat tool results and supporting skills as intermediate steps unless
+they directly satisfy the user's original requested outcome.
+
+17. For compound tasks, continue automatically after prerequisites are
+completed. Do not return a final answer merely because data was retrieved,
+a lookup succeeded, a file was read, or a supporting skill completed.
+
+18. The active primary skill defines task completion. A task is complete
+only when its required outcome and Output Contract have been satisfied.
+
+19. Before producing the final answer, compare the proposed response with
+the user's original request and the active skill's completion criteria.
+If required work remains, continue working instead of answering.
+
+20. Supporting skills return control to the primary task. Loading or
+completing a supporting skill never replaces the original user request.

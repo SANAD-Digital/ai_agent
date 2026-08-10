@@ -52,7 +52,8 @@ class ToolGateway:
         finally:
             self.ctx.run_name = previous_run_name
 
-        result = self._truncate_result(result)
+        max_bytes = 1024 * 1024 if tool_name == "financial_attachments.get_session_ocr_text" else 102400
+        result = self._truncate_result(result, max_bytes=max_bytes)
 
         self._audit_record(run_name, step_name, tool_name, arguments, result, "Executed")
 

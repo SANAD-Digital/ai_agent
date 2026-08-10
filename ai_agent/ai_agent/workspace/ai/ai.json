@@ -1,0 +1,221 @@
+{
+ "app": "ai_agent",
+ "charts": [],
+ "content": "[{\"id\":\"ai-agent-title\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>AI</b></span>\",\"col\":12}},{\"id\":\"ai-agent-intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"Run ERP AI analysis, review approvals, monitor tool activity, and configure agents from one workspace.\",\"col\":12}},{\"id\":\"ai-agent-shortcut-workspace\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agent Workspace\",\"col\":3}},{\"id\":\"ai-agent-shortcut-purchase-invoice-ai\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice AI\",\"col\":3}},{\"id\":\"ai-agent-shortcut-runs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Runs\",\"col\":3}},{\"id\":\"ai-agent-shortcut-approvals\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Approvals\",\"col\":3}},{\"id\":\"ai-agent-shortcut-agents\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agents\",\"col\":3}},{\"id\":\"ai-agent-spacer-1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"ai-agent-card-start\",\"type\":\"card\",\"data\":{\"card_name\":\"Start\",\"col\":4}},{\"id\":\"ai-agent-card-monitoring\",\"type\":\"card\",\"data\":{\"card_name\":\"Monitoring\",\"col\":4}},{\"id\":\"ai-agent-card-setup\",\"type\":\"card\",\"data\":{\"card_name\":\"Setup\",\"col\":4}}]",
+ "creation": "2026-07-14 00:00:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "bot",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "AI",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Start",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Agent Workspace",
+   "link_count": 0,
+   "link_to": "agent-workspace",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Purchase Invoice AI",
+   "link_count": 0,
+   "link_to": "purchase-invoice-ai",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Run",
+   "link_count": 0,
+   "link_to": "AI Run",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Approval Request",
+   "link_count": 0,
+   "link_to": "AI Approval Request",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Monitoring",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Tool Call",
+   "link_count": 0,
+   "link_to": "AI Tool Call",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Memory",
+   "link_count": 0,
+   "link_to": "AI Memory",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Setup",
+   "link_count": 7,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Settings",
+   "link_count": 0,
+   "link_to": "AI Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Gemini OCR Settings",
+   "link_count": 0,
+   "link_to": "Gemini OCR Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Chatbot Settings",
+   "link_count": 0,
+   "link_to": "AI Chatbot Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Chatbot Conversations",
+   "link_count": 0,
+   "link_to": "AI Chatbot Conversation",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Agent",
+   "link_count": 0,
+   "link_to": "AI Agent",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Skill",
+   "link_count": 0,
+   "link_to": "AI Skill",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Skill Grant",
+   "link_count": 0,
+   "link_to": "AI Skill Grant",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-10 17:14:02.549543",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 4.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "label": "Agent Workspace",
+   "link_to": "agent-workspace",
+   "type": "Page"
+  },
+  {
+   "color": "Red",
+   "doc_view": "",
+   "label": "Purchase Invoice AI",
+   "link_to": "purchase-invoice-ai",
+   "type": "Page"
+  },
+  {
+   "color": "Green",
+   "label": "Runs",
+   "link_to": "AI Run",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "label": "Approvals",
+   "link_to": "AI Approval Request",
+   "type": "DocType"
+  },
+  {
+   "color": "Purple",
+   "label": "Agents",
+   "link_to": "AI Agent",
+   "type": "DocType"
+  }
+ ],
+ "title": "AI",
+ "type": "Workspace"
+}

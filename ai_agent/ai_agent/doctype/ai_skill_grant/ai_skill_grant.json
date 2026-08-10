@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "hash",
- "creation": "2025-01-01 00:00:00.000000",
+ "creation": "2025-01-01 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -44,51 +44,45 @@
    "reqd": 1
   },
   {
+   "depends_on": "eval:doc.grant_type=='Role'",
    "fieldname": "role",
    "fieldtype": "Link",
-   "in_list_view": 0,
    "label": "Role",
-   "options": "Role",
-   "depends_on": "eval:dco.grant_type=='Role'"
+   "options": "Role"
   },
   {
+   "depends_on": "eval:doc.grant_type=='User'",
    "fieldname": "user",
    "fieldtype": "Link",
-   "in_list_view": 0,
    "label": "User",
-   "options": "User",
-   "depends_on": "eval:dco.grant_type=='User'"
+   "options": "User"
   },
   {
    "fieldname": "company",
    "fieldtype": "Link",
-   "in_list_view": 0,
    "label": "Company",
    "options": "Company"
   },
   {
+   "default": "1",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Enabled",
-   "default": 1
+   "label": "Enabled"
   },
   {
    "fieldname": "valid_from",
    "fieldtype": "Datetime",
-   "in_list_view": 0,
    "label": "Valid From"
   },
   {
    "fieldname": "valid_until",
    "fieldtype": "Datetime",
-   "in_list_view": 0,
    "label": "Valid Until"
   }
  ],
- "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2025-01-01 00:00:00.000000",
+ "modified": "2026-07-29 17:33:26.034594",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Skill Grant",
@@ -96,16 +90,16 @@
  "owner": "Administrator",
  "permissions": [
   {
-   "role": "System Manager",
-   "read": 1,
-   "write": 1,
    "create": 1,
-   "delete": 1
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "agent",
- "track_changes": 0
+ "title_field": "agent"
 }

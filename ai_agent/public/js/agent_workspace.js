@@ -53,7 +53,6 @@ ai_agent.WorkspacePage = class WorkspacePage {
                 only_select: true,
                 onchange: () => {
                     this.agent = this.agent_dropdown.get_value();
-                    this.load_skills();
                 },
             },
             render_input: true,
@@ -85,9 +84,6 @@ ai_agent.WorkspacePage = class WorkspacePage {
                 </div>
             </div>
         `);
-
-        // Skills bar
-        this.page.main.append('<div class="skills-bar"></div>');
 
         // Run status
         this.page.main.append('<div class="run-status" style="display:none"></div>');
@@ -176,25 +172,6 @@ ai_agent.WorkspacePage = class WorkspacePage {
         if (result && result.agents) {
             this.agents = result.agents;
         }
-    }
-
-    async load_skills() {
-        if (!this.agent) return;
-        const result = await frappe.xcall("ai_agent.api.list_available_skills", {
-            agent: this.agent,
-            company: this.company,
-        });
-        if (result && result.skills) {
-            this.render_skills(result.skills);
-        }
-    }
-
-    render_skills(skills) {
-        const bar = this.page.main.find(".skills-bar");
-        bar.empty();
-        skills.forEach((skill) => {
-            bar.append(`<span class="skill-tag" data-skill="${skill.name}" title="${skill.description || ""}">${skill.title || skill.name}</span>`);
-        });
     }
 
     async submit_run() {

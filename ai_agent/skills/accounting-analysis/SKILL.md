@@ -12,3 +12,4 @@ description: Use for GL analysis, account balances, journal entries, fiscal year
 5. Respect account and company level permissions.
 6. Do not suggest accounting entries without document action + approval.
 7. Always state the company, period, and currency used.
+

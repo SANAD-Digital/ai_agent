@@ -1,0 +1,277 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-07-29 02:05:00.000000",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "status",
+  "request_type",
+  "priority",
+  "section_whatsapp",
+  "whatsapp_number",
+  "chat_jid",
+  "message_id",
+  "column_break_whatsapp",
+  "received_log",
+  "whatsapp_log",
+  "ai_run",
+  "section_customer",
+  "customer",
+  "customer_name",
+  "company",
+  "column_break_customer",
+  "issue",
+  "assigned_department",
+  "meeting_requested",
+  "section_request",
+  "subject",
+  "customer_message",
+  "agent_reply",
+  "requested_item_service",
+  "quantity",
+  "section_timing",
+  "first_seen_at",
+  "last_message_at",
+  "source_payload"
+ ],
+ "fields": [
+  {
+   "default": "AI-WA-REQ-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "AI-WA-REQ-.YYYY.-",
+   "reqd": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Open\nIn Progress\nWaiting Customer\nEscalated\nCompleted\nCancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "request_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Request Type",
+   "options": "General Chat\nTechnical Support\nAccount Statement\nBalance\nPayment Voucher\nQuotation\nSales Order\nProduct Inquiry\nExpense Voucher\nOther",
+   "reqd": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nUrgent"
+  },
+  {
+   "fieldname": "section_whatsapp",
+   "fieldtype": "Section Break",
+   "label": "WhatsApp"
+  },
+  {
+   "fieldname": "whatsapp_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "WhatsApp Number"
+  },
+  {
+   "fieldname": "chat_jid",
+   "fieldtype": "Data",
+   "label": "Chat JID"
+  },
+  {
+   "fieldname": "message_id",
+   "fieldtype": "Data",
+   "label": "Message ID",
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_whatsapp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "received_log",
+   "fieldtype": "Link",
+   "label": "Received Log",
+   "options": "WhatsApp Webhook Message Received Log"
+  },
+  {
+   "fieldname": "whatsapp_log",
+   "fieldtype": "Link",
+   "label": "WhatsApp Log",
+   "options": "WhatsApp Log"
+  },
+  {
+   "fieldname": "ai_run",
+   "fieldtype": "Link",
+   "label": "AI Run",
+   "options": "AI Run"
+  },
+  {
+   "fieldname": "section_customer",
+   "fieldtype": "Section Break",
+   "label": "Customer"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_customer",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "assigned_department",
+   "fieldtype": "Data",
+   "label": "Assigned Department"
+  },
+  {
+   "default": "0",
+   "fieldname": "meeting_requested",
+   "fieldtype": "Check",
+   "label": "Meeting Requested"
+  },
+  {
+   "fieldname": "section_request",
+   "fieldtype": "Section Break",
+   "label": "Request"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_message",
+   "fieldtype": "Text",
+   "label": "Customer Message"
+  },
+  {
+   "fieldname": "agent_reply",
+   "fieldtype": "Text",
+   "label": "Agent Reply"
+  },
+  {
+   "fieldname": "requested_item_service",
+   "fieldtype": "Data",
+   "label": "Requested Item / Service"
+  },
+  {
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "label": "Quantity"
+  },
+  {
+   "fieldname": "section_timing",
+   "fieldtype": "Section Break",
+   "label": "Timing"
+  },
+  {
+   "fieldname": "first_seen_at",
+   "fieldtype": "Datetime",
+   "label": "First Seen At"
+  },
+  {
+   "fieldname": "last_message_at",
+   "fieldtype": "Datetime",
+   "label": "Last Message At"
+  },
+  {
+   "fieldname": "source_payload",
+   "fieldtype": "Code",
+   "label": "Source Payload",
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-07-29 02:05:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI WhatsApp Request",
+ "naming_rule": "By naming series",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Support Team",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

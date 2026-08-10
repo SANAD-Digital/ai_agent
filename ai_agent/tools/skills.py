@@ -6,7 +6,7 @@ from ai_agent.runtime.skill_registry import SkillRegistry
 def handle_list(arguments, permission_context):
     """Handle skills.list tool call."""
     registry = SkillRegistry()
-    agent_name = arguments.get("agent")
+    agent_name = permission_context.agent_name or arguments.get("agent")
     skills = registry.list_effective_skills(
         permission_context.user, agent_name, permission_context.company
     )
@@ -19,7 +19,7 @@ def handle_load(arguments, permission_context):
     if not skill_name:
         return {"error": "skill_name is required"}
 
-    agent_name = arguments.get("agent")
+    agent_name = permission_context.agent_name or arguments.get("agent")
     registry = SkillRegistry()
     try:
         skill = registry.load_skill(
@@ -40,7 +40,10 @@ def handle_read_reference(arguments, permission_context):
     registry = SkillRegistry()
     try:
         skill = registry.load_skill(
-            skill_name, permission_context.user, None, permission_context.company
+            skill_name,
+            permission_context.user,
+            permission_context.agent_name,
+            permission_context.company,
         )
         return {"skill": skill_name, "reference": skill.get("instructions", "")}
     except Exception as e:

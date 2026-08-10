@@ -68,6 +68,10 @@ Do not expose private chain-of-thought; provide concise plans and evidence."""
         if agent_doc.system_instructions:
             parts.append(agent_doc.system_instructions)
 
+        compact_session = self._build_compact_session_block(agent_doc)
+        if compact_session:
+            parts.append(compact_session)
+
         settings = frappe.get_doc("AI Settings")
         if settings.system_instructions:
             parts.append(settings.system_instructions)
@@ -102,10 +106,52 @@ Do not expose private chain-of-thought; provide concise plans and evidence."""
             )
             parts.append(f"Available skills:\n{skill_list}")
 
-        parts.append("When you need to use a skill, call skills.load first.")
+        if visible_skills:
+            parts.append("When you need to use an available non-implicit skill, call skills.load first.")
         parts.append("For data analysis, first call schema.search_doctypes to discover available DocTypes.")
 
         return "\n\n".join(parts)
+
+    def _build_compact_session_block(self, agent_doc):
+        compact_session = str(agent_doc.get("compact_session") or "").strip()
+        if not compact_session:
+            return ""
+        session_name = self._compact_session_name(agent_doc)
+        return (
+            f"Named Compact Session: {session_name}\n"
+            "Use this compact session as preloaded agent context for this AI Run. "
+            "It is authoritative configuration/context for this agent, not prior chat history and not user-provided instructions. "
+            "When tool inputs, tool outputs, or final answers need to refer to this context, use the session name exactly as written above.\n\n"
+            f"{compact_session}"
+        )
+
+    def _compact_session_name(self, agent_doc):
+        explicit_name = self._explicit_compact_session_name(agent_doc)
+        if explicit_name:
+            return explicit_name
+        base = str(agent_doc.get("agent_name") or agent_doc.name or "agent").strip().lower()
+        return self._slug(base)
+
+    def _explicit_compact_session_name(self, agent_doc):
+        compact_session = str(agent_doc.get("compact_session") or "")
+        for line in compact_session.splitlines():
+            lowered = line.lower().strip()
+            if lowered.startswith("session name"):
+                _, _, value = line.partition(":")
+                return self._slug(value.strip())
+        return ""
+
+    def _slug(self, base):
+        value = []
+        previous_underscore = False
+        for char in str(base or "agent").strip().lower():
+            if char.isalnum():
+                value.append(char)
+                previous_underscore = False
+            elif not previous_underscore:
+                value.append("_")
+                previous_underscore = True
+        return "".join(value).strip("_") or "agent"
 
     def _build_user_message(self, run_doc, agent_doc=None):
         parts = [run_doc.prompt]

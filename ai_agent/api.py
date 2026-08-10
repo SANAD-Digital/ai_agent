@@ -20,6 +20,12 @@ MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 ALLOWED_ATTACHMENT_EXTENSIONS = {
     ".csv", ".json", ".txt", ".md", ".log", ".pdf", ".xlsx", ".xls", ".png", ".jpg", ".jpeg", ".webp",
 }
+CHAT_RUN_FIELDS = [
+    "name", "agent", "company", "prompt", "status", "final_answer",
+    "error_summary", "parent_run", "creation", "modified", "started_at",
+    "completed_at", "current_step", "tool_call_count", "input_tokens",
+    "output_tokens",
+]
 
 
 @frappe.whitelist()
@@ -32,8 +38,8 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
     if not settings.enabled:
         frappe.throw(_("Agent system is disabled."))
 
-    if not prompt or len(prompt) > 50000:
-        frappe.throw(_("Prompt must be between 1 and 50,000 characters."))
+    if not prompt or len(prompt) > 1000000:
+        frappe.throw(_("Prompt must be between 1 and 1000,000 characters."))
 
     if not frappe.db.exists("AI Agent", {"name": agent, "enabled": 1}):
         frappe.throw(_("Agent not found or disabled."))
@@ -52,7 +58,11 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
     if idempotency_key:
         existing = frappe.db.exists("AI Run", {"idempotency_key": idempotency_key})
         if existing:
-            return {"run_name": existing, "status": "already_exists"}
+            return {
+                "run_name": existing,
+                "status": "already_exists",
+                "compact_session_name": _agent_compact_session_name(agent_doc),
+            }
 
     run = frappe.get_doc({
         "doctype": "AI Run",
@@ -77,7 +87,11 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
         run.completed_at = frappe.utils.now_datetime()
         run.save(ignore_permissions=True)
         frappe.db.commit()
-        return {"run_name": run.name, "status": "completed"}
+        return {
+            "run_name": run.name,
+            "status": "completed",
+            "compact_session_name": _agent_compact_session_name(agent_doc),
+        }
 
     frappe.db.commit()
 
@@ -86,6 +100,7 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
     return {
         "run_name": run.name,
         "status": "queued",
+        "compact_session_name": _agent_compact_session_name(agent_doc),
         "execution_status": _run_execution_status(run),
     }
 
@@ -155,6 +170,7 @@ def list_chat_sessions(limit=30):
             "status": run.status,
             "agent": run.agent,
             "company": run.company,
+            "compact_session_name": _agent_compact_session_name(run.agent),
             "modified": run.modified,
             "message_count": 0,
         })
@@ -164,6 +180,9 @@ def list_chat_sessions(limit=30):
                 "latest_run": run.name,
                 "preview": _run_preview(run),
                 "status": run.status,
+                "agent": run.agent,
+                "company": run.company,
+                "compact_session_name": _agent_compact_session_name(run.agent),
                 "modified": run.modified,
             })
         root_run = by_name.get(root)
@@ -177,23 +196,11 @@ def list_chat_sessions(limit=30):
 @frappe.whitelist()
 def get_chat_messages(root_run):
     """Return messages for one chat session."""
-    root = frappe.get_doc("AI Run", root_run)
-    _assert_run_access(root)
+    requested = frappe.get_doc("AI Run", root_run)
+    _assert_run_access(requested)
 
-    runs = frappe.get_all(
-        "AI Run",
-        filters=_run_access_filters(),
-        fields=[
-            "name", "agent", "company", "prompt", "status", "final_answer",
-            "error_summary", "parent_run", "creation", "modified", "started_at",
-            "completed_at", "current_step", "tool_call_count", "input_tokens",
-            "output_tokens",
-        ],
-        order_by="creation asc",
-        page_length=500,
-    )
-    by_name = {run.name: run for run in runs}
-    chain = [run for run in runs if _find_root_run(run, by_name) == root_run]
+    root_name = _resolve_root_run_name(requested)
+    chain = _get_chat_run_chain(root_name)
     chain.sort(key=lambda run: run.creation)
 
     messages = []
@@ -215,6 +222,7 @@ def get_chat_messages(root_run):
             "status": run.status,
             "agent": run.agent,
             "company": run.company,
+            "compact_session_name": _agent_compact_session_name(run.agent),
             "created_at": run.completed_at or run.modified,
             "current_step": run.current_step,
             "tool_call_count": run.tool_call_count,
@@ -226,9 +234,13 @@ def get_chat_messages(root_run):
             "artifacts": artifacts,
         })
 
+    latest = chain[-1] if chain else requested
     return {
-        "root_run": root_run,
-        "latest_run": chain[-1].name if chain else root_run,
+        "root_run": root_name,
+        "latest_run": latest.name,
+        "latest_agent": latest.agent,
+        "latest_company": latest.company,
+        "compact_session_name": _agent_compact_session_name(latest.agent),
         "messages": messages,
     }
 
@@ -555,6 +567,7 @@ def get_run(run_name):
         "tool_call_count": run.tool_call_count,
         "input_tokens": run.input_tokens,
         "output_tokens": run.output_tokens,
+        "compact_session_name": _agent_compact_session_name(run.agent),
         "token_usage": _token_usage_for_run(run),
         "execution_status": _run_execution_status(run) if run.status == "Queued" else None,
     }
@@ -690,9 +703,50 @@ def list_available_agents():
     agents = frappe.get_all(
         "AI Agent",
         filters={"enabled": 1},
-        fields=["name", "agent_name", "description", "read_only", "allow_actions"],
+        fields=["name", "agent_name", "description", "read_only", "allow_actions", "compact_session"],
     )
+    for agent in agents:
+        agent["compact_session_name"] = _agent_compact_session_name(agent)
+        agent["has_compact_session"] = bool(agent.get("compact_session"))
+        agent.pop("compact_session", None)
     return {"agents": agents}
+
+
+def _agent_compact_session_name(agent):
+    if isinstance(agent, str):
+        row = frappe.db.get_value("AI Agent", agent, ["agent_name", "compact_session"], as_dict=True) or {}
+        agent_name = row.get("agent_name") or agent
+        compact_session = row.get("compact_session") or ""
+    else:
+        agent_name = agent.get("agent_name") or agent.get("name") or "agent"
+        compact_session = agent.get("compact_session") or ""
+    explicit = _explicit_compact_session_name(compact_session)
+    if explicit:
+        return explicit
+    return _slug_compact_session_name(agent_name)
+
+
+def _explicit_compact_session_name(compact_session):
+    for line in str(compact_session or "").splitlines():
+        lowered = line.lower().strip()
+        if lowered.startswith("session name"):
+            _, _, value = line.partition(":")
+            return _slug_compact_session_name(value)
+    return ""
+
+
+def _slug_compact_session_name(value):
+    base = str(value or "agent").strip().lower()
+    value = []
+    previous_underscore = False
+    for char in base:
+        if char.isalnum():
+            value.append(char)
+            previous_underscore = False
+        elif not previous_underscore:
+            value.append("_")
+            previous_underscore = True
+    return "".join(value).strip("_") or "agent"
 
 
 @frappe.whitelist()
@@ -814,6 +868,12 @@ def _run_access_filters():
     if _is_system_manager():
         return {}
     return {"user": frappe.session.user}
+
+
+def _run_access_filters_with(extra):
+    filters = dict(_run_access_filters())
+    filters.update(extra or {})
+    return filters
 
 
 def _assert_run_access(run):
@@ -1011,6 +1071,56 @@ def _find_root_run(run, by_name):
             return current.parent_run
         current = parent
     return current.name if current else run.name
+
+
+def _resolve_root_run_name(run):
+    seen = set()
+    current = run
+    while current and current.parent_run and current.parent_run not in seen:
+        seen.add(current.name)
+        if not frappe.db.exists("AI Run", current.parent_run):
+            break
+        parent = frappe.get_doc("AI Run", current.parent_run)
+        _assert_run_access(parent)
+        current = parent
+    return current.name if current else run.name
+
+
+def _get_chat_run_chain(root_name):
+    runs_by_name = {}
+    processed = set()
+    frontier = [root_name]
+
+    while frontier and len(runs_by_name) < 1000:
+        current_names = [name for name in frontier if name not in processed]
+        frontier = []
+        if not current_names:
+            continue
+        processed.update(current_names)
+
+        current_runs = frappe.get_all(
+            "AI Run",
+            filters=_run_access_filters_with({"name": ["in", current_names]}),
+            fields=CHAT_RUN_FIELDS,
+            page_length=len(current_names),
+        )
+        for run in current_runs:
+            runs_by_name[run.name] = run
+
+        child_runs = frappe.get_all(
+            "AI Run",
+            filters=_run_access_filters_with({"parent_run": ["in", current_names]}),
+            fields=CHAT_RUN_FIELDS,
+            order_by="creation asc",
+            page_length=1000,
+        )
+        for child in child_runs:
+            if child.name not in runs_by_name:
+                runs_by_name[child.name] = child
+            if child.name not in processed:
+                frontier.append(child.name)
+
+    return list(runs_by_name.values())
 
 
 def _run_preview(run):

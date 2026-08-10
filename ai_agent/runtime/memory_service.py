@@ -13,7 +13,7 @@ class MemoryService:
         settings = frappe.get_doc("AI Settings")
         return settings.get("enable_memory", 0)
 
-    def store(self, user, scope, memory_type, content, company=None, sensitivity="Low"):
+    def store(self, user, scope, memory_type, content, company=None, agent=None, sensitivity="Low"):
         """Store a memory entry."""
         if not self.is_enabled():
             return None
@@ -21,6 +21,7 @@ class MemoryService:
         memory = frappe.get_doc({
             "doctype": "AI Memory",
             "user": user,
+            "agent": agent if scope == "Agent" else None,
             "scope": scope,
             "memory_type": memory_type,
             "content": content,
@@ -30,12 +31,18 @@ class MemoryService:
         frappe.db.commit()
         return memory
 
-    def retrieve(self, user, scope="User", memory_type=None, company=None):
+    def retrieve(self, user, scope="User", memory_type=None, company=None, agent=None):
         """Retrieve memories for a user."""
         if not self.is_enabled():
             return []
 
-        filters = {"user": user, "scope": scope}
+        filters = {"scope": scope}
+        if scope == "User":
+            filters["user"] = user
+        elif scope == "Agent":
+            if not agent:
+                return []
+            filters["agent"] = agent
         if memory_type:
             filters["memory_type"] = memory_type
 
@@ -54,8 +61,8 @@ class MemoryService:
         """Build compact long-term memory context for model prompts."""
         memories = []
         for scope in ("User", "Agent", "Company"):
-            memories.extend(self.retrieve(user=user, scope=scope, memory_type="Summary", company=company))
-            memories.extend(self.retrieve(user=user, scope=scope, memory_type="Context", company=company))
+            memories.extend(self.retrieve(user=user, scope=scope, memory_type="Summary", company=company, agent=agent))
+            memories.extend(self.retrieve(user=user, scope=scope, memory_type="Context", company=company, agent=agent))
 
         filtered = []
         for memory in memories:
@@ -95,6 +102,7 @@ class MemoryService:
             memory_type=memory_type,
             content=content,
             company=run_doc.company,
+            agent=run_doc.agent,
             sensitivity=sensitivity,
         )
 

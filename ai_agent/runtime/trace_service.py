@@ -36,18 +36,30 @@ class TraceService:
             step.duration_ms = int(delta.total_seconds() * 1000)
         if summary:
             step.summary = summary
-        step.save(ignore_permissions=True)
+        try:
+            db_modified = frappe.db.get_value("AI Run Step", step.name, "modified")
+            if db_modified:
+                step.modified = db_modified
+            step.flags.ignore_version = True
+            step.save(ignore_permissions=True, ignore_version=True)
+        except Exception:
+            values = {
+                "status": status,
+                "completed_at": step.completed_at,
+                "duration_ms": step.duration_ms,
+            }
+            if summary:
+                values["summary"] = summary
+            frappe.db.set_value("AI Run Step", step.name, values, update_modified=False)
         frappe.db.commit()
         self._publish_event("ai_agent:step_added", step.run)
 
     def update_run_status(self, run_name, status, **kwargs):
         """Update the run status and optional fields."""
-        run = frappe.get_doc("AI Run", run_name)
-        run.status = status
+        values = {"status": status}
         for key, val in kwargs.items():
-            if hasattr(run, key):
-                setattr(run, key, val)
-        run.save(ignore_permissions=True)
+            values[key] = val
+        frappe.db.set_value("AI Run", run_name, values)
         frappe.db.commit()
         self._publish_event("ai_agent:run_updated", run_name)
 

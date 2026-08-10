@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "Gemini OCR Settings",
+ "creation": "2026-08-01 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "ocr_engine",
+  "api_key",
+  "column_break_api",
+  "base_url",
+  "model",
+  "behavior_section",
+  "prompt",
+  "column_break_behavior",
+  "fallback_to_tesseract",
+  "request_timeout",
+  "max_inline_image_bytes",
+  "max_output_chars"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "default": "Cloud API (Gemini OCR)",
+   "fieldname": "ocr_engine",
+   "fieldtype": "Select",
+   "label": "OCR Engine Mode",
+   "options": "Cloud API (Gemini OCR)\nLocal Engine (PaddleOCR / PyMuPDF)"
+  },
+  {
+   "depends_on": "eval:doc.enabled && doc.ocr_engine == 'Cloud API (Gemini OCR)'",
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "Gemini API Key"
+  },
+  {
+   "fieldname": "column_break_api",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "https://generativelanguage.googleapis.com/v1beta",
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "Base URL",
+   "reqd": 1
+  },
+  {
+   "default": "gemini-3.5-flash",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "reqd": 1
+  },
+  {
+   "fieldname": "behavior_section",
+   "fieldtype": "Section Break",
+   "label": "OCR Behavior"
+  },
+  {
+   "default": "Extract all visible text from this invoice or document image. Preserve line breaks, numbers, currency values, item tables, Arabic text, and English text. Return plain text only.",
+   "fieldname": "prompt",
+   "fieldtype": "Small Text",
+   "label": "OCR Prompt"
+  },
+  {
+   "fieldname": "column_break_behavior",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Only enable this if you want the slower local Tesseract OCR to run after Gemini returns no readable text.",
+   "fieldname": "fallback_to_tesseract",
+   "fieldtype": "Check",
+   "label": "Fallback To Tesseract"
+  },
+  {
+   "default": "25",
+   "fieldname": "request_timeout",
+   "fieldtype": "Int",
+   "label": "Request Timeout (seconds)"
+  },
+  {
+   "default": "8000000",
+   "description": "Inline Gemini image requests should stay below the API request-size limit.",
+   "fieldname": "max_inline_image_bytes",
+   "fieldtype": "Int",
+   "label": "Max Inline Image Bytes"
+  },
+  {
+   "default": "8000",
+   "fieldname": "max_output_chars",
+   "fieldtype": "Int",
+   "label": "Max Output Characters"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "Gemini OCR Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

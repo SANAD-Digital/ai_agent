@@ -9,6 +9,10 @@ app_license = "mit"
 # app_include_css = "/assets/ai_agent/css/agent_workspace.css"
 # app_include_js = "/assets/ai_agent/js/agent_workspace.js"
 
+# Floating AI chatbot / technical support widget
+app_include_css = "/assets/ai_agent/css/chatbot_widget.css"
+app_include_js = "/assets/ai_agent/js/chatbot_widget.js"
+
 # Installation
 after_install = "ai_agent.install.after_install"
 after_migrate = "ai_agent.install.after_migrate"
@@ -23,5 +27,14 @@ scheduler_events = {
     ],
 }
 
+# WhatsApp Support Engine
+doc_events = {
+    "WhatsApp Webhook Message Received Log": {
+        "after_insert": "ai_agent.whatsapp_support.events.on_message_received",
+    },
+}
+
 # Override whitelisted methods if needed
 # override_whitelisted_methods = {}
+
+

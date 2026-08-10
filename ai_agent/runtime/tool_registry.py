@@ -81,6 +81,20 @@ TOOL_PARAMETER_SCHEMAS = {
         },
         "required": ["doctype"],
     },
+    "financial_attachments.get_session_ocr_text": {
+        "type": "object",
+        "properties": {"session_name": {"type": "string"}},
+        "required": ["session_name"],
+    },
+    "financial_attachments.list_leaf_accounts": {
+        "type": "object",
+        "properties": {
+            "company": {"type": "string"},
+            "account_types": {"type": "array", "items": {"type": "string"}, "maxItems": 10},
+            "search": {"type": "string"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        },
+    },
     "reports.search": {
         "type": "object",
         "properties": {
@@ -119,6 +133,31 @@ TOOL_PARAMETER_SCHEMAS = {
             },
         },
         "required": ["report_name"],
+    },
+    "memory.search": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "Keyword, supplier, item, account, or mapping to search in AI memory."},
+            "company": {"type": "string"},
+            "agent": {"type": "string"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+        },
+        "required": ["query"],
+    },
+    "memory.store_context": {
+        "type": "object",
+        "properties": {
+            "content": {
+                "type": "string",
+                "description": "Compact reusable lesson or mapping confirmed by the user or by a successful approved document action.",
+            },
+            "scope": {"type": "string", "description": "User, Agent, or Company. Defaults to Agent."},
+            "memory_type": {"type": "string", "description": "Context or Summary. Defaults to Context."},
+            "company": {"type": "string"},
+            "agent": {"type": "string"},
+            "sensitivity": {"type": "string", "description": "Low, Medium, or High. Defaults to Medium."},
+        },
+        "required": ["content"],
     },
     "actions.prepare_document": {
         "type": "object",
@@ -228,10 +267,15 @@ class ToolRegistry:
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
             {"name": "data.count", "description": "Count records matching filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_count"},
+            {"name": "financial_attachments.get_session_ocr_text", "description": "Get only the ready OCR text from a Financial Attachment Session", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_get_session_ocr_text"},
+            {"name": "financial_attachments.list_leaf_accounts", "description": "List leaf accounts with only account name and account type", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_list_leaf_accounts"},
             # Reports
             {"name": "reports.search", "description": "Search available reports", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_search"},
             {"name": "reports.describe", "description": "Describe a report's filters and columns", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_describe"},
             {"name": "reports.run", "description": "Run a report with filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_run"},
+            # Memory
+            {"name": "memory.search", "description": "Search reusable AI memory for mappings and prior confirmed context", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.memory.handle_search"},
+            {"name": "memory.store_context", "description": "Store reusable AI memory such as confirmed account mappings", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.memory.handle_store_context"},
             # Artifacts
             {"name": "artifacts.create_table", "description": "Create a table artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_table"},
             {"name": "artifacts.create_chart", "description": "Create a chart artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_chart"},

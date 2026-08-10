@@ -151,6 +151,63 @@
     padding: 10px;
 }
 
+.journal-entry-proposal {
+    display: grid;
+    gap: 12px;
+}
+
+.journal-entry-proposal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.journal-entry-proposal-head > div {
+    display: grid;
+    gap: 2px;
+}
+
+.journal-entry-proposal-head span,
+.journal-entry-proposal-remark,
+.journal-entry-proposal-warnings {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.journal-entry-proposal-table-wrap {
+    overflow-x: auto;
+}
+
+.journal-entry-proposal-table {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.journal-entry-proposal-table th,
+.journal-entry-proposal-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: start;
+    vertical-align: top;
+}
+
+.journal-entry-proposal-table th:nth-child(2),
+.journal-entry-proposal-table th:nth-child(3),
+.journal-entry-proposal-table td:nth-child(2),
+.journal-entry-proposal-table td:nth-child(3) {
+    text-align: end;
+    white-space: nowrap;
+}
+
+.journal-entry-proposal-warnings {
+    display: grid;
+    gap: 4px;
+    color: var(--orange-600, #a85d00);
+}
+
 .agent-chat-main {
     min-width: 0;
     height: 100%;

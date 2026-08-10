@@ -27,7 +27,6 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                     <div id="agent-select"></div>
                     <div id="company-select"></div>
                 </div>
-                <div id="skills-bar" class="chat-skills"></div>
                 <div class="chat-sessions-title">${__("Recent Sessions")}</div>
                 <div id="chat-sessions" class="chat-sessions"></div>
             </aside>
@@ -73,6 +72,12 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     let pollInterval = null;
     let selectedAgent = null;
     let selectedCompany = null;
+    let agentsByName = {};
+    let currentSessionAgent = null;
+    let currentSessionCompany = null;
+    let currentCompactSessionName = "";
+    let suppressAgentChange = false;
+    let suppressCompanyChange = false;
     let agentControl = null;
     let companyControl = null;
     let selectedFiles = [];
@@ -80,10 +85,14 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     let isListening = false;
     let voiceBasePrompt = "";
     let printLetterHeads = null;
+    const journalEntryProposals = {};
+    let workspaceRequest = take_workspace_route_request();
+    let workspaceRequestSubmitted = false;
 
     setup_controls();
     bind_events();
     load_sessions();
+    frappe.pages["agent-workspace"].consume_transfer_request = consume_workspace_route_request;
 
     function setup_layout_sizing() {
         const resizeEvent = "resize.ai_agent_workspace";
@@ -104,6 +113,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     function setup_controls() {
         frappe.xcall("ai_agent.api.list_available_agents").then((result) => {
             const agents = result?.agents || [];
+            agentsByName = Object.fromEntries(agents.map((agent) => [agent.name, agent]));
             const options = agents.map((agent) => agent.name).join("\n");
             selectedAgent = agents[0]?.name || null;
             agentControl = frappe.ui.form.make_control({
@@ -115,15 +125,14 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                     fieldname: "agent",
                     onchange: () => {
                         selectedAgent = agentControl.get_value();
-                        load_skills();
                     },
                 },
                 render_input: true,
             });
             if (selectedAgent) {
                 agentControl.set_value(selectedAgent);
-                load_skills();
             }
+            start_workspace_request_if_ready();
         });
 
         companyControl = frappe.ui.form.make_control({
@@ -139,6 +148,53 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             },
             render_input: true,
         });
+        start_workspace_request_if_ready();
+    }
+
+    function take_workspace_route_request() {
+        const options = frappe.route_options || {};
+        const prompt = String(options.prompt || "").trim();
+        if (!prompt) return null;
+        const request = {
+            prompt,
+            agent: String(options.agent || "").trim(),
+            company: String(options.company || "").trim(),
+            autoSubmit: Boolean(Number(options.auto_submit || 0)),
+        };
+        delete frappe.route_options.prompt;
+        delete frappe.route_options.agent;
+        delete frappe.route_options.company;
+        delete frappe.route_options.auto_submit;
+        return request;
+    }
+
+    function consume_workspace_route_request() {
+        const request = take_workspace_route_request();
+        if (!request) return;
+        workspaceRequest = request;
+        workspaceRequestSubmitted = false;
+        start_workspace_request_if_ready();
+    }
+
+    function start_workspace_request_if_ready() {
+        if (!workspaceRequest || workspaceRequestSubmitted || !agentControl || !companyControl || !selectedAgent) return;
+        const request = workspaceRequest;
+        if (request.agent && agentsByName[request.agent]) {
+            selectedAgent = request.agent;
+            agentControl.set_value(request.agent);
+        }
+        if (request.company) {
+            selectedCompany = request.company;
+            companyControl.set_value(request.company);
+        }
+        new_chat();
+        page.main.find("#prompt-input").val(request.prompt);
+        autosize_prompt();
+        workspaceRequestSubmitted = true;
+        workspaceRequest = null;
+        if (request.autoSubmit) {
+            submit_prompt(request.prompt, [], { clearComposer: true });
+        }
     }
 
     function bind_events() {
@@ -180,6 +236,9 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         page.main.on("click", ".btn-export-artifact", function () {
             export_artifact_csv($(this).data("artifact"));
         });
+        page.main.on("click", ".btn-open-journal-entry", function () {
+            open_journal_entry_proposal($(this).data("run"), Number($(this).data("entry-index")));
+        });
 
         frappe.realtime.on("ai_agent:run_updated", (data) => {
             if (currentRun && data.run_id === currentRun) refresh_current_run();
@@ -198,21 +257,34 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         });
     }
 
-    function load_skills() {
-        if (!selectedAgent) return;
-        frappe.xcall("ai_agent.api.list_available_skills", {
-            agent: selectedAgent,
-            company: selectedCompany,
-        }).then((result) => {
-            const skillsBar = page.main.find("#skills-bar").empty();
-            (result?.skills || []).slice(0, 8).forEach((skill) => {
-                skillsBar.append(`
-                    <span class="chat-skill" title="${escape_html(skill.description || "")}">
-                        ${escape_html(skill.title || skill.name)}
-                    </span>
-                `);
-            });
-        });
+    function selected_agent_meta() {
+        return agentsByName[selectedAgent] || {};
+    }
+
+    function selected_compact_session_name() {
+        return selected_agent_meta().compact_session_name || "";
+    }
+
+    function continuation_parent_run() {
+        if (!currentRun) return null;
+        if (!currentSessionAgent || currentSessionAgent !== selectedAgent) return null;
+        if ((currentSessionCompany || "") !== (selectedCompany || "")) return null;
+        return currentRun;
+    }
+
+    function sync_controls_to_session() {
+        if (currentSessionAgent && agentControl && agentControl.get_value() !== currentSessionAgent) {
+            suppressAgentChange = true;
+            agentControl.set_value(currentSessionAgent);
+            selectedAgent = currentSessionAgent;
+            suppressAgentChange = false;
+        }
+        if (companyControl && (companyControl.get_value() || "") !== (currentSessionCompany || "")) {
+            suppressCompanyChange = true;
+            companyControl.set_value(currentSessionCompany || "");
+            selectedCompany = currentSessionCompany || "";
+            suppressCompanyChange = false;
+        }
     }
 
     function load_sessions() {
@@ -244,6 +316,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         if (!rootRun) return Promise.resolve();
         stop_polling();
         currentRoot = rootRun;
+        const requestedRoot = rootRun;
         page.main.find("#chat-messages").html(`
             <div class="chat-empty-state">
                 <h3>${__("Loading chat")}</h3>
@@ -255,9 +328,20 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             return $(this).data("root") === rootRun;
         }).addClass("active");
         return frappe.xcall("ai_agent.api.get_chat_messages", { root_run: rootRun }).then((result) => {
+            if (currentRoot !== requestedRoot) return;
+            currentRoot = result?.root_run || requestedRoot;
             currentRun = result?.latest_run || rootRun;
+            currentSessionAgent = result?.latest_agent || currentSessionAgent;
+            currentSessionCompany = result?.latest_company || currentSessionCompany;
+            currentCompactSessionName = result?.compact_session_name || "";
+            sync_controls_to_session();
+            page.main.find(".chat-session").removeClass("active");
+            page.main.find(".chat-session").filter(function () {
+                return $(this).data("root") === currentRoot;
+            }).addClass("active");
             render_messages(result?.messages || []);
             update_title_from_messages(result?.messages || []);
+            update_status("", currentCompactSessionName ? `${__("Session")}: ${currentCompactSessionName}` : "");
             start_polling_if_needed();
         }).catch((error) => {
             page.main.find("#chat-messages").html(`
@@ -325,9 +409,11 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
 
     function render_assistant_message(message) {
         const statusClass = (message.status || "").toLowerCase().replace(/\s+/g, "-");
-        const content = message.content
-            ? safe_markdown(message.content)
-            : `<p class="muted">${__("Working on it...")}</p>`;
+        const proposal = journal_entry_proposal_from_response(message.content);
+        if (proposal) journalEntryProposals[message.run_name] = proposal;
+        const content = proposal
+            ? render_journal_entry_proposal(message.run_name, proposal)
+            : (message.content ? safe_markdown(message.content) : `<p class="muted">${__("Working on it...")}</p>`);
         const reportClass = is_printable_message(message) ? "report-message" : "";
         return `
             <article class="chat-message assistant-message ${message.is_error ? "error" : ""}" data-run="${escape_attr(message.run_name)}">
@@ -335,6 +421,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                 <div class="message-bubble">
                     <div class="message-meta">
                         <span>${escape_html(message.agent || __("Assistant"))}</span>
+                        ${message.compact_session_name ? `<span>${__("Session")}: ${escape_html(message.compact_session_name)}</span>` : ""}
                         <span class="status-pill ${statusClass}">${escape_html(message.status || "")}</span>
                         <span>${__("Steps")}: ${message.current_step || 0}</span>
                         <span>${__("Tools")}: ${message.tool_call_count || 0}</span>
@@ -362,6 +449,99 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                 </div>
             </article>
         `;
+    }
+
+    function journal_entry_proposal_from_response(content) {
+        const text = String(content || "").trim();
+        if (!text) return null;
+        const candidate = text
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+        try {
+            const parsed = JSON.parse(candidate);
+            return Array.isArray(parsed?.journal_entries) ? parsed : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function render_journal_entry_proposal(runName, proposal) {
+        const entries = proposal.journal_entries || [];
+        const warnings = proposal.warnings || [];
+        return `
+            <section class="journal-entry-proposal" dir="auto">
+                ${entries.map((entry, index) => {
+                    const rows = Array.isArray(entry.accounts) ? entry.accounts : [];
+                    const totalDebit = rows.reduce((total, row) => total + Number(row.debit_in_account_currency || 0), 0);
+                    const totalCredit = rows.reduce((total, row) => total + Number(row.credit_in_account_currency || 0), 0);
+                    return `
+                        <div class="journal-entry-proposal-head">
+                            <div>
+                                <strong>${__("قيد يومية مقترح")} ${entries.length > 1 ? index + 1 : ""}</strong>
+                                <span>${escape_html(entry.posting_date || "")}</span>
+                            </div>
+                            <button class="btn btn-primary btn-sm btn-open-journal-entry"
+                                data-run="${escape_attr(runName)}" data-entry-index="${index}">
+                                ${__("فتح القيد للمراجعة")}
+                            </button>
+                        </div>
+                        ${entry.user_remark ? `<div class="journal-entry-proposal-remark">${escape_html(entry.user_remark)}</div>` : ""}
+                        <div class="journal-entry-proposal-table-wrap">
+                            <table class="journal-entry-proposal-table">
+                                <thead><tr><th>${__("الحساب")}</th><th>${__("مدين")}</th><th>${__("دائن")}</th><th>${__("البيان")}</th></tr></thead>
+                                <tbody>${rows.map((row) => `
+                                    <tr>
+                                        <td>${escape_html(row.account || __("غير محدد"))}</td>
+                                        <td>${escape_html(format_cell(Number(row.debit_in_account_currency || 0)))}</td>
+                                        <td>${escape_html(format_cell(Number(row.credit_in_account_currency || 0)))}</td>
+                                        <td>${escape_html(row.user_remark || "")}</td>
+                                    </tr>
+                                `).join("")}</tbody>
+                                <tfoot><tr><th>${__("الإجمالي")}</th><th>${escape_html(format_cell(totalDebit))}</th><th>${escape_html(format_cell(totalCredit))}</th><th></th></tr></tfoot>
+                            </table>
+                        </div>
+                    `;
+                }).join("")}
+                ${warnings.length ? `<div class="journal-entry-proposal-warnings">${warnings.map((warning) => `<div>${escape_html(warning)}</div>`).join("")}</div>` : ""}
+            </section>
+        `;
+    }
+
+    function open_journal_entry_proposal(runName, entryIndex) {
+        const proposal = journalEntryProposals[runName];
+        const entry = proposal?.journal_entries?.[entryIndex];
+        if (!entry || !Array.isArray(entry.accounts) || !entry.accounts.length) {
+            frappe.msgprint(__("لا توجد سطور قيد صالحة للفتح."));
+            return;
+        }
+        const journalEntry = frappe.model.get_new_doc("Journal Entry");
+        journalEntry.company = entry.company || selectedCompany || "";
+        journalEntry.posting_date = entry.posting_date || frappe.datetime.get_today();
+        journalEntry.voucher_type = "Journal Entry";
+        journalEntry.user_remark = entry.user_remark || "";
+
+        const allowedFields = [
+            "account",
+            "debit_in_account_currency",
+            "credit_in_account_currency",
+            "custom_cash_supplier",
+            "custom_bill_no",
+            "custom_bill_date",
+            "custom_tax_id",
+            "custom_tax_amount",
+            "user_remark",
+            "cost_center",
+            "party_type",
+            "party",
+        ];
+        entry.accounts.forEach((source) => {
+            const row = frappe.model.add_child(journalEntry, "Journal Entry Account", "accounts");
+            allowedFields.forEach((field) => {
+                if (source[field] !== undefined && source[field] !== null) row[field] = source[field];
+            });
+        });
+        frappe.set_route("Form", "Journal Entry", journalEntry.name);
     }
 
     function render_print_button(message) {
@@ -1120,16 +1300,20 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             frappe.msgprint({ message: error?.message || __("Could not read attached files."), indicator: "red" });
             return;
         }
+        const parentRun = continuation_parent_run();
         frappe.xcall("ai_agent.api.create_run", {
             agent: selectedAgent,
             prompt: finalPrompt,
             company: selectedCompany,
-            parent_run: currentRun,
+            parent_run: parentRun,
             attachments,
         }).then((result) => {
             if (!result?.run_name) return;
             currentRun = result.run_name;
-            currentRoot = currentRoot || result.run_name;
+            currentRoot = parentRun ? (currentRoot || result.run_name) : result.run_name;
+            currentSessionAgent = selectedAgent;
+            currentSessionCompany = selectedCompany;
+            currentCompactSessionName = result.compact_session_name || selected_compact_session_name();
             if (options.clearComposer) {
                 page.main.find("#prompt-input").val("");
                 selectedFiles = [];
@@ -1143,6 +1327,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                     current_step: 0,
                     tool_call_count: 0,
                     execution_status: result.execution_status,
+                    compact_session_name: currentCompactSessionName,
                 })
                 : result.run_name;
             update_status(status, initialExtra);
@@ -1244,6 +1429,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         if (!currentRun) return;
         frappe.xcall("ai_agent.api.get_run", { run_name: currentRun }).then((run) => {
             if (!run) return;
+            currentCompactSessionName = run.compact_session_name || currentCompactSessionName;
             update_status(run.status, format_run_status_extra(run));
             load_steps_for_run(currentRun);
             if (["Completed", "Failed", "Cancelled", "Timed Out"].includes(run.status)) {
@@ -1300,6 +1486,9 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         stop_polling();
         currentRoot = null;
         currentRun = null;
+        currentSessionAgent = null;
+        currentSessionCompany = null;
+        currentCompactSessionName = selected_compact_session_name();
         set_busy(false);
         page.main.find("#chat-title").text(__("New chat"));
         page.main.find("#run-status").empty();
@@ -1321,7 +1510,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             return;
         }
         page.main.find("#run-status").html(`
-            <span class="status-pill ${(status || "").toLowerCase().replace(/\s+/g, "-")}">${escape_html(status || "")}</span>
+            ${status ? `<span class="status-pill ${(status || "").toLowerCase().replace(/\s+/g, "-")}">${escape_html(status || "")}</span>` : ""}
             <span>${escape_html(extra || "")}</span>
         `);
     }
@@ -1332,6 +1521,9 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             `${__("Steps")}: ${run?.current_step || 0}`,
             `${__("Tools")}: ${run?.tool_call_count || 0}`,
         ];
+        if (run?.compact_session_name || currentCompactSessionName) {
+            parts.unshift(`${__("Session")}: ${run?.compact_session_name || currentCompactSessionName}`);
+        }
         if (run?.status === "Queued") {
             const execution = run.execution_status || {};
             parts.unshift(execution.message || __("يعمل الآن في الخلفية داخل التطبيق"));
@@ -1549,6 +1741,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
 
 frappe.pages["agent-workspace"].on_page_show = function () {
     inject_layout_fix();
+    frappe.pages["agent-workspace"].consume_transfer_request?.();
     setTimeout(() => $(window).trigger("resize.ai_agent_workspace"), 50);
 };
 

@@ -1,0 +1,27 @@
+{
+  "actions": [],
+  "creation": "2026-08-01 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": ["file", "file_name", "extension", "file_size", "page_count"],
+  "fields": [
+    {"fieldname": "file", "fieldtype": "Link", "label": "File", "options": "File", "reqd": 1, "in_list_view": 1},
+    {"fieldname": "file_name", "fieldtype": "Data", "label": "File Name", "in_list_view": 1},
+    {"fieldname": "extension", "fieldtype": "Data", "label": "Extension"},
+    {"fieldname": "file_size", "fieldtype": "Int", "label": "File Size"},
+    {"fieldname": "page_count", "fieldtype": "Int", "label": "Pages", "in_list_view": 1}
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2026-08-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "AI Agent",
+  "name": "Financial Attachment Session File",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "idx",
+  "sort_order": "ASC",
+  "states": []
+}
+

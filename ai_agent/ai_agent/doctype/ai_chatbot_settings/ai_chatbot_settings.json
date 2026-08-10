@@ -1,0 +1,166 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "AI Chatbot Settings",
+ "creation": "2026-08-04 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "agent",
+  "model",
+  "column_break_general",
+  "company",
+  "enable_problem_solving",
+  "intelligence_section",
+  "reasoning_effort",
+  "temperature",
+  "column_break_intelligence",
+  "max_history_messages",
+  "conversation_section",
+  "widget_title",
+  "welcome_message",
+  "system_prompt",
+  "access_section",
+  "allowed_roles",
+  "fallback_section",
+  "error_reply"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "description": "The AI Agent used to answer. If empty, the app-managed System Chatbot agent is created automatically.",
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "label": "AI Agent",
+   "options": "AI Agent"
+  },
+  {
+   "description": "Optional model override. When set, it overrides the agent model for the chatbot.",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model"
+  },
+  {
+   "fieldname": "column_break_general",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "default": "1",
+   "description": "Use the agent with ERP tools/skills to solve problems. When disabled, the chatbot answers directly with the model using chat history only.",
+   "fieldname": "enable_problem_solving",
+   "fieldtype": "Check",
+   "label": "Enable Problem Solving"
+  },
+  {
+   "fieldname": "intelligence_section",
+   "fieldtype": "Section Break",
+   "label": "Intelligence"
+  },
+  {
+   "default": "medium",
+   "description": "The intelligence level of the model reasoning.",
+   "fieldname": "reasoning_effort",
+   "fieldtype": "Select",
+   "label": "Intelligence",
+   "options": "low\nmedium\nhigh"
+  },
+  {
+   "default": "0.7",
+   "description": "Model creativity / randomness (0 to 1). Used in direct chat mode.",
+   "fieldname": "temperature",
+   "fieldtype": "Float",
+   "label": "Creativity"
+  },
+  {
+   "fieldname": "column_break_intelligence",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "8",
+   "fieldname": "max_history_messages",
+   "fieldtype": "Int",
+   "label": "History Messages"
+  },
+  {
+   "fieldname": "conversation_section",
+   "fieldtype": "Section Break",
+   "label": "Conversation"
+  },
+  {
+   "default": "الدعم الفني",
+   "fieldname": "widget_title",
+   "fieldtype": "Data",
+   "label": "Widget Title"
+  },
+  {
+   "default": "أهلًا! أنا مساعد النظام. اسألني عن أي مشكلة أو طلب وسأساعدك في حلها.",
+   "fieldname": "welcome_message",
+   "fieldtype": "Text",
+   "label": "Welcome Message"
+  },
+  {
+   "description": "System instructions for the chatbot agent.",
+   "fieldname": "system_prompt",
+   "fieldtype": "Long Text",
+   "label": "System Prompt"
+  },
+  {
+   "fieldname": "access_section",
+   "fieldtype": "Section Break",
+   "label": "Access"
+  },
+  {
+   "description": "One role per line. When empty, every logged-in user can use the chatbot.",
+   "fieldname": "allowed_roles",
+   "fieldtype": "Small Text",
+   "label": "Allowed Roles"
+  },
+  {
+   "fieldname": "fallback_section",
+   "fieldtype": "Section Break",
+   "label": "Fallback"
+  },
+  {
+   "default": "عذرًا، تعذر تجهيز الرد الآن. تم تسجيل المحادثة وسيقوم فريق الدعم بمتابعتك.",
+   "fieldname": "error_reply",
+   "fieldtype": "Small Text",
+   "label": "Error Reply"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Chatbot Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

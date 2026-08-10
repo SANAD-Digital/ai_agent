@@ -62,6 +62,11 @@ class OpenAICompatibleProvider(AgentModelProvider):
             "messages": messages,
             "max_tokens": instructions.get("max_tokens") or 4096,
         }
+        if instructions.get("response_format"):
+            payload["response_format"] = instructions.get("response_format")
+
+        if instructions.get("temperature") is not None:
+            payload["temperature"] = instructions["temperature"]
 
         if tools:
             payload["tools"] = self._format_tools(
@@ -82,10 +87,14 @@ class OpenAICompatibleProvider(AgentModelProvider):
             "Content-Type": "application/json",
         }
 
-        timeout = self.settings.request_timeout or 30
+        timeout = instructions.get("timeout") or self.settings.request_timeout or 30
 
         import time
-        max_retries = 2
+        try:
+            max_retries = int(instructions.get("max_retries") or 2)
+        except Exception:
+            max_retries = 2
+        max_retries = max(1, max_retries)
         last_exception = None
 
         for attempt in range(max_retries):
@@ -136,6 +145,89 @@ class OpenAICompatibleProvider(AgentModelProvider):
                 break
 
         raise last_exception
+
+    def create_step_stream(self, *, instructions, input_items, tools, state):
+        """Stream a model step token by token.
+
+        Yields the accumulated assistant content string as it grows at each
+        non-empty delta, and returns the final full content string on completion.
+        """
+        import requests
+
+        messages = instructions.get("messages", [])
+        model = instructions.get("model", self.model)
+        is_deepseek = self._is_deepseek_model(model)
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": instructions.get("max_tokens") or 4096,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+
+        if instructions.get("temperature") is not None:
+            payload["temperature"] = instructions["temperature"]
+
+        if tools:
+            payload["tools"] = self._format_tools(
+                tools,
+                strict=bool(self.settings.get("strict_tool_calling")) and not is_deepseek,
+            )
+            payload["tool_choice"] = "auto"
+
+        reasoning_effort = self._normalize_reasoning_effort(
+            instructions.get("reasoning_effort") or self.settings.get("default_reasoning_effort"),
+            is_deepseek=is_deepseek,
+        )
+        if reasoning_effort and not is_deepseek:
+            payload["reasoning_effort"] = reasoning_effort
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        timeout = self.settings.request_timeout or 30
+
+        try:
+            with requests.post(
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+                stream=True,
+                timeout=timeout,
+            ) as resp:
+                if resp.status_code >= 400:
+                    raise ModelProviderError(self._format_provider_error(resp))
+                content_parts = []
+                for line in resp.iter_lines(decode_unicode=False):
+                    if not line:
+                        continue
+                    line = line.decode("utf-8", errors="replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                    except Exception:
+                        continue
+                    choices = chunk.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = (choices[0].get("delta") or {}).get("content")
+                    if delta:
+                        content_parts.append(delta)
+                        yield "".join(content_parts)
+                return "".join(content_parts)
+        except ModelProviderError:
+            raise
+        except requests.exceptions.RequestException as e:
+            raise ModelProviderError(f"Model provider error during streaming: {str(e)}")
+        except Exception as e:
+            raise ModelProviderError(f"Unexpected error during streaming: {str(e)}")
 
     def _format_provider_error(self, response):
         detail = ""

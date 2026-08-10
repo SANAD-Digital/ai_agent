@@ -101,6 +101,14 @@ class SkillRegistry:
             existing = frappe.db.exists("AI Skill", skill_name)
             if existing:
                 skill_doc = frappe.get_doc("AI Skill", skill_name)
+                if skill_doc.source_type == "Database":
+                    if skill_doc.allow_implicit_invocation:
+                        self._ensure_implicit_skill_grants(skill_name)
+                    continue
+                if skill_doc.content_hash == content_hash:
+                    if skill_doc.allow_implicit_invocation:
+                        self._ensure_implicit_skill_grants(skill_name)
+                    continue
                 changed = False
                 standard_values = {
                     "title": skill_name.replace("-", " ").title(),

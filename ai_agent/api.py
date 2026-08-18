@@ -9,6 +9,7 @@ from ai_agent.runtime.skill_registry import SkillRegistry
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.model_provider import estimate_context_window_tokens
+from ai_agent.runtime import local_answers
 from ai_agent.runtime.run_control import enqueue_run, recover_run_if_orphaned
 from frappe.utils.file_manager import save_file
 
@@ -890,49 +891,23 @@ def _local_fast_answer(prompt, parent_run=None, has_attachments=False):
     if not text:
         return None
 
+    # Action-looking prompts must always reach the model — even when they
+    # mention a previous error ("صحح الخطأ في الفاتورة" is a request, not a
+    # question about the failure).
+    if any(marker in text for marker in local_answers.ACTION_MARKERS):
+        return None
+
     failure_answer = _local_failure_answer(text, parent_run)
     if failure_answer:
         return failure_answer
 
-    action_markers = (
-        "انش", "اضف", "سوي", "اعمل", "حدث", "عدل", "احذف", "الغ",
-        "فاتور", "سند", "مورد", "عميل", "صنف", "تقرير", "كشف", "رصيد",
-        "create", "add", "update", "delete", "invoice", "report",
-    )
-    if any(marker in text for marker in action_markers):
-        return None
-
-    greeting_markers = (
-        "هلا", "اهلا", "مرحبا", "السلام", "من انت", "مين انت",
-        "who are you", "hello", "hi",
-    )
-    capability_markers = (
-        "هل تستطيع", "تقدر", "هل تقدر", "قدراتك", "ما تستطيع",
-        "المهام الكبيره", "المهام المركبه", "شغل كبير", "can you",
-    )
-    if any(marker in text for marker in capability_markers):
-        return (
-            "نعم، أقدر أتعامل مع المهام الكبيرة والمركبة داخل ERP.\n\n"
-            "- أجهز مستندات كبيرة مثل فواتير فيها أصناف كثيرة.\n"
-            "- أبحث عن الأصناف/الموردين/العملاء الموجودين قبل إنشاء جديد.\n"
-            "- أجهز المتطلبات الناقصة أولًا ثم أتابع المستند الأساسي.\n"
-            "- كل عملية حفظ أو تعديل تتم عبر موافقة واضحة قبل التنفيذ."
-        )
-
-    if not any(marker in text for marker in greeting_markers):
-        return None
-
-    return (
-        "أهلًا 👋 أنا **الباشق**.\n\n"
-        "أقدر أساعدك في التحليل، التقارير، قراءة الملفات، وتجهيز المستندات "
-        "مثل الفواتير والأصناف والموردين مع طلب موافقة قبل أي حفظ."
-    )
+    return local_answers.greeting_or_capability_answer(prompt)
 
 
 def _local_failure_answer(text, parent_run=None):
     failure_markers = (
         "ليش فشل", "ليش فشلت", "لماذا فشل", "لماذا فشلت", "سبب الفشل",
-        "ايش الخطا", "ما الخطا", "ماهو الخطا", "وش الخطا", "خطاء", "خطا",
+        "ايش الخطا", "ما الخطا", "ماهو الخطا", "وش الخطا",
         "why failed", "why did it fail", "what error",
     )
     if not any(marker in text for marker in failure_markers):

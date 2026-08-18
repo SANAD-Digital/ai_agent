@@ -59,10 +59,21 @@ def enqueue_run(
 def execute_run_job(run_name, user=None):
     from ai_agent.runtime.orchestrator import execute_run
 
-    frappe.set_user(user or "Administrator")
     run = frappe.get_doc("AI Run", run_name)
     if run.status in TERMINAL_RUN_STATUSES or run.cancel_requested:
         return
+
+    # Never fall back to Administrator: that would bypass the entire
+    # permission-intersection model the platform is built on.
+    job_user = user or run.user
+    if not job_user or job_user == "Guest":
+        frappe.log_error(
+            f"AI Run {run_name} has no valid owner user; execution refused.",
+            "AI Agent Run Rejected",
+        )
+        mark_interrupted_run(run_name, _("Agent execution was rejected because the run has no owner user."))
+        return
+    frappe.set_user(job_user)
 
     try:
         execute_run(run_name)

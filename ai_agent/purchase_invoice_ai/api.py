@@ -3061,11 +3061,21 @@ def _start_background_run(run_name, user, site, enqueue_after_commit=True):
 
 
 def execute_run_job(run_name, user=None):
-    frappe.set_user(user or "Administrator")
     try:
         run = frappe.get_doc("AI Run", run_name)
         if run.status in TERMINAL_STATUSES or run.cancel_requested:
             return
+        # Never fall back to Administrator: that would bypass the entire
+        # permission-intersection model the platform is built on.
+        job_user = user or run.user
+        if not job_user or job_user == "Guest":
+            frappe.log_error(
+                f"AI Run {run_name} has no valid owner user; execution refused.",
+                "Purchase Invoice AI Run Rejected",
+            )
+            mark_interrupted_run(run_name, _("Analysis was rejected because the run has no owner user."))
+            return
+        frappe.set_user(job_user)
         if run.prompt and (
             "FINANCIAL_ATTACHMENT_PAGE_PIPELINE" in run.prompt
             or "REVIEWED EXTRACTED PAYLOAD" in run.prompt

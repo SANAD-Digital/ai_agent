@@ -4,7 +4,6 @@ import frappe
 from frappe.utils import cint
 
 from ai_agent.runtime.file_context import FileContextService
-from ai_agent.runtime.memory_service import MemoryService
 
 
 MAX_SESSION_CONTEXT_CHARS = 10000
@@ -34,14 +33,8 @@ class SessionContextService:
         if whatsapp_context:
             sections.append(whatsapp_context)
 
-        memory_context = MemoryService().build_context(
-            user=run_doc.user,
-            agent=run_doc.agent,
-            company=run_doc.company,
-        )
-        if memory_context:
-            sections.append(memory_context)
-
+        # Long-term memory is injected once by ContextBuilder._build_user_message;
+        # adding it here again would duplicate it in the same prompt.
         text = "\n\n".join(section for section in sections if section)
         if len(text) > MAX_SESSION_CONTEXT_CHARS:
             text = text[-MAX_SESSION_CONTEXT_CHARS:].lstrip()

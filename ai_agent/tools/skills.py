@@ -1,5 +1,3 @@
-import frappe
-from frappe import _
 from ai_agent.runtime.skill_registry import SkillRegistry
 
 
@@ -33,7 +31,6 @@ def handle_load(arguments, permission_context):
 def handle_read_reference(arguments, permission_context):
     """Handle skills.read_reference tool call."""
     skill_name = arguments.get("skill_name")
-    reference = arguments.get("reference", "")
     if not skill_name:
         return {"error": "skill_name is required"}
 

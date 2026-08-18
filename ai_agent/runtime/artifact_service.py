@@ -1,6 +1,5 @@
 import json
 import frappe
-from frappe import _
 
 
 MAX_ARTIFACT_ROWS = 10000

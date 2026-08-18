@@ -1,5 +1,3 @@
-import frappe
-from frappe import _
 from ai_agent.query.schema import QUERY_SPEC_SCHEMA
 
 

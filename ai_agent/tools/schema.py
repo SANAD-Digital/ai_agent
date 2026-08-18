@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 from ai_agent.runtime.constants import DENYLIST_DOCTYPES
 
 

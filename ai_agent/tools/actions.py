@@ -1,8 +1,5 @@
-import json
 import frappe
-from frappe import _
 from ai_agent.runtime.approval_engine import ApprovalEngine
-from ai_agent.runtime.permission_context import PermissionContext
 
 
 NON_INPUT_FIELDTYPES = {

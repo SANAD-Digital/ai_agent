@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 
 
 class V15Adapter:

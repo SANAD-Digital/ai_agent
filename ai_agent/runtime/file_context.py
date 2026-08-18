@@ -5,7 +5,6 @@ import json
 import mimetypes
 import os
 import re
-import shutil
 
 import frappe
 from frappe.utils.file_manager import get_file_path
@@ -899,7 +898,6 @@ class FileContextService:
     def _crop_dark_content_cv2(self, image):
         try:
             import cv2
-            import numpy as np
 
             blurred = cv2.GaussianBlur(image, (3, 3), 0)
             _, binary = cv2.threshold(blurred, 245, 255, cv2.THRESH_BINARY_INV)
@@ -1116,8 +1114,8 @@ class FileContextService:
     def _ocr_image_file(self, file_doc):
         try:
             path = get_file_path(file_doc.name)
+            filename = file_doc.file_name or file_doc.name
             with open(path, "rb") as file:
-                filename = file_doc.file_name or file_doc.name
                 mime_type = mimetypes.guess_type(filename)[0] or "image/png"
                 return self._ocr_image_bytes(file.read(MAX_VISION_FILE_BYTES), mime_type=mime_type)
         except Exception:
@@ -1194,7 +1192,6 @@ class FileContextService:
                 data = pixmap.tobytes("png")
                 if len(data) > MAX_VISION_FILE_BYTES:
                     continue
-                filename = file_doc.file_name or file_doc.name
                 parts.append({
                     "type": "image_url",
                     "image_url": {

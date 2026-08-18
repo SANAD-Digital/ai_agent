@@ -1,4 +1,3 @@
-import frappe
 from frappe import _
 
 from ai_agent.runtime.memory_service import MemoryService

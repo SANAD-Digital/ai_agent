@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.model_provider import supports_vision_model
 from ai_agent.runtime.session_context import SessionContextService

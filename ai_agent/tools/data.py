@@ -1,11 +1,9 @@
-import json
 import re
 import frappe
-from frappe import _
 from ai_agent.query.validator import QueryValidator
 from ai_agent.query.cost_guard import QueryCostGuard
 from ai_agent.query.v16_adapter import V16Adapter
-from ai_agent.runtime.constants import DENYLIST_DOCTYPES, SENSITIVE_FIELD_PATTERNS
+from ai_agent.runtime.constants import SENSITIVE_FIELD_PATTERNS
 from ai_agent.runtime.artifact_service import ArtifactService
 
 

@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 from frappe.utils import cint
 import json
 from ai_agent.runtime.artifact_service import ArtifactService

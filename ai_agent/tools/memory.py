@@ -62,7 +62,8 @@ def handle_search(arguments, permission_context):
         "rows": result_rows,
         "row_count": len(result_rows),
         "candidate_count": len(rows),
-        "exhaustive": not rows,
+        # Never flag "exhaustive" here: the orchestrator treats it as a
+        # finalize-now signal, and an empty memory must not end the task.
         "message": _("No AI memory exists for the current user, agent, and company scope.") if not rows else None,
     }
 

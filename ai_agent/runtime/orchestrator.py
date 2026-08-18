@@ -504,6 +504,11 @@ class Orchestrator:
 
         choice = response.get("choices", [{}])[0]
         content = (choice.get("message", {}) or {}).get("content") or ""
+        if self._looks_like_tool_markup(content):
+            # The model answered a no-tools finalization call with raw
+            # tool-call markup: it still needs tools. Let the loop continue
+            # instead of accepting the markup as a final answer.
+            return None
         route = self._parse_json_text(content)
         if route.get("route") == "continue":
             return None
@@ -544,17 +549,47 @@ class Orchestrator:
             )
         if result.get("approval_required"):
             return True
-        if result.get("terminal") is True or result.get("exhaustive") is True:
-            return True
         if result.get("is_pending") or result.get("prepared_status") in ("Queued", "Started", "Missing"):
+            return True
+        if tool_name.startswith("actions.") and result.get("approval_id"):
+            return True
+        # "Positive" signals below say a read succeeded — under an unmet
+        # compound JSON contract they must not force early finalization.
+        if self._compound_contract_pending():
+            return False
+        if result.get("terminal") is True or result.get("exhaustive") is True:
             return True
         if tool_name == "reports.run" and "row_count" in result:
             return cint(result.get("row_count")) > 0
         if tool_name == "actions.validate_document" and result.get("valid") is True:
             return True
-        if tool_name.startswith("actions.") and result.get("approval_id"):
-            return True
         return False
+
+    def _compound_contract_pending(self):
+        """True when the active skill demands a JSON contract with substantive
+        output keys — the model itself decides when that contract is ready."""
+        if not self._requires_json_final():
+            return False
+        keys = set(self._current_skill_policy().get("required_output_keys") or [])
+        return bool(keys - {"questions", "warnings", "errors", "status", "message"})
+
+    def _looks_like_tool_markup(self, text):
+        lowered = str(text or "").lower()
+        return any(
+            marker in lowered
+            for marker in ("dsml", "<tool_call", "invoke name=", "parameter name=")
+        )
+
+    def _strip_tool_markup(self, text):
+        text = re.sub(r"(?is)<\s*\|\s*\|\s*DSML.*?(?:calls>|$)", "", str(text or ""))
+        cleaned_lines = []
+        for line in text.splitlines():
+            lowered = line.lower()
+            if any(marker in lowered for marker in ("dsml", "toolcalls", "invoke name=", "parameter name=")):
+                continue
+            cleaned_lines.append(line)
+        text = "\n".join(cleaned_lines)
+        return re.sub(r"\n{3,}", "\n\n", text).strip()
 
     def _complete_graceful_stop(self, state, reason):
         final_answer = self._try_final_answer_without_more_tools(
@@ -1576,6 +1611,10 @@ class Orchestrator:
         if not self._requires_json_final():
             return final_answer
         scalar_keys = {"status", "message", "summary", "client_readable_summary", "reply_markdown"}
+        if self._looks_like_tool_markup(final_answer):
+            # Never mine JSON out of tool-call markup: the first parseable
+            # object would be a tool argument, not the answer.
+            final_answer = self._strip_tool_markup(final_answer)
         parsed = self._extract_json_object(final_answer)
         if isinstance(parsed, dict):
             missing_keys = []
@@ -1701,15 +1740,7 @@ class Orchestrator:
         # truncation below would corrupt it.
         if self._extract_json_object(text) is not None and text.strip().startswith(("{", "```")):
             return text.strip()
-        text = re.sub(r"(?is)<\s*\|\s*\|\s*DSML.*?(?:calls>|$)", "", text)
-        cleaned_lines = []
-        for line in text.splitlines():
-            lowered = line.lower()
-            if any(marker in lowered for marker in ("dsml", "toolcalls", "invoke name=", "parameter name=")):
-                continue
-            cleaned_lines.append(line)
-        text = "\n".join(cleaned_lines)
-        text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        text = self._strip_tool_markup(text)
         if len(text) > 16000:
             text = (
                 text[:16000].rstrip()

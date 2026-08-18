@@ -15,6 +15,7 @@ from ai_agent.runtime.artifact_service import ArtifactService
 from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
+from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
     RunCancelled, RunTimedOut, RunLimitExceeded, MYSYSAgentError,
     ToolDenied, PermissionDenied,
@@ -30,6 +31,8 @@ from ai_agent.runtime.constants import (
 class Orchestrator:
     """Main execution loop for AI Runs."""
 
+    COMPACT_CHECKPOINT_START = "<!-- AI_AGENT_RUNTIME_CHECKPOINT_START -->"
+    COMPACT_CHECKPOINT_END = "<!-- AI_AGENT_RUNTIME_CHECKPOINT_END -->"
     def __init__(self, run_name):
         self.run_name = run_name
         self.run = frappe.get_doc("AI Run", run_name)
@@ -47,8 +50,11 @@ class Orchestrator:
         self.sequence = 0
         self.loaded_skills = []
         self.skill_tools = []
+        self.effective_skills = []
+        self.enforce_skill_tools = False
         self.input_tokens = cint(self.run.input_tokens)
         self.output_tokens = cint(self.run.output_tokens)
+        self.execution_state = None
 
     def execute(self):
         """Main execution entry point."""
@@ -59,6 +65,7 @@ class Orchestrator:
             effective_skills = self.skill_registry.list_effective_skills(
                 self.run.user, self.run.agent, self.run.company
             )
+            self._configure_skill_runtime(effective_skills)
 
             plan_step = self._add_step("Plan", "Analyzing task and building plan")
 
@@ -75,6 +82,10 @@ class Orchestrator:
             )
 
             self._update_status(RUN_STATUS_RUNNING)
+            self._update_compact_session_checkpoint(
+                RUN_STATUS_RUNNING,
+                f"Plan loaded with {len(skill_metadata)} skills and {len(tool_schemas)} tools.",
+            )
 
             local_answer = self._try_local_fast_answer()
             if local_answer:
@@ -111,6 +122,7 @@ class Orchestrator:
                 "tool_observations": [],
                 "tool_attempts": {},
             }
+            self.execution_state = state
 
             result = self._run_loop(state)
 
@@ -118,8 +130,8 @@ class Orchestrator:
 
         except RunCancelled:
             self._update_status(RUN_STATUS_CANCELLED)
-        except RunTimedOut:
-            self._update_status(RUN_STATUS_TIMED_OUT)
+        except RunTimedOut as exc:
+            self._time_out_run(str(exc))
         except RunLimitExceeded as e:
             self._fail_run(str(e))
         except MYSYSAgentError as e:
@@ -138,17 +150,25 @@ class Orchestrator:
 
             state["step_count"] += 1
 
-            response = self.provider.create_step(
+            policy = self._current_skill_policy()
+            response = self._call_model_step(
+                "Analyzing context and selecting the next action",
                 instructions={
                     "messages": state["messages"],
                     "model": state["model"],
                     "reasoning_effort": state.get("reasoning_effort"),
+                    "max_tokens": policy.get("finalization_max_tokens") or None,
+                    "response_format": (
+                        {"type": "json_object"}
+                        if policy.get("response_format") == "JSON Object"
+                        else None
+                    ),
+                    "max_retries": 1,
                 },
                 input_items=[],
                 tools=self._get_tool_schemas(),
                 state=state,
             )
-            self._record_model_usage(response)
 
             if not response:
                 break
@@ -167,12 +187,22 @@ class Orchestrator:
                 clean_message["tool_calls"] = tool_calls
                 state["messages"].append(clean_message)
 
+                stop_reason = ""
+                terminal_reason = ""
+                empty_report_answer = None
                 for tc in tool_calls:
                     if state["tool_call_count"] >= max_tool_calls:
-                        return self._complete_graceful_stop(
-                            state,
-                            f"Reached tool call limit ({max_tool_calls}) before the model produced a final answer.",
+                        state["messages"].append({
+                            "role": "tool",
+                            "tool_call_id": tc.get("id", ""),
+                            "content": json.dumps({
+                                "error": f"Tool call limit ({max_tool_calls}) reached.",
+                            }),
+                        })
+                        stop_reason = (
+                            f"Reached tool call limit ({max_tool_calls}) before the model produced a final answer."
                         )
+                        continue
 
                     state["tool_call_count"] += 1
 
@@ -207,50 +237,70 @@ class Orchestrator:
                     self._track_report_result(state, tool_name, arguments, result)
                     result = self._maybe_create_approval_from_prepare(tool_name, result)
                     if tool_name == "skills.load" and isinstance(result, dict) and "error" not in result:
-                        self.tool_gateway.skill_tools = result.get("tools", [])
+                        self.loaded_skills.append(result)
+                        self.skill_tools = self._merge_skill_tools(
+                            self.skill_tools,
+                            result.get("tools") or [],
+                        )
+                        self.tool_gateway.skill_tools = self.skill_tools
+                    tool_summary = self._summarize_tool_result(tool_name, result, arguments)
                     self.trace.complete_step(
                         step.name,
-                        summary=self._summarize_tool_result(tool_name, result, arguments),
+                        summary=tool_summary,
+                    )
+                    self._update_compact_session_checkpoint(
+                        RUN_STATUS_RUNNING,
+                        tool_summary,
+                        state=state,
                     )
 
                     model_result = self._compact_tool_result_for_model(tool_name, result)
                     self._record_tool_observation(state, tool_name, arguments, model_result)
 
-                    if state["tool_attempts"][attempt_key] >= 2:
-                        return self._complete_graceful_stop(
-                            state,
-                            f"Stopped because the same tool call repeated {state['tool_attempts'][attempt_key]} times.",
-                        )
-
-                    if self._is_empty_report_loop(state):
-                        final_answer = self._empty_report_loop_answer(state)
-                        final_step = self._add_step(
-                            "Final",
-                            "Stopping repeated empty report attempts",
-                            summary=final_answer[:500],
-                        )
-                        self.trace.complete_step(final_step.name)
-                        return final_answer
-
+                    # Every assistant tool_call_id must receive a tool response before
+                    # another model request, even when execution should stop afterward.
                     state["messages"].append({
                         "role": "tool",
                         "tool_call_id": tc.get("id", ""),
                         "content": self._tool_result_content_for_model(tool_name, model_result),
                     })
 
-                    if self._is_terminal_tool_result(tool_name, model_result):
-                        final_answer = self._try_final_answer_without_more_tools(
-                            state,
-                            f"Tool result from {tool_name} is sufficient or should be reported now.",
+                    if state["tool_attempts"][attempt_key] >= 2:
+                        stop_reason = (
+                            f"Stopped because the same tool call repeated "
+                            f"{state['tool_attempts'][attempt_key]} times."
                         )
-                        if final_answer:
-                            final_step = self._add_step(
-                                "Final",
-                                "Finalizing from tool result",
-                                summary=final_answer[:500],
-                            )
-                            self.trace.complete_step(final_step.name)
-                            return final_answer
+
+                    if self._is_empty_report_loop(state):
+                        empty_report_answer = self._empty_report_loop_answer(state)
+
+                    if self._is_terminal_tool_result(tool_name, model_result):
+                        terminal_reason = (
+                            f"Tool result from {tool_name} is sufficient or should be reported now."
+                        )
+
+                if empty_report_answer:
+                    final_step = self._add_step(
+                        "Final",
+                        "Stopping repeated empty report attempts",
+                        summary=empty_report_answer[:500],
+                    )
+                    self.trace.complete_step(final_step.name)
+                    return empty_report_answer
+
+                if stop_reason:
+                    return self._complete_graceful_stop(state, stop_reason)
+
+                if terminal_reason:
+                    final_answer = self._try_final_answer_without_more_tools(state, terminal_reason)
+                    if final_answer:
+                        final_step = self._add_step(
+                            "Final",
+                            "Finalizing from tool result",
+                            summary=final_answer[:500],
+                        )
+                        self.trace.complete_step(final_step.name)
+                        return final_answer
 
             elif message.get("content"):
                 final_step = self._add_step("Final", "Generating final answer", summary=message["content"][:500])
@@ -383,18 +433,19 @@ class Orchestrator:
         ]
 
         try:
-            response = self.provider.create_step(
+            response = self._call_model_step(
+                "Checking whether tools are required",
                 instructions={
                     "messages": route_messages,
                     "model": context["model"],
                     "reasoning_effort": "low",
                     "max_tokens": 700,
+                    "max_retries": 1,
                 },
                 input_items=[],
                 tools=[],
                 state={"route_only": True},
             )
-            self._record_model_usage(response)
         except Exception:
             return None
 
@@ -426,11 +477,20 @@ class Orchestrator:
 
     def _try_final_answer_without_more_tools(self, state, reason):
         messages = list(state.get("messages") or [])
+        policy = self._current_skill_policy()
+        requires_json = self._requires_json_final()
+        output_instruction = policy.get("final_output_instruction") or (
+            "Return one complete valid JSON object only, following the active skill instructions. "
+            "Do not return Markdown, progress text, or a promise to continue. "
+            if requires_json
+            else "If the available result is enough, produce the final user-facing answer in concise Markdown. "
+        )
         messages.append({
             "role": "system",
             "content": (
                 "You have tool results available. Do not call tools in this step. "
-                "If the available result is enough, produce the final user-facing answer in concise Markdown. "
+                + output_instruction
+                +
                 "If the result is pending, empty after sensible attempts, approval-required, or blocked, report that status clearly. "
                 "For compound tasks, do not imply the whole task is complete when only a prerequisite approval was created. "
                 "State the remaining original task and tell the user they can continue after approval. "
@@ -439,19 +499,24 @@ class Orchestrator:
             ),
         })
         try:
-            response = self.provider.create_step(
-                instructions={
-                    "messages": messages,
-                    "model": state["model"],
-                    "reasoning_effort": "low",
-                    "max_tokens": 1500,
-                },
-                input_items=[],
-                tools=[],
-                state=state,
-            )
-            self._record_model_usage(response)
-        except Exception:
+            response = self._call_model_step(
+                "Finalizing the answer from available evidence",
+                    instructions={
+                        "messages": messages,
+                        "model": state["model"],
+                        "reasoning_effort": "medium" if requires_json else "low",
+                        "max_tokens": policy.get("finalization_max_tokens") or (4096 if requires_json else 1500),
+                        "timeout": policy.get("finalization_timeout") or None,
+                        "response_format": {"type": "json_object"} if requires_json else None,
+                        "max_retries": 1,
+                    },
+                    input_items=[],
+                    tools=[],
+                    state=state,
+                )
+        except Exception as exc:
+            state["finalization_error"] = str(exc)[:500]
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Finalization Failed: {self.run_name}")
             return None
 
         choice = response.get("choices", [{}])[0]
@@ -459,7 +524,7 @@ class Orchestrator:
         route = self._parse_json_text(content)
         if route.get("route") == "continue":
             return None
-        if route.get("answer"):
+        if route.get("answer") and not requires_json:
             return route.get("answer")
         return content.strip() or None
 
@@ -492,9 +557,11 @@ class Orchestrator:
             error_text = str(result.get("error", "")).lower()
             return any(
                 marker in error_text
-                for marker in ("not allowed", "denied", "permission", "requires approval")
+                for marker in ("not allowed", "denied", "permission", "requires approval", "call limit")
             )
         if result.get("approval_required"):
+            return True
+        if result.get("terminal") is True or result.get("exhaustive") is True:
             return True
         if result.get("is_pending") or result.get("prepared_status") in ("Queued", "Started", "Missing"):
             return True
@@ -512,16 +579,32 @@ class Orchestrator:
             f"{reason} Use only the available tool results and produce a customer-facing final answer. Do not mention limits, tool names, debug details, or internal execution.",
         )
         if not final_answer:
-            final_answer = (
-                "تم استلام طلبك، لكن لم أتمكن من تجهيز النتيجة النهائية بالكامل الآن. "
-                "سأتابع البيانات المتاحة وأعود لك بالرد المناسب."
-            )
+            if self._requires_json_final():
+                final_answer = json.dumps(
+                    self._fallback_json_final_answer(reason),
+                    ensure_ascii=False,
+                    default=str,
+                )
+            else:
+                final_answer = (
+                    "تم استلام طلبك، لكن لم أتمكن من تجهيز النتيجة النهائية بالكامل الآن. "
+                    "سأتابع البيانات المتاحة وأعود لك بالرد المناسب."
+                )
         final_step = self._add_step(
             "Final",
             "Graceful stop with available results",
-            summary=final_answer[:500],
+            summary=(
+                final_answer[:500]
+                if not state.get("finalization_error")
+                else f"{reason} Finalization error: {state.get('finalization_error')}"[:500]
+            ),
         )
         self.trace.complete_step(final_step.name)
+        self._update_compact_session_checkpoint(
+            "Needs Review" if self._requires_json_final() else RUN_STATUS_COMPLETED,
+            reason,
+            state=state,
+        )
         return final_answer
 
     def _tool_attempt_key(self, tool_name, arguments):
@@ -974,11 +1057,11 @@ class Orchestrator:
         return result
 
     def _tool_result_content_for_model(self, tool_name, result):
-        """Preserve complete OCR session text while keeping ordinary tool results compact."""
+        """Apply the registered tool's model-context limit."""
         content = json.dumps(result, default=str, ensure_ascii=False)
-        if tool_name == "financial_attachments.get_session_ocr_text":
-            return content
-        return content[:4000]
+        tool = self.tool_registry.get_tool(tool_name) or {}
+        limit = cint(tool.get("model_result_max_chars")) or 4000
+        return content[:limit]
 
     def _summarize_payload(self, payload):
         if not isinstance(payload, dict):
@@ -1219,7 +1302,12 @@ class Orchestrator:
     def _get_tool_schemas(self):
         """Get tool schemas for the model."""
         schemas = []
+        allowed_names = self._allowed_skill_tool_names()
         for tool in self.tool_registry.list_tools():
+            if self.enforce_skill_tools and tool["name"] not in allowed_names:
+                continue
+            if not self._is_tool_runtime_enabled(tool["name"]):
+                continue
             if tool["name"].startswith("actions.") and (
                 self.agent.get("read_only") or not self.agent.get("allow_actions")
             ):
@@ -1232,6 +1320,56 @@ class Orchestrator:
             schemas.append(schema)
         return schemas
 
+    def _configure_skill_runtime(self, effective_skills):
+        self.effective_skills = list(effective_skills or [])
+        declared_tools = [
+            tool
+            for skill in self.effective_skills
+            for tool in (skill.get("tools") or [])
+        ]
+        self.enforce_skill_tools = bool(declared_tools)
+        implicit_tools = [
+            tool
+            for skill in self.effective_skills
+            if skill.get("allow_implicit_invocation")
+            for tool in (skill.get("tools") or [])
+        ]
+        self.skill_tools = self._merge_skill_tools([], implicit_tools)
+        self.tool_gateway.skill_tools = self.skill_tools
+        self.tool_gateway.enforce_skill_tools = self.enforce_skill_tools
+
+    def _merge_skill_tools(self, current, additions):
+        merged = []
+        positions = {}
+        for row in [*(current or []), *(additions or [])]:
+            name = row.get("tool_name") if isinstance(row, dict) else None
+            if not name:
+                continue
+            if name in positions:
+                existing = merged[positions[name]]
+                existing["maximum_calls"] = max(
+                    cint(existing.get("maximum_calls")),
+                    cint(row.get("maximum_calls")),
+                )
+                continue
+            positions[name] = len(merged)
+            merged.append(dict(row))
+        return merged
+
+    def _allowed_skill_tool_names(self):
+        names = {row.get("tool_name") for row in self.skill_tools if row.get("tool_name")}
+        if any(not skill.get("allow_implicit_invocation") for skill in self.effective_skills):
+            names.update({"skills.list", "skills.load", "skills.read_reference"})
+        return names
+
+    def _is_tool_runtime_enabled(self, tool_name):
+        if not tool_name.startswith("memory."):
+            return True
+        try:
+            return bool(frappe.get_doc("AI Settings").get("enable_memory"))
+        except Exception:
+            return False
+
     def _check_limits(self):
         settings = frappe.get_doc("AI Settings")
         if not settings.enabled:
@@ -1243,6 +1381,10 @@ class Orchestrator:
         self.run.reload()
         if self.run.cancel_requested:
             raise RunCancelled("Run was cancelled by user.")
+        started_at = self.run.started_at or self.run.creation
+        elapsed = frappe.utils.time_diff_in_seconds(frappe.utils.now_datetime(), started_at)
+        if elapsed > run_timeout_seconds(agent=self.agent):
+            raise RunTimedOut("Run exceeded the configured execution time limit.")
 
     def _add_step(self, step_type, title, summary=""):
         self.sequence += 1
@@ -1252,6 +1394,88 @@ class Orchestrator:
 
     def _update_status(self, status, **kwargs):
         self.trace.update_run_status(self.run_name, status, **kwargs)
+
+    def _call_model_step(self, title, *, instructions, input_items, tools, state):
+        """Execute one visible model turn so waits and failures are traceable."""
+        step = self._add_step("Model", title)
+        self.trace.update_run_status(
+            self.run_name,
+            RUN_STATUS_RUNNING,
+            current_step=self.sequence,
+            tool_call_count=cint((state or {}).get("tool_call_count")),
+        )
+        try:
+            instructions = dict(instructions or {})
+            instructions["messages"] = self._complete_tool_message_protocol(
+                instructions.get("messages") or []
+            )
+            response = self.provider.create_step(
+                instructions=instructions,
+                input_items=input_items,
+                tools=tools,
+                state=state,
+            )
+            self._record_model_usage(response)
+        except Exception as exc:
+            self.trace.complete_step(
+                step.name,
+                status="Failed",
+                summary=f"Model request failed: {str(exc)[:350]}",
+            )
+            raise
+
+        choice = (response or {}).get("choices", [{}])[0]
+        message = choice.get("message", {}) or {}
+        tool_calls = message.get("tool_calls") or []
+        if tool_calls:
+            names = [
+                (call.get("function") or {}).get("name", "")
+                for call in tool_calls
+            ]
+            summary = f"Requested {len(tool_calls)} tool call(s): {', '.join(filter(None, names))}"
+        elif message.get("content"):
+            summary = f"Produced an answer ({len(str(message.get('content')))} characters)."
+        else:
+            summary = f"Returned no answer (finish reason: {choice.get('finish_reason') or 'unknown'})."
+        self.trace.complete_step(step.name, summary=summary[:500])
+        return response
+
+    def _complete_tool_message_protocol(self, messages):
+        """Guarantee one tool response for every assistant tool call before the next turn."""
+        normalized = []
+        pending_ids = []
+
+        def append_missing():
+            for call_id in pending_ids:
+                normalized.append({
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "content": json.dumps({
+                        "error": "Tool execution ended before a response was recorded."
+                    }),
+                })
+            pending_ids.clear()
+
+        for message in messages:
+            role = message.get("role") if isinstance(message, dict) else None
+            if pending_ids and role != "tool":
+                append_missing()
+
+            normalized.append(message)
+            if role == "assistant" and message.get("tool_calls"):
+                pending_ids.extend(
+                    call.get("id")
+                    for call in message.get("tool_calls") or []
+                    if call.get("id")
+                )
+            elif role == "tool":
+                call_id = message.get("tool_call_id")
+                if call_id in pending_ids:
+                    pending_ids.remove(call_id)
+
+        if pending_ids:
+            append_missing()
+        return normalized
 
     def _record_model_usage(self, response):
         if not response:
@@ -1285,40 +1509,77 @@ class Orchestrator:
 
         final_answer = self._ensure_required_json_final(final_answer)
         final_answer = self._sanitize_final_answer(final_answer)
+        failure_reason = self._structured_failure_reason(final_answer)
+        final_status = RUN_STATUS_FAILED if failure_reason else RUN_STATUS_COMPLETED
         self.run.reload()
         self.run.final_answer = final_answer
         self.run.completed_at = frappe.utils.now_datetime()
-        self.run.status = RUN_STATUS_COMPLETED
+        self.run.status = final_status
+        self.run.error_summary = failure_reason[:500] if failure_reason else None
         self.run.current_step = self.sequence
         self.run.tool_call_count = self.run.tool_call_count or 0
         self.run.input_tokens = self.input_tokens
         self.run.output_tokens = self.output_tokens
         self.run.save(ignore_permissions=True)
-        self._store_lesson_from_completed_run(final_answer)
+        if not failure_reason:
+            self._store_lesson_from_completed_run(final_answer)
         frappe.db.commit()
-        self.trace.publish_realtime(REALTIME_EVENTS["run_completed"], self.run_name)
+        self._update_compact_session_checkpoint(
+            final_status,
+            failure_reason or "Final answer saved successfully.",
+        )
+        event = "run_failed" if failure_reason else "run_completed"
+        self.trace.publish_realtime(REALTIME_EVENTS[event], self.run_name)
+
+    def _structured_failure_reason(self, final_answer):
+        payload = self._extract_json_object(final_answer)
+        if not isinstance(payload, dict):
+            return ""
+        status = str(payload.get("status") or "").strip().lower()
+        errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
+        if status == "failed":
+            return str(errors[0] if errors else payload.get("message") or "The structured result reported failure.")
+        if not errors:
+            return ""
+        ignored = {"questions", "warnings", "errors", "status", "reply_markdown", "ui"}
+        substantive_keys = [
+            key for key in self._current_skill_policy().get("required_output_keys") or []
+            if key not in ignored
+        ]
+        if substantive_keys and not any(payload.get(key) for key in substantive_keys):
+            return str(errors[0])
+        return ""
 
     def _ensure_required_json_final(self, final_answer):
         if not self._requires_json_final():
             return final_answer
         parsed = self._extract_json_object(final_answer)
-        if parsed is not None:
+        if isinstance(parsed, dict):
+            missing_keys = []
+            for key in self._current_skill_policy().get("required_output_keys") or []:
+                if key not in parsed:
+                    parsed[key] = []
+                    missing_keys.append(key)
+            if missing_keys:
+                normalize_step = self._add_step(
+                    "Final",
+                    "Normalizing final JSON contract",
+                    summary=f"Added missing empty fields: {', '.join(missing_keys)}",
+                )
+                self.trace.complete_step(normalize_step.name)
             return json.dumps(parsed, ensure_ascii=False, default=str)
 
-        repair_step = self._add_step(
+        fallback_step = self._add_step(
             "Final",
-            "Repairing final JSON contract",
-            summary="The model returned prose where this run requires a JSON object.",
+            "Rejecting invalid final JSON",
+            summary="The model did not return a JSON object; no hidden model retry was performed.",
         )
-        repaired = self._repair_json_final_answer(final_answer)
-        repaired_parsed = self._extract_json_object(repaired)
-        if repaired_parsed is None:
-            self.trace.complete_step(repair_step.name, summary="JSON repair failed; saved a reviewable fallback JSON response.")
-            return json.dumps(self._fallback_json_final_answer(final_answer), ensure_ascii=False, default=str)
-        self.trace.complete_step(repair_step.name, summary="JSON contract repaired.")
-        return json.dumps(repaired_parsed, ensure_ascii=False, default=str)
+        self.trace.complete_step(fallback_step.name, status="Failed")
+        return json.dumps(self._fallback_json_final_answer(final_answer), ensure_ascii=False, default=str)
 
     def _requires_json_final(self):
+        if self._current_skill_policy().get("response_format") == "JSON Object":
+            return True
         prompt = self.run.prompt or ""
         markers = (
             "Return one complete valid JSON object only",
@@ -1327,46 +1588,65 @@ class Orchestrator:
         )
         return any(marker in prompt for marker in markers)
 
-    def _repair_json_final_answer(self, final_answer):
-        prompt = self.run.prompt or ""
-        repair_prompt = (
-            "The previous answer violated the required JSON-only contract.\n"
-            "Convert the previous answer into one valid JSON object that follows the requested schema and preserves all visible facts.\n"
-            "Do not add Markdown fences, prose, or explanations. Return JSON only.\n\n"
-            "Original task prompt:\n"
-            f"{prompt[:12000]}\n\n"
-            "Previous invalid answer:\n"
-            f"{str(final_answer or '')[:12000]}"
-        )
-        response = self.provider.create_step(
-            instructions={
-                "messages": [
-                    {"role": "system", "content": "You repair invalid final answers into strict JSON only."},
-                    {"role": "user", "content": repair_prompt},
-                ],
-                "model": self._agent_model(),
-                "reasoning_effort": self.agent.get("reasoning_effort") or "medium",
-            },
-            input_items=[],
-            tools=[],
-            state={"tool_call_count": 0, "step_count": 0},
-        )
-        self._record_model_usage(response)
-        try:
-            return response.get("choices", [{}])[0].get("message", {}).get("content") or ""
-        except Exception:
-            return ""
+    def _valid_required_json(self, payload):
+        if not isinstance(payload, dict):
+            return False
+        required_keys = self._current_skill_policy().get("required_output_keys") or []
+        return all(key in payload for key in required_keys)
+
+    def _current_skill_policy(self):
+        policies = [
+            skill.get("runtime_policy") or {}
+            for skill in self.effective_skills
+            if skill.get("allow_implicit_invocation")
+        ]
+        policies.extend(skill.get("runtime_policy") or {} for skill in self.loaded_skills)
+
+        response_format = ""
+        required_output_keys = []
+        instructions = []
+        finalization_max_tokens = 0
+        finalization_timeout = 0
+        for policy in policies:
+            if policy.get("response_format") == "JSON Object":
+                response_format = "JSON Object"
+            elif policy.get("response_format") and not response_format:
+                response_format = policy.get("response_format")
+            for key in policy.get("required_output_keys") or []:
+                if key not in required_output_keys:
+                    required_output_keys.append(key)
+            instruction = str(policy.get("final_output_instruction") or "").strip()
+            if instruction and instruction not in instructions:
+                instructions.append(instruction)
+            finalization_max_tokens = max(
+                finalization_max_tokens,
+                cint(policy.get("finalization_max_tokens")),
+            )
+            finalization_timeout = max(
+                finalization_timeout,
+                cint(policy.get("finalization_timeout")),
+            )
+        return {
+            "response_format": response_format,
+            "required_output_keys": required_output_keys,
+            "finalization_max_tokens": finalization_max_tokens,
+            "finalization_timeout": finalization_timeout,
+            "final_output_instruction": "\n".join(instructions),
+        }
 
     def _fallback_json_final_answer(self, final_answer):
-        return {
+        fallback = {
             "status": "Needs Review",
             "client_readable_summary": str(final_answer or "")[:4000],
+            "questions": [],
             "warnings": [
-                "لم يرجع الوكيل بيانات منظمة صالحة بالكامل، لذلك تم حفظ نتيجة قابلة للمراجعة بدل فشل التشغيل."
+                "لم يرجع الوكيل بيانات منظمة صالحة بالكامل، لذلك تم حفظ حالة واضحة قابلة للمراجعة بدل رد نجاح عام."
             ],
-            "invoice_groups": [],
-            "document_groups": [],
+            "errors": ["تعذر إنتاج عقد JSON النهائي المطلوب من نتائج التشغيل المتاحة."],
         }
+        for key in self._current_skill_policy().get("required_output_keys") or []:
+            fallback.setdefault(key, [])
+        return fallback
 
     def _agent_model(self):
         settings = frappe.get_doc("AI Settings")
@@ -1420,23 +1700,90 @@ class Orchestrator:
             self.run.save(ignore_permissions=True)
             self._store_lesson_from_failed_run(error_summary)
             frappe.db.commit()
+            self._update_compact_session_checkpoint(
+                RUN_STATUS_FAILED,
+                error_summary,
+            )
             self.trace.publish_realtime(REALTIME_EVENTS["run_failed"], self.run_name)
         except Exception:
             pass
 
+    def _time_out_run(self, error_summary):
+        try:
+            self.run.reload()
+            self.run.status = RUN_STATUS_TIMED_OUT
+            self.run.error_summary = error_summary
+            self.run.completed_at = frappe.utils.now_datetime()
+            self.run.current_step = self.sequence
+            self.run.input_tokens = self.input_tokens
+            self.run.output_tokens = self.output_tokens
+            self.run.save(ignore_permissions=True)
+            frappe.db.commit()
+            self._update_compact_session_checkpoint(RUN_STATUS_TIMED_OUT, error_summary)
+            self.trace.publish_realtime(REALTIME_EVENTS["run_failed"], self.run_name)
+        except Exception:
+            pass
+
+    def _update_compact_session_checkpoint(self, status, summary="", state=None):
+        """Persist a bounded latest-run checkpoint without replacing agent instructions."""
+        try:
+            latest_run = frappe.get_all(
+                "AI Run",
+                filters={"agent": self.run.agent},
+                fields=["name"],
+                order_by="creation desc",
+                page_length=1,
+            )
+            if latest_run and latest_run[0].name != self.run_name:
+                return
+
+            current = frappe.db.get_value("AI Agent", self.agent.name, "compact_session") or ""
+            base = str(current).split(self.COMPACT_CHECKPOINT_START, 1)[0].rstrip()
+            recent_steps = frappe.get_all(
+                "AI Run Step",
+                filters={"run": self.run_name},
+                fields=["sequence", "step_type", "title", "status", "summary"],
+                order_by="sequence desc",
+                page_length=5,
+            )
+            recent_steps.reverse()
+            step_lines = []
+            for row in recent_steps:
+                detail = " ".join(str(row.summary or "").split())[:280]
+                step_lines.append(
+                    f"- {row.sequence}: {row.step_type}/{row.status} - {row.title}"
+                    + (f" | {detail}" if detail else "")
+                )
+            tool_count = state.get("tool_call_count", 0) if isinstance(state, dict) else cint(
+                frappe.db.get_value("AI Run", self.run_name, "tool_call_count")
+            )
+            current_sequence = max(
+                self.sequence,
+                cint(frappe.db.get_value("AI Run", self.run_name, "current_step")),
+                max((cint(row.sequence) for row in recent_steps), default=0),
+            )
+            checkpoint = "\n".join([
+                self.COMPACT_CHECKPOINT_START,
+                "Latest runtime checkpoint (informational; run evidence remains authoritative):",
+                f"Run: {self.run_name}",
+                f"Status: {status}",
+                f"Objective: {' '.join(str(self.run.prompt or '').split())[:700]}",
+                f"Current sequence: {current_sequence}",
+                f"Tool calls: {tool_count}",
+                f"Latest summary: {' '.join(str(summary or '').split())[:700]}",
+                "Recent steps:",
+                *(step_lines or ["- No persisted steps yet."]),
+                self.COMPACT_CHECKPOINT_END,
+            ])
+            value = f"{base}\n\n{checkpoint}" if base else checkpoint
+            frappe.db.set_value("AI Agent", self.agent.name, "compact_session", value, update_modified=False)
+            frappe.db.commit()
+            self.agent.compact_session = value
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "AI Agent Compact Session Checkpoint")
+
     def _store_lesson_from_completed_run(self, final_answer):
-        markers = (
-            "أوقفت التنفيذ", "لم أُكمل", "لم أصل", "needs clarification",
-            "clarification", "pending", "queued", "approval",
-        )
-        text = final_answer or ""
-        if not any(marker.lower() in text.lower() for marker in markers):
-            return
-        lesson = (
-            f"Previous run needed special handling. User prompt: {self.run.prompt}. "
-            f"Outcome: {text[:900]}"
-        )
-        self.memory.store_run_lesson(self.run, lesson)
+        self.memory.store_completed_run(self.run, final_answer)
 
     def _store_lesson_from_failed_run(self, error_summary):
         lesson = (

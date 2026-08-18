@@ -1,6 +1,7 @@
 ---
 name: compound-document-operations
 description: Use for large, multi-step ERP document work that may require creating prerequisite records, many child rows, approvals, and follow-up continuation.
+tools: schema.search_doctypes, schema.describe_doctype, schema.describe_links, schema.describe_workflow, data.query, data.get_document, data.get_child_records, actions.prepare_document, actions.validate_document, actions.request_create_draft, actions.request_bulk_create, actions.request_update, actions.request_submit, actions.request_workflow_action
 ---
 
 # Compound Document Operations

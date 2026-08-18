@@ -1,6 +1,7 @@
 ---
 name: match_purchase_invoice_supplier
 description: Match extracted purchase invoice supplier details to ERPNext Supplier records using permission-safe lookups.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.get_document, memory.search
 ---
 
 # Match Purchase Invoice Supplier

@@ -5,12 +5,11 @@ import json
 import base64
 import os
 import re
-import threading
-from ai_agent.runtime.orchestrator import execute_run
 from ai_agent.runtime.skill_registry import SkillRegistry
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.model_provider import estimate_context_window_tokens
+from ai_agent.runtime.run_control import enqueue_run, recover_run_if_orphaned
 from frappe.utils.file_manager import save_file
 
 
@@ -95,7 +94,7 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
 
     frappe.db.commit()
 
-    _start_run_thread(run.name, frappe.session.user, getattr(frappe.local, "site", None))
+    enqueue_run(run.name, frappe.session.user)
 
     return {
         "run_name": run.name,
@@ -549,6 +548,8 @@ def get_run(run_name):
     run = frappe.get_doc("AI Run", run_name)
     if run.user != frappe.session.user and not _is_system_manager():
         frappe.throw(_("Not authorized to view this run."), frappe.PermissionError)
+    if recover_run_if_orphaned(run):
+        run.reload()
 
     return {
         "name": run.name,
@@ -599,51 +600,10 @@ def _token_usage_for_run(run):
 
 def _run_execution_status(run):
     return {
-        "mode": "app_thread",
+        "mode": "background_queue",
         "state": "starting" if run.status == "Queued" else run.status,
-        "message": _("يعمل الآن في الخلفية داخل التطبيق"),
+        "message": _("يعمل الآن في طابور المهام الخلفية"),
     }
-
-
-def _start_run_thread(run_name, user, site):
-    thread = threading.Thread(
-        target=_execute_run_in_thread,
-        args=(run_name, user, site),
-        daemon=True,
-        name=f"ai-agent-{run_name}",
-    )
-    thread.start()
-
-
-def _execute_run_in_thread(run_name, user, site):
-    initialized = False
-    try:
-        if site:
-            frappe.init(site=site)
-            frappe.connect()
-            initialized = True
-        frappe.set_user(user or "Administrator")
-        execute_run(run_name)
-    except Exception:
-        _mark_thread_run_failed(run_name)
-    finally:
-        if initialized:
-            frappe.destroy()
-
-
-def _mark_thread_run_failed(run_name):
-    try:
-        traceback = frappe.get_traceback()
-        frappe.log_error(traceback, "AI Agent Thread Execution Failed")
-        run = frappe.get_doc("AI Run", run_name)
-        if run.status not in TERMINAL_STATUSES:
-            run.status = "Failed"
-            run.error_summary = _("Agent background execution failed. Check the error log for details.")
-            run.completed_at = frappe.utils.now_datetime()
-            run.save(ignore_permissions=True)
-            frappe.db.commit()
-    except Exception:
-        pass
 
 
 @frappe.whitelist()

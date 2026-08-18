@@ -1,6 +1,7 @@
 ---
 name: profitability-analysis
 description: Use for profit margin analysis, cost analysis, revenue vs cost comparisons, and profitability insights.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Profitability Analysis

@@ -1,6 +1,7 @@
 ---
 name: sales-analysis
 description: Use for sales trends, branch comparisons, returns, customers, items, and sales performance investigations.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Sales Analysis

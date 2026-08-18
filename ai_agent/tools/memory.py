@@ -14,13 +14,13 @@ def handle_search(arguments, permission_context):
     if not service.is_enabled():
         return {"rows": [], "row_count": 0, "message": _("AI memory is disabled.")}
 
-    company = arguments.get("company") or getattr(permission_context, "company", None)
-    agent = arguments.get("agent") or getattr(permission_context, "agent_name", None)
+    company = getattr(permission_context, "company", None) or arguments.get("company")
+    agent = getattr(permission_context, "agent_name", None) or arguments.get("agent")
     limit = max(1, min(int(arguments.get("limit") or 8), 20))
 
     rows = []
     for scope in ("User", "Agent", "Company"):
-        for memory_type in ("Context", "Summary"):
+        for memory_type in ("Preference", "Context", "Summary"):
             rows.extend(service.retrieve(
                 user=permission_context.user,
                 scope=scope,
@@ -29,6 +29,8 @@ def handle_search(arguments, permission_context):
                 agent=agent,
             ))
 
+    unique_rows = {row.name: row for row in rows}
+    rows = list(unique_rows.values())
     tokens = [token for token in query.split() if len(token) >= 2]
     matches = []
     for row in rows:
@@ -57,7 +59,13 @@ def handle_search(arguments, permission_context):
         }
         for _, row in matches[:limit]
     ]
-    return {"rows": result_rows, "row_count": len(result_rows)}
+    return {
+        "rows": result_rows,
+        "row_count": len(result_rows),
+        "candidate_count": len(rows),
+        "exhaustive": not rows,
+        "message": _("No AI memory exists for the current user, agent, and company scope.") if not rows else None,
+    }
 
 
 def handle_store_context(arguments, permission_context):
@@ -74,8 +82,8 @@ def handle_store_context(arguments, permission_context):
     if scope not in {"User", "Agent", "Company"}:
         return {"error": "scope must be User, Agent, or Company"}
 
-    company = arguments.get("company") or getattr(permission_context, "company", None)
-    agent = arguments.get("agent") or getattr(permission_context, "agent_name", None)
+    company = getattr(permission_context, "company", None) or arguments.get("company")
+    agent = getattr(permission_context, "agent_name", None) or arguments.get("agent")
     if scope == "Agent" and not agent:
         return {"error": "agent is required when scope is Agent"}
     tagged_content = content

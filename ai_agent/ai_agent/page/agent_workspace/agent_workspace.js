@@ -86,6 +86,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     let voiceBasePrompt = "";
     let printLetterHeads = null;
     const journalEntryProposals = {};
+    const interactiveResponses = {};
     let workspaceRequest = take_workspace_route_request();
     let workspaceRequestSubmitted = false;
 
@@ -238,6 +239,12 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         });
         page.main.on("click", ".btn-open-journal-entry", function () {
             open_journal_entry_proposal($(this).data("run"), Number($(this).data("entry-index")));
+        });
+        page.main.on("click", ".btn-interactive-action", function () {
+            run_interactive_action($(this).data("run"), $(this).data("action"));
+        });
+        page.main.on("click", ".btn-submit-answers", function () {
+            submit_interactive_answers($(this).data("run"));
         });
 
         frappe.realtime.on("ai_agent:run_updated", (data) => {
@@ -409,10 +416,15 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
 
     function render_assistant_message(message) {
         const statusClass = (message.status || "").toLowerCase().replace(/\s+/g, "-");
+        const interactive = interactive_response_from_content(message.content);
         const proposal = journal_entry_proposal_from_response(message.content);
         if (proposal) journalEntryProposals[message.run_name] = proposal;
-        const content = proposal
-            ? render_journal_entry_proposal(message.run_name, proposal)
+        if (interactive) interactiveResponses[message.run_name] = interactive;
+        const content = interactive
+            ? render_interactive_response(message.run_name, interactive)
+                + (proposal ? render_journal_entry_proposal(message.run_name, proposal, false) : "")
+            : proposal
+            ? render_journal_entry_proposal(message.run_name, proposal, true)
             : (message.content ? safe_markdown(message.content) : `<p class="muted">${__("Working on it...")}</p>`);
         const reportClass = is_printable_message(message) ? "report-message" : "";
         return `
@@ -451,6 +463,212 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         `;
     }
 
+    function interactive_response_from_content(content) {
+        const parsed = parse_json_response(content);
+        const ui = parsed?.ui;
+        if (!ui || typeof ui !== "object") return null;
+        return {
+            payload: parsed,
+            reply_markdown: String(parsed.reply_markdown || ui.reply_markdown || ""),
+            sections: Array.isArray(ui.sections) ? ui.sections.slice(0, 12) : [],
+            questions: Array.isArray(ui.questions) ? ui.questions.slice(0, 20) : [],
+            actions: Array.isArray(ui.actions) ? ui.actions.slice(0, 12) : [],
+            suggestions: Array.isArray(ui.suggestions) ? ui.suggestions.slice(0, 12) : [],
+        };
+    }
+
+    function parse_json_response(content) {
+        const candidate = String(content || "").trim()
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+        if (!candidate) return null;
+        try {
+            return JSON.parse(candidate);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function render_interactive_response(runName, response) {
+        const supportedActions = response.actions.filter((action) => (
+            action && ["submit_prompt", "open_draft"].includes(String(action.kind || ""))
+        ));
+        return `
+            <section class="interactive-response" data-run="${escape_attr(runName)}">
+                ${response.reply_markdown ? `<div class="interactive-reply">${safe_markdown(response.reply_markdown)}</div>` : ""}
+                ${response.sections.map(render_interactive_section).join("")}
+                ${render_interactive_questions(runName, response.questions)}
+                ${(supportedActions.length || response.suggestions.length) ? `
+                    <div class="interactive-actions">
+                        ${supportedActions.map((action, index) => `
+                            <button class="btn btn-sm ${interactive_button_class(action.style)} btn-interactive-action"
+                                data-run="${escape_attr(runName)}" data-action="${escape_attr(action.id || String(index))}">
+                                ${escape_html(action.label || __("متابعة"))}
+                            </button>
+                        `).join("")}
+                        ${response.suggestions.filter((item) => item?.label && item?.prompt).map((item) => `
+                            <button class="btn btn-sm btn-default btn-chat-suggestion" data-prompt="${escape_attr(item.prompt)}">
+                                ${escape_html(item.label)}
+                            </button>
+                        `).join("")}
+                    </div>
+                ` : ""}
+            </section>
+        `;
+    }
+
+    function render_interactive_section(section) {
+        if (!section || typeof section !== "object") return "";
+        const type = String(section.type || "markdown").toLowerCase();
+        const title = section.title ? `<h4>${escape_html(section.title)}</h4>` : "";
+        if (type === "alert") {
+            const tone = ["info", "success", "warning", "error"].includes(section.tone) ? section.tone : "info";
+            return `<div class="interactive-section interactive-alert ${tone}">${title}<div>${escape_html(section.message || "")}</div></div>`;
+        }
+        if (type === "key_value") {
+            const items = Array.isArray(section.items) ? section.items.slice(0, 50) : [];
+            return `<div class="interactive-section">${title}<dl class="interactive-key-values">${items.map((item) => `
+                <dt>${escape_html(item?.label || item?.key || "")}</dt><dd>${escape_html(format_cell(item?.value))}</dd>
+            `).join("")}</dl></div>`;
+        }
+        if (type === "table") {
+            const columns = (Array.isArray(section.columns) ? section.columns : []).slice(0, 20);
+            const rows = (Array.isArray(section.rows) ? section.rows : []).slice(0, 200);
+            return `<div class="interactive-section">${title}<div class="interactive-table-wrap"><table class="interactive-table">
+                <thead><tr>${columns.map((column) => `<th>${escape_html(typeof column === "string" ? column : column?.label || column?.key || "")}</th>`).join("")}</tr></thead>
+                <tbody>${rows.map((row) => `<tr>${columns.map((column) => {
+                    const key = typeof column === "string" ? column : column?.key;
+                    return `<td>${escape_html(format_cell(row?.[key]))}</td>`;
+                }).join("")}</tr>`).join("")}</tbody>
+            </table></div></div>`;
+        }
+        return `<div class="interactive-section">${title}<div>${safe_markdown(section.markdown || section.message || "")}</div></div>`;
+    }
+
+    function render_interactive_questions(runName, questions) {
+        if (!questions.length) return "";
+        return `
+            <div class="interactive-questions">
+                <h4>${__("معلومات مطلوبة")}</h4>
+                ${questions.map((question, index) => render_interactive_question(question, index)).join("")}
+                <button class="btn btn-sm btn-primary btn-submit-answers" data-run="${escape_attr(runName)}">${__("إرسال الإجابات")}</button>
+            </div>
+        `;
+    }
+
+    function render_interactive_question(question, index) {
+        const id = String(question?.id || `question_${index + 1}`);
+        const type = String(question?.input_type || "text").toLowerCase();
+        const required = question?.required ? "required" : "";
+        let control = "";
+        if (type === "select") {
+            control = `<select class="form-control" data-question="${escape_attr(id)}" ${required}>
+                <option value="">${__("اختر")}</option>
+                ${(question.options || []).slice(0, 50).map((option) => {
+                    const value = typeof option === "object" ? option.value : option;
+                    const label = typeof option === "object" ? option.label : option;
+                    return `<option value="${escape_attr(value)}">${escape_html(label)}</option>`;
+                }).join("")}
+            </select>`;
+        } else if (type === "textarea") {
+            control = `<textarea class="form-control" rows="3" data-question="${escape_attr(id)}" ${required} placeholder="${escape_attr(question.placeholder || "")}"></textarea>`;
+        } else if (type === "checkbox") {
+            control = `<input type="checkbox" data-question="${escape_attr(id)}">`;
+        } else {
+            control = `<input class="form-control" type="text" data-question="${escape_attr(id)}" ${required} placeholder="${escape_attr(question.placeholder || "")}">`;
+        }
+        return `<label class="interactive-question" data-question-row="${escape_attr(id)}">
+            <span>${escape_html(question?.label || id)}${question?.required ? " *" : ""}</span>
+            ${question?.help ? `<small>${escape_html(question.help)}</small>` : ""}
+            ${control}
+        </label>`;
+    }
+
+    function interactive_button_class(style) {
+        if (style === "primary") return "btn-primary";
+        if (style === "success") return "btn-success";
+        return "btn-default";
+    }
+
+    function run_interactive_action(runName, actionId) {
+        const response = interactiveResponses[runName];
+        const action = response?.actions?.find((item, index) => String(item?.id || index) === String(actionId));
+        if (!action) return;
+        if (action.kind === "submit_prompt" && action.prompt) {
+            submit_suggested_message(String(action.prompt));
+            return;
+        }
+        if (action.kind === "open_draft" && action.document) {
+            open_interactive_draft(action.document);
+        }
+    }
+
+    function submit_interactive_answers(runName) {
+        const response = interactiveResponses[runName];
+        if (!response?.questions?.length) return;
+        const container = page.main.find(`.interactive-response[data-run="${css_escape(runName)}"]`);
+        const answers = [];
+        let missing = false;
+        response.questions.forEach((question, index) => {
+            const id = String(question?.id || `question_${index + 1}`);
+            const input = container.find("[data-question]").filter(function () {
+                return String($(this).data("question")) === id;
+            }).first();
+            const value = input.attr("type") === "checkbox" ? input.is(":checked") : String(input.val() || "").trim();
+            if (question?.required && (value === "" || value === null || value === undefined)) {
+                missing = true;
+                input.addClass("input-with-feedback form-control error");
+            } else {
+                input.removeClass("error");
+            }
+            answers.push({ label: question?.label || id, value });
+        });
+        if (missing) {
+            frappe.show_alert({ message: __("أكمل الحقول المطلوبة أولاً."), indicator: "orange" });
+            return;
+        }
+        const prompt = [
+            __("إجابات المستخدم على الأسئلة المطلوبة:"),
+            ...answers.map((answer) => `- ${answer.label}: ${answer.value === true ? __("نعم") : answer.value === false ? __("لا") : answer.value}`),
+            __("تابع تنفيذ الطلب الأصلي بناءً على هذه الإجابات."),
+        ].join("\n");
+        submit_suggested_message(prompt);
+    }
+
+    function open_interactive_draft(documentSpec) {
+        const doctype = String(documentSpec?.doctype || "").trim();
+        if (!doctype) return;
+        frappe.model.with_doctype(doctype, () => {
+            if (frappe.model.can_create && !frappe.model.can_create(doctype)) {
+                frappe.msgprint(__("ليست لديك صلاحية إنشاء {0}.", [doctype]));
+                return;
+            }
+            const meta = frappe.get_meta(doctype);
+            const doc = frappe.model.get_new_doc(doctype);
+            apply_draft_values(doc, meta, documentSpec.values || {});
+            (documentSpec.child_tables || []).slice(0, 20).forEach((table) => {
+                const field = meta.fields.find((item) => item.fieldname === table?.fieldname && item.fieldtype === "Table");
+                if (!field || !Array.isArray(table.rows)) return;
+                table.rows.slice(0, 500).forEach((values) => {
+                    const row = frappe.model.add_child(doc, field.options, field.fieldname);
+                    apply_draft_values(row, frappe.get_meta(field.options), values || {});
+                });
+            });
+            frappe.set_route("Form", doctype, doc.name);
+        });
+    }
+
+    function apply_draft_values(doc, meta, values) {
+        const blocked = new Set(["name", "owner", "creation", "modified", "modified_by", "docstatus", "doctype", "parent", "parentfield", "parenttype", "idx"]);
+        Object.entries(values || {}).forEach(([fieldname, value]) => {
+            if (blocked.has(fieldname)) return;
+            const field = meta?.fields?.find((item) => item.fieldname === fieldname);
+            if (!field || ["Table", "Table MultiSelect"].includes(field.fieldtype)) return;
+            if (value === null || ["string", "number", "boolean"].includes(typeof value)) doc[fieldname] = value;
+        });
+    }
+
     function journal_entry_proposal_from_response(content) {
         const text = String(content || "").trim();
         if (!text) return null;
@@ -460,17 +678,72 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             .trim();
         try {
             const parsed = JSON.parse(candidate);
-            return Array.isArray(parsed?.journal_entries) ? parsed : null;
+            if (Array.isArray(parsed?.journal_entries)) return parsed;
+            if (!Array.isArray(parsed?.invoice_groups)) return null;
+
+            const journalEntries = parsed.invoice_groups
+                .map((group, index) => journal_entry_from_invoice_group(group, index))
+                .filter(Boolean);
+            const questions = collect_proposal_messages(parsed, "questions");
+            const warnings = collect_proposal_messages(parsed, "warnings");
+            const errors = collect_proposal_messages(parsed, "errors");
+            if (!journalEntries.length && !questions.length && !warnings.length && !errors.length) return null;
+            return {
+                journal_entries: journalEntries,
+                questions,
+                warnings,
+                errors,
+            };
         } catch (error) {
             return null;
         }
     }
 
-    function render_journal_entry_proposal(runName, proposal) {
+    function journal_entry_from_invoice_group(group, index) {
+        if (!group || !Array.isArray(group.journal_entry_lines) || !group.journal_entry_lines.length) {
+            return null;
+        }
+        const meta = group.document_meta || {};
+        return {
+            company: group.company || "",
+            posting_date: group.posting_date || meta.document_date || "",
+            user_remark: group.client_readable_summary || group.summary || meta.document_title || "",
+            source_group_id: group.invoice_group_id || `GROUP-${index + 1}`,
+            accounts: group.journal_entry_lines.map((row) => ({
+                ...row,
+                debit_in_account_currency: Number(row.debit_in_account_currency ?? row.debit ?? 0),
+                credit_in_account_currency: Number(row.credit_in_account_currency ?? row.credit ?? 0),
+            })),
+        };
+    }
+
+    function collect_proposal_messages(payload, key) {
+        const messages = [];
+        const append = (values) => {
+            (Array.isArray(values) ? values : []).forEach((value) => {
+                const text = String(value || "").trim();
+                if (text && !messages.includes(text)) messages.push(text);
+            });
+        };
+        append(payload?.[key]);
+        (payload?.invoice_groups || []).forEach((group) => append(group?.[key]));
+        return messages;
+    }
+
+    function render_journal_entry_proposal(runName, proposal, includeMessages = true) {
         const entries = proposal.journal_entries || [];
+        const questions = proposal.questions || [];
         const warnings = proposal.warnings || [];
+        const errors = proposal.errors || [];
         return `
             <section class="journal-entry-proposal" dir="auto">
+                ${includeMessages && questions.length ? `
+                    <div class="journal-entry-proposal-questions">
+                        <strong>${__("أسئلة تحتاج توضيحاً")}</strong>
+                        ${questions.map((question) => `<div>${escape_html(question)}</div>`).join("")}
+                        <small>${__("يمكنك الرد على هذه الأسئلة في المحادثة، أو فتح القيد وإكمال الاختيارات أثناء المراجعة.")}</small>
+                    </div>
+                ` : ""}
                 ${entries.map((entry, index) => {
                     const rows = Array.isArray(entry.accounts) ? entry.accounts : [];
                     const totalDebit = rows.reduce((total, row) => total + Number(row.debit_in_account_currency || 0), 0);
@@ -483,7 +756,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                             </div>
                             <button class="btn btn-primary btn-sm btn-open-journal-entry"
                                 data-run="${escape_attr(runName)}" data-entry-index="${index}">
-                                ${__("فتح القيد للمراجعة")}
+                                ${__("إنشاء قيد للمراجعة")}
                             </button>
                         </div>
                         ${entry.user_remark ? `<div class="journal-entry-proposal-remark">${escape_html(entry.user_remark)}</div>` : ""}
@@ -503,7 +776,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                         </div>
                     `;
                 }).join("")}
-                ${warnings.length ? `<div class="journal-entry-proposal-warnings">${warnings.map((warning) => `<div>${escape_html(warning)}</div>`).join("")}</div>` : ""}
+                ${includeMessages && warnings.length ? `<div class="journal-entry-proposal-warnings">${warnings.map((warning) => `<div>${escape_html(warning)}</div>`).join("")}</div>` : ""}
+                ${includeMessages && errors.length ? `<div class="journal-entry-proposal-errors">${errors.map((error) => `<div>${escape_html(error)}</div>`).join("")}</div>` : ""}
             </section>
         `;
     }
@@ -515,12 +789,6 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             frappe.msgprint(__("لا توجد سطور قيد صالحة للفتح."));
             return;
         }
-        const journalEntry = frappe.model.get_new_doc("Journal Entry");
-        journalEntry.company = entry.company || selectedCompany || "";
-        journalEntry.posting_date = entry.posting_date || frappe.datetime.get_today();
-        journalEntry.voucher_type = "Journal Entry";
-        journalEntry.user_remark = entry.user_remark || "";
-
         const allowedFields = [
             "account",
             "debit_in_account_currency",
@@ -535,13 +803,22 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             "party_type",
             "party",
         ];
-        entry.accounts.forEach((source) => {
-            const row = frappe.model.add_child(journalEntry, "Journal Entry Account", "accounts");
-            allowedFields.forEach((field) => {
-                if (source[field] !== undefined && source[field] !== null) row[field] = source[field];
+        frappe.model.with_doctype("Journal Entry", () => {
+            frappe.model.with_doctype("Journal Entry Account", () => {
+                const journalEntry = frappe.model.get_new_doc("Journal Entry");
+                journalEntry.company = entry.company || selectedCompany || "";
+                journalEntry.posting_date = entry.posting_date || frappe.datetime.get_today();
+                journalEntry.voucher_type = "Journal Entry";
+                journalEntry.user_remark = entry.user_remark || "";
+                entry.accounts.forEach((source) => {
+                    const row = frappe.model.add_child(journalEntry, "Journal Entry Account", "accounts");
+                    allowedFields.forEach((field) => {
+                        if (source[field] !== undefined && source[field] !== null) row[field] = source[field];
+                    });
+                });
+                frappe.set_route("Form", "Journal Entry", journalEntry.name);
             });
         });
-        frappe.set_route("Form", "Journal Entry", journalEntry.name);
     }
 
     function render_print_button(message) {

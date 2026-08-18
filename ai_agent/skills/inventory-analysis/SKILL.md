@@ -1,6 +1,7 @@
 ---
 name: inventory-analysis
 description: Use for stock levels, warehouse analysis, item movement, slow-moving items, and inventory optimization.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Inventory Analysis

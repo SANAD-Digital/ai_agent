@@ -1,6 +1,7 @@
 ---
 name: supplier-analysis
 description: Use for supplier activity, purchasing patterns, performance metrics, and supplier evaluation.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Supplier Analysis

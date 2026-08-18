@@ -25,8 +25,12 @@ class SkillRegistry:
 
         grants = self._get_matching_grants(user, agent_name, company)
         skills = []
+        seen = set()
         for grant in grants:
             skill_name = grant.skill
+            if skill_name in seen:
+                continue
+            seen.add(skill_name)
             skill_doc = frappe.get_doc("AI Skill", skill_name)
             if not skill_doc or not skill_doc.enabled:
                 continue
@@ -63,6 +67,7 @@ class SkillRegistry:
                 "access_level": tool_row.access_level,
                 "requires_approval": tool_row.requires_approval,
                 "maximum_calls": tool_row.maximum_calls,
+                "maximum_result_rows": tool_row.get("maximum_result_rows"),
             })
 
         return {
@@ -72,6 +77,7 @@ class SkillRegistry:
             "instructions": instructions,
             "tools": tools,
             "version": skill_doc.version,
+            "runtime_policy": self._runtime_policy(skill_doc),
         }
 
     def sync_app_skills(self):
@@ -97,17 +103,16 @@ class SkillRegistry:
             allow_implicit_invocation = self._as_bool(meta.get("allow_implicit_invocation"))
             instructions = self._extract_instructions(content)
             content_hash = hashlib.sha256(content.encode()).hexdigest()
+            declared_tools = self._parse_csv(meta.get("tools")) if "tools" in meta else None
+            tool_call_limits = self._parse_int_mapping(meta.get("tool_call_limits"))
+            tool_result_limits = self._parse_int_mapping(meta.get("tool_result_limits"))
 
             existing = frappe.db.exists("AI Skill", skill_name)
             if existing:
                 skill_doc = frappe.get_doc("AI Skill", skill_name)
                 if skill_doc.source_type == "Database":
-                    if skill_doc.allow_implicit_invocation:
-                        self._ensure_implicit_skill_grants(skill_name)
                     continue
                 if skill_doc.content_hash == content_hash:
-                    if skill_doc.allow_implicit_invocation:
-                        self._ensure_implicit_skill_grants(skill_name)
                     continue
                 changed = False
                 standard_values = {
@@ -120,11 +125,23 @@ class SkillRegistry:
                     "allow_implicit_invocation": allow_implicit_invocation,
                     "trusted": 1,
                     "content_hash": content_hash,
+                    "response_format": self._normalize_response_format(meta.get("response_format")),
+                    "required_output_keys": ",".join(self._parse_csv(meta.get("required_output_keys"))),
+                    "finalization_max_tokens": self._positive_int(meta.get("finalization_max_tokens")),
+                    "finalization_timeout": self._positive_int(meta.get("finalization_timeout")),
+                    "final_output_instruction": meta.get("final_output_instruction", ""),
                 }
                 for field, value in standard_values.items():
                     if skill_doc.get(field) != value:
                         skill_doc.set(field, value)
                         changed = True
+                if declared_tools is not None and self._sync_declared_tools(
+                    skill_doc,
+                    declared_tools,
+                    tool_call_limits,
+                    tool_result_limits,
+                ):
+                    changed = True
                 if changed:
                     skill_doc.save(ignore_permissions=True)
             else:
@@ -140,11 +157,20 @@ class SkillRegistry:
                     "allow_implicit_invocation": allow_implicit_invocation,
                     "trusted": 1,
                     "content_hash": content_hash,
+                    "response_format": self._normalize_response_format(meta.get("response_format")),
+                    "required_output_keys": ",".join(self._parse_csv(meta.get("required_output_keys"))),
+                    "finalization_max_tokens": self._positive_int(meta.get("finalization_max_tokens")),
+                    "finalization_timeout": self._positive_int(meta.get("finalization_timeout")),
+                    "final_output_instruction": meta.get("final_output_instruction", ""),
                 })
+                if declared_tools is not None:
+                    self._sync_declared_tools(
+                        skill_doc,
+                        declared_tools,
+                        tool_call_limits,
+                        tool_result_limits,
+                    )
                 skill_doc.insert(ignore_permissions=True)
-            if allow_implicit_invocation:
-                self._ensure_implicit_skill_grants(skill_name)
-
         frappe.db.commit()
 
     def _get_skill_metadata(self, skill_name):
@@ -163,44 +189,96 @@ class SkillRegistry:
             "enabled": skill_doc.enabled,
             "allow_implicit_invocation": skill_doc.allow_implicit_invocation,
             "instructions": skill_doc.instructions if skill_doc.allow_implicit_invocation else "",
+            "tools": [
+                {
+                    "tool_name": row.tool_name,
+                    "access_level": row.access_level,
+                    "requires_approval": row.requires_approval,
+                    "maximum_calls": row.maximum_calls,
+                    "maximum_result_rows": row.get("maximum_result_rows"),
+                }
+                for row in (skill_doc.tools or [])
+            ],
+            "runtime_policy": self._runtime_policy(skill_doc),
         }
         self._metadata_cache[skill_name] = meta
         return meta
-
-    def _ensure_implicit_skill_grants(self, skill_name):
-        agents = frappe.get_all("AI Agent", filters={"enabled": 1}, pluck="name")
-        for agent_name in agents:
-            if self._global_skill_grant_exists(agent_name, skill_name):
-                continue
-            grant = frappe.get_doc({
-                "doctype": "AI Skill Grant",
-                "agent": agent_name,
-                "skill": skill_name,
-                "grant_type": "All Users",
-                "company": None,
-                "enabled": 1,
-            })
-            grant.insert(ignore_permissions=True)
-            frappe.db.set_value("AI Skill Grant", grant.name, "company", None, update_modified=False)
-
-    def _global_skill_grant_exists(self, agent_name, skill_name):
-        return bool(frappe.db.sql(
-            """
-            select name
-            from `tabAI Skill Grant`
-            where agent = %s
-              and skill = %s
-              and grant_type = 'All Users'
-              and ifnull(company, '') = ''
-            limit 1
-            """,
-            (agent_name, skill_name),
-        ))
 
     def _as_bool(self, value):
         if isinstance(value, bool):
             return value
         return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+    def _parse_csv(self, value):
+        return [item.strip() for item in str(value or "").split(",") if item.strip()]
+
+    def _positive_int(self, value):
+        try:
+            number = int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+        return max(number, 0)
+
+    def _parse_int_mapping(self, value):
+        result = {}
+        for item in self._parse_csv(value):
+            name, separator, raw_limit = item.partition("=")
+            name = name.strip()
+            if not separator or not name:
+                continue
+            limit = self._positive_int(raw_limit)
+            if limit:
+                result[name] = limit
+        return result
+
+    def _normalize_response_format(self, value):
+        normalized = str(value or "").strip().lower().replace("_", " ")
+        if normalized in {"json", "json object", "jsonobject"}:
+            return "JSON Object"
+        if normalized == "text":
+            return "Text"
+        return ""
+
+    def _sync_declared_tools(self, skill_doc, tool_names, call_limits=None, result_limits=None):
+        call_limits = call_limits or {}
+        result_limits = result_limits or {}
+        desired = [
+            (
+                tool_name,
+                self._positive_int(call_limits.get(tool_name)),
+                self._positive_int(result_limits.get(tool_name)),
+            )
+            for tool_name in tool_names
+        ]
+        existing = [
+            (
+                row.tool_name,
+                self._positive_int(row.maximum_calls),
+                self._positive_int(row.get("maximum_result_rows")),
+            )
+            for row in (skill_doc.tools or [])
+        ]
+        if existing == desired:
+            return False
+        skill_doc.set("tools", [])
+        for tool_name, maximum_calls, maximum_result_rows in desired:
+            skill_doc.append("tools", {
+                "tool_name": tool_name,
+                "access_level": "Read",
+                "requires_approval": 0,
+                "maximum_calls": maximum_calls,
+                "maximum_result_rows": maximum_result_rows,
+            })
+        return True
+
+    def _runtime_policy(self, skill_doc):
+        return {
+            "response_format": skill_doc.get("response_format") or "",
+            "required_output_keys": self._parse_csv(skill_doc.get("required_output_keys")),
+            "finalization_max_tokens": self._positive_int(skill_doc.get("finalization_max_tokens")),
+            "finalization_timeout": self._positive_int(skill_doc.get("finalization_timeout")),
+            "final_output_instruction": str(skill_doc.get("final_output_instruction") or "").strip(),
+        }
 
     def _get_matching_grants(self, user, agent_name, company=None):
         """Find all grants matching user/agent/company."""

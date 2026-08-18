@@ -31,6 +31,22 @@
             "label": "Agent"
         },
         {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "options": "Company",
+            "depends_on": "eval:doc.scope=='Company' || doc.scope=='Agent'",
+            "mandatory_depends_on": "eval:doc.scope=='Company'",
+            "in_list_view": 1,
+            "label": "Company"
+        },
+        {
+            "fieldname": "source_run",
+            "fieldtype": "Link",
+            "options": "AI Run",
+            "read_only": 1,
+            "label": "Source Run"
+        },
+        {
             "fieldname": "memory_type",
             "fieldtype": "Select",
             "options": "Preference\nContext\nSummary",

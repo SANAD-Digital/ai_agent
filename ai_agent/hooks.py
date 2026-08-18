@@ -19,6 +19,11 @@ after_migrate = "ai_agent.install.after_migrate"
 
 # Scheduled Tasks
 scheduler_events = {
+    "cron": {
+        "*/5 * * * *": [
+            "ai_agent.runtime.run_control.recover_orphaned_runs",
+        ],
+    },
     "hourly": [
         "ai_agent.runtime.approval_engine.expire_pending_approvals",
     ],
@@ -36,5 +41,4 @@ doc_events = {
 
 # Override whitelisted methods if needed
 # override_whitelisted_methods = {}
-
 

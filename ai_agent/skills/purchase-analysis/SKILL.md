@@ -1,6 +1,7 @@
 ---
 name: purchase-analysis
 description: Use for purchase trends, supplier analysis, purchase returns, and procurement performance.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Purchase Analysis

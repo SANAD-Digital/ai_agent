@@ -733,7 +733,7 @@ class FileContextService:
             error = get_last_gemini_ocr_error()
             if error:
                 frappe.log_error(str(error)[:1000], "Financial Attachment OCR diagnostic")
-                return ["تعذر محرك OCR الاحتياطي. يمكن إعادة قراءة الصفحة لاحقًا أو مراجعة إعدادات OCR."]
+                return [f"Gemini OCR: {str(error)[:700]}"]
             if not is_gemini_ocr_enabled():
                 return ["محرك OCR الاحتياطي غير مفعل في الإعدادات."]
         except Exception:

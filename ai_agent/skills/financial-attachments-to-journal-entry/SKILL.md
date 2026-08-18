@@ -2,6 +2,14 @@
 name: financial-attachments-to-journal-entry
 description: Convert complete Financial Attachment Session OCR into reviewable ERPNext Journal Entry proposal groups.
 allow_implicit_invocation: 1
+tools: financial_attachments.get_session_ocr_text, data.query, memory.search
+tool_call_limits: financial_attachments.get_session_ocr_text=1, data.query=12, memory.search=4
+tool_result_limits: data.query=10, memory.search=5
+response_format: JSON Object
+required_output_keys: invoice_groups, questions, warnings, errors
+finalization_max_tokens: 32768
+finalization_timeout: 300
+final_output_instruction: Return one complete compact JSON object using the output contract defined by this skill, without Markdown, indentation, progress text, or repeated evidence.
 ---
 
 # Financial Attachments To Journal Entry
@@ -25,12 +33,20 @@ Do not create any ERP document during analysis.
 ## Required Supporting Tools And Skills
 Use these read-only tools directly when needed:
 - `financial_attachments.get_session_ocr_text` to read the complete ready OCR text for the target session.
-- `financial_attachments.list_leaf_accounts` to retrieve exact valid leaf account names for the target company.
+- `data.query` to retrieve only narrowly matched `Account` candidates for the target company.
 - `memory.search` to look for approved mappings for supplier/payee/item/account hints.
 
 Apply the implicit supporting skills:
 - `accounting-memory-to-account`
 - `validate-journal-entry-proposal`
+
+Never load the whole chart of accounts. Query `Account` only when a line needs an account, using:
+- fields: `name`, `account_name`, `account_type`, `root_type`
+- mandatory filters: `company = target company`, `is_group = 0`, `disabled = 0`
+- a narrow `name like` or `account_name like` filter based on the expense/payment nature
+- limit 5 initially, and at most 10 after one broader retry
+
+Use the exact returned `Account.name`. If no reliable candidate is found, leave the account blank and add a question or warning.
 
 ## Source Of Truth
 For OCR workflows, the source of truth is the existing `Financial Attachment Session` and its `Financial Attachment Session Page` rows.
@@ -84,6 +100,16 @@ Rules:
 - avoid duplicate scans/double counting.
 
 Unless the user explicitly requests combination, prepare one Journal Entry proposal per distinct source document.
+
+### Combined Journal Entry Mode
+When the request explicitly asks for one combined Journal Entry for the complete session:
+- return exactly one object inside `invoice_groups`;
+- place the accounting rows for every distinct source document in that single object's `journal_entry_lines`;
+- never create a separate group or Journal Entry proposal per page or per document;
+- include every considered source file/page under the combined group's `files`;
+- preserve each document independently on its relevant rows through `custom_bill_no`, `custom_bill_date`, `custom_cash_supplier`, `custom_tax_id`, `custom_tax_amount`, `source_file`, `source_page`, and `line_meta`;
+- keep each document's debit and balancing credit evidence as separate rows when needed for traceability; do not net unrelated documents into an untraceable summary;
+- validate that the complete combined `journal_entry_lines` set is numerically balanced.
 
 ## Financial Extraction
 For each document extract when supported:
@@ -218,7 +244,7 @@ Return valid JSON only, with no Markdown. The workspace consumes `invoice_groups
 }
 ```
 
-Every `invoice_groups[]` object represents one distinct source document unless the user explicitly asks to combine documents.
+Every `invoice_groups[]` object represents one distinct source document unless the user explicitly asks to combine documents. In Combined Journal Entry Mode, `invoice_groups` must contain exactly one object representing the complete session, while document identity remains on every relevant row.
 
 Every group must include a balanced `journal_entry_lines` set:
 - debit rows for evidenced expenses/costs/tax handling;
@@ -236,6 +262,7 @@ Copy document metadata into each relevant row:
 Before returning:
 - every selected/read OCR page was considered;
 - every distinct financial document is represented or specifically warned about;
+- when combination was requested, exactly one `invoice_groups` object contains all represented documents;
 - no Purchase Invoice output exists;
 - no top-level `journal_entries` output exists;
 - every Journal Entry is numerically balanced;

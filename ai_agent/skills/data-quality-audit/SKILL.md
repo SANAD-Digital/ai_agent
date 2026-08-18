@@ -1,6 +1,7 @@
 ---
 name: data-quality-audit
 description: Use for detecting missing data, duplicates, inconsistencies, and data quality issues.
+tools: schema.search_doctypes, schema.describe_doctype, schema.describe_links, data.query, data.count, data.get_document, data.get_child_records, artifacts.create_table
 ---
 
 # Data Quality Audit

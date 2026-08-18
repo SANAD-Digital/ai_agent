@@ -3,6 +3,7 @@ from frappe import _
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.model_provider import supports_vision_model
 from ai_agent.runtime.session_context import SessionContextService
+from ai_agent.runtime.memory_service import MemoryService
 
 
 class ContextBuilder:
@@ -28,6 +29,7 @@ For simple lookup questions, use the fewest tools possible and answer immediatel
 For report analysis, use the reports.run summary first because it is dynamically inferred from the returned columns and rows.
 Keep reports.run sample_limit low, and request include_raw_rows only when the user explicitly needs row-level details.
 If reports.run returns a summary, analyze that result directly and then produce the final answer.
+When any tool result says it is terminal or exhaustive, do not call that tool again in the same run; answer from the evidence already collected.
 If a report returns zero rows twice, do not keep retrying the same report with guessed filter names.
 When report rows are empty but source records exist, use one concise data.query aggregate fallback, then answer from it.
 For data.query aggregations, prefer object fields like {"field":"debit","aggregate":"SUM","alias":"total_debit"} instead of raw SQL text.
@@ -41,11 +43,21 @@ When the user asks for merged data across companies, aggregate the companies tog
 When a tool result includes an artifact, do not reproduce the full table in the final answer. Give a short summary and tell the user the full data is shown below as a table artifact for viewing, printing, and export.
 Do not expose private chain-of-thought; provide concise plans and evidence."""
 
+    INTERACTIVE_RESPONSE_INSTRUCTIONS = """When the user would benefit from structured interaction, you may return one JSON object instead of plain text.
+Use `reply_markdown` for the user-facing answer and an optional `ui` object with these declarative components:
+- `sections`: objects with `type` (`markdown`, `alert`, `key_value`, or `table`), `title`, and the matching content (`markdown`, `message`, `items`, `columns`/`rows`).
+- `questions`: objects with stable `id`, `label`, optional `help`, `input_type` (`text`, `textarea`, `select`, or `checkbox`), `required`, and optional `options`.
+- `actions`: objects with stable `id`, `label`, `kind`, and `style`. Supported kinds are `submit_prompt` with `prompt`, and `open_draft` with a `document` containing `doctype`, `values`, and optional `child_tables`.
+- `suggestions`: objects with `label` and `prompt`.
+Choose labels, questions, and components from the current request and active skill instructions; do not emit irrelevant controls.
+An `open_draft` action only opens an unsaved document for user review. Never claim it saves data. Actual writes must still use approved action tools.
+If an active skill requires domain keys in the JSON response, keep those keys at the top level and add `reply_markdown` and `ui` alongside them."""
+
     def build(self, run_doc, agent_doc, skill_metadata_list, tool_schemas):
         """Build the full context for a model call."""
         messages = []
 
-        system_prompt = self._build_system_prompt(agent_doc, skill_metadata_list)
+        system_prompt = self._build_system_prompt(agent_doc, skill_metadata_list, tool_schemas)
         messages.append({"role": "system", "content": system_prompt})
 
         user_message = self._build_user_message(run_doc, agent_doc)
@@ -62,8 +74,8 @@ Do not expose private chain-of-thought; provide concise plans and evidence."""
             "reasoning_effort": reasoning_effort,
         }
 
-    def _build_system_prompt(self, agent_doc, skill_metadata_list):
-        parts = [self.SYSTEM_INSTRUCTIONS_BASE]
+    def _build_system_prompt(self, agent_doc, skill_metadata_list, tool_schemas=None):
+        parts = [self.SYSTEM_INSTRUCTIONS_BASE, self.INTERACTIVE_RESPONSE_INSTRUCTIONS]
 
         if agent_doc.system_instructions:
             parts.append(agent_doc.system_instructions)
@@ -108,7 +120,12 @@ Do not expose private chain-of-thought; provide concise plans and evidence."""
 
         if visible_skills:
             parts.append("When you need to use an available non-implicit skill, call skills.load first.")
-        parts.append("For data analysis, first call schema.search_doctypes to discover available DocTypes.")
+        available_tool_names = {
+            str(tool.get("name") or "").replace("__", ".")
+            for tool in (tool_schemas or [])
+        }
+        if "schema.search_doctypes" in available_tool_names:
+            parts.append("For data analysis, first call schema.search_doctypes to discover available DocTypes.")
 
         return "\n\n".join(parts)
 
@@ -157,6 +174,18 @@ Do not expose private chain-of-thought; provide concise plans and evidence."""
         parts = [run_doc.prompt]
         if run_doc.company:
             parts.append(f"Company context: {run_doc.company}")
+
+        memory_context = MemoryService().build_context(
+            user=run_doc.user,
+            agent=run_doc.agent,
+            company=run_doc.company,
+        )
+        if memory_context:
+            parts.append(
+                "Relevant persisted memory. Use it only when it matches the current request and current ERP evidence; "
+                "current tool results override stale or conflicting memory:\n"
+                f"{memory_context}"
+            )
 
         session_context = SessionContextService().build_context(run_doc)
         if session_context:

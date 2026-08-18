@@ -1,6 +1,7 @@
 ---
 name: create_purchase_invoice_from_analysis
 description: Prepare draft Purchase Invoice creation from reviewed analysis after explicit user action.
+tools: schema.describe_doctype, data.query, data.get_document, actions.prepare_document, actions.validate_document, actions.request_create_draft
 ---
 
 # Create Purchase Invoice From Analysis

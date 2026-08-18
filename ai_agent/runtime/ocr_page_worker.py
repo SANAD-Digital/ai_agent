@@ -379,6 +379,7 @@ def scale_blocks_to_original(
 
 def create_ocr(PaddleOCR, engine: str = "onnxruntime", profile: str = "fast"):
     is_heavy = profile == "heavy"
+    cpu_threads = max(1, int(os.environ.get("AI_AGENT_OCR_CPU_THREADS", "1")))
     kwargs: dict[str, Any] = {
         "lang": "ar",
         "ocr_version": "PP-OCRv5",
@@ -388,6 +389,7 @@ def create_ocr(PaddleOCR, engine: str = "onnxruntime", profile: str = "fast"):
         "use_doc_unwarping": False,
         "use_textline_orientation": is_heavy,
         "text_recognition_batch_size": 1,
+        "cpu_threads": cpu_threads,
     }
     if not is_heavy:
         kwargs.update({
@@ -396,6 +398,14 @@ def create_ocr(PaddleOCR, engine: str = "onnxruntime", profile: str = "fast"):
         })
     if engine:
         kwargs["engine"] = engine
+    if engine == "onnxruntime":
+        kwargs["engine_config"] = {
+            "device_type": "cpu",
+            "intra_op_num_threads": cpu_threads,
+            "inter_op_num_threads": 1,
+            "execution_mode": "sequential",
+            "enable_mem_pattern": False,
+        }
 
     log(f"[INFO] Loading PaddleOCR Arabic model ({profile})...")
     return PaddleOCR(**kwargs)

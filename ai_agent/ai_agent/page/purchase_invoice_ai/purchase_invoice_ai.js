@@ -701,25 +701,28 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
         const selectedCompany = companyControl?.get_value() || "";
         const userInstructions = page.main.find("[data-field='instructions']").val() || "";
         const prompt = [
-            "FINANCIAL_ATTACHMENT_TO_JOURNAL_ENTRY_WORKSPACE",
-            `المهمة المحددة: اقرأ جلسة المرفقات المالية ${sessionName} واستخرج منها مقترحات قيود يومية قابلة للمراجعة.`,
-            "لا تسأل عن المهمة؛ هذه هي المهمة المطلوبة لهذه الجلسة.",
-            `الشركة: ${selectedCompany}`,
-            `عدد الصفحات المقروءة الجاهزة: ${readablePages}`,
-            `تعليمات المستخدم الأصلية: ${userInstructions || "لا يوجد"}`,
+            "طلب معالجة مرفقات مالية",
             "",
-            `ابدأ باستدعاء financial_attachments.get_session_ocr_text مع session_name = ${sessionName}.`,
-            "اعتبر OCR الراجع من الأداة مصدر الحقيقة، ولا تعيد تشغيل OCR ولا تطلب رفع الملفات طالما الجلسة جاهزة.",
-            "بعد قراءة OCR، استخرج كل مستند مالي مستقل من كل الصفحات المقروءة، ولا تسقط أي صفحة أو مستند بدون تحذير واضح.",
-            "استخدم financial_attachments.list_leaf_accounts عند الحاجة لاختيار حسابات ERP صحيحة، واستخدم حسابات leaf فقط وبالاسم الكامل كما يرجعها النظام.",
-            "نتائج الأدوات والمهارات المساعدة خطوات وسيطة فقط، وليست نتيجة نهائية.",
+            "الهدف:",
+            "حلّل النص المقروء في جلسة المرفقات، وحدد كل مستند مالي مستقل، ثم اجمع نتائج جميع الصفحات والمستندات في مقترح قيد يومية واحد فقط يمكن للمستخدم مراجعته وفتحه كمسودة في ERPNext.",
             "",
-            "المخرج النهائي يجب أن يكون JSON صالح فقط بدون Markdown أو شرح.",
-            "استخدم عقد واجهة Purchase Invoice AI الحالي:",
-            "- المفاتيح العليا: invoice_groups, questions, warnings, errors.",
-            "- كل invoice_groups[] يمثل مستندًا ماليًا مستقلًا ويحتوي: invoice_group_id, document_meta, files, journal_entry_lines, questions, warnings, errors.",
-            "- كل journal_entry_lines[] يحتوي: line_no, account, account_match_method, account_confidence, account_suggestions, party_type, party, supplier_action, debit, credit, description, custom_cash_supplier, custom_bill_no, custom_bill_date, custom_tax_id, custom_tax_amount, user_remark, cost_center, source_file, source_page, line_meta.",
-            "يجب أن تكون سطور كل مجموعة متوازنة: مجموع debit يساوي مجموع credit. إذا كان الحساب غير معروف اترك account فارغًا مع warning، لكن لا تختر حسابًا عشوائيًا.",
+            "بيانات الطلب:",
+            `- جلسة المرفقات المالية: ${sessionName}`,
+            `- الشركة: ${selectedCompany}`,
+            `- الصفحات التي تظهر جاهزة في الواجهة: ${readablePages}`,
+            `- تعليمات المستخدم: ${userInstructions || "لا توجد تعليمات إضافية"}`,
+            "",
+            "شروط الإنجاز:",
+            "- استخدم سجل الجلسة وصفحات OCR المحفوظة كمصدر الحقيقة، وتحقق بنفسك من العدد الفعلي للصفحات الجاهزة.",
+            "- عالج جميع الصفحات الجاهزة، واربط كل قيمة بالمستند والصفحة المصدر.",
+            "- أعد عنصرًا واحدًا فقط داخل invoice_groups، وضع سطور جميع المستندات والصفحات داخل journal_entry_lines لهذا العنصر؛ لا تنشئ مجموعة أو قيدًا منفصلًا لكل صفحة أو مستند.",
+            "- احتفظ باستقلال بيانات كل مستند على سطوره: رقم المستند وتاريخه والمورد والضريبة والملف والصفحة وline_meta، حتى تبقى كل قيمة قابلة للتتبع داخل القيد المجمّع.",
+            "- استخدم حسابات ERPNext الفعلية فقط عندما تتوفر مطابقة موثوقة، ولا تخمن حسابًا غير مؤكد.",
+            "- اجعل مجموع سطور القيد المجمّع متوازنًا، وضع النواقص والالتباسات كأسئلة أو تحذيرات قابلة للمراجعة.",
+            "- لا تنشئ أو تعتمد أي مستند داخل هذه الخطوة؛ المطلوب مقترحات للمراجعة فقط.",
+            "- أعد النتيجة النهائية وفق عقد الإخراج وتعليمات العرض المحددة في المهارات النشطة.",
+            "",
+            "اتبع المهارات النشطة في اختيار الأدوات وترتيب استخدامها. إذا تعارضت معلومة قديمة في السياق مع بيانات الجلسة الحالية، فبيانات الجلسة الحالية هي المعتمدة.",
         ].join("\n");
         frappe.set_route("agent-workspace", {
             agent: boot?.agent || "Purchase Invoice AI",
@@ -1072,6 +1075,12 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
             }
         }
         return firstArray || [];
+    }
+
+    function journal_entry_sources() {
+        return analysis_groups().flatMap((group) => (
+            primary_rows(group).map((row) => ({ row, group }))
+        ));
     }
 
     function primary_rows_path() {
@@ -1510,22 +1519,14 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
         extractionMessage = __("أعيد قراءة الصفحات التي لم ترجع نصًا واضحًا فقط.");
         render_analysis();
         try {
-            let latest = null;
-            for (const item of pages) {
-                const result = await frappe.xcall("ai_agent.purchase_invoice_ai.api.reprocess_page", {
-                    run_name: extractionRun,
-                    file_id: item.file_id,
-                    page: item.page,
-                });
-                latest = result;
-            }
-            if (latest?.analysis) {
-                analysis = normalize_analysis(latest.analysis);
-                analysisStage = analysis_has_data(analysis) ? "extracted" : "extraction_failed";
-                extractionMessage = latest.message || __("تم تحديث قراءة الصفحات.");
-                apply_file_classification();
-            }
-            set_busy(false, analysisStage === "extracted" ? __("Extracted") : __("No data"));
+            const result = await frappe.xcall("ai_agent.purchase_invoice_ai.api.read_selected_pages", {
+                run_name: extractionRun,
+                pages: JSON.stringify(pages.map((item) => ({ file_id: item.file_id, page: item.page }))),
+            });
+            currentRun = extractionRun;
+            analysisStage = "extracting";
+            extractionMessage = result.message || __("بدأت إعادة قراءة الصفحات في الخلفية.");
+            start_polling();
             render_all();
         } catch (error) {
             set_busy(false, __("Failed"));
@@ -2643,7 +2644,7 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
             custom_cash_supplier: ["custom_cash_supplier", "cash_supplier", "supplier", "supplier_name", "vendor", "vendor_name", "seller", "seller_name", "merchant", "store", "store_name", "biller", "biller_name", "issued_by", "company_name"],
             custom_bill_no: ["custom_bill_no", "bill_no", "invoice_no", "invoice_number", "Invoice Number", "voucher_no", "voucher_number", "document_number", "receipt_no", "receipt_number", "reference_no"],
             custom_bill_date: ["custom_bill_date", "bill_date", "invoice_date", "invoice_number_date", "Invoice Date", "voucher_date", "document_date", "posting_date", "date"],
-            custom_tax_id: ["custom_tax_id", "tax_id", "vat_number", "tax_identifier", "trn", "vat_no"],
+            custom_tax_id: ["custom_tax_id", "tax_id", "supplier_tax_id", "vat_number", "tax_identifier", "trn", "vat_no"],
             custom_mobile_no: ["custom_mobile_no", "mobile_no", "mobile", "phone", "phone_no", "cell_number", "contact_no"],
             custom_tax_amount: ["custom_tax_amount", "tax_amount", "vat_amount"],
             debit: ["line_total", "net_amount", "amount", "total_amount", "document_amount", "debit_in_account_currency", "debit"],
@@ -2665,7 +2666,7 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
         if (!is_empty_value(value)) return value;
         if (!group) return "";
         if (field === "custom_bill_date") return group_level_value(group, aliases.custom_bill_date);
-        if (field === "custom_tax_id") return row_value_deep(group.supplier || group.party || {}, aliases.custom_tax_id);
+        if (field === "custom_tax_id") return group_level_value(group, aliases.custom_tax_id);
         return "";
     }
 
@@ -2683,7 +2684,7 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
     }
 
     function row_value_deep(row, keys) {
-        const containers = [row, row?.journal_entry_line, row?.accounting_line, row?.line, row?.document, row?.invoice, row?.source];
+        const containers = [row, row?.line_meta, row?.journal_entry_line, row?.accounting_line, row?.line, row?.document, row?.invoice, row?.source];
         for (const container of containers) {
             if (!container || typeof container !== "object") continue;
             for (const key of keys) {
@@ -2697,6 +2698,7 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
     function group_level_value(group, keys) {
         const containers = [
             group,
+            group?.document_meta,
             group?.invoice,
             group?.document,
             group?.metadata,
@@ -2761,7 +2763,8 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
 
     function group_supplier_name(group) {
         const supplier = group?.supplier || {};
-        return supplier.extracted_name || supplier.supplier_name || supplier.matched_supplier || "";
+        const documentMeta = group?.document_meta || {};
+        return supplier.extracted_name || supplier.supplier_name || supplier.matched_supplier || documentMeta.supplier_name || "";
     }
 
     function row_value(row, keys, fallback = "") {
@@ -3212,9 +3215,8 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
             return;
         }
         set_busy(false, __("Ready"));
-        const group = first_group();
-        const rows = primary_rows(group);
-        if (!rows.length) {
+        const sources = journal_entry_sources();
+        if (!sources.length) {
             push_agent_chat_message([
                 `### ${__("لا يمكن فتح القيد الآن")}`,
                 "",
@@ -3224,7 +3226,7 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
             ].join("\n"), "process");
             return;
         }
-        const readiness = journal_entry_readiness(group);
+        const readiness = journal_entry_readiness(sources);
         if (!readiness.ready) {
             push_agent_chat_message([
                 `### ${__("سيتم فتح القيد مع بيانات تحتاج مراجعة")}`,
@@ -3238,9 +3240,9 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
             frappe.model.with_doctype("Journal Entry Account", () => {
                 const doc = frappe.model.get_new_doc("Journal Entry");
                 doc.company = companyControl?.get_value() || doc.company;
-                doc.posting_date = first_value_from_rows(rows, ["posting_date", "document_date", "custom_bill_date", "bill_date", "invoice_date", "voucher_date"]) || frappe.datetime.get_today();
-                doc.user_remark = journal_entry_remark(rows);
-                rows.forEach((row) => add_journal_entry_account(doc, row, group));
+                doc.posting_date = first_value_from_sources(sources, ["posting_date", "document_date", "custom_bill_date", "bill_date", "invoice_date", "voucher_date"]) || frappe.datetime.get_today();
+                doc.user_remark = journal_entry_remark(sources);
+                sources.forEach(({ row, group }) => add_journal_entry_account(doc, row, group));
                 frappe.set_route("Form", "Journal Entry", doc.name);
                 setTimeout(() => {
                     if (cur_frm?.doc?.name === doc.name) {
@@ -3252,10 +3254,10 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
         });
     }
 
-    function journal_entry_readiness(group) {
+    function journal_entry_readiness(sources) {
         const missingAccount = [];
         const needsSupplier = [];
-        primary_rows(group).forEach((row, index) => {
+        sources.forEach(({ row, group }, index) => {
             const lineNo = index + 1;
             if (!allowOpenWithMissingAccounts && !journal_line_value(row, "account", group)) missingAccount.push(lineNo);
             const supplierAction = String(row.supplier_action || "").toLowerCase();
@@ -3298,19 +3300,22 @@ frappe.pages["purchase-invoice-ai"].on_page_load = function (wrapper) {
         row[fieldname] = value;
     }
 
-    function first_value_from_rows(rows, keys) {
-        for (const row of rows || []) {
-            const value = row_value(row, keys);
-            if (!is_empty_value(value)) return value;
+    function first_value_from_sources(sources, keys) {
+        for (const { row, group } of sources || []) {
+            for (const key of keys) {
+                const value = journal_line_value(row, key, group);
+                if (!is_empty_value(value)) return value;
+            }
         }
         return "";
     }
 
-    function journal_entry_remark(rows) {
-        const count = rows.length;
-        const docs = rows
-            .map((row) => journal_line_value(row, "custom_bill_no", first_group()))
+    function journal_entry_remark(sources) {
+        const count = sources.length;
+        const docs = sources
+            .map(({ row, group }) => journal_line_value(row, "custom_bill_no", group))
             .filter(Boolean)
+            .filter((value, index, values) => values.indexOf(value) === index)
             .slice(0, 8)
             .join(", ");
         return [

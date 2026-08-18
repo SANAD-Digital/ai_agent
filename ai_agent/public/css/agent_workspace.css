@@ -170,9 +170,24 @@
 
 .journal-entry-proposal-head span,
 .journal-entry-proposal-remark,
-.journal-entry-proposal-warnings {
+.journal-entry-proposal-warnings,
+.journal-entry-proposal-errors {
     color: var(--text-muted);
     font-size: 12px;
+}
+
+.journal-entry-proposal-questions {
+    display: grid;
+    gap: 7px;
+    padding: 10px 12px;
+    border-inline-start: 3px solid var(--orange-500, #d97706);
+    background: var(--orange-50, #fff8eb);
+    color: var(--text-color);
+    font-size: 12px;
+}
+
+.journal-entry-proposal-questions small {
+    color: var(--text-muted);
 }
 
 .journal-entry-proposal-table-wrap {
@@ -206,6 +221,101 @@
     display: grid;
     gap: 4px;
     color: var(--orange-600, #a85d00);
+}
+
+.journal-entry-proposal-errors {
+    display: grid;
+    gap: 4px;
+    color: var(--red-600, #b42318);
+}
+
+.interactive-response {
+    display: grid;
+    gap: 14px;
+}
+
+.interactive-section,
+.interactive-questions {
+    display: grid;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.interactive-section h4,
+.interactive-questions h4 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.interactive-alert {
+    padding: 10px 12px;
+    border-inline-start: 3px solid var(--blue-500, #3b82f6);
+    background: var(--blue-50, #eff6ff);
+}
+
+.interactive-alert.success { border-inline-start-color: var(--green-500, #16a34a); background: var(--green-50, #f0fdf4); }
+.interactive-alert.warning { border-inline-start-color: var(--orange-500, #d97706); background: var(--orange-50, #fff8eb); }
+.interactive-alert.error { border-inline-start-color: var(--red-500, #dc2626); background: var(--red-50, #fef2f2); }
+
+.interactive-key-values {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+    margin: 0;
+}
+
+.interactive-key-values dt,
+.interactive-key-values dd {
+    margin: 0;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.interactive-key-values dt {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.interactive-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.interactive-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.interactive-table th,
+.interactive-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: start;
+    vertical-align: top;
+}
+
+.interactive-question {
+    display: grid;
+    gap: 5px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.interactive-question small {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.interactive-question input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.interactive-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .agent-chat-main {

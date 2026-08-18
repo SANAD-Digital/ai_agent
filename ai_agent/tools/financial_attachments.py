@@ -105,14 +105,6 @@ def handle_get_session_ocr_text(arguments, permission_context):
         and returned_page_count == expected_page_count
     )
 
-    combined_text = "\n\n".join(
-        (
-            f"[{page['file_name']} - page {page['page_number']}]\n"
-            f"{page['text']}"
-        )
-        for page in pages
-    )
-
     return {
         "session_name": session.name,
         "company": session.company,
@@ -129,7 +121,6 @@ def handle_get_session_ocr_text(arguments, permission_context):
         "complete": complete,
 
         "pages": pages,
-        "text": combined_text,
     }
 
 
@@ -139,71 +130,3 @@ def _parse_warnings(value):
     except Exception:
         return [str(value)] if value else []
     return parsed if isinstance(parsed, list) else []
-
-
-def handle_list_leaf_accounts(arguments, permission_context):
-    """Return relevant leaf accounts only."""
-
-    company = str(
-        arguments.get("company")
-        or permission_context.company
-        or ""
-    ).strip()
-
-    if not company:
-        return {"error": "company is required"}
-
-    if not permission_context.has_doctype_permission("Account", "read"):
-        return {"error": "No read permission on Account"}
-
-    account_types = [
-        str(value).strip()
-        for value in (arguments.get("account_types") or [])
-        if str(value).strip()
-    ]
-
-    search = str(arguments.get("search") or "").strip()
-
-    filters = {
-        "company": company,
-        "is_group": 0,
-        "disabled": 0,
-    }
-
-    if account_types:
-        filters["account_type"] = ("in", account_types[:10])
-
-    if search:
-        filters["name"] = ("like", f"%{search}%")
-
-    limit = min(
-        max(int(arguments.get("limit") or 30), 1),
-        100,
-    )
-
-    rows = frappe.get_all(
-        "Account",
-        filters=filters,
-        fields=[
-            "name",
-            "account_name",
-            "account_type",
-            "root_type",
-        ],
-        order_by="name asc",
-        limit_page_length=limit,
-    )
-
-    return {
-        "company": company,
-        "returned_count": len(rows),
-        "accounts": [
-            {
-                "name": row.name,
-                "account_name": row.account_name or "",
-                "account_type": row.account_type or "",
-                "root_type": row.root_type or "",
-            }
-            for row in rows
-        ],
-    }

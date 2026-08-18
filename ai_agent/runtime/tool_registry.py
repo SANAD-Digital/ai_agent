@@ -86,15 +86,6 @@ TOOL_PARAMETER_SCHEMAS = {
         "properties": {"session_name": {"type": "string"}},
         "required": ["session_name"],
     },
-    "financial_attachments.list_leaf_accounts": {
-        "type": "object",
-        "properties": {
-            "company": {"type": "string"},
-            "account_types": {"type": "array", "items": {"type": "string"}, "maxItems": 10},
-            "search": {"type": "string"},
-            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
-        },
-    },
     "reports.search": {
         "type": "object",
         "properties": {
@@ -267,8 +258,7 @@ class ToolRegistry:
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
             {"name": "data.count", "description": "Count records matching filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_count"},
-            {"name": "financial_attachments.get_session_ocr_text", "description": "Get only the ready OCR text from a Financial Attachment Session", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_get_session_ocr_text"},
-            {"name": "financial_attachments.list_leaf_accounts", "description": "List leaf accounts with only account name and account type", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_list_leaf_accounts"},
+            {"name": "financial_attachments.get_session_ocr_text", "description": "Get only the ready OCR text from a Financial Attachment Session", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_get_session_ocr_text", "result_max_bytes": 1048576, "model_result_max_chars": 1048576},
             # Reports
             {"name": "reports.search", "description": "Search available reports", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_search"},
             {"name": "reports.describe", "description": "Describe a report's filters and columns", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_describe"},

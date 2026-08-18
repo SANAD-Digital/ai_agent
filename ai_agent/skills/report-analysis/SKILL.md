@@ -1,6 +1,7 @@
 ---
 name: report-analysis
 description: Use for discovering, running, and analyzing Frappe/ERPNext standard reports.
+tools: reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Report Analysis

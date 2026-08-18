@@ -1,6 +1,7 @@
 ---
 name: document-creation
 description: Use for creating new documents, preparing drafts, and validating document payloads.
+tools: schema.search_doctypes, schema.describe_doctype, schema.describe_links, data.query, data.get_document, actions.prepare_document, actions.validate_document, actions.request_create_draft, actions.request_bulk_create
 ---
 
 # Document Creation

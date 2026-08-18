@@ -38,6 +38,11 @@
    "fieldname": "maximum_calls",
    "fieldtype": "Int",
    "label": "Maximum Calls"
+  },
+  {
+   "fieldname": "maximum_result_rows",
+   "fieldtype": "Int",
+   "label": "Maximum Result Rows"
   }
  ],
  "permissions": []

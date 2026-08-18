@@ -16,6 +16,7 @@ class ToolGateway:
         self.ctx = permission_context
         self.registry = tool_registry
         self.skill_tools = skill_tools or []
+        self.enforce_skill_tools = False
         self.trace = TraceService()
         self._call_counts = {}
 
@@ -35,10 +36,15 @@ class ToolGateway:
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
 
         if not self._is_tool_allowed_by_skill(tool_name):
-            if tool_name not in ("skills.list", "skills.load", "schema.search_doctypes", "schema.describe_doctype"):
+            if tool_name not in (
+                "skills.list", "skills.load", "skills.read_reference",
+                "schema.search_doctypes", "schema.describe_doctype",
+            ):
                 raise ToolDenied(f"Tool '{tool_name}' is not allowed by the loaded skill.")
 
         self._check_call_limit(tool_name, agent_doc)
+
+        self._apply_skill_argument_limits(tool_name, arguments)
 
         self._validate_arguments(tool_name, arguments)
 
@@ -52,7 +58,7 @@ class ToolGateway:
         finally:
             self.ctx.run_name = previous_run_name
 
-        max_bytes = 1024 * 1024 if tool_name == "financial_attachments.get_session_ocr_text" else 102400
+        max_bytes = int(tool.get("result_max_bytes") or 102400)
         result = self._truncate_result(result, max_bytes=max_bytes)
 
         self._audit_record(run_name, step_name, tool_name, arguments, result, "Executed")
@@ -92,19 +98,37 @@ class ToolGateway:
         return True
 
     def _is_tool_allowed_by_skill(self, tool_name):
-        if not self.skill_tools:
+        if not self.enforce_skill_tools:
             return True
         allowed_names = [t.get("tool_name") for t in self.skill_tools]
         return tool_name in allowed_names
 
     def _check_call_limit(self, tool_name, agent_doc):
         count = self._call_counts.get(tool_name, 0)
-        max_calls = 25
-        if agent_doc and agent_doc.get("maximum_tool_calls"):
-            max_calls = agent_doc.maximum_tool_calls
+        max_calls = int(agent_doc.maximum_tool_calls) if agent_doc and agent_doc.get("maximum_tool_calls") else 25
+        skill_tool = next(
+            (row for row in self.skill_tools if row.get("tool_name") == tool_name),
+            None,
+        )
+        if skill_tool and skill_tool.get("maximum_calls"):
+            max_calls = min(max_calls, int(skill_tool.get("maximum_calls")))
         if count >= max_calls:
             raise ToolDenied(f"Tool '{tool_name}' has reached its call limit ({max_calls}).")
         self._call_counts[tool_name] = count + 1
+
+    def _apply_skill_argument_limits(self, tool_name, arguments):
+        skill_tool = next(
+            (row for row in self.skill_tools if row.get("tool_name") == tool_name),
+            None,
+        )
+        max_rows = int((skill_tool or {}).get("maximum_result_rows") or 0)
+        if not max_rows or not isinstance(arguments, dict):
+            return
+        try:
+            requested = int(arguments.get("limit") or max_rows)
+        except (TypeError, ValueError):
+            requested = max_rows
+        arguments["limit"] = max(1, min(requested, max_rows))
 
     def _validate_arguments(self, tool_name, arguments):
         if not isinstance(arguments, dict):

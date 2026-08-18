@@ -59,16 +59,18 @@ def _ocr_worker() -> Path:
 
 def _runtime_environment() -> dict[str, str]:
     env = os.environ.copy()
+    cpu_threads = str(max(1, cint(frappe.conf.get("ai_agent_ocr_cpu_threads") or 1)))
     env.update({
         "PYTHONUNBUFFERED": "1",
-        "OMP_NUM_THREADS": "1",
-        "MKL_NUM_THREADS": "1",
-        "OPENBLAS_NUM_THREADS": "1",
-        "NUMEXPR_NUM_THREADS": "1",
-        "OMP_THREAD_LIMIT": "1",
-        "PADDLE_NUM_THREADS": "1",
-        "ONNXRUNTIME_THREAD_NUM": "1",
-        "ORT_NUM_THREADS": "1",
+        "AI_AGENT_OCR_CPU_THREADS": cpu_threads,
+        "OMP_NUM_THREADS": cpu_threads,
+        "MKL_NUM_THREADS": cpu_threads,
+        "OPENBLAS_NUM_THREADS": cpu_threads,
+        "NUMEXPR_NUM_THREADS": cpu_threads,
+        "OMP_THREAD_LIMIT": cpu_threads,
+        "PADDLE_NUM_THREADS": cpu_threads,
+        "ONNXRUNTIME_THREAD_NUM": cpu_threads,
+        "ORT_NUM_THREADS": cpu_threads,
         "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK": "True",
     })
     return env
@@ -167,6 +169,19 @@ def _pdf_text_payload(source_path: Path, page_number: int) -> dict[str, Any] | N
 
 def _resource_limited_command(command: list[str]) -> list[str]:
     wrapped = list(command)
+    taskset = shutil.which("taskset")
+    if taskset:
+        configured_affinity = str(frappe.conf.get("ai_agent_ocr_cpu_affinity") or "").strip()
+        cpu_count = max(1, os.cpu_count() or 1)
+        affinity = configured_affinity or str(cpu_count - 1)
+        wrapped = [taskset, "-c", affinity] + wrapped
+    flock = shutil.which("flock")
+    if flock:
+        lock_file = str(
+            frappe.conf.get("ai_agent_ocr_lock_file")
+            or "/tmp/ai_agent_local_ocr.lock"
+        )
+        wrapped = [flock, "--exclusive", lock_file] + wrapped
     ionice = shutil.which("ionice")
     if ionice:
         wrapped = [ionice, "-c", "3"] + wrapped

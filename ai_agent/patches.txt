@@ -6,3 +6,5 @@
 # Patches added in this section will be executed after doctypes are migrated
 ai_agent.patches.v0_1.backfill_ai_memory_agent
 ai_agent.patches.v0_1.ensure_standard_configuration
+ai_agent.patches.v0_1.cleanup_implicit_skill_grants
+ai_agent.patches.v0_1.backfill_ai_memory_company

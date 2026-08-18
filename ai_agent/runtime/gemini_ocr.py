@@ -1,6 +1,10 @@
 import base64
+from contextlib import contextmanager
 import io
 import json
+import signal
+import threading
+import time
 from urllib.parse import quote
 
 import frappe
@@ -22,6 +26,36 @@ DEFAULT_PROMPT = (
 
 class GeminiOCRError(Exception):
     pass
+
+
+@contextmanager
+def _request_deadline(timeout):
+    """Apply a real wall-clock deadline around requests in worker processes."""
+    timeout = max(cint(timeout), 1)
+    if (
+        not hasattr(signal, "setitimer")
+        or threading.current_thread() is not threading.main_thread()
+    ):
+        yield
+        return
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_delay, previous_interval = signal.getitimer(signal.ITIMER_REAL)
+    started = time.monotonic()
+
+    def deadline_exceeded(_signum, _frame):
+        raise requests.Timeout(f"Gemini OCR request exceeded {timeout}s")
+
+    signal.signal(signal.SIGALRM, deadline_exceeded)
+    signal.setitimer(signal.ITIMER_REAL, timeout)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_delay > 0:
+            remaining = max(previous_delay - (time.monotonic() - started), 0.001)
+            signal.setitimer(signal.ITIMER_REAL, remaining, previous_interval)
 
 
 class GeminiOCRClient:
@@ -80,15 +114,16 @@ class GeminiOCRClient:
         last_exception = None
         for attempt in range(1, max_attempts + 1):
             try:
-                response = requests.post(
-                    url,
-                    headers={
-                        "x-goog-api-key": self.api_key,
-                        "Content-Type": "application/json",
-                    },
-                    data=json.dumps(payload),
-                    timeout=self.timeout,
-                )
+                with _request_deadline(self.timeout):
+                    response = requests.post(
+                        url,
+                        headers={
+                            "x-goog-api-key": self.api_key,
+                            "Content-Type": "application/json",
+                        },
+                        data=json.dumps(payload),
+                        timeout=(min(self.timeout, 10), self.timeout),
+                    )
                 if response.status_code in (500, 502, 503, 504, 429) and attempt < max_attempts:
                     import time
                     time.sleep(attempt * 1.5)
@@ -148,6 +183,21 @@ def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
 
 def get_last_gemini_ocr_error():
     return getattr(frappe.local, "gemini_ocr_last_error", "")
+
+
+def is_fatal_gemini_ocr_error(message):
+    text = str(message or "").lower()
+    markers = (
+        "credits are depleted",
+        "prepayment credits",
+        "billing",
+        "api key is not configured",
+        "api key not valid",
+        "invalid api key",
+        "permission denied",
+        "authentication",
+    )
+    return any(marker in text for marker in markers)
 
 
 def test_gemini_ocr_connection():

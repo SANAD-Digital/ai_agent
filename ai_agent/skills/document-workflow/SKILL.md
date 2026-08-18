@@ -1,6 +1,7 @@
 ---
 name: document-workflow
 description: Use for submitting, cancelling, and performing workflow actions on existing documents.
+tools: schema.search_doctypes, schema.describe_doctype, schema.describe_workflow, data.get_document, actions.request_update, actions.request_submit, actions.request_cancel, actions.request_workflow_action
 ---
 
 # Document Workflow

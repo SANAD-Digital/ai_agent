@@ -1,6 +1,7 @@
 ---
 name: payables-analysis
 description: Use for accounts payable aging, supplier outstanding balances, and payment analysis.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Payables Analysis

@@ -1,6 +1,7 @@
 ---
 name: frappe-schema-discovery
 description: Discover DocTypes, fields, relationships, and reports before querying unknown data structures.
+tools: schema.search_doctypes, schema.describe_doctype, schema.describe_links, schema.describe_workflow
 ---
 
 # Frappe Schema Discovery

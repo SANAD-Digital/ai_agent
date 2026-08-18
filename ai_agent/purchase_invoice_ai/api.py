@@ -14,12 +14,16 @@ from ai_agent.runtime.file_context import FileContextService, TEXT_DOCUMENT_EXTE
 from ai_agent.runtime.orchestrator import execute_run
 from ai_agent.runtime.skill_registry import SkillRegistry
 from ai_agent.runtime.trace_service import TraceService
+from ai_agent.runtime.run_control import mark_interrupted_run, run_job_id
 
 
 PURCHASE_AGENT = "Purchase Invoice AI"
 FINANCIAL_ATTACHMENTS_SKILL = "financial-attachments-to-journal-entry"
 PURCHASE_SKILLS = [
+    "core-agent-behavior",
+    "accounting-memory-to-account",
     FINANCIAL_ATTACHMENTS_SKILL,
+    "validate-journal-entry-proposal",
 ]
 LEGACY_PURCHASE_INVOICE_SKILLS = [
     "analyze_purchase_invoice_bundle",
@@ -191,41 +195,6 @@ def process_next_analysis_chunk(run_name):
     return service(run_name)
 
 
-def _prefer_latest_source_reading(source_run, reviewed):
-    latest = _attachment_reading_from_session(source_run.name) or _attachment_reading_from_run(source_run, recovery_warning=False)
-    if not latest:
-        return reviewed
-    latest_pages = len(_read_pages_for_model_analysis(latest))
-    reviewed_pages = len(_read_pages_for_model_analysis(reviewed))
-    latest_text_pages = _readable_text_page_count(latest)
-    reviewed_text_pages = _readable_text_page_count(reviewed)
-    latest_rows = _analysis_row_count(latest)
-    reviewed_rows = _analysis_row_count(reviewed)
-    if (
-        latest_text_pages > reviewed_text_pages
-        or latest_pages > reviewed_pages
-        or (latest_text_pages == reviewed_text_pages and latest_pages == reviewed_pages and latest_rows > reviewed_rows)
-    ):
-        latest.setdefault("workflow", {})
-        latest["workflow"]["source_payload"] = "latest_financial_attachment_session_reading"
-        return latest
-    return reviewed
-
-
-def _readable_text_page_count(payload):
-    count = 0
-    for group in _analysis_groups(payload):
-        if not isinstance(group, dict):
-            continue
-        for file_info in group.get("files") or []:
-            if not isinstance(file_info, dict):
-                continue
-            for page in file_info.get("pages") or []:
-                if isinstance(page, dict) and str(page.get("text_preview") or "").strip():
-                    count += 1
-    return count
-
-
 def _check_and_handle_run_timeout(run):
     """Auto-fail stale runs while allowing long OCR page-reading jobs."""
     if run.status in ("Planning", "Queued", "Running"):
@@ -251,7 +220,9 @@ def get_analysis(run_name):
     final_text = run.final_answer or ""
     parsed = _extract_json(final_text)
     if not run.parent_run:
-        parsed = _attachment_reading_from_session(run.name) or _prefer_latest_source_reading(run, parsed or {})
+        # Status polling must only read persisted state. OCR belongs to queued jobs;
+        # invoking it here can hold a web worker until Gunicorn kills the request.
+        parsed = _attachment_reading_from_session(run.name) or parsed
     if not parsed and run.parent_run:
         parsed = _analysis_from_parent_run(run)
     is_model_chunk_payload = _is_model_chunk_analysis_payload(parsed)
@@ -292,34 +263,27 @@ def _is_model_chunk_analysis_payload(payload):
 
 @frappe.whitelist()
 def reprocess_page(run_name, file_id, page):
-    """Re-read a single attachment page and merge it back into the extraction run."""
+    """Queue a single attachment page for OCR without blocking the web request."""
     run = frappe.get_doc("AI Run", run_name)
     _assert_run_access(run)
     page_number = max(1, cint(page) or 1)
-    service = FileContextService()
-    file_doc = None
-    for candidate in service.get_run_files(run.name)[:MAX_FILES]:
-        if candidate.name == file_id or candidate.file_name == file_id:
-            file_doc = candidate
-            break
-    if not file_doc:
+    session = _session_for_run(run.name)
+    page_row = next(
+        (
+            row for row in (session.pages if session else [])
+            if (row.file == file_id or row.file_name == file_id)
+            and (cint(row.page_number) or 1) == page_number
+        ),
+        None,
+    )
+    if not page_row:
         frappe.throw(_("File was not found on this run."))
+    from ai_agent.purchase_invoice_ai.ocr_session import read_selected_pages as service
 
-    extension = os.path.splitext(file_doc.file_name or file_doc.name)[1].lower()
-    page_result = _extract_page_result(service, file_doc, page_number)
-    if page_result is None:
-        frappe.throw(_("This file type cannot be re-read page by page."))
-
-    analysis = _extract_json(run.final_answer or "") or _attachment_reading_from_run(run) or {"document_groups": []}
-    _replace_page_in_attachment_reading(analysis, file_doc, page_result)
-    run.final_answer = json.dumps(analysis, ensure_ascii=False, default=str)
-    run.error_summary = None
-    _safe_save_run(run)
-    return {
-        "analysis": analysis,
-        "page": page_result,
-        "message": _("تمت إعادة قراءة الصفحة وتحديث نتيجة الاستخراج."),
-    }
+    return service(
+        run.name,
+        json.dumps([{"file_id": page_row.file, "page": page_number}]),
+    )
 
 
 @frappe.whitelist()
@@ -547,6 +511,13 @@ def _build_compact_context(company):
 def _ensure_purchase_invoice_agent():
     SkillRegistry().sync_app_skills()
     agent_name = frappe.db.exists("AI Agent", PURCHASE_AGENT)
+    compact_session_base = (
+        "Session purpose: analyze OCR evidence and prepare Journal Entry proposals when requested.\n"
+        "Session name: journal_entry_from_ocr_v1\n"
+        "Keep the current request and its OCR evidence separate from prior runs.\n"
+        "If a prompt contains a Financial Attachment Session name, read its OCR text and produce the final invoice_groups JSON without asking for task clarification.\n"
+        "For Journal Entry proposals, answer with the invoice_groups JSON contract defined by the granted skill."
+    )
     values = {
         "description": "Specialized OCR-to-Journal Entry suggestion agent",
         "enabled": 1,
@@ -560,20 +531,19 @@ def _ensure_purchase_invoice_agent():
         "system_instructions": (
             "You analyze financial OCR evidence and propose ERPNext Journal Entries. "
             "When the prompt names a Financial Attachment Session, the task is to read that session and return reviewable Journal Entry proposal JSON; do not ask what the task is. "
-            "Use financial_attachments.get_session_ocr_text for session OCR and financial_attachments.list_leaf_accounts for exact leaf account names when account selection is needed. "
+            "Use financial_attachments.get_session_ocr_text for session OCR and narrow data.query calls on Account for exact leaf account names when account selection is needed. "
             "Invoices, receipts, and vouchers are source evidence; do not turn the request into Purchase Invoice creation unless the user explicitly asks for that. "
             "For a Journal Entry proposal, return the invoice_groups JSON contract defined by the financial-attachments-to-journal-entry skill."
         ),
-        "compact_session": (
-            "Session purpose: analyze OCR evidence and prepare Journal Entry proposals when requested.\n"
-            "Session name: journal_entry_from_ocr_v1\n"
-            "Keep the current request and its OCR evidence separate from prior runs.\n"
-            "If a prompt contains a Financial Attachment Session name, read its OCR text and produce the final invoice_groups JSON without asking for task clarification.\n"
-            "For Journal Entry proposals, answer with the invoice_groups JSON contract defined by the granted skill."
-        ),
+        "compact_session": compact_session_base,
     }
     if agent_name:
         agent = frappe.get_doc("AI Agent", agent_name)
+        checkpoint_marker = "<!-- AI_AGENT_RUNTIME_CHECKPOINT_START -->"
+        current_compact_session = str(agent.get("compact_session") or "")
+        if checkpoint_marker in current_compact_session:
+            checkpoint = current_compact_session[current_compact_session.index(checkpoint_marker):].strip()
+            values["compact_session"] = f"{compact_session_base}\n\n{checkpoint}"
         changed = False
         for field, value in values.items():
             if agent.get(field) != value:
@@ -961,8 +931,6 @@ def _attachment_reading_from_session(run_name):
             if page_row.file != file_row.file:
                 continue
             text = str(page_row.text_preview or "").strip()
-            if page_row.status != "Read" and not text:
-                continue
             pages.append({
                 "page_id": page_row.page_id,
                 "page": cint(page_row.page_number) or 1,
@@ -982,8 +950,6 @@ def _attachment_reading_from_session(run_name):
                 "role": "source_ocr",
                 "pages": pages,
             })
-    if not files:
-        return None
     return {
         "document_groups": [{
             "document_group_id": "GROUP-001",
@@ -1599,6 +1565,11 @@ def _valid_document_number(value, tax_identifier=None):
     return value
 
 
+def _is_plausible_document_number(value):
+    text = "".join(str(value or "").split())
+    return len(text) >= 3 and any(character.isdigit() for character in text)
+
+
 def _normalize_analysis_payload(payload):
     if isinstance(payload, dict) and isinstance(payload.get("invoice_groups"), list):
         return payload
@@ -1873,7 +1844,8 @@ def _start_background_page_reading(run_name, selected_pages, user, site):
             "ai_agent.purchase_invoice_ai.api.execute_sequential_page_reading_job",
             queue=queue_name,
             timeout=timeout,
-            job_name=f"financial-attachment-page-sequence-{run_name}",
+            job_id=run_job_id(run_name),
+            deduplicate=True,
             run_name=run_name,
             selected_pages=selected_pages,
             user=user,
@@ -1883,6 +1855,10 @@ def _start_background_page_reading(run_name, selected_pages, user, site):
         frappe.log_error(
             frappe.get_traceback(),
             "Financial Attachment Sequential Page Reading Enqueue Failed",
+        )
+        mark_interrupted_run(
+            run_name,
+            _("Financial attachment reading could not be added to the background queue. Please retry."),
         )
 
 
@@ -1897,9 +1873,13 @@ def execute_sequential_page_reading_job(run_name, selected_pages, user=None):
         if _should_stop_page_reading(run_name):
             _cancel_page_reading_session(run_name)
             return
-        _complete_single_page_reading(run_name, page_item)
+        page_result = _complete_single_page_reading(run_name, page_item)
         # Persist the page result before starting the next isolated OCR process.
         frappe.db.commit()
+        fatal_error = _fatal_page_ocr_error(page_result)
+        if fatal_error:
+            _fail_page_reading_batch(run_name, fatal_error)
+            return
         if _should_stop_page_reading(run_name):
             _cancel_page_reading_session(run_name)
             return
@@ -1949,6 +1929,7 @@ def _complete_single_page_reading(run_name, page_item):
             step.name,
             summary=_("تمت قراءة الصفحة. العناصر النصية المستخرجة: {0}").format(cint(page_result.get("extracted_lines_count")) or len(page_result.get("rows") or [])),
         )
+        return page_result
     except Exception as exc:
         frappe.log_error(frappe.get_traceback(), "Financial Attachment Single Page Read Failed")
         _mark_single_page_failed(run_name, page_item, _("تعذرت قراءة هذه الصفحة: {0}").format(str(exc)))
@@ -1956,6 +1937,60 @@ def _complete_single_page_reading(run_name, page_item):
             trace.complete_step(step.name, status="Failed", summary=_("تعذرت قراءة هذه الصفحة."))
         except Exception:
             pass
+    return None
+
+
+def _fatal_page_ocr_error(page_result):
+    if not isinstance(page_result, dict):
+        return ""
+    message = "\n".join(str(item or "") for item in page_result.get("warnings") or [])
+    if not message:
+        return ""
+    from ai_agent.runtime.gemini_ocr import is_fatal_gemini_ocr_error
+
+    return message if is_fatal_gemini_ocr_error(message) else ""
+
+
+def _fail_page_reading_batch(run_name, message):
+    message = str(message or _("تعذر محرك OCR.")).strip()[:1000]
+    session = _session_for_run(run_name)
+    if session:
+        for row in session.pages:
+            if row.selected and row.status != "Read":
+                frappe.db.set_value(
+                    row.doctype,
+                    row.name,
+                    {
+                        "status": "Failed",
+                        "warnings_json": json.dumps([message], ensure_ascii=False),
+                    },
+                    update_modified=False,
+                )
+        session.reload()
+        frappe.db.set_value(
+            "Financial Attachment Session",
+            session.name,
+            {
+                "status": "Failed",
+                "read_page_count": sum(1 for row in session.pages if row.status == "Read"),
+                "selected_page_count": sum(1 for row in session.pages if row.selected),
+            },
+            update_modified=False,
+        )
+    if frappe.db.exists("AI Run", run_name):
+        frappe.db.set_value(
+            "AI Run",
+            run_name,
+            {
+                "status": "Failed",
+                "error_summary": message,
+                "completed_at": frappe.utils.now_datetime(),
+            },
+            update_modified=False,
+        )
+    frappe.db.commit()
+    _publish_page_reading_update(run_name)
+    TraceService().publish_realtime("ai_agent:run_updated", run_name)
 
 
 def _should_stop_page_reading(run_name):
@@ -2250,6 +2285,18 @@ def _finalize_page_reading_if_done(run_name):
         run.error_summary = _("تم إيقاف قراءة الصفحات.")
         run.completed_at = frappe.utils.now_datetime()
         _safe_save_run(run)
+        _publish_page_reading_update(run_name)
+        TraceService().publish_realtime("ai_agent:run_updated", run_name)
+        return
+    selected = [row for row in session.pages if row.selected] if session else []
+    if selected and not any(row.status == "Read" for row in selected):
+        message = _("لم تتم قراءة أي صفحة محددة بنجاح. راجع أخطاء محرك OCR ثم أعد المحاولة.")
+        run.status = "Failed"
+        run.error_summary = message
+        run.completed_at = frappe.utils.now_datetime()
+        _safe_save_run(run)
+        frappe.db.set_value("Financial Attachment Session", session.name, "status", "Failed", update_modified=False)
+        frappe.db.commit()
         _publish_page_reading_update(run_name)
         TraceService().publish_realtime("ai_agent:run_updated", run_name)
         return
@@ -2999,13 +3046,18 @@ def _start_background_run(run_name, user, site, enqueue_after_commit=True):
             "ai_agent.purchase_invoice_ai.api.execute_run_job",
             queue="long",
             timeout=1800,
-            job_name=f"purchase-invoice-ai-{run_name}",
+            job_id=run_job_id(run_name),
+            deduplicate=True,
             run_name=run_name,
             user=user,
             enqueue_after_commit=enqueue_after_commit,
         )
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Purchase Invoice AI Run Enqueue Failed")
+        mark_interrupted_run(
+            run_name,
+            _("Purchase invoice analysis could not be added to the background queue. Please retry."),
+        )
 
 
 def execute_run_job(run_name, user=None):

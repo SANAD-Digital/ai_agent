@@ -32,7 +32,7 @@
       "fieldname": "step_type",
       "fieldtype": "Select",
       "label": "Step Type",
-      "options": "Plan\nSkill\nTool\nApproval\nArtifact\nFinal\nError",
+      "options": "Plan\nModel\nSkill\nTool\nApproval\nArtifact\nFinal\nError",
       "reqd": 1,
       "in_list_view": 1
     },

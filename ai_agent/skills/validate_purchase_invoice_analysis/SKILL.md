@@ -1,6 +1,7 @@
 ---
 name: validate_purchase_invoice_analysis
 description: Validate extracted purchase invoice data, deterministic totals, duplicate risk, and required ERPNext references before draft creation.
+tools: schema.describe_doctype, data.query, data.get_document
 ---
 
 # Validate Purchase Invoice Analysis

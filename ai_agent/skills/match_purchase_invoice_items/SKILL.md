@@ -1,6 +1,7 @@
 ---
 name: match_purchase_invoice_items
 description: Match extracted purchase invoice item rows to ERPNext Items using barcodes, supplier codes, item supplier rows, names, descriptions, and purchase history.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.get_document, data.get_child_records, memory.search
 ---
 
 # Match Purchase Invoice Items

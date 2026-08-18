@@ -2,6 +2,7 @@
 name: accounting-memory-to-account
 description: Resolve the best leaf Journal Entry account from approved accounting memory and current ERP accounts.
 allow_implicit_invocation: 1
+tools: data.query, memory.search
 ---
 
 # Accounting Memory To Account
@@ -45,7 +46,7 @@ Before choosing:
 - is_group = 0
 - use exact `Account.name`
 
-Use `financial_attachments.list_leaf_accounts` when current leaf accounts are needed. Use `memory.search` when approved historical mappings may exist.
+Use a narrow `data.query` on `Account` when current leaf accounts are needed. Always filter by the target company, `is_group = 0`, and `disabled = 0`; request only `name`, `account_name`, `account_type`, and `root_type`, with limit 5 initially and at most 10 after one broader retry. Use `memory.search` when approved historical mappings may exist.
 
 If exact/high-confidence approved memory exists, prefer it over inference.
 If reliable candidates conflict, do not guess.

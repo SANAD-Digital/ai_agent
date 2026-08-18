@@ -581,6 +581,12 @@ def _global_skill_grant_exists(agent, skill):
 
 
 def _skills_for_agent(agent, skills):
+    skills = [
+        skill
+        for skill in skills
+        if skill == "core-agent-behavior"
+        or not frappe.db.get_value("AI Skill", skill, "allow_implicit_invocation")
+    ]
     if agent == "ERP Analyst":
         excluded = {"document-creation", "document-workflow"}
         return [skill for skill in skills if skill not in excluded]

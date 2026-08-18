@@ -1,6 +1,7 @@
 ---
 name: receivables-analysis
 description: Use for accounts receivable aging, customer outstanding balances, and collection analysis.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Receivables Analysis

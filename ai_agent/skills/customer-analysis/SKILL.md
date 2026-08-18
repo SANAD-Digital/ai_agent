@@ -1,6 +1,7 @@
 ---
 name: customer-analysis
 description: Use for customer activity, purchasing patterns, lifetime value, and customer segmentation analysis.
+tools: schema.search_doctypes, schema.describe_doctype, data.query, data.count, data.get_document, reports.search, reports.describe, reports.run, artifacts.create_table, artifacts.create_chart
 ---
 
 # Customer Analysis

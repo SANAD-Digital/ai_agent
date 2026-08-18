@@ -96,6 +96,42 @@
    "read_only": 1
   },
   {
+   "fieldname": "section_runtime_policy",
+   "fieldtype": "Section Break",
+   "label": "Runtime Policy"
+  },
+  {
+   "fieldname": "response_format",
+   "fieldtype": "Select",
+   "label": "Response Format",
+   "options": "\nText\nJSON Object"
+  },
+  {
+   "description": "Comma-separated top-level keys required when Response Format is JSON Object.",
+   "fieldname": "required_output_keys",
+   "fieldtype": "Small Text",
+   "label": "Required Output Keys"
+  },
+  {
+   "fieldname": "column_break_runtime_policy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "finalization_max_tokens",
+   "fieldtype": "Int",
+   "label": "Finalization Max Tokens"
+  },
+  {
+   "fieldname": "finalization_timeout",
+   "fieldtype": "Int",
+   "label": "Finalization Timeout (Seconds)"
+  },
+  {
+   "fieldname": "final_output_instruction",
+   "fieldtype": "Small Text",
+   "label": "Final Output Instruction"
+  },
+  {
    "fieldname": "section_instructions",
    "fieldtype": "Section Break",
    "label": "Instructions"

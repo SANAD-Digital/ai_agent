@@ -162,10 +162,14 @@ class ApprovalEngine:
             raise ApprovalRequired(f"Action type '{approval.action_type}' not yet implemented.")
 
     def _execute_create(self, approval, payload):
-        """Execute a create draft action."""
+        """Execute a create draft action.
+
+        The document write and the approval bookkeeping share one commit so a
+        crash cannot leave an executed document behind a still-Approved
+        request (which would invite a duplicate re-execution).
+        """
         doc = frappe.get_doc(payload)
         doc.insert(ignore_permissions=False)
-        frappe.db.commit()
 
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
@@ -185,7 +189,6 @@ class ApprovalEngine:
                 doc = frappe.get_doc(document["payload"])
                 doc.insert(ignore_permissions=False)
                 created.append({"doctype": doc.doctype, "document_name": doc.name})
-            frappe.db.commit()
         except Exception:
             frappe.db.rollback()
             approval.status = "Failed"
@@ -223,7 +226,6 @@ class ApprovalEngine:
                 doc.set(key, val)
 
         doc.save(ignore_permissions=False)
-        frappe.db.commit()
 
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
@@ -237,7 +239,6 @@ class ApprovalEngine:
         """Execute a submit action."""
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
         doc.submit()
-        frappe.db.commit()
 
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
@@ -251,7 +252,6 @@ class ApprovalEngine:
         """Execute a cancel action."""
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
         doc.cancel()
-        frappe.db.commit()
 
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()

@@ -14,6 +14,7 @@ from ai_agent.runtime.artifact_service import ArtifactService
 from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
+from ai_agent.runtime.local_answers import greeting_or_capability_answer
 from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
     RunCancelled, RunTimedOut, RunLimitExceeded, MYSYSAgentError,
@@ -57,6 +58,12 @@ class Orchestrator:
     def execute(self):
         """Main execution entry point."""
         try:
+            # Stamp actual execution start so queue wait time never counts
+            # against the run's execution timeout.
+            self.run.started_at = frappe.utils.now_datetime()
+            frappe.db.set_value(
+                "AI Run", self.run_name, "started_at", self.run.started_at, update_modified=False
+            )
             self._update_status(RUN_STATUS_PLANNING)
             self._check_limits()
 
@@ -160,7 +167,7 @@ class Orchestrator:
                         if policy.get("response_format") == "JSON Object"
                         else None
                     ),
-                    "max_retries": 1,
+                    "max_retries": 3,
                 },
                 input_items=[],
                 tools=self._get_tool_schemas(),
@@ -224,6 +231,11 @@ class Orchestrator:
 
                     try:
                         if tool_name.startswith("actions.") and "request" in tool_name:
+                            # Gateway first: agent policy, call limits, argument
+                            # validation, and the AI Tool Call audit record.
+                            self.tool_gateway.create_approval(
+                                tool_name, arguments, self.run_name, step.name, self.agent
+                            )
                             result = self._handle_action_tool(tool_name, arguments)
                         else:
                             result = self.tool_gateway.authorize_and_execute(
@@ -356,49 +368,11 @@ class Orchestrator:
     def _try_local_fast_answer(self):
         if self._is_whatsapp_support_agent():
             return None
+        if self.run.get("parent_run"):
+            return None
         if self._has_current_attachments():
             return None
-        prompt = self._normalize_prompt(self.run.prompt)
-        if not prompt:
-            return None
-        action_markers = (
-            "انش", "اضف", "سوي", "اعمل", "حدث", "عدل", "احذف", "الغ",
-            "فاتور", "سند", "مورد", "عميل", "صنف", "تقرير", "كشف", "رصيد",
-            "create", "add", "update", "delete", "invoice", "report",
-        )
-        if any(marker in prompt for marker in action_markers):
-            return None
-        capability_markers = (
-            "هل تستطيع", "تقدر", "هل تقدر", "قدراتك", "ما تستطيع",
-            "المهام الكبيره", "المهام المركبه", "شغل كبير", "can you",
-        )
-        if any(marker in prompt for marker in capability_markers):
-            return (
-                "نعم، أقدر أتعامل مع المهام الكبيرة والمركبة داخل ERP.\n\n"
-                "- أجهز مستندات كبيرة مثل فواتير فيها أصناف كثيرة.\n"
-                "- أبحث عن الأصناف/الموردين/العملاء الموجودين قبل إنشاء جديد.\n"
-                "- أجهز المتطلبات الناقصة أولًا ثم أتابع المستند الأساسي.\n"
-                "- كل عملية حفظ أو تعديل تتم عبر موافقة واضحة قبل التنفيذ."
-            )
-        greeting_markers = ("هلا", "اهلا", "مرحبا", "السلام", "من انت", "مين انت", "who are you", "hello", "hi")
-        if not any(marker in prompt for marker in greeting_markers):
-            return None
-        return (
-            "أهلًا 👋 أنا **الباشق**.\n\n"
-            "أقدر أساعدك في التحليل، التقارير، قراءة الملفات، وتجهيز المستندات مثل الفواتير والأصناف والموردين مع طلب موافقة قبل أي حفظ."
-        )
-
-    def _normalize_prompt(self, value):
-        return (
-            str(value or "")
-            .lower()
-            .replace("أ", "ا")
-            .replace("إ", "ا")
-            .replace("آ", "ا")
-            .replace("ة", "ه")
-            .replace("ى", "ي")
-            .strip()
-        )
+        return greeting_or_capability_answer(self.run.prompt)
 
     def _try_direct_answer_without_tools(self, context):
         if self._is_whatsapp_support_agent():
@@ -1109,7 +1083,16 @@ class Orchestrator:
         and the conversation continues in a new run chained by parent_run
         (which carries the approval outcome in its session context).
         """
-        self.tool_gateway._validate_arguments(tool_name, arguments)
+        known_action_tools = {
+            "actions.request_create_draft",
+            "actions.request_bulk_create",
+            "actions.request_update",
+            "actions.request_submit",
+            "actions.request_cancel",
+            "actions.request_workflow_action",
+        }
+        if tool_name not in known_action_tools:
+            return {"error": f"Unknown action tool: {tool_name}"}
         self._update_status(RUN_STATUS_WAITING)
 
         if tool_name == "actions.request_create_draft":
@@ -1184,6 +1167,29 @@ class Orchestrator:
             )
             self._record_approval_step(
                 f"Approval required: Cancel {arguments.get('doctype')}",
+                approval.name,
+            )
+            return {"approval_required": True, "approval_id": approval.name}
+
+        elif tool_name == "actions.request_workflow_action":
+            approval = self.approval_engine.create_approval_request(
+                run_name=self.run_name,
+                action_type="Workflow",
+                doctype_name=arguments.get("doctype"),
+                document_name=arguments.get("document_name"),
+                action_summary=(
+                    f"Workflow action '{arguments.get('action')}' on "
+                    f"{arguments.get('doctype')} {arguments.get('document_name')}"
+                ),
+                impact_summary="The workflow action will be applied to the document.",
+                payload={
+                    "doctype": arguments.get("doctype"),
+                    "name": arguments.get("document_name"),
+                    "action": arguments.get("action"),
+                },
+            )
+            self._record_approval_step(
+                f"Approval required: Workflow {arguments.get('doctype')}",
                 approval.name,
             )
             return {"approval_required": True, "approval_id": approval.name}
@@ -1560,12 +1566,13 @@ class Orchestrator:
     def _ensure_required_json_final(self, final_answer):
         if not self._requires_json_final():
             return final_answer
+        scalar_keys = {"status", "message", "summary", "client_readable_summary", "reply_markdown"}
         parsed = self._extract_json_object(final_answer)
         if isinstance(parsed, dict):
             missing_keys = []
             for key in self._current_skill_policy().get("required_output_keys") or []:
                 if key not in parsed:
-                    parsed[key] = []
+                    parsed[key] = "" if key in scalar_keys else []
                     missing_keys.append(key)
             if missing_keys:
                 normalize_step = self._add_step(
@@ -1585,15 +1592,10 @@ class Orchestrator:
         return json.dumps(self._fallback_json_final_answer(final_answer), ensure_ascii=False, default=str)
 
     def _requires_json_final(self):
-        if self._current_skill_policy().get("response_format") == "JSON Object":
-            return True
-        prompt = self.run.prompt or ""
-        markers = (
-            "Return one complete valid JSON object only",
-            "Return compact valid JSON only",
-            "The first character of the final answer must be `{`",
-        )
-        return any(marker in prompt for marker in markers)
+        # Only the skill policy may demand a JSON contract. Sniffing markers
+        # out of the prompt let user-typed text flip the enforcement pipeline
+        # and mangle valid Markdown answers.
+        return self._current_skill_policy().get("response_format") == "JSON Object"
 
     def _valid_required_json(self, payload):
         if not isinstance(payload, dict):
@@ -1667,18 +1669,28 @@ class Orchestrator:
             match = re.search(r"```(?:json)?\s*([\s\S]*?)```", cleaned, re.I)
             if match:
                 cleaned = match.group(1).strip()
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start < 0 or end <= start:
-            return None
-        try:
-            return json.loads(cleaned[start:end + 1])
-        except (TypeError, ValueError):
-            return None
+        # Balanced-object extraction: first-{-to-last-} corrupts answers that
+        # contain two disjoint JSON snippets or trailing prose.
+        decoder = json.JSONDecoder()
+        index = cleaned.find("{")
+        attempts = 0
+        while index != -1 and attempts < 50:
+            attempts += 1
+            try:
+                parsed, _ = decoder.raw_decode(cleaned[index:])
+                if isinstance(parsed, dict):
+                    return parsed
+            except ValueError:
+                pass
+            index = cleaned.find("{", index + 1)
+        return None
 
     def _sanitize_final_answer(self, final_answer):
         text = str(final_answer or "")
-        if self._requires_json_final() and self._extract_json_object(text) is not None:
+        # Any answer that IS a JSON object (required or voluntary interactive
+        # JSON) must pass through untouched: the line filter and the 16k
+        # truncation below would corrupt it.
+        if self._extract_json_object(text) is not None and text.strip().startswith(("{", "```")):
             return text.strip()
         text = re.sub(r"(?is)<\s*\|\s*\|\s*DSML.*?(?:calls>|$)", "", text)
         cleaned_lines = []

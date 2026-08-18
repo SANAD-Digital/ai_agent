@@ -139,8 +139,19 @@ class ApprovalEngine:
         if approval.action_type == "Bulk Create":
             payload = json.loads(approval.payload_json or "{}")
             self._assert_bulk_create_permission(payload, user)
-        elif not frappe.has_permission(approval.doctype_name, "create", user=user):
-            raise PermissionDenied(f"User {user} no longer has create permission on {approval.doctype_name}.")
+        else:
+            permtype_by_action = {
+                "Create": "create",
+                "Update": "write",
+                "Submit": "submit",
+                "Cancel": "cancel",
+                "Workflow": "write",
+            }
+            permtype = permtype_by_action.get(approval.action_type, "write")
+            if not frappe.has_permission(approval.doctype_name, permtype, user=user):
+                raise PermissionDenied(
+                    f"User {user} no longer has {permtype} permission on {approval.doctype_name}."
+                )
 
         return self._execute_by_type(approval)
 
@@ -158,6 +169,8 @@ class ApprovalEngine:
             return self._execute_submit(approval)
         elif approval.action_type == "Cancel":
             return self._execute_cancel(approval)
+        elif approval.action_type == "Workflow":
+            return self._execute_workflow(approval, payload)
         else:
             raise ApprovalRequired(f"Action type '{approval.action_type}' not yet implemented.")
 
@@ -260,6 +273,32 @@ class ApprovalEngine:
         frappe.db.commit()
 
         return {"document_name": doc.name, "doctype": approval.doctype_name, "docstatus": 2}
+
+    def _execute_workflow(self, approval, payload):
+        """Apply an approved workflow transition (transition permissions are
+        enforced by apply_workflow against the approver's session roles)."""
+        from frappe.model.workflow import apply_workflow
+
+        doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        updated = apply_workflow(doc, payload.get("action"))
+
+        approval.status = "Executed"
+        approval.executed_at = frappe.utils.now_datetime()
+        approval.execution_result = json.dumps(
+            {
+                "document_name": updated.name,
+                "workflow_state": updated.get("workflow_state"),
+            },
+            default=str,
+        )
+        approval.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        return {
+            "document_name": updated.name,
+            "doctype": approval.doctype_name,
+            "workflow_state": updated.get("workflow_state"),
+        }
 
     def _compute_hash(self, payload_json):
         return hashlib.sha256(payload_json.encode()).hexdigest()

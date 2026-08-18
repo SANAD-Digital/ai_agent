@@ -244,8 +244,8 @@ class ToolRegistry:
         tools = [
             # Skills
             {"name": "skills.list", "description": "List available skills", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.skills.handle_list"},
-            {"name": "skills.load", "description": "Load a skill's instructions and tools", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.skills.handle_load"},
-            {"name": "skills.read_reference", "description": "Read skill reference documentation", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.skills.handle_read_reference"},
+            {"name": "skills.load", "description": "Load a skill's instructions and tools", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.skills.handle_load", "model_result_max_chars": 32768},
+            {"name": "skills.read_reference", "description": "Read skill reference documentation", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.skills.handle_read_reference", "model_result_max_chars": 32768},
             # Schema
             {"name": "schema.search_doctypes", "description": "Search DocTypes by name/description", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_search_doctypes"},
             {"name": "schema.describe_doctype", "description": "Describe a DocType's fields and relationships", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_doctype"},

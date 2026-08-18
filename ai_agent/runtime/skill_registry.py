@@ -1,8 +1,6 @@
 import os
-import json
 import hashlib
 import frappe
-from frappe import _
 from ai_agent.runtime.constants import SKILL_INSTRUCTIONS_DIR
 from ai_agent.runtime.exceptions import SkillNotFound, SkillDenied
 
@@ -313,10 +311,13 @@ class SkillRegistry:
         return any(g.skill == skill_name for g in grants)
 
     def _read_app_file_skill(self, skill_path):
-        safe_path = os.path.normpath(skill_path)
-        if ".." in safe_path:
+        skills_root = os.path.realpath(SKILLS_DIR)
+        full_path = os.path.realpath(os.path.join(skills_root, str(skill_path or ""), "SKILL.md"))
+        try:
+            if os.path.commonpath([skills_root, full_path]) != skills_root:
+                return ""
+        except ValueError:
             return ""
-        full_path = os.path.join(SKILLS_DIR, safe_path, "SKILL.md")
         if not os.path.isfile(full_path):
             return ""
         with open(full_path, "r", encoding="utf-8") as f:

@@ -1,4 +1,5 @@
 import frappe
+from frappe.database.query import get_nested_set_hierarchy_result
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Count, Sum, Avg, Min, Max
 
@@ -30,7 +31,7 @@ class V16Adapter:
         table = DocType(doc_type)
         parent_table = DocType(parent_doctype) if (parent_doctype and (is_child_table or self._has_parent_filters(filters))) else None
         qb_fields = self._build_fields(table, fields)
-        qb_filters = self._build_filters(table, filters, parent_table)
+        qb_filters = self._build_filters(table, filters, parent_table, doc_type, parent_doctype)
 
         if group_by or parent_table:
             query = frappe.qb.from_(table).select(*qb_fields)
@@ -38,6 +39,11 @@ class V16Adapter:
                 query = query.join(parent_table).on(table.parent == parent_table.name)
                 if parent_doctype:
                     query = query.where(table.parenttype == parent_doctype)
+                query = self._apply_user_permissions(
+                    query, parent_table, parent_doctype, permission_context
+                )
+            if not is_child_table:
+                query = self._apply_user_permissions(query, table, doc_type, permission_context)
             for criterion in qb_filters:
                 query = query.where(criterion)
             if group_by:
@@ -94,7 +100,7 @@ class V16Adapter:
                     result.append(getattr(table, fieldname))
         return result
 
-    def _build_filters(self, table, filters, parent_table=None):
+    def _build_filters(self, table, filters, parent_table=None, doc_type=None, parent_doctype=None):
         result = []
         for flt in filters:
             op = flt.get("operator")
@@ -126,7 +132,60 @@ class V16Adapter:
                 result.append(col.notnull())
             elif op == "is not set":
                 result.append(col.isnull())
+            elif op in ("descendants of", "ancestors of"):
+                nodes = self._nested_set_nodes(
+                    flt.get("field"), op, val, doc_type, parent_doctype
+                )
+                result.append(col.isin(nodes or [""]))
+            else:
+                # Never drop a filter silently: unfiltered data presented as
+                # filtered is a wrong answer, not a degraded one.
+                raise ValueError(f"Unsupported filter operator '{op}'.")
         return result
+
+    def _nested_set_nodes(self, fieldname, operator, value, doc_type, parent_doctype):
+        """Resolve tree members with Frappe-core semantics: the tree is the
+        filtered field's link target, or the queried doctype itself."""
+        lookup_doctype = doc_type
+        lookup_field = fieldname or ""
+        if lookup_field.startswith("parent."):
+            lookup_doctype = parent_doctype
+            lookup_field = lookup_field.split(".", 1)[1]
+        meta = frappe.get_meta(lookup_doctype)
+        field_def = meta.get_field(lookup_field) if meta.has_field(lookup_field) else None
+        ref_doctype = field_def.options if field_def and field_def.options else lookup_doctype
+        if not frappe.get_meta(ref_doctype).is_tree:
+            raise ValueError(
+                f"Operator '{operator}' requires a tree DocType; '{ref_doctype}' is not one."
+            )
+        return get_nested_set_hierarchy_result(ref_doctype, value, operator)
+
+    def _apply_user_permissions(self, query, table, target_doctype, permission_context):
+        """Row-level user permissions for the manually built (grouped/joined)
+        path; the plain path gets them from frappe.qb.get_query(user=...)."""
+        if not target_doctype or permission_context.is_system_manager:
+            return query
+        user_permissions = permission_context.user_permissions or {}
+        if not user_permissions:
+            return query
+        meta = frappe.get_meta(target_doctype)
+        for allowed_doctype, rules in user_permissions.items():
+            allowed_docs = [
+                rule.get("doc")
+                for rule in rules
+                if not rule.get("applicable_for") or rule.get("applicable_for") == target_doctype
+            ]
+            if not allowed_docs:
+                continue
+            if allowed_doctype == target_doctype:
+                query = query.where(table.name.isin(allowed_docs))
+                continue
+            for link_field in meta.get_link_fields():
+                if link_field.options != allowed_doctype:
+                    continue
+                col = getattr(table, link_field.fieldname)
+                query = query.where(col.isnull() | (col == "") | col.isin(allowed_docs))
+        return query
 
     def _column_for_filter(self, table, parent_table, fieldname):
         if fieldname and fieldname.startswith("parent."):

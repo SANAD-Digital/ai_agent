@@ -1,6 +1,5 @@
 import json
 import frappe
-from frappe import _
 from ai_agent.runtime.exceptions import ModelProviderError
 
 
@@ -128,7 +127,7 @@ class OpenAICompatibleProvider(AgentModelProvider):
             except ModelProviderError as e:
                 last_exception = e
                 break
-            except requests.exceptions.Timeout as e:
+            except requests.exceptions.Timeout:
                 last_exception = ModelProviderError("Model provider request timed out.")
                 if attempt < max_retries - 1:
                     time.sleep(min(2 ** (attempt + 1), 10))
@@ -329,12 +328,12 @@ class OpenAICompatibleProvider(AgentModelProvider):
 
 
 def get_provider():
-    """Get the configured model provider."""
-    settings = frappe.get_doc("AI Settings")
-    provider_type = settings.provider_type or "OpenAI"
-    if provider_type in ("OpenAI", "OpenAI Compatible", "Ollama"):
-        return OpenAICompatibleProvider(settings)
-    return OpenAICompatibleProvider(settings)
+    """Get the configured model provider.
+
+    Every supported provider_type (OpenAI, OpenAI Compatible, Ollama) speaks
+    the OpenAI-compatible protocol; base_url selection happens in __init__.
+    """
+    return OpenAICompatibleProvider(frappe.get_doc("AI Settings"))
 
 
 def estimate_context_window_tokens(model=None, base_url=None):

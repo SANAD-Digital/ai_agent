@@ -42,7 +42,9 @@ MAX_FILES = 30
 MAX_FILE_BYTES = 25 * 1024 * 1024
 MAX_ANALYSIS_ROW_TEXT_CHARS = 2400
 MAX_ANALYSIS_PAGE_CHUNK_CHARS = 18000
-MAX_ANALYSIS_PAGES_PER_CHUNK = 1
+# Pages are batched per model call up to MAX_ANALYSIS_PAGE_CHUNK_CHARS; one
+# page per call repeated the ~5k-token skill/contract boilerplate per page.
+MAX_ANALYSIS_PAGES_PER_CHUNK = 8
 MAX_MODEL_PAGE_TEXT_CHARS = 6000
 MAX_MODEL_CONTEXT_ACCOUNTS = 40
 MAX_MODEL_CONTEXT_SUPPLIERS = 30
@@ -2410,7 +2412,6 @@ def _read_pages_for_model_analysis(payload):
                     "source_page": cint(page.get("page")) or 1,
                     "status": page.get("status") or "",
                     "extraction": page.get("extraction") or "",
-                    "text": _truncate_for_analysis(text, MAX_MODEL_PAGE_TEXT_CHARS),
                     "text_preview": _truncate_for_analysis(text, MAX_MODEL_PAGE_TEXT_CHARS),
                     "warnings": page.get("warnings") or [],
                     "extracted_lines_count": cint(page.get("extracted_lines_count")),
@@ -2466,20 +2467,22 @@ def _process_page_chunk_with_ai(company, compact_ctx, page_chunk, user_instructi
             "workflow": {"analysis_failed": 1},
         }
 
-    context_json = _compact_json(compact_ctx)
+    context_json = _compact_json(_compact_ai_context(compact_ctx))
     page_json = _compact_json(page_chunk)
     context_block = f"ERP CONTEXT JSON:\n{context_json}\n\n" if compact_ctx else ""
     skill_block = _financial_attachment_skill_instructions()
+    # Static blocks first, per-chunk variables last: keeps the shared prefix
+    # identical across chunk calls so provider-side prompt caching can apply.
     prompt = (
         "FINANCIAL_ATTACHMENT_PAGE_ANALYSIS\n"
-        f"Company: {company}\n"
-        f"Chunk: {chunk_index}/{total_chunks}\n"
-        f"User instructions: {user_instructions or 'None'}\n\n"
+        f"Company: {company}\n\n"
         "Apply the skill/model instructions below as the source of extraction, matching, and accounting behavior.\n"
         "Return JSON only. Do not add Markdown fences or prose outside JSON.\n\n"
         f"SKILL INSTRUCTIONS:\n{skill_block}\n\n"
         f"{context_block}"
         f"REQUIRED JSON CONTRACT:\n{_analysis_schema_text()}\n\n"
+        f"User instructions: {user_instructions or 'None'}\n"
+        f"Chunk: {chunk_index}/{total_chunks}\n\n"
         f"PAGE OCR JSON:\n{page_json}\n\n"
         "Return ONLY one valid JSON object. The top-level key must be invoice_groups."
     )
@@ -2885,7 +2888,6 @@ def _execute_chunked_analysis_for_run(run):
     has_data = _analysis_has_extractable_data(analysis)
     analysis_failed = bool(isinstance(analysis, dict) and (analysis.get("workflow") or {}).get("analysis_failed"))
 
-    step_status = "Failed" if analysis_failed or not has_data else "Completed"
     step_summary = _first_analysis_error(analysis) if analysis_failed else _extraction_message(has_data)
 
     run.reload()
@@ -2996,16 +2998,17 @@ def _consolidate_page_results_with_ai(company, compact_ctx, page_results, merged
         frappe.log_error(frappe.get_traceback(), "Financial Attachment Consolidation AI Provider Failed")
         return None
 
+    # merged_analysis is derived from page_results; sending both doubled the
+    # largest payload of the whole pipeline (up to ~520K chars in one call).
     prompt = (
         "FINANCIAL_ATTACHMENT_FINAL_CONSOLIDATION\n"
-        f"Company: {company}\n"
-        f"User instructions: {user_instructions or 'None'}\n\n"
+        f"Company: {company}\n\n"
         "Apply the skill/model instructions below as the source of consolidation and accounting behavior.\n"
         "Use the page-level analysis results as persisted worker output. Return JSON only.\n\n"
         f"SKILL INSTRUCTIONS:\n{_financial_attachment_skill_instructions()}\n\n"
-        f"ERP CONTEXT JSON:\n{_truncate_for_analysis(_compact_json(compact_ctx), 120000)}\n\n"
+        f"ERP CONTEXT JSON:\n{_truncate_for_analysis(_compact_json(_compact_ai_context(compact_ctx)), 120000)}\n\n"
         f"REQUIRED JSON CONTRACT:\n{_analysis_schema_text()}\n\n"
-        f"MERGED PAGE ANALYSIS JSON:\n{_truncate_for_analysis(_compact_json(merged_analysis), 260000)}\n\n"
+        f"User instructions: {user_instructions or 'None'}\n\n"
         f"PAGE RESULTS JSON:\n{_truncate_for_analysis(_compact_json(page_results), 260000)}"
     )
     try:

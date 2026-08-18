@@ -1,6 +1,5 @@
 import frappe
 import json
-from frappe import _
 from frappe.utils import cint
 
 
@@ -114,22 +113,14 @@ class MemoryService:
                     agent=agent,
                 ))
 
-        filtered = []
-        for memory in memories:
-            content = memory.content or ""
-            if agent and f"agent={agent}" in content:
-                filtered.append(memory)
-            elif company and f"company={company}" in content:
-                filtered.append(memory)
-            elif memory.scope == "User":
-                filtered.append(memory)
-
-        if not filtered:
+        # retrieve() already scopes by the structured user/agent/company fields,
+        # so no re-filtering on content substrings is needed here.
+        if not memories:
             return ""
 
-        filtered.sort(key=lambda row: row.modified, reverse=True)
+        memories.sort(key=lambda row: row.modified, reverse=True)
         lines = ["Relevant learned context from previous runs. Apply only when it matches the current task:"]
-        for memory in filtered[:limit]:
+        for memory in memories[:limit]:
             lines.append(f"- {self._clean(memory.content, MAX_MEMORY_CONTENT_CHARS)}")
 
         text = "\n".join(lines)

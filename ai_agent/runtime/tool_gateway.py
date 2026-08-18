@@ -1,11 +1,6 @@
 import hashlib
 import frappe
-from frappe import _
-from ai_agent.runtime.constants import (
-    TOOL_ACCESS_READ, SIDE_EFFECT_READ_ONLY, SIDE_EFFECT_PREPARE,
-    REALTIME_EVENTS,
-)
-from ai_agent.runtime.exceptions import ToolDenied, PermissionDenied
+from ai_agent.runtime.exceptions import ToolDenied
 from ai_agent.runtime.trace_service import TraceService
 
 
@@ -201,7 +196,6 @@ class ToolGateway:
     def _audit_record(self, run_name, step_name, tool_name, arguments, result, status):
         try:
             import json
-            args_hash = hashlib.sha256(json.dumps(arguments, sort_keys=True, default=str).encode()).hexdigest()
             result_hash = ""
             result_preview = ""
             if result:
@@ -224,4 +218,11 @@ class ToolGateway:
             })
             tool_call.insert(ignore_permissions=True)
         except Exception:
-            pass
+            # Fail closed: an unaudited tool call must not be reported as a success.
+            try:
+                frappe.log_error(frappe.get_traceback(), "AI Tool Call Audit Failed")
+            except Exception:
+                pass
+            raise ToolDenied(
+                f"Tool '{tool_name}' call could not be audited; the call was aborted."
+            )

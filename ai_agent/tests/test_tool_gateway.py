@@ -57,20 +57,53 @@ class TestToolGateway(IntegrationTestCase):
 			)
 		self.assertIn("requires approval", str(ctx.exception))
 
-	def test_call_limit_is_enforced(self):
-		gateway = make_gateway()
-		agent = frappe._dict({"read_only": 0, "allow_actions": 1, "maximum_tool_calls": 2})
-		for _ in range(2):
+	def test_call_limit_counts_executed_calls(self):
+		run = make_test_run()
+		try:
+			gateway = make_gateway()
+			agent = frappe._dict({"read_only": 0, "allow_actions": 1, "maximum_tool_calls": 2})
+			for _ in range(2):
+				gateway.authorize_and_execute(
+					"schema.describe_doctype", {"doctype": "ToDo"}, run_name=run.name, agent_doc=agent
+				)
 			with self.assertRaises(ToolDenied) as ctx:
 				gateway.authorize_and_execute(
-					"actions.request_create_draft", dict(CREATE_DRAFT_ARGS), agent_doc=agent
+					"schema.describe_doctype", {"doctype": "ToDo"}, run_name=run.name, agent_doc=agent
 				)
-			self.assertIn("requires approval", str(ctx.exception))
-		with self.assertRaises(ToolDenied) as ctx:
-			gateway.authorize_and_execute(
-				"actions.request_create_draft", dict(CREATE_DRAFT_ARGS), agent_doc=agent
+			self.assertIn("call limit", str(ctx.exception))
+		finally:
+			delete_docs(
+				"AI Tool Call",
+				frappe.get_all("AI Tool Call", filters={"run": run.name}, pluck="name"),
 			)
-		self.assertIn("call limit", str(ctx.exception))
+			delete_docs("AI Run", [run.name])
+			frappe.db.commit()
+
+	def test_denied_call_does_not_consume_budget(self):
+		# Regression: a call denied at validation used to burn the per-tool
+		# budget permanently — lethal for skill tools with maximum_calls=1.
+		run = make_test_run()
+		try:
+			gateway = make_gateway()
+			agent = frappe._dict({"read_only": 0, "allow_actions": 1, "maximum_tool_calls": 1})
+			with self.assertRaises(ToolDenied) as ctx:
+				gateway.authorize_and_execute("schema.describe_doctype", {}, run_name=run.name, agent_doc=agent)
+			self.assertIn("missing required", str(ctx.exception))
+			gateway.authorize_and_execute(
+				"schema.describe_doctype", {"doctype": "ToDo"}, run_name=run.name, agent_doc=agent
+			)
+			with self.assertRaises(ToolDenied) as ctx:
+				gateway.authorize_and_execute(
+					"schema.describe_doctype", {"doctype": "ToDo"}, run_name=run.name, agent_doc=agent
+				)
+			self.assertIn("call limit", str(ctx.exception))
+		finally:
+			delete_docs(
+				"AI Tool Call",
+				frappe.get_all("AI Tool Call", filters={"run": run.name}, pluck="name"),
+			)
+			delete_docs("AI Run", [run.name])
+			frappe.db.commit()
 
 	def test_skill_allowlist_blocks_undeclared_tools(self):
 		gateway = make_gateway(skill_tools=[{"tool_name": "data.query"}])

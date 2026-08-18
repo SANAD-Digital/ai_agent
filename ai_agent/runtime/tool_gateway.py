@@ -46,6 +46,10 @@ class ToolGateway:
         if tool.get("requires_approval"):
             raise ToolDenied(f"Tool '{tool_name}' requires approval - use the appropriate request_* tool.")
 
+        # Count only calls that passed every check: a denied call must not
+        # permanently burn the per-tool budget (lethal with limit-1 tools).
+        self._count_call(tool_name)
+
         previous_run_name = getattr(self.ctx, "run_name", None)
         self.ctx.run_name = run_name
         try:
@@ -79,6 +83,8 @@ class ToolGateway:
 
         self._validate_arguments(tool_name, arguments)
 
+        self._count_call(tool_name)
+
         self._audit_record(run_name, step_name, tool_name, arguments, None, "Requested")
 
         return {"approval_required": True, "tool_name": tool_name, "arguments": arguments}
@@ -109,7 +115,9 @@ class ToolGateway:
             max_calls = min(max_calls, int(skill_tool.get("maximum_calls")))
         if count >= max_calls:
             raise ToolDenied(f"Tool '{tool_name}' has reached its call limit ({max_calls}).")
-        self._call_counts[tool_name] = count + 1
+
+    def _count_call(self, tool_name):
+        self._call_counts[tool_name] = self._call_counts.get(tool_name, 0) + 1
 
     def _apply_skill_argument_limits(self, tool_name, arguments):
         skill_tool = next(

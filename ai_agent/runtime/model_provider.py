@@ -336,8 +336,26 @@ def get_provider():
     return OpenAICompatibleProvider(frappe.get_doc("AI Settings"))
 
 
+def _configured_model_capability(model=None):
+    """First matching row from the AI Settings model-capability table, if any."""
+    try:
+        rows = frappe.get_cached_doc("AI Settings").get("model_capabilities") or []
+    except Exception:
+        return None
+    text = str(model or "").lower()
+    for row in rows:
+        pattern = str(row.get("model_pattern") or "").strip().lower()
+        if pattern and pattern in text:
+            return row
+    return None
+
+
 def estimate_context_window_tokens(model=None, base_url=None):
-    """Best-effort context-window estimate for usage display only."""
+    """Context-window estimate: configured capability table first, then heuristics."""
+    capability = _configured_model_capability(model)
+    if capability and int(capability.get("context_window_tokens") or 0) > 0:
+        return int(capability.get("context_window_tokens"))
+
     text = f"{model or ''} {base_url or ''}".lower()
     if "gemini" in text:
         return 1000000
@@ -353,7 +371,11 @@ def estimate_context_window_tokens(model=None, base_url=None):
 
 
 def supports_vision_model(model=None, base_url=None):
-    """Best-effort check for OpenAI-compatible models that accept image_url message parts."""
+    """Vision support: a matching capability row is authoritative, else heuristics."""
+    capability = _configured_model_capability(model)
+    if capability:
+        return bool(capability.get("supports_vision"))
+
     text = f"{model or ''} {base_url or ''}".lower()
     if "deepseek" in text or "ollama" in text:
         return any(marker in text for marker in ("vision", "vl", "llava", "pixtral"))

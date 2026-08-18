@@ -30,6 +30,8 @@
   "section_memory",
   "enable_memory",
   "memory_retention_days",
+  "section_model_capabilities",
+  "model_capabilities",
   "section_instructions",
   "system_instructions"
  ],
@@ -177,6 +179,19 @@
    "label": "Memory Retention Days",
    "default": "30",
    "depends_on": "eval:doc.enable_memory"
+  },
+  {
+   "fieldname": "section_model_capabilities",
+   "fieldtype": "Section Break",
+   "label": "Model Capabilities",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "model_capabilities",
+   "fieldtype": "Table",
+   "label": "Model Capabilities",
+   "options": "AI Model Capability",
+   "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics."
   },
   {
    "fieldname": "section_instructions",

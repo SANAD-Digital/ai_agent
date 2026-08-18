@@ -53,7 +53,6 @@ class Orchestrator:
         self.enforce_skill_tools = False
         self.input_tokens = cint(self.run.input_tokens)
         self.output_tokens = cint(self.run.output_tokens)
-        self.execution_state = None
 
     def execute(self):
         """Main execution entry point."""
@@ -121,7 +120,6 @@ class Orchestrator:
                 "tool_observations": [],
                 "tool_attempts": {},
             }
-            self.execution_state = state
 
             result = self._run_loop(state)
 
@@ -1104,7 +1102,13 @@ class Orchestrator:
         }
 
     def _handle_action_tool(self, tool_name, arguments):
-        """Handle action tools through the approval engine."""
+        """Handle action tools through the approval engine.
+
+        The run does not pause here: it finalizes with a pending-approval
+        answer, the human decision executes later via api.approve_action,
+        and the conversation continues in a new run chained by parent_run
+        (which carries the approval outcome in its session context).
+        """
         self.tool_gateway._validate_arguments(tool_name, arguments)
         self._update_status(RUN_STATUS_WAITING)
 
@@ -1802,27 +1806,3 @@ def execute_run(run_name):
     """Entry point for background job."""
     orchestrator = Orchestrator(run_name)
     orchestrator.execute()
-
-
-def resume_run(run_name, approval_name):
-    """Resume a run after approval."""
-    approval = frappe.get_doc("AI Approval Request", approval_name)
-    if approval.status != "Approved":
-        return
-
-    engine = ApprovalEngine(PermissionContext(approval.requested_by))
-    try:
-        engine.execute_approved_action(approval_name)
-    except Exception:
-        frappe.log_error(
-            frappe.get_traceback(),
-            f"AI Agent Approval Execution Failed: {run_name} / {approval_name}",
-        )
-        return
-
-    run = frappe.get_doc("AI Run", run_name)
-    run.status = RUN_STATUS_RUNNING
-    run.save(ignore_permissions=True)
-    frappe.db.commit()
-
-    execute_run(run_name)

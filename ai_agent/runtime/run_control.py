@@ -157,4 +157,5 @@ def mark_interrupted_run(run_name, message):
     try:
         frappe.publish_realtime("ai_agent:run_failed", {"run_id": run_name}, user=run.user)
     except Exception:
+        # Best-effort: realtime UI events are cosmetic and must never fail a run.
         pass

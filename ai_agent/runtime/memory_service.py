@@ -174,7 +174,7 @@ class MemoryService:
             return False
         try:
             payload = json.loads(text)
-        except Exception:
+        except (TypeError, ValueError):
             lowered = text.lower()
             return not any(marker in lowered for marker in ("needs review", "failed", "تعذر", "لم أتمكن"))
         if not isinstance(payload, dict):

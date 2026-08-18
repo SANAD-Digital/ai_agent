@@ -2,7 +2,6 @@ import json
 import hashlib
 import re
 import frappe
-from frappe import _
 from frappe.utils import cint
 from ai_agent.runtime.context_builder import ContextBuilder
 from ai_agent.runtime.model_provider import get_provider
@@ -21,7 +20,7 @@ from ai_agent.runtime.exceptions import (
     ToolDenied, PermissionDenied,
 )
 from ai_agent.runtime.constants import (
-    RUN_STATUS_QUEUED, RUN_STATUS_PLANNING, RUN_STATUS_RUNNING,
+    RUN_STATUS_PLANNING, RUN_STATUS_RUNNING,
     RUN_STATUS_WAITING, RUN_STATUS_COMPLETED, RUN_STATUS_FAILED,
     RUN_STATUS_CANCELLED, RUN_STATUS_TIMED_OUT,
     REALTIME_EVENTS,
@@ -136,8 +135,8 @@ class Orchestrator:
             self._fail_run(str(e))
         except MYSYSAgentError as e:
             self._fail_run(str(e))
-        except Exception as e:
-            frappe.log_error(f"AI Agent error: {str(e)}", "AI Agent")
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Run Crashed: {self.run_name}")
             self._fail_run("An unexpected error occurred.")
 
     def _run_loop(self, state):
@@ -447,6 +446,7 @@ class Orchestrator:
                 state={"route_only": True},
             )
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Preflight Router Failed: {self.run_name}")
             return None
 
         route = self._parse_json_message_response(response)
@@ -466,6 +466,7 @@ class Orchestrator:
                 self.run.company,
             )
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Skill Listing Failed: {self.run_name}")
             return False
         return any(skill.get("name") == "whatsapp-business-support" for skill in skills or [])
 
@@ -473,6 +474,7 @@ class Orchestrator:
         try:
             return bool(FileContextService().get_run_files(self.run_name))
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Attachment Check Failed: {self.run_name}")
             return False
 
     def _try_final_answer_without_more_tools(self, state, reason):
@@ -539,14 +541,14 @@ class Orchestrator:
             return {}
         try:
             return json.loads(text)
-        except Exception:
+        except (TypeError, ValueError):
             pass
         start = text.find("{")
         end = text.rfind("}")
         if start >= 0 and end > start:
             try:
                 return json.loads(text[start:end + 1])
-            except Exception:
+            except (TypeError, ValueError):
                 return {}
         return {}
 
@@ -1368,14 +1370,14 @@ class Orchestrator:
         try:
             return bool(frappe.get_doc("AI Settings").get("enable_memory"))
         except Exception:
+            # Deliberately silent: evaluated per tool-schema build, and a failed
+            # settings read only hides the optional memory tools.
             return False
 
     def _check_limits(self):
         settings = frappe.get_doc("AI Settings")
         if not settings.enabled:
             raise MYSYSAgentError("Agent system is disabled.")
-        max_steps = self.agent.maximum_steps or settings.maximum_steps or 12
-        max_tool_calls = self.agent.maximum_tool_calls or settings.maximum_tool_calls or 25
 
     def _check_cancellation(self):
         self.run.reload()
@@ -1483,6 +1485,7 @@ class Orchestrator:
         try:
             usage = self.provider.get_usage(response) or {}
         except Exception:
+            # Best-effort: usage stats are cosmetic and must never fail a run.
             return
 
         input_tokens = cint(usage.get("input_tokens"))
@@ -1501,7 +1504,7 @@ class Orchestrator:
             frappe.db.commit()
             self.trace.publish_realtime(REALTIME_EVENTS["run_updated"], self.run_name)
         except Exception:
-            pass
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Usage Persist Failed: {self.run_name}")
 
     def _complete_run(self, final_answer):
         if not final_answer:
@@ -1666,7 +1669,7 @@ class Orchestrator:
             return None
         try:
             return json.loads(cleaned[start:end + 1])
-        except Exception:
+        except (TypeError, ValueError):
             return None
 
     def _sanitize_final_answer(self, final_answer):
@@ -1706,7 +1709,9 @@ class Orchestrator:
             )
             self.trace.publish_realtime(REALTIME_EVENTS["run_failed"], self.run_name)
         except Exception:
-            pass
+            # A run we cannot mark Failed will look stuck until the orphan
+            # watchdog recovers it — that must never happen silently.
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Fail-Run Persist Failed: {self.run_name}")
 
     def _time_out_run(self, error_summary):
         try:
@@ -1722,7 +1727,7 @@ class Orchestrator:
             self._update_compact_session_checkpoint(RUN_STATUS_TIMED_OUT, error_summary)
             self.trace.publish_realtime(REALTIME_EVENTS["run_failed"], self.run_name)
         except Exception:
-            pass
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Timeout Persist Failed: {self.run_name}")
 
     def _update_compact_session_checkpoint(self, status, summary="", state=None):
         """Persist a bounded latest-run checkpoint without replacing agent instructions."""
@@ -1807,9 +1812,12 @@ def resume_run(run_name, approval_name):
 
     engine = ApprovalEngine(PermissionContext(approval.requested_by))
     try:
-        result = engine.execute_approved_action(approval_name)
-    except Exception as e:
-        frappe.log_error(f"Approval execution error: {str(e)}", "AI Agent")
+        engine.execute_approved_action(approval_name)
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            f"AI Agent Approval Execution Failed: {run_name} / {approval_name}",
+        )
         return
 
     run = frappe.get_doc("AI Run", run_name)

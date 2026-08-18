@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 
 
 class TraceService:
@@ -75,4 +74,5 @@ class TraceService:
                 user=user,
             )
         except Exception:
+            # Best-effort: realtime UI events are cosmetic and must never fail a run.
             pass

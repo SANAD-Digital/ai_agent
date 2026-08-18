@@ -85,8 +85,17 @@ class ApprovalEngine:
         if approval.payload_hash != self._compute_hash(approval.payload_json):
             raise PermissionDenied("Payload has been tampered with.")
 
-        if approval.requested_by != user and "System Manager" not in frappe.get_roles(user):
-            raise PermissionDenied("You are not authorized to approve this action.")
+        settings = frappe.get_doc("AI Settings")
+        if settings.get("require_four_eyes") and approval.requested_by == user:
+            raise PermissionDenied(
+                "Four-eyes approval is enabled: the requester cannot approve their own action."
+            )
+
+        if approval.requested_by != user:
+            roles = set(frappe.get_roles(user))
+            approver_role = settings.get("approver_role")
+            if "System Manager" not in roles and (not approver_role or approver_role not in roles):
+                raise PermissionDenied("You are not authorized to approve this action.")
 
         approval.status = "Approved"
         approval.approved_by = user

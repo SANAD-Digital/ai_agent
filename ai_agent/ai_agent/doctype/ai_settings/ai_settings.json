@@ -25,6 +25,8 @@
   "store_full_tool_results",
   "cb_approval",
   "default_approval_ttl_minutes",
+  "approver_role",
+  "require_four_eyes",
   "section_memory",
   "enable_memory",
   "memory_retention_days",
@@ -144,6 +146,20 @@
    "fieldtype": "Int",
    "label": "Default Approval TTL (minutes)",
    "default": "30"
+  },
+  {
+   "fieldname": "approver_role",
+   "fieldtype": "Link",
+   "label": "Approver Role",
+   "options": "Role",
+   "description": "Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only."
+  },
+  {
+   "fieldname": "require_four_eyes",
+   "fieldtype": "Check",
+   "label": "Require Four-Eyes Approval",
+   "default": "0",
+   "description": "When enabled, the user who requested an action cannot approve it themselves."
   },
   {
    "fieldname": "section_memory",

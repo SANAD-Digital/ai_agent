@@ -4,7 +4,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime
+from frappe.utils import now_datetime
 
 from ai_agent.chatbot import settings
 from ai_agent.chatbot.setup import ensure_chatbot_agent, ensure_chatbot_skill_grants

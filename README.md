@@ -23,12 +23,16 @@ cd apps/ai_agent
 pre-commit install
 ```
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+Pre-commit is configured to use the following tools for checking your code:
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
+- ruff (lint, with autofix)
+- basic hygiene hooks (valid JSON/YAML, merge-conflict markers, EOF newline on Python files)
+
+Run the full backend test suite with:
+
+```bash
+bench --site <your-dev-site> run-tests --app ai_agent
+```
 
 ### License
 

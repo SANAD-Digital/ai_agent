@@ -39,6 +39,10 @@ doc_events = {
     },
 }
 
+permission_query_conditions = {
+    "AI Chat Session": "ai_agent.ai_agent.doctype.ai_chat_session.ai_chat_session.get_permission_query_conditions",
+}
+
 # Override whitelisted methods if needed
 # override_whitelisted_methods = {}
 

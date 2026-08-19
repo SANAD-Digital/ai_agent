@@ -79,6 +79,15 @@
       "description": "Chat session identity: the first run of this conversation chain. Set once at creation; every follow-up run inherits it."
     },
     {
+      "fieldname": "chat_session",
+      "fieldtype": "Link",
+      "options": "AI Chat Session",
+      "label": "Chat Session",
+      "search_index": 1,
+      "read_only": 1,
+      "description": "The chat session this run belongs to. Created automatically for the first run and inherited by follow-ups."
+    },
+    {
       "fieldname": "plan_summary",
       "fieldtype": "Long Text",
       "label": "Plan Summary"

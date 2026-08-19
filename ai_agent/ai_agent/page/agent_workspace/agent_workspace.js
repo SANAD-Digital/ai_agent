@@ -28,6 +28,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                     <div id="company-select"></div>
                 </div>
                 <div class="chat-sessions-title">${__("Recent Sessions")}</div>
+                <input id="session-search" class="form-control session-search" type="search"
+                    placeholder="${__("Search chats...")}" autocomplete="off">
                 <div id="chat-sessions" class="chat-sessions"></div>
             </aside>
 
@@ -68,6 +70,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     setup_layout_sizing();
 
     let currentRoot = null;
+    let currentSession = null;
+    let allSessions = [];
     let currentRun = null;
     let pollInterval = null;
     let selectedAgent = null;
@@ -200,6 +204,17 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
 
     function bind_events() {
         page.main.find("#btn-new-chat").on("click", new_chat);
+        page.main.on("input", "#session-search", () => render_sessions(filtered_sessions()));
+        page.main.on("click", ".chat-session .session-action", function (event) {
+            event.stopPropagation();
+            const card = $(this).closest(".chat-session");
+            const sessionId = card.data("session");
+            if ($(this).data("action") === "rename") {
+                rename_session(sessionId, card.find(".session-title").text());
+            } else {
+                archive_session(sessionId);
+            }
+        });
         page.main.find("#btn-send").on("click", submit_message);
         page.main.find("#btn-voice").on("click", toggle_voice_input);
         page.main.find("#btn-attach").on("click", () => page.main.find("#file-input").trigger("click"));
@@ -214,7 +229,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         });
 
         page.main.on("click", ".chat-session", function () {
-            select_session($(this).data("root"));
+            select_session($(this).data("session") || $(this).data("root"));
         });
         page.main.on("click", ".btn-approve-approval", function () {
             approve_approval($(this).data("approval"));
@@ -295,10 +310,18 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     }
 
     function load_sessions() {
-        frappe.xcall("ai_agent.api.list_chat_sessions", { limit: 40 }).then((result) => {
-            const sessions = result?.sessions || [];
-            render_sessions(sessions);
+        frappe.xcall("ai_agent.api.list_chat_sessions", { limit: 60 }).then((result) => {
+            allSessions = result?.sessions || [];
+            render_sessions(filtered_sessions());
         });
+    }
+
+    function filtered_sessions() {
+        const query = String(page.main.find("#session-search").val() || "").trim().toLowerCase();
+        if (!query) return allSessions;
+        return allSessions.filter((session) =>
+            `${session.title || ""} ${session.preview || ""} ${session.agent || ""}`.toLowerCase().includes(query)
+        );
     }
 
     function render_sessions(sessions) {
@@ -308,14 +331,54 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             return;
         }
         sessions.forEach((session) => {
-            const active = currentRoot === session.root_run ? "active" : "";
+            const id = session.session || session.name || session.root_run;
+            const active = (currentSession && currentSession === id) || (!currentSession && currentRoot === session.root_run) ? "active" : "";
+            const when = session.modified ? frappe.datetime.comment_when(session.modified, true) : "";
             list.append(`
-                <button class="chat-session ${active}" data-root="${escape_attr(session.root_run)}">
-                    <span class="session-title">${escape_html(session.title || session.root_run)}</span>
+                <div class="chat-session ${active}" role="button" tabindex="0"
+                     data-session="${escape_attr(id)}" data-root="${escape_attr(session.root_run || "")}">
+                    <div class="session-row">
+                        <span class="session-title">${escape_html(session.title || id)}</span>
+                        <span class="session-actions">
+                            <button class="session-action" data-action="rename" title="${__("Rename")}">✏️</button>
+                            <button class="session-action" data-action="archive" title="${__("Archive")}">🗄️</button>
+                        </span>
+                    </div>
                     <span class="session-preview">${escape_html(session.preview || "")}</span>
-                    <span class="session-meta">${escape_html(session.status || "")} · ${session.message_count || 1}</span>
-                </button>
+                    <span class="session-meta">
+                        <span>${escape_html(session.agent || "")}</span>
+                        <span>${session.message_count || 1} ${__("msgs")} · ${escape_html(when)}</span>
+                    </span>
+                </div>
             `);
+        });
+    }
+
+    function rename_session(sessionId, currentTitle) {
+        frappe.prompt(
+            [{ fieldname: "title", fieldtype: "Data", label: __("Chat title"), reqd: 1, "default": currentTitle || "" }],
+            (values) => {
+                frappe.xcall("ai_agent.api.rename_chat_session", { session: sessionId, title: values.title }).then(() => {
+                    const entry = allSessions.find((s) => (s.session || s.name) === sessionId);
+                    if (entry) entry.title = values.title;
+                    render_sessions(filtered_sessions());
+                    if (currentSession === sessionId) {
+                        page.main.find("#chat-title").text(values.title);
+                    }
+                });
+            },
+            __("Rename chat"),
+            __("Save")
+        );
+    }
+
+    function archive_session(sessionId) {
+        frappe.confirm(__("Archive this chat? Its messages are kept and can be restored from the AI Chat Session list."), () => {
+            frappe.xcall("ai_agent.api.archive_chat_session", { session: sessionId }).then(() => {
+                allSessions = allSessions.filter((s) => (s.session || s.name) !== sessionId);
+                render_sessions(filtered_sessions());
+                if (currentSession === sessionId) new_chat();
+            });
         });
     }
 
@@ -323,6 +386,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         if (!rootRun) return Promise.resolve();
         stop_polling();
         currentRoot = rootRun;
+        currentSession = String(rootRun).startsWith("CHAT-") ? rootRun : currentSession;
         const requestedRoot = rootRun;
         page.main.find("#chat-messages").html(`
             <div class="chat-empty-state">
@@ -337,6 +401,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         return frappe.xcall("ai_agent.api.get_chat_messages", { root_run: rootRun }).then((result) => {
             if (currentRoot !== requestedRoot) return;
             currentRoot = result?.root_run || requestedRoot;
+            currentSession = result?.session || currentSession;
             currentRun = result?.latest_run || rootRun;
             currentSessionAgent = result?.latest_agent || currentSessionAgent;
             currentSessionCompany = result?.latest_company || currentSessionCompany;
@@ -344,7 +409,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             sync_controls_to_session();
             page.main.find(".chat-session").removeClass("active");
             page.main.find(".chat-session").filter(function () {
-                return $(this).data("root") === currentRoot;
+                return $(this).data("session") === currentSession || $(this).data("root") === currentRoot;
             }).addClass("active");
             render_messages(result?.messages || []);
             update_title_from_messages(result?.messages || []);
@@ -1762,6 +1827,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     function new_chat() {
         stop_polling();
         currentRoot = null;
+        currentSession = null;
         currentRun = null;
         currentSessionAgent = null;
         currentSessionCompany = null;

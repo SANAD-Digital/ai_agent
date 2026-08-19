@@ -959,3 +959,97 @@
         flex-direction: column;
     }
 }
+
+/* --- Chat session cards (doctype-backed sessions) ------------------------ */
+.session-search {
+    margin: 0 0 8px;
+    height: 30px;
+    font-size: 12.5px;
+    border-radius: 8px;
+}
+
+.chat-session {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    text-align: start;
+    padding: 9px 11px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.chat-session:hover {
+    background: var(--bg-light-gray, var(--control-bg));
+}
+
+.chat-session.active {
+    background: var(--control-bg);
+    border-color: var(--primary);
+}
+
+.chat-session .session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.chat-session .session-title {
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-session .session-actions {
+    display: none;
+    flex-shrink: 0;
+    gap: 2px;
+}
+
+.chat-session:hover .session-actions,
+.chat-session.active .session-actions {
+    display: inline-flex;
+}
+
+.chat-session .session-action {
+    border: none;
+    background: transparent;
+    padding: 0 3px;
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.65;
+    cursor: pointer;
+}
+
+.chat-session .session-action:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.chat-session .session-preview {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-session .session-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-light);
+}
+
+.chat-session .session-meta span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

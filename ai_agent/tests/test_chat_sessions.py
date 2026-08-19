@@ -65,6 +65,47 @@ class TestChatSessions(IntegrationTestCase):
 		previous = SessionContextService().get_previous_runs(frappe.get_doc("AI Run", r3.name))
 		self.assertEqual([row.name for row in previous], [r1.name, r2.name])
 
+	def test_run_creates_and_updates_chat_session_doc(self):
+		r1, r2, r3 = self._make_chain()
+		session_name = frappe.db.get_value("AI Run", r1.name, "chat_session")
+		self.assertTrue(session_name)
+		self.assertEqual(frappe.db.get_value("AI Run", r3.name, "chat_session"), session_name)
+		session = frappe.db.get_value(
+			"AI Chat Session", session_name,
+			["title", "root_run", "last_run", "message_count", "status", "user"],
+			as_dict=True,
+		)
+		self.assertIn("سؤال الجلسة الأول", session.title)
+		self.assertEqual(session.root_run, r1.name)
+		self.assertEqual(session.last_run, r3.name)
+		self.assertEqual(session.message_count, 3)
+		self.assertEqual(session.status, "Active")
+
+	def test_get_chat_messages_accepts_session_name(self):
+		r1, r2, r3 = self._make_chain()
+		session_name = frappe.db.get_value("AI Run", r1.name, "chat_session")
+		result = get_chat_messages(session_name)
+		self.assertEqual(result["session"], session_name)
+		run_names = {m.get("run_name") for m in result["messages"]}
+		self.assertTrue({r1.name, r2.name, r3.name}.issubset(run_names))
+
+	def test_rename_and_archive_session(self):
+		from ai_agent.api import archive_chat_session, rename_chat_session
+
+		r1, _, _ = self._make_chain()
+		session_name = frappe.db.get_value("AI Run", r1.name, "chat_session")
+		rename_chat_session(session_name, "عنوان جديد للمحادثة")
+		self.assertEqual(
+			frappe.db.get_value("AI Chat Session", session_name, "title"),
+			"عنوان جديد للمحادثة",
+		)
+		archive_chat_session(session_name)
+		self.assertEqual(
+			frappe.db.get_value("AI Chat Session", session_name, "status"), "Archived"
+		)
+		active = [s["name"] for s in list_chat_sessions(limit=100)["sessions"]]
+		self.assertNotIn(session_name, active)
+
 	def test_backfill_stamps_legacy_chains(self):
 		r1, r2, r3 = self._make_chain()
 		for name in (r1.name, r2.name, r3.name):

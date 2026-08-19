@@ -1,0 +1,93 @@
+{
+  "name": "AI Chat Session",
+  "module": "AI Agent",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "autoname": "format:CHAT-{#####}",
+  "title_field": "title",
+  "track_changes": 0,
+  "fields": [
+    {
+      "fieldname": "title",
+      "fieldtype": "Data",
+      "label": "Title",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "user",
+      "fieldtype": "Link",
+      "options": "User",
+      "label": "User",
+      "reqd": 1,
+      "search_index": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "agent",
+      "fieldtype": "Link",
+      "options": "AI Agent",
+      "label": "Agent",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "options": "Company",
+      "label": "Company"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "options": "Active\nArchived",
+      "default": "Active",
+      "label": "Status",
+      "search_index": 1
+    },
+    {
+      "fieldname": "root_run",
+      "fieldtype": "Link",
+      "options": "AI Run",
+      "label": "Root Run",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_run",
+      "fieldtype": "Link",
+      "options": "AI Run",
+      "label": "Last Run",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_message_on",
+      "fieldtype": "Datetime",
+      "label": "Last Message On",
+      "read_only": 1,
+      "search_index": 1
+    },
+    {
+      "fieldname": "message_count",
+      "fieldtype": "Int",
+      "label": "Message Count",
+      "read_only": 1,
+      "default": "0"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "All",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "if_owner": 1
+    }
+  ],
+  "sort_field": "last_message_on",
+  "sort_order": "DESC"
+}

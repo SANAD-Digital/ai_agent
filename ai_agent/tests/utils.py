@@ -35,8 +35,21 @@ def make_test_run(prompt="ai_agent automated test run", user="Administrator"):
 
 def delete_docs(doctype, names):
 	"""Best-effort cleanup for records the code under test committed to the DB."""
+	sessions = []
+	if doctype == "AI Run":
+		for name in names:
+			session = frappe.db.get_value("AI Run", name, "chat_session")
+			if session:
+				sessions.append(session)
 	for name in names:
 		try:
 			frappe.delete_doc(doctype, name, ignore_permissions=True, force=True)
+		except Exception:
+			pass
+	# Runs auto-create their chat session; drop sessions left empty by cleanup.
+	for session in set(sessions):
+		try:
+			if not frappe.db.count("AI Run", {"chat_session": session}):
+				frappe.delete_doc("AI Chat Session", session, ignore_permissions=True, force=True)
 		except Exception:
 			pass

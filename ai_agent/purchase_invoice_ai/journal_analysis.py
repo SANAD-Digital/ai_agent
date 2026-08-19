@@ -176,7 +176,6 @@ def _build_agent_workspace_processing_prompt(
     user_instructions="",
     defaults=None,
 ):
-    from ai_agent.purchase_invoice_ai import api as legacy
 
     defaults = defaults if isinstance(defaults, dict) else {}
     prompt_parts = [

@@ -1,4 +1,4 @@
-from ai_agent.purchase_invoice_ai.journal_analysis import (
+from ai_agent.purchase_invoice_ai.journal_analysis import (  # noqa: F401 -- re-export shim
     cancel_prior_analysis_runs,
     create_direct_analysis_run,
     prepare_journal_entry_analysis,

@@ -74,6 +74,27 @@ class SessionContextService:
         return "\n".join(lines)
 
     def get_previous_runs(self, run_doc):
+        root = run_doc.get("root_run")
+        if root:
+            rows = frappe.get_all(
+                "AI Run",
+                filters={
+                    "root_run": root,
+                    "name": ("!=", run_doc.name),
+                    "creation": ("<", run_doc.creation),
+                },
+                fields=[
+                    "name", "agent", "company", "prompt", "status", "final_answer",
+                    "error_summary", "current_step", "tool_call_count", "creation",
+                ],
+                order_by="creation asc",
+                page_length=0,
+            )
+            return rows[-MAX_CHAIN_RUNS:]
+        return self._walk_parent_chain(run_doc)
+
+    def _walk_parent_chain(self, run_doc):
+        """Legacy path for chains created before root_run was backfilled."""
         names = []
         current = run_doc.parent_run
         seen = set()

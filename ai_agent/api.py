@@ -145,52 +145,67 @@ def _save_run_attachments(run_name, attachments):
 
 @frappe.whitelist()
 def list_chat_sessions(limit=30):
-    """List recent chat sessions backed by AI Run chains."""
-    filters = _run_access_filters()
-    runs = frappe.get_all(
-        "AI Run",
-        filters=filters,
-        fields=[
-            "name", "agent", "company", "prompt", "status", "final_answer",
-            "error_summary", "parent_run", "creation", "modified", "completed_at",
-        ],
-        order_by="modified desc",
-        page_length=max(cint(limit) * 8, 80),
+    """List recent chat sessions grouped by their indexed root_run identity.
+
+    The old in-memory parent_run walk split a session in two whenever its root
+    fell outside the fetched window; one grouped query cannot.
+    """
+    limit = cint(limit) or 30
+    access = _run_access_filters()
+    user_condition = "and user = %(user)s" if access.get("user") else ""
+    values = {"limit": limit, "user": access.get("user")}
+
+    latest_rows = frappe.db.sql(
+        f"""
+        select * from (
+            select name, agent, company, prompt, status, final_answer,
+                   error_summary, modified,
+                   coalesce(nullif(root_run, ''), name) as session_root,
+                   count(*) over (partition by coalesce(nullif(root_run, ''), name)) as message_count,
+                   row_number() over (
+                       partition by coalesce(nullif(root_run, ''), name)
+                       order by modified desc
+                   ) as recency_rank
+            from `tabAI Run`
+            where 1 = 1 {user_condition}
+        ) ranked
+        where ranked.recency_rank = 1
+        order by ranked.modified desc
+        limit %(limit)s
+        """,
+        values,
+        as_dict=True,
     )
 
-    by_name = {run.name: run for run in runs}
-    sessions = {}
-    for run in runs:
-        root = _find_root_run(run, by_name)
-        session = sessions.setdefault(root, {
-            "root_run": root,
-            "latest_run": run.name,
-            "title": _truncate(run.prompt, 80),
-            "preview": _run_preview(run),
-            "status": run.status,
-            "agent": run.agent,
-            "company": run.company,
-            "compact_session_name": _agent_compact_session_name(run.agent),
-            "modified": run.modified,
-            "message_count": 0,
-        })
-        session["message_count"] += 1
-        if run.modified > session["modified"]:
-            session.update({
-                "latest_run": run.name,
-                "preview": _run_preview(run),
-                "status": run.status,
-                "agent": run.agent,
-                "company": run.company,
-                "compact_session_name": _agent_compact_session_name(run.agent),
-                "modified": run.modified,
-            })
-        root_run = by_name.get(root)
-        if root_run:
-            session["title"] = _truncate(root_run.prompt, 80)
+    root_names = [row.session_root for row in latest_rows]
+    root_prompts = {}
+    if root_names:
+        root_prompts = dict(
+            frappe.get_all(
+                "AI Run",
+                filters={"name": ["in", root_names]},
+                fields=["name", "prompt"],
+                as_list=True,
+                page_length=len(root_names),
+            )
+        )
 
-    ordered = sorted(sessions.values(), key=lambda item: item["modified"], reverse=True)
-    return {"sessions": ordered[:cint(limit) or 30]}
+    sessions = [
+        {
+            "root_run": row.session_root,
+            "latest_run": row.name,
+            "title": _truncate(root_prompts.get(row.session_root) or row.prompt, 80),
+            "preview": _run_preview(row),
+            "status": row.status,
+            "agent": row.agent,
+            "company": row.company,
+            "compact_session_name": _agent_compact_session_name(row.agent),
+            "modified": row.modified,
+            "message_count": row.message_count,
+        }
+        for row in latest_rows
+    ]
+    return {"sessions": sessions}
 
 
 @frappe.whitelist()
@@ -199,9 +214,18 @@ def get_chat_messages(root_run):
     requested = frappe.get_doc("AI Run", root_run)
     _assert_run_access(requested)
 
-    root_name = _resolve_root_run_name(requested)
-    chain = _get_chat_run_chain(root_name)
-    chain.sort(key=lambda run: run.creation)
+    root_name = requested.get("root_run") or _resolve_root_run_name(requested)
+    chain = frappe.get_all(
+        "AI Run",
+        filters=_run_access_filters_with({"root_run": root_name}),
+        fields=CHAT_RUN_FIELDS,
+        order_by="creation asc",
+        page_length=1000,
+    )
+    if not chain:
+        # Legacy chains created before root_run was backfilled.
+        chain = _get_chat_run_chain(root_name)
+        chain.sort(key=lambda run: run.creation)
 
     messages = []
     for run in chain:

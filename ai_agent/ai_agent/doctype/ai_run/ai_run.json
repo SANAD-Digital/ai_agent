@@ -70,6 +70,15 @@
       "options": "AI Run"
     },
     {
+      "fieldname": "root_run",
+      "fieldtype": "Link",
+      "options": "AI Run",
+      "label": "Root Run",
+      "search_index": 1,
+      "read_only": 1,
+      "description": "Chat session identity: the first run of this conversation chain. Set once at creation; every follow-up run inherits it."
+    },
+    {
       "fieldname": "plan_summary",
       "fieldtype": "Long Text",
       "label": "Plan Summary"

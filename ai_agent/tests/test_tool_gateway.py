@@ -137,6 +137,30 @@ class TestToolGateway(IntegrationTestCase):
 			delete_docs("AI Run", [run.name])
 			frappe.db.commit()
 
+	def test_artifact_tool_uses_gateway_run_context(self):
+		# Regression: artifacts.* handlers demanded a "run" argument the model
+		# never knows; the run must come from the gateway's permission context.
+		run = make_test_run()
+		try:
+			result = make_gateway().authorize_and_execute(
+				"artifacts.create_table",
+				{"title": "جدول اختبار", "rows": [{"a": 1}, {"a": 2}]},
+				run_name=run.name,
+			)
+			self.assertNotIn("error", result)
+			self.assertTrue(frappe.db.exists("AI Artifact", result["artifact_name"]))
+		finally:
+			delete_docs(
+				"AI Artifact",
+				frappe.get_all("AI Artifact", filters={"run": run.name}, pluck="name"),
+			)
+			delete_docs(
+				"AI Tool Call",
+				frappe.get_all("AI Tool Call", filters={"run": run.name}, pluck="name"),
+			)
+			delete_docs("AI Run", [run.name])
+			frappe.db.commit()
+
 	def test_audit_failure_aborts_the_call(self):
 		run = make_test_run()
 		try:

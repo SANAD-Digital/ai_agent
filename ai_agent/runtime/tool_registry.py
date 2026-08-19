@@ -148,6 +148,44 @@ TOOL_PARAMETER_SCHEMAS = {
         },
         "required": ["content"],
     },
+    "artifacts.create_table": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Short Arabic title shown above the table"},
+            "columns": {"type": "array", "items": {"type": "string"}},
+            "rows": {"type": "array", "items": {"type": "object"}},
+        },
+        "required": ["rows"],
+    },
+    "artifacts.create_chart": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Short Arabic title shown above the chart"},
+            "chart_spec": {
+                "type": "object",
+                "description": "Frappe Charts spec: {type: bar|line|pie|percentage, labels: [...], datasets: [{name, values}]}",
+            },
+        },
+        "required": ["chart_spec"],
+    },
+    "artifacts.create_document_links": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "links": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "doctype": {"type": "string"},
+                        "name": {"type": "string"},
+                        "label": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["links"],
+    },
     "actions.prepare_document": {
         "type": "object",
         "properties": {

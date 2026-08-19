@@ -180,6 +180,7 @@ If an active skill requires domain keys in the JSON response, keep those keys at
                 user=run_doc.user,
                 agent=run_doc.agent,
                 company=run_doc.company,
+                query_text=run_doc.prompt,
             )
         if memory_context:
             parts.append(

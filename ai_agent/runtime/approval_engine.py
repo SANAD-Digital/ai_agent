@@ -153,7 +153,17 @@ class ApprovalEngine:
                     f"User {user} no longer has {permtype} permission on {approval.doctype_name}."
                 )
 
-        return self._execute_by_type(approval)
+        result = self._execute_by_type(approval)
+        try:
+            from ai_agent.runtime.memory_learning import learn_from_executed_approval
+
+            learn_from_executed_approval(approval)
+        except Exception:
+            # Learning is best-effort: it must never fail an executed action.
+            frappe.log_error(
+                frappe.get_traceback(), f"AI Memory Learning Failed: {approval.name}"
+            )
+        return result
 
     def _execute_by_type(self, approval):
         """Route execution based on action type."""

@@ -2,9 +2,19 @@ import frappe
 import json
 from frappe.utils import cint
 
+from ai_agent.runtime.constants import ARABIC_NORMALIZATION_MAP
+
 
 MAX_MEMORY_CONTEXT_CHARS = 4000
 MAX_MEMORY_CONTENT_CHARS = 1200
+
+
+def normalize_entity_key(value):
+    """Canonical Arabic-folded, whitespace-collapsed, lowercased entity name."""
+    text = " ".join(str(value or "").split()).lower()
+    for source, target in ARABIC_NORMALIZATION_MAP:
+        text = text.replace(source, target)
+    return text
 
 
 class MemoryService:
@@ -16,7 +26,8 @@ class MemoryService:
 
     def store(
         self, user, scope, memory_type, content, company=None, agent=None,
-        sensitivity="Low", source_run=None,
+        sensitivity="Low", source_run=None, entity_type=None, entity_key=None,
+        mapping=None,
     ):
         """Store a memory entry."""
         if not self.is_enabled():
@@ -26,27 +37,54 @@ class MemoryService:
         if not content:
             return None
 
-        filters = {
-            "scope": scope,
-            "memory_type": memory_type,
-            "content": content,
-            "user": user,
-            "agent": agent if scope == "Agent" else None,
-            "company": company if scope in ("Agent", "Company") else None,
-        }
-        if source_run:
-            filters = {"source_run": source_run, "memory_type": memory_type}
+        entity_key = normalize_entity_key(entity_key) if entity_key else None
+        mapping_json = (
+            json.dumps(mapping, ensure_ascii=False, sort_keys=True, default=str)
+            if isinstance(mapping, dict) else None
+        )
+
+        # Mapping memories are one-fact-per-entity: the latest approved fact
+        # replaces the previous one instead of accumulating near-duplicates.
+        if memory_type == "Mapping" and entity_type and entity_key:
+            filters = {
+                "memory_type": "Mapping",
+                "scope": scope,
+                "entity_type": entity_type,
+                "entity_key": entity_key,
+            }
+            if scope == "Agent" and agent:
+                # Agent-scope mappings key on (agent, entity); company is
+                # informational there and may be auto-filled from defaults.
+                filters["agent"] = agent
+            elif scope == "Company":
+                filters["company"] = company
+        else:
+            filters = {
+                "scope": scope,
+                "memory_type": memory_type,
+                "content": content,
+                "user": user,
+                "agent": agent if scope == "Agent" else None,
+                "company": company if scope in ("Agent", "Company") else None,
+            }
+            if source_run:
+                filters = {"source_run": source_run, "memory_type": memory_type}
         existing = frappe.db.exists("AI Memory", filters)
         if existing:
             memory = frappe.get_doc("AI Memory", existing)
-            if source_run:
+            if source_run or memory_type == "Mapping":
                 memory.update({
                     "user": user,
                     "agent": agent if scope == "Agent" else None,
-                    "company": company if scope in ("Agent", "Company") else None,
+                    "company": (company or "") if scope in ("Agent", "Company") else None,
                     "scope": scope,
                     "content": content,
                     "sensitivity": sensitivity,
+                    "entity_type": entity_type or memory.get("entity_type"),
+                    "entity_key": entity_key or memory.get("entity_key"),
+                    "mapping_json": mapping_json or memory.get("mapping_json"),
+                    "usage_count": cint(memory.get("usage_count")) + 1,
+                    "source_run": source_run or memory.get("source_run"),
                 })
                 memory.save(ignore_permissions=True)
                 frappe.db.commit()
@@ -56,12 +94,16 @@ class MemoryService:
             "doctype": "AI Memory",
             "user": user,
             "agent": agent if scope == "Agent" else None,
-            "company": company if scope in ("Agent", "Company") else None,
+            "company": (company or "") if scope in ("Agent", "Company") else None,
             "source_run": source_run,
             "scope": scope,
             "memory_type": memory_type,
             "content": content,
             "sensitivity": sensitivity,
+            "entity_type": entity_type,
+            "entity_key": entity_key,
+            "mapping_json": mapping_json,
+            "usage_count": 1,
         })
         memory.insert(ignore_permissions=True)
         frappe.db.commit()
@@ -100,33 +142,53 @@ class MemoryService:
 
         return valid
 
-    def build_context(self, user, agent=None, company=None, limit=8):
-        """Build compact long-term memory context for model prompts."""
+    def build_context(self, user, agent=None, company=None, limit=8, query_text=""):
+        """Build compact long-term memory context, most relevant to the
+        current prompt first (entity match, then token overlap, then recency)."""
         memories = []
         for scope in ("User", "Agent", "Company"):
-            for memory_type in ("Preference", "Summary", "Context"):
-                memories.extend(self.retrieve(
-                    user=user,
-                    scope=scope,
-                    memory_type=memory_type,
-                    company=company,
-                    agent=agent,
-                ))
+            memories.extend(self.retrieve(
+                user=user,
+                scope=scope,
+                company=company,
+                agent=agent,
+            ))
 
         # retrieve() already scopes by the structured user/agent/company fields,
         # so no re-filtering on content substrings is needed here.
         if not memories:
             return ""
 
-        memories.sort(key=lambda row: row.modified, reverse=True)
+        normalized_query = normalize_entity_key(query_text)
+        memories.sort(
+            key=lambda row: self._relevance_key(row, normalized_query),
+            reverse=True,
+        )
         lines = ["Relevant learned context from previous runs. Apply only when it matches the current task:"]
         for memory in memories[:limit]:
-            lines.append(f"- {self._clean(memory.content, MAX_MEMORY_CONTENT_CHARS)}")
+            line = f"- {self._clean(memory.content, MAX_MEMORY_CONTENT_CHARS)}"
+            if memory.get("mapping_json"):
+                line += f" | mapping: {self._clean(memory.get('mapping_json'), 300)}"
+            lines.append(line)
 
         text = "\n".join(lines)
         if len(text) > MAX_MEMORY_CONTEXT_CHARS:
             text = text[:MAX_MEMORY_CONTEXT_CHARS].rstrip() + "\n... [memory context truncated]"
         return text
+
+    def _relevance_key(self, row, normalized_query):
+        score = 0
+        if normalized_query:
+            entity_key = row.get("entity_key") or ""
+            if entity_key and entity_key in normalized_query:
+                score += 6
+            query_tokens = {t for t in normalized_query.split() if len(t) >= 3}
+            if query_tokens:
+                content_tokens = set(normalize_entity_key(row.content or "").split())
+                score += len(content_tokens & query_tokens)
+        if row.memory_type == "Mapping":
+            score += 1
+        return (score, str(row.modified or ""))
 
     def store_run_lesson(self, run_doc, lesson, memory_type="Context", sensitivity="Medium"):
         """Store a compact lesson from a run when memory is enabled."""

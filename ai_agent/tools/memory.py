@@ -1,6 +1,6 @@
 from frappe import _
 
-from ai_agent.runtime.memory_service import MemoryService
+from ai_agent.runtime.memory_service import MemoryService, normalize_entity_key
 
 
 def handle_search(arguments, permission_context):
@@ -19,40 +19,39 @@ def handle_search(arguments, permission_context):
 
     rows = []
     for scope in ("User", "Agent", "Company"):
-        for memory_type in ("Preference", "Context", "Summary"):
-            rows.extend(service.retrieve(
-                user=permission_context.user,
-                scope=scope,
-                memory_type=memory_type,
-                company=company,
-                agent=agent,
-            ))
+        rows.extend(service.retrieve(
+            user=permission_context.user,
+            scope=scope,
+            company=company,
+            agent=agent,
+        ))
 
+    # retrieve() already scopes by the structured user/agent/company fields.
     unique_rows = {row.name: row for row in rows}
     rows = list(unique_rows.values())
-    tokens = [token for token in query.split() if len(token) >= 2]
+    normalized_query = normalize_entity_key(query)
+    tokens = [token for token in normalized_query.split() if len(token) >= 2]
     matches = []
     for row in rows:
-        content = row.content or ""
-        lowered = content.lower()
-        if agent and f"agent={agent}" in content:
-            pass
-        elif company and f"company={company}" in content:
-            pass
-        elif row.scope != "User":
-            continue
-        score = sum(1 for token in tokens if token in lowered)
-        if query in lowered:
+        normalized_content = normalize_entity_key(row.content or "")
+        entity_key = row.get("entity_key") or ""
+        score = sum(1 for token in tokens if token in normalized_content)
+        if normalized_query in normalized_content:
             score += 5
+        if entity_key and entity_key in normalized_query:
+            score += 6
         if score:
             matches.append((score, row))
 
-    matches.sort(key=lambda item: (item[0], item[1].modified), reverse=True)
+    matches.sort(key=lambda item: (item[0], str(item[1].modified or "")), reverse=True)
     result_rows = [
         {
             "scope": row.scope,
             "agent": row.get("agent"),
             "memory_type": row.memory_type,
+            "entity_type": row.get("entity_type"),
+            "entity_key": row.get("entity_key"),
+            "mapping": row.get("mapping_json"),
             "content": _clean(row.content, 700),
             "modified": row.modified,
         }
@@ -92,6 +91,7 @@ def handle_store_context(arguments, permission_context):
     if company and "company=" not in tagged_content:
         tagged_content = f"company={company}; {tagged_content}"
 
+    mapping = arguments.get("mapping")
     memory = service.store(
         user=permission_context.user,
         scope=scope,
@@ -100,6 +100,9 @@ def handle_store_context(arguments, permission_context):
         company=company,
         agent=agent,
         sensitivity=arguments.get("sensitivity") or "Medium",
+        entity_type=arguments.get("entity_type"),
+        entity_key=arguments.get("entity_key"),
+        mapping=mapping if isinstance(mapping, dict) else None,
     )
     return {
         "stored": bool(memory),

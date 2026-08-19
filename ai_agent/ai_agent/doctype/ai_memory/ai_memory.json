@@ -49,7 +49,7 @@
         {
             "fieldname": "memory_type",
             "fieldtype": "Select",
-            "options": "Preference\nContext\nSummary",
+            "options": "Preference\nContext\nSummary\nMapping",
             "reqd": 1,
             "in_list_view": 1,
             "label": "Memory Type"
@@ -59,6 +59,31 @@
             "fieldtype": "Long Text",
             "reqd": 1,
             "label": "Content"
+        },
+        {
+            "fieldname": "entity_type",
+            "fieldtype": "Data",
+            "label": "Entity Type",
+            "description": "What the memory is about: Supplier, Cash Supplier, Customer, Account, Item, ..."
+        },
+        {
+            "fieldname": "entity_key",
+            "fieldtype": "Data",
+            "label": "Entity Key",
+            "search_index": 1,
+            "description": "Arabic-normalized entity name used for relevance lookup and mapping upserts."
+        },
+        {
+            "fieldname": "mapping_json",
+            "fieldtype": "Small Text",
+            "label": "Mapping JSON",
+            "description": "Structured fact for Mapping memories, e.g. {\"account\": ..., \"cost_center\": ...}."
+        },
+        {
+            "fieldname": "usage_count",
+            "fieldtype": "Int",
+            "label": "Usage Count",
+            "default": "0"
         },
         {
             "fieldname": "expires_at",

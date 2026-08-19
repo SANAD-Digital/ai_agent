@@ -3,6 +3,7 @@ import json
 import frappe
 from frappe.tests import IntegrationTestCase
 
+from ai_agent.runtime.answer_contract import looks_like_tool_markup
 from ai_agent.runtime.orchestrator import Orchestrator
 from ai_agent.tests.utils import delete_docs, make_test_run
 
@@ -44,9 +45,9 @@ class TestFinalization(IntegrationTestCase):
 		self.assertIn("invoice_groups", result)
 
 	def test_markup_detection(self):
-		self.assertTrue(self.orch._looks_like_tool_markup(DSML_ANSWER))
-		self.assertTrue(self.orch._looks_like_tool_markup('<invoke name="data.query">'))
-		self.assertFalse(self.orch._looks_like_tool_markup('{"invoice_groups": []}'))
+		self.assertTrue(looks_like_tool_markup(DSML_ANSWER))
+		self.assertTrue(looks_like_tool_markup('<invoke name="data.query">'))
+		self.assertFalse(looks_like_tool_markup('{"invoice_groups": []}'))
 
 	def test_empty_memory_search_is_not_terminal(self):
 		result = {"rows": [], "row_count": 0, "candidate_count": 0, "message": "no memory"}

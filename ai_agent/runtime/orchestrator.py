@@ -1,6 +1,5 @@
 import json
 import hashlib
-import re
 import frappe
 from frappe.utils import cint
 from ai_agent.runtime.context_builder import ContextBuilder
@@ -15,7 +14,7 @@ from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.local_answers import greeting_or_capability_answer
-from ai_agent.runtime import result_compaction, step_narration
+from ai_agent.runtime import answer_contract, result_compaction, step_narration
 from ai_agent.runtime.action_interceptor import ActionInterceptor
 from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
@@ -441,7 +440,7 @@ class Orchestrator:
             frappe.log_error(frappe.get_traceback(), f"AI Agent Preflight Router Failed: {self.run_name}")
             return None
 
-        route = self._parse_json_message_response(response)
+        route = answer_contract.parse_json_message_response(response)
         if route.get("route") in ("answer", "clarify") and route.get("answer"):
             return route.get("answer")
         return None
@@ -515,39 +514,17 @@ class Orchestrator:
 
         choice = response.get("choices", [{}])[0]
         content = (choice.get("message", {}) or {}).get("content") or ""
-        if self._looks_like_tool_markup(content):
+        if answer_contract.looks_like_tool_markup(content):
             # The model answered a no-tools finalization call with raw
             # tool-call markup: it still needs tools. Let the loop continue
             # instead of accepting the markup as a final answer.
             return None
-        route = self._parse_json_text(content)
+        route = answer_contract.parse_json_text(content)
         if route.get("route") == "continue":
             return None
         if route.get("answer") and not requires_json:
             return route.get("answer")
         return content.strip() or None
-
-    def _parse_json_message_response(self, response):
-        choice = response.get("choices", [{}])[0] if isinstance(response, dict) else {}
-        content = (choice.get("message", {}) or {}).get("content") or ""
-        return self._parse_json_text(content)
-
-    def _parse_json_text(self, content):
-        text = (content or "").strip()
-        if not text:
-            return {}
-        try:
-            return json.loads(text)
-        except (TypeError, ValueError):
-            pass
-        start = text.find("{")
-        end = text.rfind("}")
-        if start >= 0 and end > start:
-            try:
-                return json.loads(text[start:end + 1])
-            except (TypeError, ValueError):
-                return {}
-        return {}
 
     def _is_terminal_tool_result(self, tool_name, result):
         if not isinstance(result, dict):
@@ -566,7 +543,7 @@ class Orchestrator:
             return True
         # "Positive" signals below say a read succeeded — under an unmet
         # compound JSON contract they must not force early finalization.
-        if self._compound_contract_pending():
+        if answer_contract.compound_contract_pending(self._current_skill_policy()):
             return False
         if result.get("terminal") is True or result.get("exhaustive") is True:
             return True
@@ -576,32 +553,6 @@ class Orchestrator:
             return True
         return False
 
-    def _compound_contract_pending(self):
-        """True when the active skill demands a JSON contract with substantive
-        output keys — the model itself decides when that contract is ready."""
-        if not self._requires_json_final():
-            return False
-        keys = set(self._current_skill_policy().get("required_output_keys") or [])
-        return bool(keys - {"questions", "warnings", "errors", "status", "message"})
-
-    def _looks_like_tool_markup(self, text):
-        lowered = str(text or "").lower()
-        return any(
-            marker in lowered
-            for marker in ("dsml", "<tool_call", "invoke name=", "parameter name=")
-        )
-
-    def _strip_tool_markup(self, text):
-        text = re.sub(r"(?is)<\s*\|\s*\|\s*DSML.*?(?:calls>|$)", "", str(text or ""))
-        cleaned_lines = []
-        for line in text.splitlines():
-            lowered = line.lower()
-            if any(marker in lowered for marker in ("dsml", "toolcalls", "invoke name=", "parameter name=")):
-                continue
-            cleaned_lines.append(line)
-        text = "\n".join(cleaned_lines)
-        return re.sub(r"\n{3,}", "\n\n", text).strip()
-
     def _complete_graceful_stop(self, state, reason):
         final_answer = self._try_final_answer_without_more_tools(
             state,
@@ -610,7 +561,7 @@ class Orchestrator:
         if not final_answer:
             if self._requires_json_final():
                 final_answer = json.dumps(
-                    self._fallback_json_final_answer(reason),
+                    answer_contract.fallback_json_final_answer(self._current_skill_policy(), reason),
                     ensure_ascii=False,
                     default=str,
                 )
@@ -894,7 +845,7 @@ class Orchestrator:
 
         final_answer = self._ensure_required_json_final(final_answer)
         final_answer = self._sanitize_final_answer(final_answer)
-        failure_reason = self._structured_failure_reason(final_answer)
+        failure_reason = answer_contract.structured_failure_reason(self._current_skill_policy(), final_answer)
         final_status = RUN_STATUS_FAILED if failure_reason else RUN_STATUS_COMPLETED
         self.run.reload()
         self.run.final_answer = final_answer
@@ -916,34 +867,15 @@ class Orchestrator:
         event = "run_failed" if failure_reason else "run_completed"
         self.trace.publish_realtime(REALTIME_EVENTS[event], self.run_name)
 
-    def _structured_failure_reason(self, final_answer):
-        payload = self._extract_json_object(final_answer)
-        if not isinstance(payload, dict):
-            return ""
-        status = str(payload.get("status") or "").strip().lower()
-        errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
-        if status == "failed":
-            return str(errors[0] if errors else payload.get("message") or "The structured result reported failure.")
-        if not errors:
-            return ""
-        ignored = {"questions", "warnings", "errors", "status", "reply_markdown", "ui"}
-        substantive_keys = [
-            key for key in self._current_skill_policy().get("required_output_keys") or []
-            if key not in ignored
-        ]
-        if substantive_keys and not any(payload.get(key) for key in substantive_keys):
-            return str(errors[0])
-        return ""
-
     def _ensure_required_json_final(self, final_answer):
         if not self._requires_json_final():
             return final_answer
         scalar_keys = {"status", "message", "summary", "client_readable_summary", "reply_markdown"}
-        if self._looks_like_tool_markup(final_answer):
+        if answer_contract.looks_like_tool_markup(final_answer):
             # Never mine JSON out of tool-call markup: the first parseable
             # object would be a tool argument, not the answer.
-            final_answer = self._strip_tool_markup(final_answer)
-        parsed = self._extract_json_object(final_answer)
+            final_answer = answer_contract.strip_tool_markup(final_answer)
+        parsed = answer_contract.extract_json_object(final_answer)
         if isinstance(parsed, dict):
             missing_keys = []
             for key in self._current_skill_policy().get("required_output_keys") or []:
@@ -965,7 +897,11 @@ class Orchestrator:
             summary="The model did not return a JSON object; no hidden model retry was performed.",
         )
         self.trace.complete_step(fallback_step.name, status="Failed")
-        return json.dumps(self._fallback_json_final_answer(final_answer), ensure_ascii=False, default=str)
+        return json.dumps(
+            answer_contract.fallback_json_final_answer(self._current_skill_policy(), final_answer),
+            ensure_ascii=False,
+            default=str,
+        )
 
     def _requires_json_final(self):
         # Only the skill policy may demand a JSON contract. Sniffing markers
@@ -980,85 +916,16 @@ class Orchestrator:
             if skill.get("allow_implicit_invocation")
         ]
         policies.extend(skill.get("runtime_policy") or {} for skill in self.loaded_skills)
-
-        response_format = ""
-        required_output_keys = []
-        instructions = []
-        finalization_max_tokens = 0
-        finalization_timeout = 0
-        for policy in policies:
-            if policy.get("response_format") == "JSON Object":
-                response_format = "JSON Object"
-            elif policy.get("response_format") and not response_format:
-                response_format = policy.get("response_format")
-            for key in policy.get("required_output_keys") or []:
-                if key not in required_output_keys:
-                    required_output_keys.append(key)
-            instruction = str(policy.get("final_output_instruction") or "").strip()
-            if instruction and instruction not in instructions:
-                instructions.append(instruction)
-            finalization_max_tokens = max(
-                finalization_max_tokens,
-                cint(policy.get("finalization_max_tokens")),
-            )
-            finalization_timeout = max(
-                finalization_timeout,
-                cint(policy.get("finalization_timeout")),
-            )
-        return {
-            "response_format": response_format,
-            "required_output_keys": required_output_keys,
-            "finalization_max_tokens": finalization_max_tokens,
-            "finalization_timeout": finalization_timeout,
-            "final_output_instruction": "\n".join(instructions),
-        }
-
-    def _fallback_json_final_answer(self, final_answer):
-        fallback = {
-            "status": "Needs Review",
-            "client_readable_summary": str(final_answer or "")[:4000],
-            "questions": [],
-            "warnings": [
-                "لم يرجع الوكيل بيانات منظمة صالحة بالكامل، لذلك تم حفظ حالة واضحة قابلة للمراجعة بدل رد نجاح عام."
-            ],
-            "errors": ["تعذر إنتاج عقد JSON النهائي المطلوب من نتائج التشغيل المتاحة."],
-        }
-        for key in self._current_skill_policy().get("required_output_keys") or []:
-            fallback.setdefault(key, [])
-        return fallback
-
-    def _extract_json_object(self, text):
-        cleaned = str(text or "").strip()
-        if not cleaned:
-            return None
-        if cleaned.startswith("```"):
-            match = re.search(r"```(?:json)?\s*([\s\S]*?)```", cleaned, re.I)
-            if match:
-                cleaned = match.group(1).strip()
-        # Balanced-object extraction: first-{-to-last-} corrupts answers that
-        # contain two disjoint JSON snippets or trailing prose.
-        decoder = json.JSONDecoder()
-        index = cleaned.find("{")
-        attempts = 0
-        while index != -1 and attempts < 50:
-            attempts += 1
-            try:
-                parsed, _ = decoder.raw_decode(cleaned[index:])
-                if isinstance(parsed, dict):
-                    return parsed
-            except ValueError:
-                pass
-            index = cleaned.find("{", index + 1)
-        return None
+        return answer_contract.merge_skill_policies(policies)
 
     def _sanitize_final_answer(self, final_answer):
         text = str(final_answer or "")
         # Any answer that IS a JSON object (required or voluntary interactive
         # JSON) must pass through untouched: the line filter and the 16k
         # truncation below would corrupt it.
-        if self._extract_json_object(text) is not None and text.strip().startswith(("{", "```")):
+        if answer_contract.extract_json_object(text) is not None and text.strip().startswith(("{", "```")):
             return text.strip()
-        text = self._strip_tool_markup(text)
+        text = answer_contract.strip_tool_markup(text)
         if len(text) > 16000:
             text = (
                 text[:16000].rstrip()

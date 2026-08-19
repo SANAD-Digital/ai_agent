@@ -29,6 +29,13 @@ DEFAULT_MIN_CONFIDENCE = 0.70
 DEFAULT_RETRY_THRESHOLD = 0.74
 DEFAULT_PAGE_TIMEOUT = 300
 PDF_TEXT_MIN_CHARS = 20
+# Memory containment (site_config keys):
+#   ai_agent_ocr_memory_mb        hard RLIMIT_AS cap on the worker (default 2048)
+#   ai_agent_ocr_min_available_mb required MemAvailable before launching (default 1536)
+#   ai_agent_ocr_memory_wait_seconds  how long to wait for memory (default 60)
+DEFAULT_WORKER_MEMORY_MB = 2048
+DEFAULT_MIN_AVAILABLE_MB = 1536
+DEFAULT_MEMORY_WAIT_SECONDS = 60
 
 
 class LocalOCRExecutionError(RuntimeError):
@@ -203,7 +210,8 @@ def _parse_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]
     if not result_text:
         if completed.returncode in (-9, 137):
             raise LocalOCRExecutionError(
-                "OCR was killed by the operating system. Check available RAM and swap."
+                "OCR was killed by the operating system (OOM). The worker is capped at "
+                f"{_worker_memory_mb()}MB (ai_agent_ocr_memory_mb); the page failed but the site stayed up."
             )
         raise LocalOCRExecutionError(
             "OCR worker returned no result marker.\n"
@@ -251,12 +259,66 @@ def _stop_process_tree(process: subprocess.Popen[str]) -> None:
                 pass
 
 
+def _worker_memory_mb() -> int:
+    return max(512, cint(frappe.conf.get("ai_agent_ocr_memory_mb") or DEFAULT_WORKER_MEMORY_MB))
+
+
+def _memory_cap_preexec() -> Callable[[], None]:
+    """Hard address-space cap so a hungry OCR worker dies alone instead of
+    pushing the whole server into swap thrashing."""
+    import resource
+
+    limit_bytes = _worker_memory_mb() * 1024 * 1024
+
+    def apply_limit():
+        try:
+            resource.setrlimit(resource.RLIMIT_AS, (limit_bytes, limit_bytes))
+        except (ValueError, OSError):
+            pass
+
+    return apply_limit
+
+
+def _available_memory_mb() -> int:
+    try:
+        with open("/proc/meminfo") as meminfo:
+            for line in meminfo:
+                if line.startswith("MemAvailable:"):
+                    return cint(line.split()[1]) // 1024
+    except OSError:
+        pass
+    return 0
+
+
+def _wait_for_available_memory() -> None:
+    """Refuse to launch OCR while the box is memory-starved: a failed page is
+    recoverable; a swap-thrashing server takes the whole site down."""
+    required = max(256, cint(frappe.conf.get("ai_agent_ocr_min_available_mb") or DEFAULT_MIN_AVAILABLE_MB))
+    configured_wait = frappe.conf.get("ai_agent_ocr_memory_wait_seconds")
+    # `or` would turn an explicit 0 (fail immediately) back into the default.
+    wait_seconds = cint(configured_wait) if configured_wait is not None else DEFAULT_MEMORY_WAIT_SECONDS
+    deadline = time.monotonic() + max(0, wait_seconds)
+    while True:
+        available = _available_memory_mb()
+        if not available or available >= required:
+            return
+        if time.monotonic() >= deadline:
+            raise LocalOCRExecutionError(
+                _(
+                    "الذاكرة المتاحة على الخادم ({0}MB) أقل من الحد المطلوب لتشغيل OCR المحلي ({1}MB). "
+                    "تم إيقاف قراءة الصفحة حتى لا يتأثر الموقع؛ أعد المحاولة لاحقًا أو أخفض ai_agent_ocr_min_available_mb."
+                ).format(available, required)
+            )
+        time.sleep(3)
+
+
 def _run_ocr_subprocess(
     command: list[str],
     *,
     timeout: int,
     cancel_check: Callable[[], bool] | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    _wait_for_available_memory()
     started = time.monotonic()
     process = subprocess.Popen(
         command,
@@ -266,6 +328,7 @@ def _run_ocr_subprocess(
         stderr=subprocess.PIPE,
         text=True,
         start_new_session=True,
+        preexec_fn=_memory_cap_preexec(),
     )
 
     def stop_for_signal(signum, _frame):

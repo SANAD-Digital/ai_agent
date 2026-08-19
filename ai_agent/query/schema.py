@@ -34,7 +34,15 @@ QUERY_SPEC_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "field": {"type": "string"},
-                    "operator": {"type": "string", "enum": list(ALLOWED_OPERATORS)},
+                    "operator": {
+                        "type": "string",
+                        "enum": list(ALLOWED_OPERATORS),
+                        "description": (
+                            "Use like_normalized for Arabic text lookups: it folds "
+                            "أ/إ/آ→ا, ة→ه, ى→ي on both the column and the value, so "
+                            "'شركه المروه' matches 'شركة المروة'."
+                        ),
+                    },
                     "value": {},
                 },
                 "required": ["field", "operator"],

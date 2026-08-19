@@ -47,27 +47,7 @@ def handle_describe(arguments, permission_context):
     except frappe.DoesNotExistError:
         return {"error": f"Report '{report_name}' not found"}
 
-    filters = []
-    if hasattr(report, "filters_json") and report.filters_json:
-        try:
-            filters = frappe.parse_json(report.filters_json)
-        except Exception:
-            pass
-    elif hasattr(report, "json") and report.json:
-        try:
-            filters = frappe.parse_json(report.json)
-        except Exception:
-            pass
-    elif hasattr(report, "filters") and report.filters:
-        for f in report.filters:
-            filters.append({
-                "fieldname": f.fieldname,
-                "label": f.label,
-                "fieldtype": f.fieldtype,
-                "options": f.options,
-                "default": f.default,
-                "reqd": f.reqd
-            })
+    filters = _declared_report_filters(report)
 
     columns = []
     if report.columns:
@@ -109,6 +89,8 @@ def handle_run(arguments, permission_context):
 
     try:
         filters = _normalize_filters(filters)
+        declared_filters = _declared_report_filters(report)
+        filters, filter_warnings = _map_filter_keys(filters, declared_filters)
         if prepared_report_name:
             filters["prepared_report_name"] = prepared_report_name
 
@@ -121,6 +103,22 @@ def handle_run(arguments, permission_context):
             include_raw_rows,
             getattr(permission_context, "run_name", None),
         )
+        if filter_warnings:
+            report_result["filter_warnings"] = filter_warnings
+        if declared_filters and not cint(report_result.get("row_count")):
+            report_result["declared_filters"] = [
+                {
+                    "fieldname": f.get("fieldname"),
+                    "label": f.get("label"),
+                    "fieldtype": f.get("fieldtype"),
+                    "reqd": f.get("reqd"),
+                }
+                for f in declared_filters
+            ]
+            report_result["model_note_filters"] = (
+                "The result was empty. Check your filter names against declared_filters "
+                "and retry once with corrected fieldnames before concluding there is no data."
+            )
 
         if _is_waiting_for_prepared_report(report, result, report_result):
             return _handle_missing_prepared_report(
@@ -141,6 +139,75 @@ def _normalize_filters(filters):
     if not isinstance(filters, dict):
         return {}
     return dict(filters)
+
+
+def _declared_report_filters(report):
+    """Filters the report declares server-side. Script Reports that define
+    filters only in client JS return an empty list — callers must treat that
+    as "unknown", not "no filters"."""
+    raw = None
+    if getattr(report, "filters_json", None):
+        raw = _safe_parse_json(report.filters_json)
+    elif getattr(report, "json", None):
+        parsed = _safe_parse_json(report.json)
+        raw = parsed.get("filters") if isinstance(parsed, dict) else parsed
+    elif getattr(report, "filters", None):
+        raw = [
+            {
+                "fieldname": f.fieldname,
+                "label": f.label,
+                "fieldtype": f.fieldtype,
+                "options": f.options,
+                "default": f.default,
+                "reqd": f.reqd,
+            }
+            for f in report.filters
+        ]
+    if not isinstance(raw, list):
+        return []
+    return [f for f in raw if isinstance(f, dict) and f.get("fieldname")]
+
+
+def _safe_parse_json(value):
+    try:
+        return frappe.parse_json(value)
+    except Exception:
+        return None
+
+
+def _map_filter_keys(filters, declared):
+    """Map model-sent filter keys onto the report's declared fieldnames so a
+    guessed label or spacing never silently produces an unfiltered/empty run."""
+    if not declared or not isinstance(filters, dict):
+        return filters, []
+
+    by_fieldname = {str(f.get("fieldname")): f for f in declared}
+    by_label = {
+        str(f.get("label") or "").strip().lower(): str(f.get("fieldname"))
+        for f in declared
+        if f.get("label")
+    }
+
+    mapped = {}
+    warnings = []
+    for key, value in filters.items():
+        if key in by_fieldname or key == "prepared_report_name":
+            mapped[key] = value
+            continue
+        candidate = str(key).strip().lower()
+        snake_candidate = candidate.replace(" ", "_")
+        if snake_candidate in by_fieldname:
+            mapped[snake_candidate] = value
+            warnings.append(f"Filter '{key}' was mapped to declared fieldname '{snake_candidate}'.")
+        elif candidate in by_label:
+            mapped[by_label[candidate]] = value
+            warnings.append(f"Filter '{key}' was mapped to declared fieldname '{by_label[candidate]}'.")
+        else:
+            mapped[key] = value
+            warnings.append(
+                f"Filter '{key}' is not declared by this report and may be ignored by it."
+            )
+    return mapped, warnings
 
 
 def _build_report_result(report_name, filters, result, sample_limit, include_raw_rows, run_name=None):

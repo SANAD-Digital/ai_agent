@@ -10,8 +10,14 @@ ALLOWED_AGGREGATES = frozenset({"COUNT", "SUM", "AVG", "MIN", "MAX"})
 ALLOWED_OPERATORS = frozenset({
     "=", "!=", ">", "<", ">=", "<=", "in", "not in",
     "like", "not like", "between", "is set", "is not set",
-    "descendants of", "ancestors of",
+    "descendants of", "ancestors of", "like_normalized",
 })
+
+# Arabic orthographic variants folded together for like_normalized lookups
+# (kept consistent on both the SQL column and the search value).
+ARABIC_NORMALIZATION_MAP = (
+    ("أ", "ا"), ("إ", "ا"), ("آ", "ا"), ("ة", "ه"), ("ى", "ي"),
+)
 
 SIDE_EFFECT_READ_ONLY = "read_only"
 SIDE_EFFECT_PREPARE = "prepare_only"

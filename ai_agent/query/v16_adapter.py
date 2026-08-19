@@ -3,11 +3,21 @@ from frappe.database.query import get_nested_set_hierarchy_result
 from frappe.query_builder import CustomFunction, DocType
 from frappe.query_builder.functions import Avg, Concat, Count, Max, Min, Sum
 
+from ai_agent.runtime.constants import ARABIC_NORMALIZATION_MAP
+
 
 DateFormat = CustomFunction("DATE_FORMAT", ["date", "format"])
 YearFn = CustomFunction("YEAR", ["date"])
 QuarterFn = CustomFunction("QUARTER", ["date"])
+Replace = CustomFunction("REPLACE", ["source", "find", "replace"])
 DATE_BUCKET_FORMATS = {"year": "%Y", "month": "%Y-%m", "day": "%Y-%m-%d", "week": "%x-W%v"}
+
+
+def normalize_arabic_text(value):
+    text = str(value or "")
+    for source, target in ARABIC_NORMALIZATION_MAP:
+        text = text.replace(source, target)
+    return text
 
 AGGREGATE_MAP = {
     "COUNT": Count,
@@ -151,6 +161,10 @@ class V16Adapter:
                 result.append(col.notin(val))
             elif op == "like":
                 result.append(col.like(val))
+            elif op == "like_normalized":
+                result.append(
+                    self._arabic_normalized(col).like(normalize_arabic_text(val))
+                )
             elif op == "not like":
                 result.append(col.not_like(val))
             elif op == "between" and isinstance(val, list) and len(val) == 2:
@@ -169,6 +183,12 @@ class V16Adapter:
                 # filtered is a wrong answer, not a degraded one.
                 raise ValueError(f"Unsupported filter operator '{op}'.")
         return result
+
+    def _arabic_normalized(self, col):
+        expr = col
+        for source, target in ARABIC_NORMALIZATION_MAP:
+            expr = Replace(expr, source, target)
+        return expr
 
     def _nested_set_nodes(self, fieldname, operator, value, doc_type, parent_doctype):
         """Resolve tree members with Frappe-core semantics: the tree is the

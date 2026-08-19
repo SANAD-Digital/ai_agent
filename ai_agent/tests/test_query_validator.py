@@ -49,3 +49,59 @@ class TestQueryValidator(IntegrationTestCase):
 	def test_negative_offset_is_rejected(self):
 		with self.assertRaises(QueryValidationError):
 			self.validator.validate({"doctype": "ToDo", "fields": ["name"], "offset": -1})
+
+
+class TestDateBucketGroupBy(IntegrationTestCase):
+	def setUp(self):
+		import frappe
+
+		self.validator = QueryValidator(PermissionContext("Administrator"))
+		self.marker = f"date-bucket-{frappe.generate_hash(length=8)}"
+		self._todos = []
+		for date in ("2026-01-15", "2026-01-20", "2026-02-01"):
+			todo = frappe.get_doc({
+				"doctype": "ToDo",
+				"description": f"{self.marker} on {date}",
+				"date": date,
+			}).insert(ignore_permissions=True)
+			self._todos.append(todo.name)
+
+	def tearDown(self):
+		import frappe
+
+		for name in self._todos:
+			frappe.delete_doc("ToDo", name, ignore_permissions=True, force=True)
+
+	def test_monthly_bucket_groups_rows(self):
+		from ai_agent.tools.data import handle_query
+
+		result = handle_query(
+			{
+				"doctype": "ToDo",
+				"fields": [{"field": "name", "aggregate": "COUNT", "alias": "total"}],
+				"filters": [{"field": "description", "operator": "like", "value": f"%{self.marker}%"}],
+				"group_by": [{"field": "date", "bucket": "month", "alias": "month"}],
+				"order_by": [{"field": "month", "direction": "asc"}],
+			},
+			PermissionContext("Administrator"),
+		)
+		self.assertNotIn("error", result)
+		buckets = {row["month"]: row["total"] for row in result["rows"]}
+		self.assertEqual(buckets.get("2026-01"), 2)
+		self.assertEqual(buckets.get("2026-02"), 1)
+
+	def test_invalid_bucket_is_rejected(self):
+		with self.assertRaises(QueryValidationError):
+			self.validator.validate({
+				"doctype": "ToDo",
+				"fields": ["name"],
+				"group_by": [{"field": "date", "bucket": "decade"}],
+			})
+
+	def test_bucket_on_non_date_field_is_rejected(self):
+		with self.assertRaises(QueryValidationError):
+			self.validator.validate({
+				"doctype": "ToDo",
+				"fields": ["name"],
+				"group_by": [{"field": "status", "bucket": "month"}],
+			})

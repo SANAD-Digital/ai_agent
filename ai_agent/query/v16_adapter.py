@@ -1,8 +1,13 @@
 import frappe
 from frappe.database.query import get_nested_set_hierarchy_result
-from frappe.query_builder import DocType
-from frappe.query_builder.functions import Count, Sum, Avg, Min, Max
+from frappe.query_builder import CustomFunction, DocType
+from frappe.query_builder.functions import Avg, Concat, Count, Max, Min, Sum
 
+
+DateFormat = CustomFunction("DATE_FORMAT", ["date", "format"])
+YearFn = CustomFunction("YEAR", ["date"])
+QuarterFn = CustomFunction("QUARTER", ["date"])
+DATE_BUCKET_FORMATS = {"year": "%Y", "month": "%Y-%m", "day": "%Y-%m-%d", "week": "%x-W%v"}
 
 AGGREGATE_MAP = {
     "COUNT": Count,
@@ -31,6 +36,8 @@ class V16Adapter:
         table = DocType(doc_type)
         parent_table = DocType(parent_doctype) if (parent_doctype and (is_child_table or self._has_parent_filters(filters))) else None
         qb_fields = self._build_fields(table, fields)
+        bucket_selects, group_expressions = self._build_group_expressions(table, group_by)
+        qb_fields.extend(bucket_selects)
         qb_filters = self._build_filters(table, filters, parent_table, doc_type, parent_doctype)
 
         if group_by or parent_table:
@@ -47,7 +54,7 @@ class V16Adapter:
             for criterion in qb_filters:
                 query = query.where(criterion)
             if group_by:
-                query = query.groupby(*[getattr(table, field) for field in group_by])
+                query = query.groupby(*group_expressions)
 
             rows = query.run(as_dict=True)
             rows = self._post_sort(rows, order_by)
@@ -78,6 +85,26 @@ class V16Adapter:
         rows = query.run(as_dict=True)
         rows = self._post_sort(rows, post_order_by)
         return {"rows": rows, "row_count": len(rows)}
+
+    def _build_group_expressions(self, table, group_by):
+        """Plain fields group directly; {field, bucket} entries group by a SQL
+        date bucket that is also selected under its alias."""
+        selects = []
+        expressions = []
+        for group in group_by or []:
+            if isinstance(group, dict):
+                field = group.get("field")
+                bucket = str(group.get("bucket") or "").lower()
+                col = getattr(table, field)
+                if bucket == "quarter":
+                    expr = Concat(YearFn(col), "-Q", QuarterFn(col))
+                else:
+                    expr = DateFormat(col, DATE_BUCKET_FORMATS[bucket])
+                selects.append(expr.as_(group.get("alias") or f"{field}_{bucket}"))
+                expressions.append(expr)
+            else:
+                expressions.append(getattr(table, group))
+        return selects, expressions
 
     def _build_fields(self, table, fields):
         result = []

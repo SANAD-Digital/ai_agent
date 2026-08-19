@@ -41,7 +41,31 @@ QUERY_SPEC_SCHEMA = {
             },
             "maxItems": 20,
         },
-        "group_by": {"type": "array", "items": {"type": "string"}},
+        "group_by": {
+            "type": "array",
+            "description": (
+                "Plain field names, or {field, bucket, alias} objects to bucket a "
+                "Date/Datetime field by time period (bucket: year|quarter|month|week|day) "
+                "for trend queries like monthly sales."
+            ),
+            "items": {
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "type": "object",
+                        "properties": {
+                            "field": {"type": "string"},
+                            "bucket": {
+                                "type": "string",
+                                "enum": ["year", "quarter", "month", "week", "day"],
+                            },
+                            "alias": {"type": "string"},
+                        },
+                        "required": ["field", "bucket"],
+                    },
+                ]
+            },
+        },
         "order_by": {
             "type": "array",
             "items": {

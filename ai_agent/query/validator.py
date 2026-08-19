@@ -5,6 +5,7 @@ from ai_agent.runtime.exceptions import QueryValidationError
 
 
 FIELDNAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+ALLOWED_DATE_BUCKETS = {"year", "quarter", "month", "week", "day"}
 PARENT_FIELD_RE = re.compile(r"^parent\.([a-z][a-z0-9_]*)$")
 ALIAS_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 STANDARD_FIELDS = {
@@ -63,7 +64,7 @@ class QueryValidator:
 
         order_by = spec.get("order_by", [])
         if order_by:
-            self._validate_order_by(doc_type, order_by, fields)
+            self._validate_order_by(doc_type, order_by, fields, group_by)
 
         limit = spec.get("limit", 500)
         if not isinstance(limit, int) or limit < 1:
@@ -216,16 +217,51 @@ class QueryValidator:
         allowed_fieldnames.update(STANDARD_FIELDS)
 
         for gb in group_by:
-            if gb not in allowed_fieldnames:
+            if isinstance(gb, dict):
+                self._validate_group_by_bucket(doc_type, meta, allowed_fieldnames, gb)
+            elif gb not in allowed_fieldnames:
                 raise QueryValidationError(f"group_by field '{gb}' not found.")
 
-    def _validate_order_by(self, doc_type, order_by, fields=None):
+    def _validate_group_by_bucket(self, doc_type, meta, allowed_fieldnames, group):
+        fieldname = group.get("field")
+        bucket = str(group.get("bucket") or "").lower()
+        alias = group.get("alias")
+
+        if bucket not in ALLOWED_DATE_BUCKETS:
+            raise QueryValidationError(
+                f"group_by bucket '{bucket}' not allowed "
+                f"(use one of: {', '.join(sorted(ALLOWED_DATE_BUCKETS))})."
+            )
+        if fieldname not in allowed_fieldnames:
+            raise QueryValidationError(f"group_by field '{fieldname}' not found.")
+
+        field_def = meta.get_field(fieldname)
+        # creation/modified are standard Datetime columns without a DocField.
+        fieldtype = field_def.fieldtype if field_def else (
+            "Datetime" if fieldname in ("creation", "modified") else ""
+        )
+        if fieldtype not in ("Date", "Datetime"):
+            raise QueryValidationError(
+                f"group_by bucket requires a Date/Datetime field; "
+                f"'{fieldname}' is {fieldtype or 'not a date field'}."
+            )
+        if field_def and not self.ctx.check_field_access(doc_type, fieldname, "read"):
+            raise QueryValidationError(f"No read access to field '{fieldname}'.")
+        if alias and not ALIAS_RE.match(alias):
+            raise QueryValidationError(f"Invalid alias '{alias}'.")
+
+    def _validate_order_by(self, doc_type, order_by, fields=None, group_by=None):
         meta = frappe.get_meta(doc_type)
         allowed_fieldnames = {f.fieldname for f in meta.fields if not f.hidden}
         allowed_fieldnames.update(STANDARD_FIELDS)
         for field_spec in fields or []:
             if isinstance(field_spec, dict) and field_spec.get("alias"):
                 allowed_fieldnames.add(field_spec.get("alias"))
+        for group in group_by or []:
+            if isinstance(group, dict) and group.get("field") and group.get("bucket"):
+                allowed_fieldnames.add(
+                    group.get("alias") or f"{group.get('field')}_{group.get('bucket')}"
+                )
 
         for ob in order_by:
             if not isinstance(ob, dict):

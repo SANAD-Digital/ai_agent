@@ -26,7 +26,7 @@ class ApprovalEngine:
                     return existing_doc
                 raise IdempotencyConflict("An approval request with this key already exists.")
 
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         ttl = settings.default_approval_ttl_minutes or 30
 
         payload_json = json.dumps(payload, sort_keys=True, default=str)
@@ -84,7 +84,7 @@ class ApprovalEngine:
         if approval.payload_hash != self._compute_hash(approval.payload_json):
             raise PermissionDenied("Payload has been tampered with.")
 
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         if settings.get("require_four_eyes") and approval.requested_by == user:
             raise PermissionDenied(
                 "Four-eyes approval is enabled: the requester cannot approve their own action."

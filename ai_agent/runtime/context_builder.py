@@ -62,7 +62,7 @@ If an active skill requires domain keys in the JSON response, keep those keys at
         user_message = self._build_user_message(run_doc, agent_doc)
         messages.append({"role": "user", "content": user_message})
 
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         model = agent_doc.model or settings.default_model
         reasoning_effort = agent_doc.reasoning_effort or settings.default_reasoning_effort
 
@@ -83,7 +83,7 @@ If an active skill requires domain keys in the JSON response, keep those keys at
         if compact_session:
             parts.append(compact_session)
 
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         if settings.system_instructions:
             parts.append(settings.system_instructions)
 
@@ -202,7 +202,7 @@ If an active skill requires domain keys in the JSON response, keep those keys at
                 f"{file_context}"
             )
 
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         model = (agent_doc.model if agent_doc else None) or settings.default_model
         base_url = settings.base_url or ""
         has_visual_files = file_service.has_visual_files(run_doc.name)

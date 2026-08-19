@@ -13,7 +13,7 @@ def run_job_id(run_name):
 
 
 def run_timeout_seconds(agent=None, settings=None):
-    settings = settings or frappe.get_doc("AI Settings")
+    settings = settings or frappe.get_cached_doc("AI Settings")
     base_timeout = cint(settings.maximum_run_seconds) or 600
     if not agent:
         return base_timeout
@@ -88,7 +88,7 @@ def recover_run_if_orphaned(run, stale_after_seconds=None):
     if run.status not in ACTIVE_RUN_STATUSES:
         return False
 
-    settings = frappe.get_doc("AI Settings")
+    settings = frappe.get_cached_doc("AI Settings")
     request_timeout = cint(settings.request_timeout) or 30
     stale_after_seconds = cint(stale_after_seconds) or max(request_timeout * 2 + 30, 180)
     last_activity = run.modified or run.started_at or run.creation

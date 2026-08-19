@@ -64,6 +64,7 @@ class Orchestrator:
         self.enforce_skill_tools = False
         self.input_tokens = cint(self.run.input_tokens)
         self.output_tokens = cint(self.run.output_tokens)
+        self._timeout_seconds = None
 
     def execute(self):
         """Main execution entry point."""
@@ -701,24 +702,27 @@ class Orchestrator:
         if not tool_name.startswith("memory."):
             return True
         try:
-            return bool(frappe.get_doc("AI Settings").get("enable_memory"))
+            return bool(frappe.get_cached_doc("AI Settings").get("enable_memory"))
         except Exception:
             # Deliberately silent: evaluated per tool-schema build, and a failed
             # settings read only hides the optional memory tools.
             return False
 
     def _check_limits(self):
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         if not settings.enabled:
             raise MYSYSAgentError("Agent system is disabled.")
 
     def _check_cancellation(self):
-        self.run.reload()
-        if self.run.cancel_requested:
+        # Lightweight single-column poll: this runs before every model step and
+        # tool call, so a full document reload here is pure waste.
+        if frappe.db.get_value("AI Run", self.run_name, "cancel_requested"):
             raise RunCancelled("Run was cancelled by user.")
         started_at = self.run.started_at or self.run.creation
         elapsed = frappe.utils.time_diff_in_seconds(frappe.utils.now_datetime(), started_at)
-        if elapsed > run_timeout_seconds(agent=self.agent):
+        if self._timeout_seconds is None:
+            self._timeout_seconds = run_timeout_seconds(agent=self.agent)
+        if elapsed > self._timeout_seconds:
             raise RunTimedOut("Run exceeded the configured execution time limit.")
 
     def _add_step(self, step_type, title, summary=""):

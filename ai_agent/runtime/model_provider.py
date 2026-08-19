@@ -27,7 +27,7 @@ class OpenAICompatibleProvider(AgentModelProvider):
 
     def __init__(self, settings=None):
         if settings is None:
-            settings = frappe.get_doc("AI Settings")
+            settings = frappe.get_cached_doc("AI Settings")
         self.settings = settings
         self.base_url = self._get_base_url(settings)
         self.api_key = self._get_api_key(settings)
@@ -333,7 +333,7 @@ def get_provider():
     Every supported provider_type (OpenAI, OpenAI Compatible, Ollama) speaks
     the OpenAI-compatible protocol; base_url selection happens in __init__.
     """
-    return OpenAICompatibleProvider(frappe.get_doc("AI Settings"))
+    return OpenAICompatibleProvider(frappe.get_cached_doc("AI Settings"))
 
 
 def _configured_model_capability(model=None):

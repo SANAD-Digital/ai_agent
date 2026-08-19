@@ -34,7 +34,7 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
     if frappe.session.user == "Guest":
         frappe.throw(_("Guest users cannot create runs."))
 
-    settings = frappe.get_doc("AI Settings")
+    settings = frappe.get_cached_doc("AI Settings")
     if not settings.enabled:
         frappe.throw(_("Agent system is disabled."))
 

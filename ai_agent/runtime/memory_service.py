@@ -11,7 +11,7 @@ class MemoryService:
     """Manages agent memory (disabled by default in MVP)."""
 
     def is_enabled(self):
-        settings = frappe.get_doc("AI Settings")
+        settings = frappe.get_cached_doc("AI Settings")
         return settings.get("enable_memory", 0)
 
     def store(

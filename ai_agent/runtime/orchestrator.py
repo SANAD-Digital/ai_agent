@@ -16,6 +16,7 @@ from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.local_answers import greeting_or_capability_answer
 from ai_agent.runtime import result_compaction, step_narration
+from ai_agent.runtime.action_interceptor import ActionInterceptor
 from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
     RunCancelled, RunTimedOut, RunLimitExceeded, MYSYSAgentError,
@@ -23,7 +24,7 @@ from ai_agent.runtime.exceptions import (
 )
 from ai_agent.runtime.constants import (
     RUN_STATUS_PLANNING, RUN_STATUS_RUNNING,
-    RUN_STATUS_WAITING, RUN_STATUS_COMPLETED, RUN_STATUS_FAILED,
+    RUN_STATUS_COMPLETED, RUN_STATUS_FAILED,
     RUN_STATUS_CANCELLED, RUN_STATUS_TIMED_OUT,
     REALTIME_EVENTS,
 )
@@ -48,6 +49,15 @@ class Orchestrator:
         self.memory = MemoryService()
         self.provider = get_provider()
         self.tool_gateway = ToolGateway(self.ctx, self.tool_registry)
+        self.action_interceptor = ActionInterceptor(
+            run_name=self.run_name,
+            agent=self.agent,
+            permission_context=self.ctx,
+            approval_engine=self.approval_engine,
+            add_step=self._add_step,
+            update_status=self._update_status,
+            trace=self.trace,
+        )
         self.sequence = 0
         self.loaded_skills = []
         self.skill_tools = []
@@ -237,7 +247,7 @@ class Orchestrator:
                             self.tool_gateway.create_approval(
                                 tool_name, arguments, self.run_name, step.name, self.agent
                             )
-                            result = self._handle_action_tool(tool_name, arguments)
+                            result = self.action_interceptor.handle_action_tool(tool_name, arguments)
                         else:
                             result = self.tool_gateway.authorize_and_execute(
                                 tool_name, arguments, self.run_name, step.name, self.agent
@@ -245,7 +255,7 @@ class Orchestrator:
                     except (ToolDenied, PermissionDenied) as exc:
                         result = {"error": str(exc)}
                     self._track_report_result(state, tool_name, arguments, result)
-                    result = self._maybe_create_approval_from_prepare(tool_name, result)
+                    result = self.action_interceptor.maybe_create_approval_from_prepare(tool_name, result)
                     if tool_name == "skills.load" and isinstance(result, dict) and "error" not in result:
                         self.loaded_skills.append(result)
                         self.skill_tools = self._merge_skill_tools(
@@ -672,242 +682,6 @@ class Orchestrator:
             for row in empty_runs
         }
         return len(unique_attempts) >= 2
-
-    def _handle_action_tool(self, tool_name, arguments):
-        """Handle action tools through the approval engine.
-
-        The run does not pause here: it finalizes with a pending-approval
-        answer, the human decision executes later via api.approve_action,
-        and the conversation continues in a new run chained by parent_run
-        (which carries the approval outcome in its session context).
-        """
-        known_action_tools = {
-            "actions.request_create_draft",
-            "actions.request_bulk_create",
-            "actions.request_update",
-            "actions.request_submit",
-            "actions.request_cancel",
-            "actions.request_workflow_action",
-        }
-        if tool_name not in known_action_tools:
-            return {"error": f"Unknown action tool: {tool_name}"}
-        self._update_status(RUN_STATUS_WAITING)
-
-        if tool_name == "actions.request_create_draft":
-            payload = self._document_payload(arguments)
-            approval = self._create_or_get_create_approval(arguments.get("doctype"), payload)
-            return {"approval_required": True, "approval_id": approval.name}
-
-        elif tool_name == "actions.request_bulk_create":
-            documents = self._bulk_create_documents(arguments.get("documents") or [])
-            if not documents:
-                return {"error": "documents is required"}
-            denied = [
-                document["doctype"]
-                for document in documents
-                if not self.ctx.has_doctype_permission(document["doctype"], "create")
-            ]
-            if denied:
-                return {"error": f"No create permission on: {', '.join(sorted(set(denied)))}"}
-            approval = self._create_or_get_bulk_create_approval(
-                documents,
-                arguments.get("summary"),
-            )
-            return {
-                "approval_required": True,
-                "approval_id": approval.name,
-                "document_count": len(documents),
-                "doctypes": sorted({document["doctype"] for document in documents}),
-            }
-
-        elif tool_name == "actions.request_update":
-            payload = self._document_payload(arguments, include_doctype=False)
-            approval = self.approval_engine.create_approval_request(
-                run_name=self.run_name,
-                action_type="Update",
-                doctype_name=arguments.get("doctype"),
-                document_name=arguments.get("document_name"),
-                action_summary=f"Update {arguments.get('doctype')} {arguments.get('document_name')}",
-                payload=payload,
-                expected_modified=arguments.get("expected_modified"),
-            )
-            self._record_approval_step(
-                f"Approval required: Update {arguments.get('doctype')}",
-                approval.name,
-            )
-            return {"approval_required": True, "approval_id": approval.name}
-
-        elif tool_name == "actions.request_submit":
-            approval = self.approval_engine.create_approval_request(
-                run_name=self.run_name,
-                action_type="Submit",
-                doctype_name=arguments.get("doctype"),
-                document_name=arguments.get("document_name"),
-                action_summary=f"Submit {arguments.get('doctype')} {arguments.get('document_name')}",
-                impact_summary="The document will be submitted.",
-                payload={"doctype": arguments.get("doctype"), "name": arguments.get("document_name")},
-            )
-            self._record_approval_step(
-                f"Approval required: Submit {arguments.get('doctype')}",
-                approval.name,
-            )
-            return {"approval_required": True, "approval_id": approval.name}
-
-        elif tool_name == "actions.request_cancel":
-            approval = self.approval_engine.create_approval_request(
-                run_name=self.run_name,
-                action_type="Cancel",
-                doctype_name=arguments.get("doctype"),
-                document_name=arguments.get("document_name"),
-                action_summary=f"Cancel {arguments.get('doctype')} {arguments.get('document_name')}",
-                impact_summary="The document will be cancelled.",
-                payload={"doctype": arguments.get("doctype"), "name": arguments.get("document_name")},
-            )
-            self._record_approval_step(
-                f"Approval required: Cancel {arguments.get('doctype')}",
-                approval.name,
-            )
-            return {"approval_required": True, "approval_id": approval.name}
-
-        elif tool_name == "actions.request_workflow_action":
-            approval = self.approval_engine.create_approval_request(
-                run_name=self.run_name,
-                action_type="Workflow",
-                doctype_name=arguments.get("doctype"),
-                document_name=arguments.get("document_name"),
-                action_summary=(
-                    f"Workflow action '{arguments.get('action')}' on "
-                    f"{arguments.get('doctype')} {arguments.get('document_name')}"
-                ),
-                impact_summary="The workflow action will be applied to the document.",
-                payload={
-                    "doctype": arguments.get("doctype"),
-                    "name": arguments.get("document_name"),
-                    "action": arguments.get("action"),
-                },
-            )
-            self._record_approval_step(
-                f"Approval required: Workflow {arguments.get('doctype')}",
-                approval.name,
-            )
-            return {"approval_required": True, "approval_id": approval.name}
-
-        return {"error": f"Unknown action tool: {tool_name}"}
-
-    def _maybe_create_approval_from_prepare(self, tool_name, result):
-        if tool_name != "actions.prepare_document" or not isinstance(result, dict):
-            return result
-        if result.get("error") or result.get("missing_fields"):
-            return result
-        if self.agent.get("read_only") or not self.agent.get("allow_actions"):
-            return result
-
-        doc_type = result.get("doctype")
-        payload = self._document_payload({
-            "doctype": doc_type,
-            "payload": result.get("payload") or {},
-        })
-        if not doc_type or not payload:
-            return result
-
-        approval = self._create_or_get_create_approval(doc_type, payload)
-
-        enriched = dict(result)
-        enriched.update({
-            "approval_required": True,
-            "approval_id": approval.name,
-            "approval_status": approval.status,
-        })
-        return enriched
-
-    def _create_or_get_create_approval(self, doc_type, payload):
-        payload_json = json.dumps(payload, sort_keys=True, default=str)
-        payload_hash = hashlib.sha256(payload_json.encode()).hexdigest()
-        idempotency_key = hashlib.sha256(
-            f"{self.run_name}:create:{doc_type}:{payload_hash}".encode()
-        ).hexdigest()
-
-        existing = frappe.db.exists("AI Approval Request", {"idempotency_key": idempotency_key})
-        if not existing:
-            existing = frappe.db.exists("AI Approval Request", {
-                "run": self.run_name,
-                "action_type": "Create",
-                "doctype_name": doc_type,
-                "payload_hash": payload_hash,
-                "status": ("in", ["Pending", "Approved"]),
-            })
-        if existing:
-            return frappe.get_doc("AI Approval Request", existing)
-
-        approval = self.approval_engine.create_approval_request(
-            run_name=self.run_name,
-            action_type="Create",
-            doctype_name=doc_type,
-            action_summary=f"Create {doc_type} draft",
-            impact_summary=f"A new {doc_type} will be created after approval.",
-            payload=payload,
-            idempotency_key=idempotency_key,
-        )
-        self._record_approval_step(f"Approval required: Create {doc_type}", approval.name)
-        return approval
-
-    def _create_or_get_bulk_create_approval(self, documents, summary=None):
-        payload = {"documents": documents}
-        payload_json = json.dumps(payload, sort_keys=True, default=str)
-        payload_hash = hashlib.sha256(payload_json.encode()).hexdigest()
-        idempotency_key = hashlib.sha256(
-            f"{self.run_name}:bulk-create:{payload_hash}".encode()
-        ).hexdigest()
-
-        existing = frappe.db.exists("AI Approval Request", {"idempotency_key": idempotency_key})
-        if not existing:
-            existing = frappe.db.exists("AI Approval Request", {
-                "run": self.run_name,
-                "action_type": "Bulk Create",
-                "payload_hash": payload_hash,
-                "status": ("in", ["Pending", "Approved"]),
-            })
-        if existing:
-            return frappe.get_doc("AI Approval Request", existing)
-
-        doctypes = sorted({document["doctype"] for document in documents})
-        action_summary = summary or f"Create {len(documents)} draft documents"
-        approval = self.approval_engine.create_approval_request(
-            run_name=self.run_name,
-            action_type="Bulk Create",
-            doctype_name=doctypes[0] if len(doctypes) == 1 else None,
-            action_summary=action_summary,
-            impact_summary=f"{len(documents)} draft documents will be created after one approval.",
-            payload=payload,
-            idempotency_key=idempotency_key,
-        )
-        self._record_approval_step(f"Approval required: Bulk create {len(documents)} documents", approval.name)
-        return approval
-
-    def _record_approval_step(self, title, approval_name):
-        approval_step = self._add_step("Approval", title)
-        self.trace.complete_step(approval_step.name, summary=f"Pending approval: {approval_name}")
-
-    def _document_payload(self, arguments, include_doctype=True):
-        payload = dict(arguments.get("payload") or {})
-        if include_doctype and arguments.get("doctype"):
-            payload["doctype"] = arguments.get("doctype")
-        return payload
-
-    def _bulk_create_documents(self, documents):
-        if len(documents) > 100:
-            raise ToolDenied("Bulk create supports up to 100 documents per approval.")
-        normalized = []
-        for document in documents:
-            if not isinstance(document, dict):
-                continue
-            payload = dict(document.get("payload") or {})
-            doc_type = document.get("doctype") or payload.get("doctype")
-            if not doc_type or not payload:
-                continue
-            payload["doctype"] = doc_type
-            normalized.append({"doctype": doc_type, "payload": payload})
-        return normalized
 
     def _get_tool_schemas(self):
         """Get tool schemas for the model."""

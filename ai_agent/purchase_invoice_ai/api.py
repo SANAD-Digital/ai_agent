@@ -1807,7 +1807,12 @@ def _finalize_page_reading_if_done(run_name):
         TraceService().publish_realtime("ai_agent:run_updated", run_name)
         return
     selected = [row for row in session.pages if row.selected] if session else []
-    if selected and not any(row.status == "Read" for row in selected):
+    # Judge success against the WHOLE session, not just the currently selected
+    # rows: re-reading one failed page must never bury pages that were already
+    # read successfully in an earlier pass (a run marked Failed here hid 13
+    # readable pages in FA-SESSION-1387).
+    read_any = any(row.status == "Read" for row in session.pages) if session else False
+    if selected and not read_any:
         message = _("لم تتم قراءة أي صفحة محددة بنجاح. راجع أخطاء محرك OCR ثم أعد المحاولة.")
         run.status = "Failed"
         run.error_summary = message
@@ -1818,6 +1823,10 @@ def _finalize_page_reading_if_done(run_name):
         _publish_page_reading_update(run_name)
         TraceService().publish_realtime("ai_agent:run_updated", run_name)
         return
+    if session and session.status == "Failed":
+        # An earlier partial failure marked the session Failed; readable pages
+        # exist now, so let the recount reflect them instead of the dead state.
+        _refresh_session_reading_status(session)
     raw_ocr = _extract_json(run.final_answer or "") or _attachment_reading_from_run(run, recovery_warning=False) or {"document_groups": []}
     run.status = "Completed"
     run.final_answer = json.dumps(raw_ocr, ensure_ascii=False, default=str)

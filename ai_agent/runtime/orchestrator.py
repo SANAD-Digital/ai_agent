@@ -701,6 +701,8 @@ class Orchestrator:
     def _is_tool_runtime_enabled(self, tool_name):
         if not tool_name.startswith("memory."):
             return True
+        if self.agent.get("disable_memory"):
+            return False
         try:
             return bool(frappe.get_cached_doc("AI Settings").get("enable_memory"))
         except Exception:
@@ -1033,9 +1035,13 @@ class Orchestrator:
             frappe.log_error(frappe.get_traceback(), "AI Agent Compact Session Checkpoint")
 
     def _store_lesson_from_completed_run(self, final_answer):
+        if self.agent.get("disable_memory"):
+            return
         self.memory.store_completed_run(self.run, final_answer)
 
     def _store_lesson_from_failed_run(self, error_summary):
+        if self.agent.get("disable_memory"):
+            return
         lesson = (
             f"Previous run failed. User prompt: {self.run.prompt}. "
             f"Error: {error_summary}"

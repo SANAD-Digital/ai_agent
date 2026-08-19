@@ -28,6 +28,9 @@ def ensure_support_agent() -> str:
         "read_only": 1,
         "allow_actions": 0,
         "require_approval_for_all_writes": 1,
+        # One support_user serves every WhatsApp customer: shared-identity
+        # memory would leak one customer's data into another's replies.
+        "disable_memory": 1,
         "reasoning_effort": "high",
         "maximum_steps": 30,
         "maximum_tool_calls": 60,

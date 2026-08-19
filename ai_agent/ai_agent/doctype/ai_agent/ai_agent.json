@@ -22,6 +22,7 @@
   "read_only",
   "section_actions",
   "allow_actions",
+  "disable_memory",
   "column_break_actions",
   "require_approval_for_all_writes",
   "section_break_feqe",
@@ -115,6 +116,13 @@
    "fieldname": "allow_actions",
    "fieldtype": "Check",
    "label": "Allow Actions"
+  },
+  {
+   "fieldname": "disable_memory",
+   "fieldtype": "Check",
+   "label": "Disable Memory",
+   "default": "0",
+   "description": "Skip long-term memory injection, episode storage, and memory.* tools for this agent. Required for shared-identity channels (e.g. WhatsApp support) where one user serves many customers."
   },
   {
    "fieldname": "column_break_actions",

@@ -174,11 +174,13 @@ If an active skill requires domain keys in the JSON response, keep those keys at
         if run_doc.company:
             parts.append(f"Company context: {run_doc.company}")
 
-        memory_context = MemoryService().build_context(
-            user=run_doc.user,
-            agent=run_doc.agent,
-            company=run_doc.company,
-        )
+        memory_context = ""
+        if not (agent_doc and agent_doc.get("disable_memory")):
+            memory_context = MemoryService().build_context(
+                user=run_doc.user,
+                agent=run_doc.agent,
+                company=run_doc.company,
+            )
         if memory_context:
             parts.append(
                 "Relevant persisted memory. Use it only when it matches the current request and current ERP evidence; "

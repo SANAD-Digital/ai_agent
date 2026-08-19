@@ -15,6 +15,7 @@ from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.local_answers import greeting_or_capability_answer
+from ai_agent.runtime import result_compaction, step_narration
 from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
     RunCancelled, RunTimedOut, RunLimitExceeded, MYSYSAgentError,
@@ -221,7 +222,7 @@ class Orchestrator:
                     attempt_key = self._tool_attempt_key(tool_name, arguments)
                     state["tool_attempts"][attempt_key] = state["tool_attempts"].get(attempt_key, 0) + 1
 
-                    step = self._add_step("Tool", self._tool_step_title(tool_name, arguments))
+                    step = self._add_step("Tool", step_narration.tool_step_title(tool_name, arguments))
                     self.trace.update_run_status(
                         self.run_name,
                         RUN_STATUS_RUNNING,
@@ -252,7 +253,7 @@ class Orchestrator:
                             result.get("tools") or [],
                         )
                         self.tool_gateway.skill_tools = self.skill_tools
-                    tool_summary = self._summarize_tool_result(tool_name, result, arguments)
+                    tool_summary = step_narration.summarize_tool_result(tool_name, result, arguments)
                     self.trace.complete_step(
                         step.name,
                         summary=tool_summary,
@@ -263,7 +264,7 @@ class Orchestrator:
                         state=state,
                     )
 
-                    model_result = self._compact_tool_result_for_model(tool_name, result)
+                    model_result = result_compaction.compact_tool_result_for_model(tool_name, result)
                     self._record_tool_observation(state, tool_name, arguments, model_result)
 
                     # Every assistant tool_call_id must receive a tool response before
@@ -271,7 +272,7 @@ class Orchestrator:
                     state["messages"].append({
                         "role": "tool",
                         "tool_call_id": tc.get("id", ""),
-                        "content": self._tool_result_content_for_model(tool_name, model_result),
+                        "content": result_compaction.tool_result_content_for_model(self.tool_registry, tool_name, model_result),
                     })
 
                     if state["tool_attempts"][attempt_key] >= 2:
@@ -281,7 +282,7 @@ class Orchestrator:
                         )
 
                     if self._is_empty_report_loop(state):
-                        empty_report_answer = self._empty_report_loop_answer(state)
+                        empty_report_answer = step_narration.empty_report_loop_answer(state)
 
                     if self._is_terminal_tool_result(tool_name, model_result):
                         terminal_reason = (
@@ -336,7 +337,7 @@ class Orchestrator:
                 )
 
         if state.get("last_successful_report"):
-            final_answer = self._answer_from_successful_report(state["last_successful_report"])
+            final_answer = step_narration.answer_from_successful_report(state["last_successful_report"])
             final_step = self._add_step(
                 "Final",
                 "Summarizing successful report",
@@ -641,7 +642,7 @@ class Orchestrator:
             "tool": tool_name,
             "arguments": arguments,
             "result": result,
-            "summary": self._summarize_tool_result(tool_name, result, arguments),
+            "summary": step_narration.summarize_tool_result(tool_name, result, arguments),
         })
         if len(observations) > 12:
             del observations[:-12]
@@ -652,7 +653,7 @@ class Orchestrator:
 
         if cint(result.get("row_count")) > 0:
             state["successful_report_runs"] = state.get("successful_report_runs", 0) + 1
-            state["last_successful_report"] = self._compact_tool_result_for_model(tool_name, result)
+            state["last_successful_report"] = result_compaction.compact_tool_result_for_model(tool_name, result)
             return
 
         state.setdefault("empty_report_runs", []).append({
@@ -671,453 +672,6 @@ class Orchestrator:
             for row in empty_runs
         }
         return len(unique_attempts) >= 2
-
-    def _empty_report_loop_answer(self, state):
-        attempts = state.get("empty_report_runs") or []
-        reports = []
-        for attempt in attempts:
-            report = attempt.get("report")
-            if report and report not in reports:
-                reports.append(report)
-        filters = attempts[-1].get("filters") if attempts else {}
-        return (
-            "لم أُكمل التحليل لأن التقارير المرشحة رجعت بدون صفوف، "
-            "وأوقفت التنفيذ حتى لا يستهلك خطوات وتوكنز بتكرار نفس المحاولات.\n\n"
-            f"- التقارير التي جُربت: {', '.join(reports[:5]) or 'غير محدد'}\n"
-            f"- آخر فلاتر مستخدمة: `{json.dumps(filters, ensure_ascii=False, default=str)}`\n"
-            "- السبب المرجح: التقرير يحتاج فلاتر مختلفة عن الأسماء التي تم تمريرها، "
-            "أو لا توجد بيانات في هذا التقرير للفترة المطلوبة.\n"
-            "- الخطوة الأفضل: استخدم استعلام تجميعي مباشر على بيانات القيود/الفواتير أو اختر تقريراً محدداً بفلاتره الصحيحة."
-        )
-
-    def _answer_from_successful_report(self, report_result):
-        report_name = report_result.get("report") or "التقرير"
-        row_count = cint(report_result.get("row_count"))
-        summary = report_result.get("summary") or {}
-        numeric_stats = summary.get("numeric_stats") or {}
-        top_rows = summary.get("top_rows_by_numeric_field") or {}
-        filters = report_result.get("filters") or {}
-
-        lines = [
-            f"وجدت بيانات في تقرير **{report_name}** لكن أوقفت التنفيذ قبل تكرار خطوات إضافية.",
-            "",
-            f"- عدد الصفوف: **{row_count}**",
-        ]
-
-        if filters:
-            lines.append(f"- الفلاتر: `{json.dumps(filters, ensure_ascii=False, default=str)}`")
-
-        for field, stats in list(numeric_stats.items())[:5]:
-            lines.append(f"- إجمالي `{field}`: **{stats.get('total')}**")
-
-        for field, rows in list(top_rows.items())[:2]:
-            if not rows:
-                continue
-            lines.append("")
-            lines.append(f"أعلى القيم حسب `{field}`:")
-            for index, row in enumerate(rows[:5], start=1):
-                label = row.get("label") or "بدون تسمية"
-                lines.append(f"{index}. {label}: **{row.get('value')}**")
-
-        lines.append("")
-        lines.append("هذه إجابة مختصرة من نتيجة التقرير الناجحة لتجنب الوصول إلى حد الخطوات.")
-        return "\n".join(lines)
-
-    def _answer_from_tool_observations(self, state, reason):
-        observations = state.get("tool_observations") or []
-        if not observations:
-            return "تم استلام طلبك، ولم أتمكن من تجهيز النتيجة النهائية الآن. سيتم متابعة الطلب والرد عليك بالتفاصيل المناسبة."
-
-        useful_observations = self._select_useful_observations(observations)
-        first = useful_observations[0] if useful_observations else {}
-        result = first.get("result") if isinstance(first, dict) else None
-        if isinstance(result, dict) and cint(result.get("row_count")) > 0:
-            rows = result.get("sample_rows") or result.get("rows") or []
-            summary = [f"تم العثور على {cint(result.get('row_count'))} سجل مطابق."]
-            if rows:
-                summary.append(f"أبرز نتيجة: {self._compact_summary(rows[0], limit=500)}")
-            return " ".join(summary)
-
-        lines = [
-            "وجدت نتائج مرتبطة بطلبك، لكن لم أتمكن من صياغة الرد النهائي بالكامل الآن.",
-        ]
-
-        for observation in useful_observations[:2]:
-            lines.extend(self._format_observation(observation))
-
-        return "\n".join(lines)
-
-    def _select_useful_observations(self, observations):
-        scored = []
-        for index, observation in enumerate(observations):
-            result = observation.get("result")
-            score = 0
-            if isinstance(result, dict):
-                if result.get("error"):
-                    score -= 2
-                if cint(result.get("row_count")) > 0:
-                    score += 4
-                if result.get("approval_required"):
-                    score += 4
-                if result.get("valid") is True:
-                    score += 3
-                if result.get("count"):
-                    score += 2
-                if result.get("summary"):
-                    score += 2
-                if result.get("sample_rows") or result.get("rows"):
-                    score += 3
-            scored.append((score, index, observation))
-
-        scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
-        return [row[2] for row in scored]
-
-    def _format_observation(self, observation):
-        tool_name = observation.get("tool")
-        result = observation.get("result")
-        lines = ["", f"**{tool_name}**"]
-
-        if not isinstance(result, dict):
-            lines.append(f"- النتيجة: `{self._compact_summary(result, limit=500)}`")
-            return lines
-
-        if result.get("error"):
-            lines.append(f"- تعذر التنفيذ: {result.get('error')}")
-            return lines
-
-        if result.get("is_pending") or result.get("prepared_status") in ("Queued", "Started"):
-            lines.append("- التقرير يحتاج تجهيز مسبق.")
-            lines.append(f"- الحالة: **{result.get('prepared_status') or 'Pending'}**")
-            if result.get("prepared_report_name"):
-                lines.append(f"- Prepared Report: `{result.get('prepared_report_name')}`")
-            if result.get("created_prepared_report"):
-                lines.append("- تم إنشاء طلب توليد جديد.")
-            if result.get("message"):
-                lines.append(f"- ملاحظة: {result.get('message')}")
-            return lines
-
-        if "row_count" in result:
-            lines.append(f"- عدد الصفوف: **{result.get('row_count')}**")
-            rows = result.get("sample_rows") or result.get("rows") or []
-            for index, row in enumerate(rows[:3], start=1):
-                lines.append(f"- عينة {index}: `{self._compact_summary(row, limit=350)}`")
-            return lines
-
-        if result.get("approval_required"):
-            lines.append(f"- يحتاج موافقة: `{result.get('approval_id')}`")
-            if result.get("approval_status"):
-                lines.append(f"- حالة الموافقة: **{result.get('approval_status')}**")
-            return lines
-
-        if result.get("valid") is not None:
-            lines.append(f"- صالح: **{result.get('valid')}**")
-            if result.get("errors"):
-                lines.append(f"- الأخطاء: {result.get('errors')}")
-            return lines
-
-        if result.get("count") is not None:
-            lines.append(f"- العدد: **{result.get('count')}**")
-            return lines
-
-        lines.append(f"- النتيجة: `{self._compact_summary(result, limit=500)}`")
-        return lines
-
-    def _tool_step_title(self, tool_name, arguments):
-        if tool_name == "data.query":
-            spec = self._query_spec(arguments)
-            doctype = spec.get("doctype") or "السجلات"
-            return f"البحث في {doctype}"
-
-        if tool_name == "data.count":
-            return f"عدّ سجلات {arguments.get('doctype') or 'النظام'}"
-
-        if tool_name == "reports.run":
-            report_name = arguments.get("report_name") or arguments.get("name") or arguments.get("report") or ""
-            return f"تشغيل تقرير {report_name}".strip()
-
-        if tool_name == "reports.search":
-            return "البحث عن التقارير"
-
-        if tool_name == "reports.describe":
-            return "قراءة إعداد التقرير"
-
-        if tool_name == "schema.search_doctypes":
-            return "استكشاف أنواع المستندات"
-
-        if tool_name == "schema.describe_doctype":
-            return "قراءة بنية نوع المستند"
-
-        if tool_name == "skills.list":
-            return "فحص المهارات المتاحة"
-
-        if tool_name == "skills.load":
-            return f"تحميل مهارة {arguments.get('skill_name') or ''}".strip()
-
-        if tool_name.startswith("actions.request_"):
-            return "طلب موافقة"
-
-        if tool_name.startswith("actions.prepare_"):
-            return "تجهيز مستند"
-
-        if tool_name.startswith("actions.validate_"):
-            return "التحقق من مستند"
-
-        return f"تشغيل {tool_name}"
-
-    def _summarize_tool_result(self, tool_name, result, arguments=None):
-        arguments = arguments or {}
-        if not isinstance(result, dict):
-            return self._compact_summary(result)
-
-        if result.get("error"):
-            return f"تعذر تنفيذ {self._tool_action_phrase(tool_name, arguments)}: {result.get('error')}"
-
-        if tool_name == "data.query":
-            return self._summarize_data_query(arguments, result)
-
-        if tool_name == "data.count":
-            return self._summarize_data_count(arguments, result)
-
-        if tool_name == "reports.run":
-            report_name = arguments.get("report_name") or arguments.get("name") or arguments.get("report") or result.get("report", "Report")
-            filters_text = self._human_filters(arguments.get("filters") or result.get("filters") or {})
-            if result.get("is_pending") or result.get("prepared_status") in ("Queued", "Started"):
-                return (
-                    f"شغلت التقرير {report_name}"
-                    f"{filters_text}. التقرير يحتاج تجهيز مسبق؛ الحالة "
-                    f"{result.get('prepared_status') or 'Pending'}، "
-                    f"Prepared Report={result.get('prepared_report_name') or 'unknown'}"
-                )
-            summary = result.get("summary") or {}
-            numeric_fields = summary.get("numeric_fields") or []
-            return (
-                f"شغلت التقرير {report_name}{filters_text}. "
-                f"رجع {result.get('row_count', 0)} صفوف، "
-                f"والحقول الرقمية المتاحة: {', '.join(numeric_fields[:8]) or 'لا يوجد'}"
-            )
-
-        if tool_name.startswith("actions."):
-            payload = result.get("payload") or {}
-            payload_summary = self._summarize_payload(payload) if payload else {}
-            parts = []
-            if result.get("doctype"):
-                parts.append(f"المستند={result.get('doctype')}")
-            if result.get("approval_required"):
-                parts.append(f"بطاقة الموافقة={result.get('approval_id')}")
-            if result.get("missing_fields"):
-                parts.append(f"حقول ناقصة={len(result.get('missing_fields') or [])}")
-            if payload_summary:
-                parts.append(
-                    f"حقول={payload_summary.get('field_count', 0)} "
-                    f"صفوف فرعية={payload_summary.get('total_child_rows', 0)}"
-                )
-            return "; ".join(parts) or self._compact_summary(result)
-
-        if "doctypes" in result:
-            names = [row.get("name") for row in result.get("doctypes", []) if row.get("name")]
-            return f"وجدت {result.get('count', len(names))} DocTypes: {', '.join(names[:10]) or 'لا يوجد'}"
-
-        if "fields" in result:
-            return (
-                f"{result.get('name', tool_name)}: "
-                f"{len(result.get('fields', []))} حقول، "
-                f"{len(result.get('links', []))} روابط، "
-                f"{len(result.get('child_tables', []))} جداول فرعية."
-            )
-
-        if "rows" in result:
-            rows = result.get("rows") or []
-            if not rows:
-                return f"{self._tool_action_phrase(tool_name, arguments)} ولم ترجع أي صفوف."
-            return (
-                f"{self._tool_action_phrase(tool_name, arguments)} ورجعت {result.get('row_count', len(rows))} صفوف. "
-                f"أول نتيجة: {self._compact_summary(rows[0], limit=700)}"
-            )
-
-        if "count" in result:
-            return f"{self._tool_action_phrase(tool_name, arguments)}. العدد: {result.get('count')}"
-
-        if result.get("approval_required"):
-            return f"تحتاج موافقة: {result.get('approval_id')}"
-
-        return self._compact_summary(result)
-
-    def _summarize_data_query(self, arguments, result):
-        spec = self._query_spec(arguments)
-        doctype = spec.get("doctype") or "records"
-        fields = self._human_fields(spec.get("fields") or [])
-        filters = self._human_filters(spec.get("filters") or [])
-        order = f"، الترتيب: {spec.get('order_by')}" if spec.get("order_by") else ""
-        limit = f"، الحد: {spec.get('limit')}" if spec.get("limit") else ""
-        rows = result.get("rows") or []
-        prefix = f"بحثت في {doctype} عن {fields}{filters}{order}{limit}"
-        if not rows:
-            return f"{prefix}. النتيجة: لا توجد سجلات مطابقة."
-        return (
-            f"{prefix}. النتيجة: {result.get('row_count', len(rows))} سجلات. "
-            f"أول سجل: {self._compact_summary(rows[0], limit=700)}"
-        )
-
-    def _summarize_data_count(self, arguments, result):
-        doctype = arguments.get("doctype") or "records"
-        filters = self._human_filters(arguments.get("filters") or [])
-        return f"عديت سجلات {doctype}{filters}. النتيجة: {result.get('count', 0)}."
-
-    def _tool_action_phrase(self, tool_name, arguments):
-        if tool_name == "data.query":
-            spec = self._query_spec(arguments)
-            return f"بحثت في {spec.get('doctype') or 'السجلات'}"
-        if tool_name == "data.count":
-            return f"عديت سجلات {arguments.get('doctype') or 'النظام'}"
-        if tool_name == "reports.run":
-            return f"شغلت التقرير {arguments.get('report_name') or arguments.get('name') or arguments.get('report') or ''}".strip()
-        if tool_name == "skills.load":
-            return f"تحميل المهارة {arguments.get('skill_name') or ''}".strip()
-        return f"تنفيذ {tool_name}"
-
-    def _query_spec(self, arguments):
-        spec = arguments.get("specification") if isinstance(arguments, dict) else None
-        if isinstance(spec, dict):
-            return spec
-        return arguments if isinstance(arguments, dict) else {}
-
-    def _human_fields(self, fields):
-        if not fields:
-            return "الحقول الأساسية"
-        labels = []
-        for field in fields[:8]:
-            if isinstance(field, dict):
-                name = field.get("alias") or field.get("field") or field.get("aggregate")
-                aggregate = field.get("aggregate")
-                labels.append(f"{aggregate}({field.get('field')}) as {name}" if aggregate else str(name))
-            else:
-                labels.append(str(field))
-        suffix = "..." if len(fields) > 8 else ""
-        return ", ".join(labels) + suffix
-
-    def _human_filters(self, filters):
-        if not filters:
-            return ""
-        if isinstance(filters, dict):
-            items = [f"{key}={value}" for key, value in list(filters.items())[:8]]
-            suffix = "..." if len(filters) > 8 else ""
-            return f" مع الفلاتر: {', '.join(items)}{suffix}"
-        if isinstance(filters, list):
-            items = []
-            for flt in filters[:8]:
-                if isinstance(flt, dict):
-                    items.append(
-                        f"{flt.get('field')} {flt.get('operator') or '='} {flt.get('value')}"
-                    )
-                elif isinstance(flt, (list, tuple)) and len(flt) >= 3:
-                    items.append(f"{flt[0]} {flt[1]} {flt[2]}")
-                else:
-                    items.append(str(flt))
-            suffix = "..." if len(filters) > 8 else ""
-            return f" مع الفلاتر: {', '.join(items)}{suffix}"
-        return f" مع الفلاتر: {self._compact_summary(filters, limit=300)}"
-
-    def _compact_summary(self, value, limit=900):
-        text = json.dumps(value, ensure_ascii=False, default=str)
-        if len(text) > limit:
-            return text[:limit].rstrip() + "..."
-        return text
-
-    def _compact_tool_result_for_model(self, tool_name, result):
-        if not isinstance(result, dict):
-            return result
-
-        if tool_name == "reports.run":
-            return {
-                "report": result.get("report"),
-                "filters": result.get("filters"),
-                "row_count": result.get("row_count"),
-                "summary": result.get("summary"),
-                "sample_rows": (result.get("result") or [])[:20],
-                "is_truncated": result.get("is_truncated"),
-                "payload_mode": result.get("payload_mode"),
-                "prepared_report": result.get("prepared_report"),
-                "prepared_report_name": result.get("prepared_report_name"),
-                "prepared_status": result.get("prepared_status"),
-                "is_pending": result.get("is_pending"),
-                "created_prepared_report": result.get("created_prepared_report"),
-                "message": result.get("message"),
-                "model_note": "Use summary first; request raw rows only if the user explicitly asks for row-level detail.",
-            }
-
-        if tool_name == "data.query" and "rows" in result:
-            rows = result.get("rows") or []
-            return {
-                "row_count": result.get("row_count", len(rows)),
-                "rows": rows[:50],
-                "truncated": result.get("truncated") or len(rows) > 50,
-                "model_note": "Rows are capped for context efficiency; use aggregation or narrower filters for more detail.",
-            }
-
-        if tool_name.startswith("actions."):
-            compact = {
-                key: result.get(key)
-                for key in (
-                    "doctype", "valid", "errors", "missing_fields", "approval_required",
-                    "approval_id", "approval_status", "action_summary",
-                )
-                if key in result
-            }
-            payload = result.get("payload")
-            if isinstance(payload, dict):
-                compact["payload_summary"] = self._summarize_payload(payload)
-                compact["payload_hash"] = hashlib.sha256(
-                    json.dumps(payload, sort_keys=True, default=str).encode()
-                ).hexdigest()
-                compact["payload_omitted_for_context"] = True
-            return compact or result
-
-        return result
-
-    def _tool_result_content_for_model(self, tool_name, result):
-        """Apply the registered tool's model-context limit."""
-        content = json.dumps(result, default=str, ensure_ascii=False)
-        tool = self.tool_registry.get_tool(tool_name) or {}
-        limit = cint(tool.get("model_result_max_chars")) or 4000
-        return content[:limit]
-
-    def _summarize_payload(self, payload):
-        if not isinstance(payload, dict):
-            return {"type": type(payload).__name__}
-
-        scalar_fields = []
-        child_tables = []
-        total_child_rows = 0
-        nested_objects = []
-
-        for field, value in payload.items():
-            if isinstance(value, list):
-                row_count = len(value)
-                total_child_rows += row_count
-                sample_keys = []
-                for row in value[:1]:
-                    if isinstance(row, dict):
-                        sample_keys = list(row.keys())[:20]
-                child_tables.append({
-                    "field": field,
-                    "rows": row_count,
-                    "sample_fields": sample_keys,
-                })
-            elif isinstance(value, dict):
-                nested_objects.append({"field": field, "fields": list(value.keys())[:20]})
-            else:
-                scalar_fields.append(field)
-
-        payload_json = json.dumps(payload, sort_keys=True, default=str)
-        return {
-            "field_count": len(payload),
-            "scalar_fields": scalar_fields[:40],
-            "child_tables": child_tables,
-            "nested_objects": nested_objects,
-            "total_child_rows": total_child_rows,
-            "estimated_bytes": len(payload_json.encode()),
-            "is_large": len(payload_json) > 4000 or total_child_rows > 50,
-        }
 
     def _handle_action_tool(self, tool_name, arguments):
         """Handle action tools through the approval engine.
@@ -1645,12 +1199,6 @@ class Orchestrator:
         # and mangle valid Markdown answers.
         return self._current_skill_policy().get("response_format") == "JSON Object"
 
-    def _valid_required_json(self, payload):
-        if not isinstance(payload, dict):
-            return False
-        required_keys = self._current_skill_policy().get("required_output_keys") or []
-        return all(key in payload for key in required_keys)
-
     def _current_skill_policy(self):
         policies = [
             skill.get("runtime_policy") or {}
@@ -1704,10 +1252,6 @@ class Orchestrator:
         for key in self._current_skill_policy().get("required_output_keys") or []:
             fallback.setdefault(key, [])
         return fallback
-
-    def _agent_model(self):
-        settings = frappe.get_doc("AI Settings")
-        return self.agent.get("model") or settings.default_model
 
     def _extract_json_object(self, text):
         cleaned = str(text or "").strip()

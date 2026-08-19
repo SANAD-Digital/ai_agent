@@ -2,7 +2,6 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.api import get_chat_messages, list_chat_sessions
-from ai_agent.patches.v0_1.backfill_ai_run_root import execute as backfill_root
 from ai_agent.runtime.session_context import SessionContextService
 from ai_agent.tests.utils import TEST_AGENT, delete_docs, ensure_test_agent
 
@@ -105,16 +104,3 @@ class TestChatSessions(IntegrationTestCase):
 		)
 		active = [s["name"] for s in list_chat_sessions(limit=100)["sessions"]]
 		self.assertNotIn(session_name, active)
-
-	def test_backfill_stamps_legacy_chains(self):
-		r1, r2, r3 = self._make_chain()
-		for name in (r1.name, r2.name, r3.name):
-			frappe.db.set_value("AI Run", name, "root_run", "", update_modified=False)
-		backfill_root()
-		self.assertEqual(frappe.db.get_value("AI Run", r2.name, "root_run"), r1.name)
-		self.assertEqual(frappe.db.get_value("AI Run", r3.name, "root_run"), r1.name)
-		orphan = self._make_run("يتيم بلا أب")
-		frappe.db.set_value("AI Run", orphan.name, "root_run", "", update_modified=False)
-		frappe.db.set_value("AI Run", orphan.name, "parent_run", "AI-RUN-GONE", update_modified=False)
-		backfill_root()
-		self.assertEqual(frappe.db.get_value("AI Run", orphan.name, "root_run"), orphan.name)

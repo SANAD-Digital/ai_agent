@@ -96,6 +96,77 @@ class TestApprovalLearning(MemoryTestBase):
 		self.assertEqual(row[0].scope, "Company")
 		self.assertIn("5110", row[0].mapping_json)
 
+	def test_learns_supplier_expense_account_from_pi_payload(self):
+		run = make_test_run()
+		self._runs.append(run.name)
+		company = frappe.get_all("Company", pluck="name", limit_page_length=1)
+		if not company:
+			self.skipTest("No Company on this site")
+		marker = f"مورد فاتورة {frappe.generate_hash(length=6)}"
+		payload = {
+			"doctype": "Purchase Invoice",
+			"company": company[0],
+			"supplier": marker,
+			"items": [
+				{"item_code": "A", "expense_account": "5200 - مصاريف عمومية"},
+				{"item_code": "B", "expense_account": "5200 - مصاريف عمومية"},
+				{"item_code": "C", "expense_account": "5300 - أخرى"},
+			],
+		}
+		approval = frappe._dict(
+			name="TEST-APR-PI",
+			run=run.name,
+			action_type="Create",
+			doctype_name="Purchase Invoice",
+			requested_by="Administrator",
+			payload_json=json.dumps(payload, ensure_ascii=False),
+		)
+		self.assertEqual(learn_from_executed_approval(approval), 1)
+		row = frappe.get_all(
+			"AI Memory",
+			filters={"entity_key": normalize_entity_key(marker)},
+			fields=["name", "mapping_json"],
+		)
+		self.assertEqual(len(row), 1)
+		self._created.append(row[0].name)
+		self.assertIn("5200", row[0].mapping_json)
+		self.assertNotIn("5300", row[0].mapping_json)
+
+	def test_update_approval_corrects_the_mapping(self):
+		run = make_test_run()
+		self._runs.append(run.name)
+		company = frappe.get_all("Company", pluck="name", limit_page_length=1)
+		if not company:
+			self.skipTest("No Company on this site")
+		marker = f"مورد تصحيح {frappe.generate_hash(length=6)}"
+
+		def approval_for(action_type, account):
+			return frappe._dict(
+				name=f"TEST-APR-{action_type}",
+				run=run.name,
+				action_type=action_type,
+				doctype_name="Journal Entry",
+				document_name=None,
+				requested_by="Administrator",
+				payload_json=json.dumps({
+					"doctype": "Journal Entry",
+					"company": company[0],
+					"accounts": [{"account": account, "custom_cash_supplier": marker}],
+				}, ensure_ascii=False),
+			)
+
+		learn_from_executed_approval(approval_for("Create", "5111 - خاطئ"))
+		learn_from_executed_approval(approval_for("Update", "5112 - صحيح"))
+		rows = frappe.get_all(
+			"AI Memory",
+			filters={"entity_key": normalize_entity_key(marker)},
+			fields=["name", "mapping_json", "usage_count"],
+		)
+		self.assertEqual(len(rows), 1)
+		self._created.append(rows[0].name)
+		self.assertIn("5112", rows[0].mapping_json)
+		self.assertEqual(rows[0].usage_count, 2)
+
 	def test_disabled_memory_agent_learns_nothing(self):
 		run = make_test_run()
 		self._runs.append(run.name)

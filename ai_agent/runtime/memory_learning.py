@@ -8,20 +8,25 @@ company, latest approval wins).
 """
 
 import json
+from collections import Counter
 
 import frappe
 
 from ai_agent.runtime.memory_service import MemoryService
 
-LEARNABLE_DOCTYPES = {"Journal Entry"}
+LEARNABLE_DOCTYPES = {"Journal Entry", "Purchase Invoice"}
 
 
 def learn_from_executed_approval(approval):
-    """Best-effort mapping extraction from an executed Create/Bulk Create."""
+    """Best-effort mapping extraction from an executed approval.
+
+    Creates carry the full document payload; Updates carry the corrected
+    fields a human explicitly fixed — the strongest learning signal of all.
+    """
     service = MemoryService()
     if not service.is_enabled():
         return 0
-    if approval.action_type not in ("Create", "Bulk Create"):
+    if approval.action_type not in ("Create", "Bulk Create", "Update"):
         return 0
 
     run_agent = (
@@ -44,10 +49,26 @@ def learn_from_executed_approval(approval):
     for document in documents:
         if not isinstance(document, dict):
             continue
-        if (document.get("doctype") or approval.doctype_name) not in LEARNABLE_DOCTYPES:
+        doc_type = document.get("doctype") or approval.doctype_name
+        if doc_type not in LEARNABLE_DOCTYPES:
             continue
-        learned += _learn_journal_entry_mappings(service, approval, document, run_agent)
+        if approval.action_type == "Update":
+            document = _complete_update_document(approval, document)
+        if doc_type == "Journal Entry":
+            learned += _learn_journal_entry_mappings(service, approval, document, run_agent)
+        elif doc_type == "Purchase Invoice":
+            learned += _learn_purchase_invoice_mapping(service, approval, document, run_agent)
     return learned
+
+
+def _complete_update_document(approval, document):
+    """Update payloads are partial; pull the company from the saved document."""
+    completed = dict(document)
+    if not completed.get("company") and approval.document_name:
+        completed["company"] = frappe.db.get_value(
+            approval.doctype_name, approval.document_name, "company"
+        )
+    return completed
 
 
 def _learn_journal_entry_mappings(service, approval, document, run_agent):
@@ -84,6 +105,41 @@ def _learn_journal_entry_mappings(service, approval, document, run_agent):
         if memory:
             learned += 1
     return learned
+
+
+def _learn_purchase_invoice_mapping(service, approval, document, run_agent):
+    """One supplier→expense-account fact per approved invoice (majority vote
+    across item rows when they disagree)."""
+    supplier = document.get("supplier")
+    company = document.get("company")
+    if not supplier or (not company and not run_agent):
+        return 0
+
+    accounts = [
+        row.get("expense_account")
+        for row in document.get("items") or []
+        if isinstance(row, dict) and row.get("expense_account")
+    ]
+    if not accounts:
+        return 0
+    top_account = Counter(accounts).most_common(1)[0][0]
+
+    memory = service.store(
+        user=approval.requested_by,
+        scope="Company" if company else "Agent",
+        memory_type="Mapping",
+        content=(
+            f"Supplier '{supplier}' → expense account '{top_account}' "
+            "(learned from an approved Purchase Invoice)."
+        ),
+        company=company,
+        agent=run_agent,
+        sensitivity="Medium",
+        entity_type="Supplier",
+        entity_key=supplier,
+        mapping={"expense_account": top_account},
+    )
+    return 1 if memory else 0
 
 
 def _row_entity(row):

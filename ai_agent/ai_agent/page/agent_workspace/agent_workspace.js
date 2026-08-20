@@ -545,11 +545,13 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     }
 
     function interactive_response_from_content(content) {
-        const parsed = parse_json_response(content);
+        const extracted = parse_json_response(content);
+        const parsed = extracted?.parsed;
         const ui = parsed?.ui;
         if (!ui || typeof ui !== "object") return null;
         return {
             payload: parsed,
+            lead_text: String(extracted.lead || "").trim(),
             reply_markdown: String(parsed.reply_markdown || ui.reply_markdown || ""),
             sections: Array.isArray(ui.sections) ? ui.sections.slice(0, 12) : [],
             questions: Array.isArray(ui.questions) ? ui.questions.slice(0, 20) : [],
@@ -565,10 +567,48 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             .trim();
         if (!candidate) return null;
         try {
-            return JSON.parse(candidate);
+            return { parsed: JSON.parse(candidate), lead: "" };
         } catch (error) {
-            return null;
+            // Models often prefix the JSON contract with prose ("here is the
+            // report picker: {...}"). Extract the first balanced object so the
+            // interactive UI still renders instead of showing raw JSON.
+            return extract_embedded_json(candidate);
         }
+    }
+
+    function extract_embedded_json(text) {
+        let start = text.indexOf("{");
+        while (start !== -1) {
+            let depth = 0;
+            let inString = false;
+            let escaped = false;
+            for (let i = start; i < text.length; i += 1) {
+                const char = text[i];
+                if (inString) {
+                    if (escaped) escaped = false;
+                    else if (char === "\\") escaped = true;
+                    else if (char === '"') inString = false;
+                    continue;
+                }
+                if (char === '"') inString = true;
+                else if (char === "{") depth += 1;
+                else if (char === "}") {
+                    depth -= 1;
+                    if (depth === 0) {
+                        try {
+                            return {
+                                parsed: JSON.parse(text.slice(start, i + 1)),
+                                lead: text.slice(0, start),
+                            };
+                        } catch (error) {
+                            break;
+                        }
+                    }
+                }
+            }
+            start = text.indexOf("{", start + 1);
+        }
+        return null;
     }
 
     function render_interactive_response(runName, response) {
@@ -577,6 +617,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         ));
         return `
             <section class="interactive-response" data-run="${escape_attr(runName)}">
+                ${response.lead_text ? `<div class="interactive-reply">${safe_markdown(response.lead_text)}</div>` : ""}
                 ${response.reply_markdown ? `<div class="interactive-reply">${safe_markdown(response.reply_markdown)}</div>` : ""}
                 ${response.sections.map(render_interactive_section).join("")}
                 ${render_interactive_questions(runName, response.questions)}

@@ -16,7 +16,7 @@
    "fieldname": "tool_name",
    "fieldtype": "Select",
    "label": "Tool Name",
-   "options": "actions.prepare_document\nactions.request_bulk_create\nactions.request_cancel\nactions.request_create_draft\nactions.request_submit\nactions.request_update\nactions.request_workflow_action\nactions.validate_document\nartifacts.create_chart\nartifacts.create_document_links\nartifacts.create_table\ndata.count\ndata.get_child_records\ndata.get_document\ndata.query\nreports.describe\nreports.run\nreports.search\nschema.describe_doctype\nschema.describe_links\nschema.describe_workflow\nschema.search_doctypes\nskills.list\nskills.load\nskills.read_reference",
+   "options": "actions.prepare_document\nactions.request_bulk_create\nactions.request_cancel\nactions.request_create_draft\nactions.request_submit\nactions.request_update\nactions.request_workflow_action\nactions.validate_document\nartifacts.create_chart\nartifacts.create_document_links\nartifacts.create_table\ndata.count\ndata.get_child_records\ndata.get_document\ndata.query\nfinancial_attachments.get_session_ocr_text\nmemory.search\nmemory.store_context\nreports.describe\nreports.run\nreports.search\nschema.describe_doctype\nschema.describe_links\nschema.describe_workflow\nschema.search_doctypes\nskills.list\nskills.load\nskills.read_reference",
    "reqd": 1,
    "in_list_view": 1
   },

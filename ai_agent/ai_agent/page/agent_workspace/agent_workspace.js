@@ -17,11 +17,16 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         <div class="agent-chat-shell">
             <aside class="agent-chat-sidebar">
                 <div class="chat-sidebar-head">
-                    <div>
-                        <div class="chat-kicker">${__("AI Agent")}</div>
-                        <h3>${__("Chats")}</h3>
+                    <div class="aw-brand">
+                        <span class="aw-brand-mark" aria-hidden="true">✦</span>
+                        <div>
+                            <div class="chat-kicker">${__("AI Agent")}</div>
+                            <h3>${__("Chats")}</h3>
+                        </div>
                     </div>
-                    <button class="btn btn-primary btn-sm" id="btn-new-chat">${__("New")}</button>
+                    <button class="btn aw-new-chat" id="btn-new-chat">
+                        <span aria-hidden="true">＋</span> ${__("New")}
+                    </button>
                 </div>
                 <div class="chat-agent-controls">
                     <div id="agent-select"></div>
@@ -35,9 +40,12 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
 
             <section class="agent-chat-main">
                 <header class="chat-topbar">
-                    <div>
-                        <div class="chat-kicker">${__("ERP assistant")}</div>
-                        <h2 id="chat-title">${__("New chat")}</h2>
+                    <div class="aw-topbar-info">
+                        <span class="aw-chat-avatar" aria-hidden="true">✦</span>
+                        <div>
+                            <h2 id="chat-title">${__("New chat")}</h2>
+                            <div class="chat-kicker">${__("ERP assistant")}</div>
+                        </div>
                     </div>
                     <div id="run-status" class="chat-run-status"></div>
                 </header>
@@ -50,17 +58,25 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                 </div>
 
                 <footer class="chat-composer">
-                    <div class="composer-input-wrap">
-                        <textarea id="prompt-input" class="form-control" rows="1" placeholder="${__("Ask about sales, invoices, stock, customers...")}"></textarea>
-                        <div id="attached-files" class="attached-files"></div>
-                        <input id="file-input" type="file" multiple hidden
-                            accept=".csv,.json,.txt,.md,.log,.pdf,.xlsx,.xls,.png,.jpg,.jpeg,.webp">
-                    </div>
-                    <div class="composer-actions">
-                        <button class="btn btn-default btn-sm voice-btn" id="btn-voice" title="${__("Dictate with voice")}" aria-label="${__("Dictate with voice")}">🎙️</button>
-                        <button class="btn btn-default btn-sm" id="btn-attach" title="${__("Attach files")}">📎</button>
-                        <button class="btn btn-default btn-sm" id="btn-cancel" style="display:none">${__("Cancel")}</button>
-                        <button class="btn btn-primary btn-sm" id="btn-send">${__("Send")}</button>
+                    <div class="aw-composer-panel">
+                        <div class="composer-input-wrap">
+                            <textarea id="prompt-input" class="form-control" rows="1" placeholder="${__("Ask about sales, invoices, stock, customers...")}"></textarea>
+                            <div id="attached-files" class="attached-files"></div>
+                            <input id="file-input" type="file" multiple hidden
+                                accept=".csv,.json,.txt,.md,.log,.pdf,.xlsx,.xls,.png,.jpg,.jpeg,.webp">
+                        </div>
+                        <div class="composer-actions">
+                            <div class="aw-composer-tools">
+                                <button class="btn aw-tool-btn voice-btn" id="btn-voice" title="${__("Dictate with voice")}" aria-label="${__("Dictate with voice")}">🎙️</button>
+                                <button class="btn aw-tool-btn" id="btn-attach" title="${__("Attach files")}" aria-label="${__("Attach files")}">📎</button>
+                            </div>
+                            <div class="aw-composer-submit">
+                                <button class="btn btn-default btn-sm" id="btn-cancel" style="display:none">${__("Cancel")}</button>
+                                <button class="btn aw-send-btn" id="btn-send" title="${__("Send")}" aria-label="${__("Send")}">
+                                    <span aria-hidden="true">↑</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </footer>
             </section>
@@ -2092,6 +2108,7 @@ function inject_layout_fix() {
     $("#ai-agent-layout-fix").remove();
     $("head").append(`
         <style id="ai-agent-layout-fix">
+            /* Height plumbing only — all visual styling lives in agent_workspace.css. */
             .agent-workspace-main {
                 min-height: 540px !important;
                 overflow: hidden !important;
@@ -2105,26 +2122,15 @@ function inject_layout_fix() {
             .agent-chat-main {
                 height: 100% !important;
                 min-height: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                overflow: hidden !important;
             }
             .chat-messages {
                 flex: 1 1 auto !important;
                 min-height: 0 !important;
                 overflow-y: auto !important;
-                padding: 22px !important;
             }
             .chat-composer {
                 flex: 0 0 auto !important;
                 position: relative !important;
-                top: auto !important;
-                right: auto !important;
-                bottom: auto !important;
-                left: auto !important;
-                z-index: 5 !important;
-                border-radius: 0 !important;
-                border-width: 1px 0 0 !important;
             }
         </style>
     `);

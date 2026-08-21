@@ -903,3 +903,60 @@
 .artifact-card.loading { opacity: 0.55; pointer-events: none; }
 
 .work-log-summary-meta.is-complete { color: #16a34a; font-weight: 600; }
+
+/* --- Composer model picker (provider · model pills) -------------------- */
+
+.aw-model-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-inline-start: 6px;
+    padding-inline-start: 8px;
+    border-inline-start: 1px solid var(--aw-line);
+}
+
+.aw-model-picker[hidden] { display: none; }
+
+.aw-pick {
+    appearance: none;
+    -webkit-appearance: none;
+    max-width: 150px;
+    height: 28px;
+    padding: 0 22px 0 10px;
+    border: 1px solid var(--aw-line);
+    border-radius: 999px;
+    background: var(--aw-ground)
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round'/></svg>")
+        no-repeat right 8px center;
+    color: var(--aw-text);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 26px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+[dir="rtl"] .aw-pick {
+    padding: 0 10px 0 22px;
+    background-position: left 8px center;
+}
+
+.aw-pick:hover { border-color: color-mix(in srgb, var(--aw-accent-1) 45%, var(--aw-line)); }
+
+.aw-pick:focus {
+    outline: none;
+    border-color: var(--aw-accent-1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--aw-accent-1) 16%, transparent);
+}
+
+.aw-pick-model { max-width: 190px; }
+
+.aw-pick:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+    .aw-pick { max-width: 110px; }
+    .aw-pick-model { max-width: 130px; }
+}

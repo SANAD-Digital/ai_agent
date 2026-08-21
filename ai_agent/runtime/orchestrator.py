@@ -46,7 +46,7 @@ class Orchestrator:
         self.approval_engine = ApprovalEngine(self.ctx)
         self.context_builder = ContextBuilder()
         self.memory = MemoryService()
-        self.provider = get_provider()
+        self.provider = get_provider(self.run.get("provider"))
         self.tool_gateway = ToolGateway(self.ctx, self.tool_registry)
         self.action_interceptor = ActionInterceptor(
             run_name=self.run_name,

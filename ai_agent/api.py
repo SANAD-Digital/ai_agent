@@ -21,7 +21,7 @@ ALLOWED_ATTACHMENT_EXTENSIONS = {
     ".csv", ".json", ".txt", ".md", ".log", ".pdf", ".xlsx", ".xls", ".png", ".jpg", ".jpeg", ".webp",
 }
 CHAT_RUN_FIELDS = [
-    "name", "agent", "company", "prompt", "status", "final_answer",
+    "name", "agent", "company", "provider", "model", "prompt", "status", "final_answer",
     "error_summary", "parent_run", "creation", "modified", "started_at",
     "completed_at", "current_step", "tool_call_count", "input_tokens",
     "output_tokens",
@@ -29,10 +29,13 @@ CHAT_RUN_FIELDS = [
 
 
 @frappe.whitelist()
-def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=None, attachments=None):
+def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=None, attachments=None,
+               provider=None, model=None):
     """Create a new AI Run."""
     if frappe.session.user == "Guest":
         frappe.throw(_("Guest users cannot create runs."))
+
+    provider, model = _resolve_run_provider_and_model(provider, model, parent_run)
 
     settings = frappe.get_cached_doc("AI Settings")
     if not settings.enabled:
@@ -72,6 +75,8 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
         "prompt": prompt,
         "status": "Queued",
         "parent_run": parent_run,
+        "provider": provider,
+        "model": model,
         "idempotency_key": idempotency_key or "",
         "started_at": frappe.utils.now_datetime(),
     })
@@ -103,6 +108,49 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
         "compact_session_name": _agent_compact_session_name(agent_doc),
         "execution_status": _run_execution_status(run),
     }
+
+
+def _resolve_run_provider_and_model(provider, model, parent_run):
+    """Explicit choice wins; a follow-up message inherits the parent's
+    provider/model so a conversation stays on one model unless changed."""
+    provider = str(provider or "").strip()
+    model = str(model or "").strip()[:140]
+    if not provider and not model and parent_run:
+        parent = frappe.db.get_value("AI Run", parent_run, ["provider", "model"], as_dict=True)
+        if parent:
+            provider = parent.provider or ""
+            model = parent.model or ""
+    if provider:
+        if not frappe.db.exists("AI Provider", {"name": provider, "enabled": 1}):
+            frappe.throw(_("AI Provider not found or disabled."))
+    return provider or None, model or None
+
+
+@frappe.whitelist()
+def list_available_providers():
+    """Enabled AI Providers with their selectable models (no secrets)."""
+    if not frappe.db.exists("DocType", "AI Provider"):
+        return {"providers": []}
+    providers = frappe.get_all(
+        "AI Provider",
+        filters={"enabled": 1},
+        fields=["name", "provider_name", "provider_type", "default_model", "is_default", "description"],
+        order_by="is_default desc, provider_name asc",
+    )
+    for provider in providers:
+        rows = frappe.get_all(
+            "AI Provider Model",
+            filters={"parent": provider.name, "parenttype": "AI Provider"},
+            fields=["model_name", "label", "is_default", "supports_vision", "context_window_tokens"],
+            order_by="idx asc",
+        )
+        provider["models"] = rows
+        if not provider.default_model:
+            provider["default_model"] = next(
+                (row.model_name for row in rows if row.is_default),
+                rows[0].model_name if rows else "",
+            )
+    return {"providers": providers}
 
 
 def _save_run_attachments(run_name, attachments):
@@ -297,6 +345,8 @@ def get_chat_messages(root_run):
         "latest_run": latest.name if latest else root_name,
         "latest_agent": latest.agent if latest else None,
         "latest_company": latest.company if latest else None,
+        "latest_provider": latest.get("provider") if latest else None,
+        "latest_model": latest.get("model") if latest else None,
         "compact_session_name": _agent_compact_session_name(latest.agent) if latest else "",
         "messages": messages,
     }

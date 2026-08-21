@@ -327,22 +327,125 @@ class OpenAICompatibleProvider(AgentModelProvider):
         return formatted
 
 
-def get_provider():
-    """Get the configured model provider.
+class ProviderConfig:
+    """Settings-shaped view over an AI Provider record, falling back to the
+    global AI Settings for anything the provider leaves blank."""
 
-    Every supported provider_type (OpenAI, OpenAI Compatible, Ollama) speaks
-    the OpenAI-compatible protocol; base_url selection happens in __init__.
-    """
-    return OpenAICompatibleProvider(frappe.get_cached_doc("AI Settings"))
+    def __init__(self, provider_doc, settings):
+        self._doc = provider_doc
+        self.name = provider_doc.name
+        self.provider_type = provider_doc.provider_type or "OpenAI Compatible"
+        self.base_url = provider_doc.base_url or ""
+        self.default_model = (
+            provider_doc.default_model
+            or provider_default_model(provider_doc)
+            or settings.default_model
+        )
+        self.request_timeout = provider_doc.request_timeout or settings.request_timeout
+        self.strict_tool_calling = (
+            provider_doc.strict_tool_calling
+            if provider_doc.strict_tool_calling is not None
+            else settings.get("strict_tool_calling")
+        )
+        self.default_reasoning_effort = (
+            provider_doc.default_reasoning_effort or settings.get("default_reasoning_effort")
+        )
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    def get_password(self, fieldname):
+        return self._doc.get_password(fieldname)
+
+
+def provider_default_model(provider_doc):
+    if not provider_doc:
+        return ""
+    if provider_doc.default_model:
+        return provider_doc.default_model
+    rows = provider_doc.get("models") or []
+    for row in rows:
+        if row.is_default and row.model_name:
+            return row.model_name
+    return rows[0].model_name if rows and rows[0].model_name else ""
+
+
+def _providers_available():
+    return bool(frappe.db.exists("DocType", "AI Provider"))
+
+
+def resolve_provider_doc(provider_name=None):
+    """Explicit provider (must be enabled) or the default one; None means
+    'use the legacy AI Settings connection'."""
+    if not _providers_available():
+        return None
+    if provider_name:
+        if not frappe.db.exists("AI Provider", {"name": provider_name, "enabled": 1}):
+            raise ModelProviderError(f"AI Provider '{provider_name}' is not available.")
+        return frappe.get_cached_doc("AI Provider", provider_name)
+    default_name = frappe.db.get_value("AI Provider", {"is_default": 1, "enabled": 1}, "name")
+    return frappe.get_cached_doc("AI Provider", default_name) if default_name else None
+
+
+def resolve_run_model(run_doc=None, agent_doc=None):
+    """Model precedence: run.model > (explicitly chosen provider's default) >
+    agent.model > default provider's default > AI Settings."""
+    settings = frappe.get_cached_doc("AI Settings")
+    run_model = (run_doc.get("model") if run_doc else None) or ""
+    if run_model.strip():
+        return run_model.strip()
+    explicit_provider = (run_doc.get("provider") if run_doc else None) or ""
+    provider_doc = resolve_provider_doc(explicit_provider or None)
+    if explicit_provider and provider_default_model(provider_doc):
+        return provider_default_model(provider_doc)
+    agent_model = (agent_doc.get("model") if agent_doc else None) or ""
+    if agent_model.strip():
+        return agent_model.strip()
+    if provider_default_model(provider_doc):
+        return provider_default_model(provider_doc)
+    return settings.default_model
+
+
+def resolve_run_base_url(run_doc=None):
+    provider_doc = resolve_provider_doc((run_doc.get("provider") if run_doc else None) or None)
+    if provider_doc and provider_doc.base_url:
+        return provider_doc.base_url
+    return frappe.get_cached_doc("AI Settings").base_url or ""
+
+
+def get_provider(provider_name=None):
+    """Build the model client for one AI Provider record (explicit or the
+    default one), or for the legacy AI Settings connection when no provider
+    records exist. Every supported type speaks the OpenAI chat protocol."""
+    settings = frappe.get_cached_doc("AI Settings")
+    provider_doc = resolve_provider_doc(provider_name)
+    if provider_doc:
+        return OpenAICompatibleProvider(ProviderConfig(provider_doc, settings))
+    return OpenAICompatibleProvider(settings)
 
 
 def _configured_model_capability(model=None):
-    """First matching row from the AI Settings model-capability table, if any."""
+    """Capability row for a model: an AI Provider Model entry with an exact
+    name match wins, then the AI Settings pattern table."""
+    text = str(model or "").lower()
+    if text and _providers_available():
+        rows = frappe.get_all(
+            "AI Provider Model",
+            filters={"model_name": model, "parenttype": "AI Provider"},
+            fields=["model_name", "context_window_tokens", "supports_vision"],
+            limit_page_length=1,
+        )
+        if rows:
+            row = rows[0]
+            return frappe._dict(
+                model_pattern=row.model_name,
+                context_window_tokens=row.context_window_tokens,
+                supports_vision=row.supports_vision,
+            )
     try:
         rows = frappe.get_cached_doc("AI Settings").get("model_capabilities") or []
     except Exception:
         return None
-    text = str(model or "").lower()
     for row in rows:
         pattern = str(row.get("model_pattern") or "").strip().lower()
         if pattern and pattern in text:

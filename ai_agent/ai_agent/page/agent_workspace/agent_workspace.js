@@ -31,6 +31,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                 <div class="chat-agent-controls">
                     <div id="agent-select"></div>
                     <div id="company-select"></div>
+                    <div id="provider-select"></div>
+                    <div id="model-select"></div>
                 </div>
                 <div class="chat-sessions-title">${__("Recent Sessions")}</div>
                 <input id="session-search" class="form-control session-search" type="search"
@@ -95,6 +97,13 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     let agentsByName = {};
     let currentSessionAgent = null;
     let currentSessionCompany = null;
+    let currentSessionProvider = null;
+    let currentSessionModel = null;
+    let providersByName = {};
+    let selectedProvider = null;
+    let selectedModel = null;
+    let providerControl = null;
+    let modelControl = null;
     let currentCompactSessionName = "";
     let suppressAgentChange = false;
     let suppressCompanyChange = false;
@@ -169,7 +178,76 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             },
             render_input: true,
         });
+        setup_provider_controls();
         start_workspace_request_if_ready();
+    }
+
+    function setup_provider_controls() {
+        frappe.xcall("ai_agent.api.list_available_providers").then((result) => {
+            const providers = result?.providers || [];
+            providersByName = Object.fromEntries(providers.map((provider) => [provider.name, provider]));
+            if (!providers.length) {
+                page.main.find("#provider-select, #model-select").hide();
+                return;
+            }
+            const defaultProvider = providers.find((provider) => provider.is_default) || providers[0];
+            selectedProvider = defaultProvider.name;
+            providerControl = frappe.ui.form.make_control({
+                parent: page.main.find("#provider-select"),
+                df: {
+                    fieldtype: "Select",
+                    label: __("Provider"),
+                    options: providers.map((provider) => provider.name).join("\n"),
+                    fieldname: "provider",
+                    onchange: () => {
+                        selectedProvider = providerControl.get_value() || selectedProvider;
+                        rebuild_model_options(selectedProvider, null);
+                    },
+                },
+                render_input: true,
+            });
+            modelControl = frappe.ui.form.make_control({
+                parent: page.main.find("#model-select"),
+                df: {
+                    fieldtype: "Select",
+                    label: __("Model"),
+                    options: "",
+                    fieldname: "model",
+                    onchange: () => {
+                        selectedModel = modelControl.get_value() || null;
+                    },
+                },
+                render_input: true,
+            });
+            providerControl.set_value(selectedProvider);
+            rebuild_model_options(selectedProvider, null);
+        });
+    }
+
+    function rebuild_model_options(providerName, preferredModel) {
+        if (!modelControl) return;
+        const provider = providersByName[providerName] || {};
+        const models = (provider.models || []).map((row) => row.model_name).filter(Boolean);
+        if (provider.default_model && !models.includes(provider.default_model)) {
+            models.unshift(provider.default_model);
+        }
+        modelControl.df.options = models.join("\n");
+        modelControl.refresh();
+        const wanted = preferredModel && models.includes(preferredModel)
+            ? preferredModel
+            : (provider.default_model || models[0] || "");
+        selectedModel = wanted || null;
+        modelControl.set_value(wanted);
+    }
+
+    function sync_provider_controls_to_session() {
+        if (!providerControl) return;
+        const provider = currentSessionProvider || selectedProvider;
+        if (provider && providersByName[provider] && providerControl.get_value() !== provider) {
+            providerControl.set_value(provider);
+            selectedProvider = provider;
+        }
+        rebuild_model_options(selectedProvider, currentSessionModel || null);
     }
 
     function take_workspace_route_request() {
@@ -323,6 +401,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             selectedCompany = currentSessionCompany || "";
             suppressCompanyChange = false;
         }
+        sync_provider_controls_to_session();
     }
 
     function load_sessions() {
@@ -421,6 +500,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             currentRun = result?.latest_run || rootRun;
             currentSessionAgent = result?.latest_agent || currentSessionAgent;
             currentSessionCompany = result?.latest_company || currentSessionCompany;
+            currentSessionProvider = result?.latest_provider || currentSessionProvider;
+            currentSessionModel = result?.latest_model || currentSessionModel;
             currentCompactSessionName = result?.compact_session_name || "";
             sync_controls_to_session();
             page.main.find(".chat-session").removeClass("active");
@@ -1705,6 +1786,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             prompt: finalPrompt,
             company: selectedCompany,
             parent_run: parentRun,
+            provider: selectedProvider,
+            model: selectedModel,
             attachments,
         }).then((result) => {
             if (!result?.run_name) return;
@@ -1712,6 +1795,8 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             currentRoot = parentRun ? (currentRoot || result.run_name) : result.run_name;
             currentSessionAgent = selectedAgent;
             currentSessionCompany = selectedCompany;
+            currentSessionProvider = selectedProvider;
+            currentSessionModel = selectedModel;
             currentCompactSessionName = result.compact_session_name || selected_compact_session_name();
             if (options.clearComposer) {
                 page.main.find("#prompt-input").val("");
@@ -1888,6 +1973,9 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         currentRun = null;
         currentSessionAgent = null;
         currentSessionCompany = null;
+        currentSessionProvider = null;
+        currentSessionModel = null;
+        sync_provider_controls_to_session();
         currentCompactSessionName = selected_compact_session_name();
         set_busy(false);
         page.main.find("#chat-title").text(__("New chat"));

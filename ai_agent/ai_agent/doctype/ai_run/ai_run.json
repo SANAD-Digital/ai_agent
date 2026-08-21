@@ -33,6 +33,20 @@
       "in_standard_filter": 1
     },
     {
+      "fieldname": "provider",
+      "fieldtype": "Link",
+      "options": "AI Provider",
+      "label": "Provider",
+      "search_index": 1,
+      "description": "Model provider chosen for this run; empty means the default provider (or the agent/settings model)."
+    },
+    {
+      "fieldname": "model",
+      "fieldtype": "Data",
+      "label": "Model",
+      "description": "Model id chosen for this run; empty means the provider/agent/settings default."
+    },
+    {
       "fieldname": "user",
       "fieldtype": "Link",
       "label": "User",

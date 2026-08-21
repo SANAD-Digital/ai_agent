@@ -1,0 +1,19 @@
+{
+  "name": "AI Provider Model",
+  "module": "AI Agent",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "istable": 1,
+  "editable_grid": 1,
+  "fields": [
+    {"fieldname": "model_name", "fieldtype": "Data", "label": "Model Name", "reqd": 1, "in_list_view": 1,
+     "description": "Exact model id sent to the API, e.g. gpt-4o, deepseek-chat, llama-3.3-70b"},
+    {"fieldname": "label", "fieldtype": "Data", "label": "Label", "in_list_view": 1},
+    {"fieldname": "is_default", "fieldtype": "Check", "label": "Default", "in_list_view": 1},
+    {"fieldname": "supports_vision", "fieldtype": "Check", "label": "Vision", "in_list_view": 1},
+    {"fieldname": "context_window_tokens", "fieldtype": "Int", "label": "Context Window (tokens)", "in_list_view": 1}
+  ],
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC"
+}

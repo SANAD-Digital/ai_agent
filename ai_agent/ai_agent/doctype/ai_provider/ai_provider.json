@@ -1,0 +1,40 @@
+{
+  "name": "AI Provider",
+  "module": "AI Agent",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "autoname": "field:provider_name",
+  "title_field": "provider_name",
+  "track_changes": 1,
+  "fields": [
+    {"fieldname": "provider_name", "fieldtype": "Data", "label": "Provider Name", "reqd": 1, "unique": 1, "in_list_view": 1},
+    {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "1", "in_list_view": 1},
+    {"fieldname": "is_default", "fieldtype": "Check", "label": "Is Default", "in_list_view": 1,
+     "description": "Used when a run or agent does not pick a provider. Only one provider can be default."},
+    {"fieldname": "cb_identity", "fieldtype": "Column Break"},
+    {"fieldname": "provider_type", "fieldtype": "Select", "label": "Provider Type",
+     "options": "OpenAI\nOpenAI Compatible\nOllama", "default": "OpenAI Compatible", "reqd": 1, "in_list_view": 1,
+     "description": "All types speak the OpenAI chat-completions protocol; DeepSeek, Groq, OpenRouter, Gemini-compat and Ollama are 'OpenAI Compatible' / 'Ollama' with a Base URL."},
+    {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
+    {"fieldname": "section_connection", "fieldtype": "Section Break", "label": "Connection"},
+    {"fieldname": "base_url", "fieldtype": "Data", "label": "Base URL",
+     "description": "e.g. https://api.deepseek.com/v1 or http://localhost:11434/v1 (leave empty for OpenAI)"},
+    {"fieldname": "api_key", "fieldtype": "Password", "label": "API Key"},
+    {"fieldname": "cb_connection", "fieldtype": "Column Break"},
+    {"fieldname": "request_timeout", "fieldtype": "Int", "label": "Request Timeout (seconds)",
+     "description": "Leave empty to use AI Settings"},
+    {"fieldname": "strict_tool_calling", "fieldtype": "Check", "label": "Strict Tool Calling"},
+    {"fieldname": "default_reasoning_effort", "fieldtype": "Select", "label": "Default Reasoning Effort", "options": "\nlow\nmedium\nhigh"},
+    {"fieldname": "section_models", "fieldtype": "Section Break", "label": "Models"},
+    {"fieldname": "default_model", "fieldtype": "Data", "label": "Default Model",
+     "description": "Falls back to the row marked Default in the table, then to AI Settings"},
+    {"fieldname": "models", "fieldtype": "Table", "label": "Available Models", "options": "AI Provider Model",
+     "description": "These appear in the Agent Workspace model picker for this provider."}
+  ],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1},
+    {"role": "All", "read": 1}
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC"
+}

@@ -1,6 +1,6 @@
 import frappe
 from ai_agent.runtime.file_context import FileContextService
-from ai_agent.runtime.model_provider import supports_vision_model
+from ai_agent.runtime.model_provider import resolve_run_base_url, resolve_run_model, supports_vision_model
 from ai_agent.runtime.session_context import SessionContextService
 from ai_agent.runtime.memory_service import MemoryService
 
@@ -63,7 +63,7 @@ If an active skill requires domain keys in the JSON response, keep those keys at
         messages.append({"role": "user", "content": user_message})
 
         settings = frappe.get_cached_doc("AI Settings")
-        model = agent_doc.model or settings.default_model
+        model = resolve_run_model(run_doc, agent_doc)
         reasoning_effort = agent_doc.reasoning_effort or settings.default_reasoning_effort
 
         return {
@@ -205,9 +205,8 @@ If an active skill requires domain keys in the JSON response, keep those keys at
                 f"{file_context}"
             )
 
-        settings = frappe.get_cached_doc("AI Settings")
-        model = (agent_doc.model if agent_doc else None) or settings.default_model
-        base_url = settings.base_url or ""
+        model = resolve_run_model(run_doc, agent_doc)
+        base_url = resolve_run_base_url(run_doc)
         has_visual_files = file_service.has_visual_files(run_doc.name)
         can_use_vision = supports_vision_model(model, base_url)
         if has_visual_files and can_use_vision:

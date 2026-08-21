@@ -18,6 +18,7 @@ def ensure_standard_configuration():
     """Install or refresh app-managed defaults without storing secrets."""
     create_default_settings()
     create_default_gemini_ocr_settings()
+    ensure_default_provider()
     create_default_agents()
     ensure_whatsapp_support_configuration()
     ensure_chatbot_configuration()
@@ -308,6 +309,7 @@ def _ai_workspace_sidebar_items():
             "link_to": "AI Skill Grant",
             "icon": "key-round",
         },
+        {"label": "AI Providers", "type": "Link", "link_type": "DocType", "link_to": "AI Provider", "icon": "settings"},
         {"label": "Settings", "type": "Link", "link_type": "DocType", "link_to": "AI Settings", "icon": "settings"},
     ]
 
@@ -354,6 +356,35 @@ def create_default_settings():
             changed = True
     if changed:
         settings.save(ignore_permissions=True)
+
+
+def ensure_default_provider():
+    """Seed one AI Provider from the legacy AI Settings connection so existing
+    sites keep working unchanged; later providers are managed in the UI."""
+    if not frappe.db.exists("DocType", "AI Provider"):
+        return
+    if frappe.db.count("AI Provider"):
+        return
+    settings = frappe.get_doc("AI Settings", "AI Settings")
+    provider = frappe.get_doc({
+        "doctype": "AI Provider",
+        "provider_name": "Default",
+        "enabled": 1,
+        "is_default": 1,
+        "provider_type": settings.provider_type or "OpenAI",
+        "base_url": settings.base_url or "",
+        "default_model": settings.default_model or "",
+        "description": "Seeded from AI Settings on first migrate. Add more providers (DeepSeek, Groq, Ollama, ...) as separate records.",
+        "models": (
+            [{"model_name": settings.default_model, "is_default": 1}]
+            if settings.default_model else []
+        ),
+    })
+    try:
+        provider.api_key = settings.get_password("api_key") or ""
+    except Exception:
+        provider.api_key = ""
+    provider.insert(ignore_permissions=True)
 
 
 def create_default_gemini_ocr_settings():

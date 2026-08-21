@@ -377,6 +377,21 @@ def scale_blocks_to_original(
     )
 
 
+def heavy_retry_allowed() -> bool:
+    """The heavy profile (server_det + orientation models) needs roughly 3GB;
+    under a tighter worker memory cap it cannot load and only kills the page."""
+    flag = os.environ.get("AI_AGENT_OCR_ALLOW_HEAVY", "auto").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return False
+    if flag in ("1", "true", "yes", "on", "force"):
+        return True
+    try:
+        cap_mb = int(os.environ.get("AI_AGENT_OCR_MEMORY_MB", "0"))
+    except ValueError:
+        cap_mb = 0
+    return cap_mb == 0 or cap_mb >= 3072
+
+
 def create_ocr(PaddleOCR, engine: str = "onnxruntime", profile: str = "fast"):
     is_heavy = profile == "heavy"
     cpu_threads = max(1, int(os.environ.get("AI_AGENT_OCR_CPU_THREADS", "1")))
@@ -390,10 +405,15 @@ def create_ocr(PaddleOCR, engine: str = "onnxruntime", profile: str = "fast"):
         "use_textline_orientation": is_heavy,
         "text_recognition_batch_size": 1,
         "cpu_threads": cpu_threads,
+        # Cap the detector input on BOTH profiles: the heavy server_det had no
+        # limit and requested >500MB buffers on small servers.
+        "text_det_limit_side_len": max(
+            640, int(os.environ.get("AI_AGENT_OCR_DET_LIMIT", "1600"))
+        ),
+        "text_det_limit_type": "max",
     }
     if not is_heavy:
         kwargs.update({
-            "text_det_limit_side_len": 1600,
             "textline_orientation_batch_size": 1,
         })
     if engine:
@@ -596,7 +616,10 @@ def process_one_page(
         )
         extraction_method = "local_ocr_heavy_fallback" if profile == "heavy" else "local_ocr_fast"
 
-        if mode == "adaptive" and is_weak_result(page_result.blocks, min_confidence):
+        wants_heavy = mode == "adaptive" and is_weak_result(page_result.blocks, min_confidence)
+        if wants_heavy and not heavy_retry_allowed():
+            log("[INFO] Weak fast result, but heavy retry is disabled under the current memory cap; keeping the fast result.")
+        if wants_heavy and heavy_retry_allowed():
             if ocr is not None:
                 del ocr
                 ocr = None

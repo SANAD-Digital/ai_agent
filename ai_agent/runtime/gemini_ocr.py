@@ -166,6 +166,10 @@ def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
     if ocr_engine == "Local Engine (PaddleOCR / PyMuPDF)":
         try:
             from ai_agent.runtime.local_ocr import run_local_ocr_bytes
+            # Same downscale/compress pass the cloud path gets: raw high-res
+            # chat attachments made onnxruntime request >500MB buffers and die
+            # under the worker memory cap.
+            data, mime_type = _optimize_image_for_ocr(data, mime_type)
             return run_local_ocr_bytes(data)
         except Exception as exc:
             _set_last_error(str(exc))

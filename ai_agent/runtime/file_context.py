@@ -129,10 +129,12 @@ class FileContextService:
                     "- extraction: OCR\n"
                     f"- text_preview:\n{ocr_text[:MAX_TEXT_CHARS]}"
                 )
+            diagnostics = self._ocr_diagnostics()
             return (
                 f"{header}\n"
                 "- summary: Image file attached. Local OCR is not available or found no text; "
                 "it will be provided to the model visually when the selected model supports vision."
+                + (f"\n- ocr_diagnostics: {'; '.join(diagnostics)}" if diagnostics else "")
             )
 
         if extension not in SUPPORTED_TEXT_EXTENSIONS:
@@ -242,10 +244,12 @@ class FileContextService:
                         "- extraction: OCR from scanned/image PDF\n"
                         f"- text_preview:\n{ocr_text[:MAX_TEXT_CHARS]}"
                     )
+                diagnostics = self._ocr_diagnostics()
                 return (
                     f"- pages: {len(reader.pages)}\n"
                     "- summary: No extractable text found. This is probably a scanned/image PDF. "
                     "Local OCR is not available or found no text; visual pages will be provided to the model when the selected model supports vision."
+                    + (f"\n- ocr_diagnostics: {'; '.join(diagnostics)}" if diagnostics else "")
                 )
             layout_text = self._extract_pdf_layout_text(file_doc)
             detected_rows = self._extract_invoice_like_rows_from_layout(layout_text)
@@ -1116,8 +1120,12 @@ class FileContextService:
             path = get_file_path(file_doc.name)
             filename = file_doc.file_name or file_doc.name
             with open(path, "rb") as file:
-                mime_type = mimetypes.guess_type(filename)[0] or "image/png"
-                return self._ocr_image_bytes(file.read(MAX_VISION_FILE_BYTES), mime_type=mime_type)
+                data = file.read(MAX_VISION_FILE_BYTES + 1)
+            if len(data) > MAX_VISION_FILE_BYTES:
+                # A truncated image is corrupt input, not a smaller image.
+                return ""
+            mime_type = mimetypes.guess_type(filename)[0] or "image/png"
+            return self._ocr_image_bytes(data, mime_type=mime_type)
         except Exception:
             return ""
 

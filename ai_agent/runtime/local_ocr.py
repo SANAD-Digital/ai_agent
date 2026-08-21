@@ -33,6 +33,8 @@ PDF_TEXT_MIN_CHARS = 20
 #   ai_agent_ocr_memory_mb        hard RLIMIT_AS cap on the worker (default 2048)
 #   ai_agent_ocr_min_available_mb required MemAvailable before launching (default 1536)
 #   ai_agent_ocr_memory_wait_seconds  how long to wait for memory (default 60)
+#   ai_agent_ocr_det_limit        detector side limit passed to the worker (default 1600)
+#   ai_agent_ocr_allow_heavy_retry  auto (skip heavy under a <3GB cap) | 1 | 0
 DEFAULT_WORKER_MEMORY_MB = 2048
 DEFAULT_MIN_AVAILABLE_MB = 1536
 DEFAULT_MEMORY_WAIT_SECONDS = 60
@@ -70,6 +72,9 @@ def _runtime_environment() -> dict[str, str]:
     env.update({
         "PYTHONUNBUFFERED": "1",
         "AI_AGENT_OCR_CPU_THREADS": cpu_threads,
+        "AI_AGENT_OCR_DET_LIMIT": str(cint(frappe.conf.get("ai_agent_ocr_det_limit") or 1600)),
+        "AI_AGENT_OCR_MEMORY_MB": str(_worker_memory_mb()),
+        "AI_AGENT_OCR_ALLOW_HEAVY": str(frappe.conf.get("ai_agent_ocr_allow_heavy_retry", "auto")),
         "OMP_NUM_THREADS": cpu_threads,
         "MKL_NUM_THREADS": cpu_threads,
         "OPENBLAS_NUM_THREADS": cpu_threads,

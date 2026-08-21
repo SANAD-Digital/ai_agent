@@ -757,6 +757,25 @@ class Orchestrator:
                 state=state,
             )
             self._record_model_usage(response)
+            if self._is_empty_length_response(response):
+                # The model spent the whole token budget (typically on
+                # reasoning) and returned nothing. Retry once with a larger
+                # budget instead of falling through to the generic fallback.
+                retry_instructions = dict(instructions)
+                current_max = cint(instructions.get("max_tokens")) or 4096
+                retry_instructions["max_tokens"] = max(8192, current_max * 2)
+                retry_instructions["reasoning_effort"] = "low"
+                retry_instructions["max_retries"] = 1
+                response = self.provider.create_step(
+                    instructions=retry_instructions,
+                    input_items=input_items,
+                    tools=tools,
+                    state=state,
+                )
+                self._record_model_usage(response)
+                length_retry = True
+            else:
+                length_retry = False
         except Exception as exc:
             self.trace.complete_step(
                 step.name,
@@ -768,18 +787,28 @@ class Orchestrator:
         choice = (response or {}).get("choices", [{}])[0]
         message = choice.get("message", {}) or {}
         tool_calls = message.get("tool_calls") or []
+        retry_note = " (after a larger-budget retry)" if length_retry else ""
         if tool_calls:
             names = [
                 (call.get("function") or {}).get("name", "")
                 for call in tool_calls
             ]
-            summary = f"Requested {len(tool_calls)} tool call(s): {', '.join(filter(None, names))}"
+            summary = f"Requested {len(tool_calls)} tool call(s): {', '.join(filter(None, names))}{retry_note}"
         elif message.get("content"):
-            summary = f"Produced an answer ({len(str(message.get('content')))} characters)."
+            summary = f"Produced an answer ({len(str(message.get('content')))} characters){retry_note}."
         else:
-            summary = f"Returned no answer (finish reason: {choice.get('finish_reason') or 'unknown'})."
+            summary = f"Returned no answer (finish reason: {choice.get('finish_reason') or 'unknown'}){retry_note}."
         self.trace.complete_step(step.name, summary=summary[:500])
         return response
+
+    def _is_empty_length_response(self, response):
+        choice = (response or {}).get("choices", [{}])[0] if isinstance(response, dict) else {}
+        message = choice.get("message", {}) or {}
+        return (
+            str(choice.get("finish_reason") or "").lower() == "length"
+            and not message.get("tool_calls")
+            and not str(message.get("content") or "").strip()
+        )
 
     def _complete_tool_message_protocol(self, messages):
         """Guarantee one tool response for every assistant tool call before the next turn."""

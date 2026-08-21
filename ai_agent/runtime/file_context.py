@@ -10,9 +10,12 @@ import frappe
 from frappe.utils.file_manager import get_file_path
 
 
-MAX_FILE_CONTEXT_CHARS = 6000
-MAX_SESSION_FILE_CONTEXT_CHARS = 8000
+MAX_FILE_CONTEXT_CHARS = 40000
+MAX_SESSION_FILE_CONTEXT_CHARS = 24000
 MAX_TEXT_CHARS = 4000
+MAX_OCR_TEXT_CHARS = 24000
+MAX_OCR_PDF_PAGES = 10
+FILE_SUMMARY_CACHE_SECONDS = 24 * 3600
 MAX_TABLE_ROWS = 20
 MAX_DETECTED_INVOICE_ROWS = 40
 MAX_PDF_LAYOUT_PAGES = 25
@@ -113,6 +116,22 @@ class FileContextService:
         return [frappe.get_doc("File", name) for name in names]
 
     def summarize_file(self, file_doc):
+        cache_key = f"ai_agent:file_summary:{file_doc.name}:{file_doc.modified}"
+        try:
+            cached = frappe.cache().get_value(cache_key)
+        except Exception:
+            cached = None
+        if cached:
+            return cached
+        summary = self._summarize_file_uncached(file_doc)
+        if summary and ("extraction: OCR" in summary or "text_preview" in summary):
+            try:
+                frappe.cache().set_value(cache_key, summary, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
+            except Exception:
+                pass
+        return summary
+
+    def _summarize_file_uncached(self, file_doc):
         filename = file_doc.file_name or file_doc.name
         extension = os.path.splitext(filename)[1].lower()
         header = (
@@ -127,7 +146,7 @@ class FileContextService:
                 return (
                     f"{header}\n"
                     "- extraction: OCR\n"
-                    f"- text_preview:\n{ocr_text[:MAX_TEXT_CHARS]}"
+                    f"- text_preview:\n{ocr_text[:MAX_OCR_TEXT_CHARS]}"
                 )
             diagnostics = self._ocr_diagnostics()
             return (
@@ -242,7 +261,8 @@ class FileContextService:
                     return (
                         f"- pages: {len(reader.pages)}\n"
                         "- extraction: OCR from scanned/image PDF\n"
-                        f"- text_preview:\n{ocr_text[:MAX_TEXT_CHARS]}"
+                        f"- ocr_pages: {min(len(reader.pages), MAX_OCR_PDF_PAGES)} of {len(reader.pages)}\n"
+                        f"- text_preview:\n{ocr_text[:MAX_OCR_TEXT_CHARS]}"
                     )
                 diagnostics = self._ocr_diagnostics()
                 return (
@@ -287,9 +307,9 @@ class FileContextService:
                     return (
                         f"- pages: {len(reader.pages)}\n"
                         "- extraction: PDF text plus OCR numeric fallback\n"
-                        f"- text_preview:\n{text[:MAX_TEXT_CHARS]}\n"
+                        f"- text_preview:\n{text[:MAX_OCR_TEXT_CHARS]}\n"
                         "- ocr_preview_for_numbers:\n"
-                        f"{ocr_text[:MAX_TEXT_CHARS]}"
+                        f"{ocr_text[:MAX_OCR_TEXT_CHARS]}"
                     )
             return f"- pages: {len(reader.pages)}\n- text_preview:\n{text[:MAX_TEXT_CHARS]}"
         except Exception as error:
@@ -1136,9 +1156,9 @@ class FileContextService:
             path = get_file_path(file_doc.name)
             document = fitz.open(path)
             pages = []
-            for page_index in range(min(len(document), MAX_VISION_PDF_PAGES)):
+            for page_index in range(min(len(document), MAX_OCR_PDF_PAGES)):
                 page = document.load_page(page_index)
-                pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+                pixmap = page.get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72), alpha=False)
                 text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png")
                 if text:
                     pages.append(f"[page {page_index + 1}]\n{text}")

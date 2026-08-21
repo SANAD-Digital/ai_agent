@@ -85,3 +85,22 @@ class TestFinalization(IntegrationTestCase):
 		self._with_compound_policy()
 		answer = '{"invoice_groups": [{"x": 1}], "questions": [], "warnings": [], "errors": []}'
 		self.assertEqual(json.loads(self.orch._ensure_required_json_final(answer)), json.loads(answer))
+
+	def test_empty_length_reply_retries_with_larger_budget(self):
+		from unittest.mock import MagicMock
+
+		empty_length = {"choices": [{"finish_reason": "length", "message": {"content": "", "tool_calls": None}}]}
+		answer = {"choices": [{"finish_reason": "stop", "message": {"content": "الجواب النهائي"}}]}
+		provider = MagicMock()
+		provider.create_step.side_effect = [empty_length, answer]
+		provider.get_usage.return_value = {}
+		self.orch.provider = provider
+		response = self.orch._call_model_step(
+			"test", instructions={"messages": [], "model": "x", "max_tokens": 1500},
+			input_items=[], tools=[], state={},
+		)
+		self.assertEqual(provider.create_step.call_count, 2)
+		retry_kwargs = provider.create_step.call_args_list[1].kwargs
+		self.assertEqual(retry_kwargs["instructions"]["max_tokens"], 8192)
+		self.assertEqual(retry_kwargs["instructions"]["reasoning_effort"], "low")
+		self.assertEqual(response["choices"][0]["message"]["content"], "الجواب النهائي")

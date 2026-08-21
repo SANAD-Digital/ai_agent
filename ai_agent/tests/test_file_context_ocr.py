@@ -52,3 +52,13 @@ class TestFileContextOCR(IntegrationTestCase):
 		self.assertIn("ocr_diagnostics", summary)
 		self.assertIn("300 seconds", summary)
 		frappe.local.gemini_ocr_last_error = ""
+
+	def test_ocr_summary_is_cached_per_file(self):
+		with patch(
+			"ai_agent.runtime.gemini_ocr.gemini_ocr_image_bytes",
+			return_value="نص مخبأ للاختبار",
+		) as mocked:
+			first = self.service.summarize_file(self.file)
+			second = self.service.summarize_file(self.file)
+		self.assertEqual(first, second)
+		self.assertEqual(mocked.call_count, 1)

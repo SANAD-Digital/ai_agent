@@ -728,7 +728,12 @@ class Orchestrator:
             raise RunTimedOut("Run exceeded the configured execution time limit.")
 
     def _add_step(self, step_type, title, summary=""):
-        self.sequence += 1
+        # File-reading progress (and PI page reading) add steps outside this
+        # counter; never reuse their sequence numbers.
+        self.sequence = max(
+            self.sequence + 1,
+            cint(frappe.db.count("AI Run Step", {"run": self.run_name})) + 1,
+        )
         return self.trace.add_step(
             self.run_name, self.sequence, step_type, title, summary
         )

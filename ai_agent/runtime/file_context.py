@@ -40,14 +40,14 @@ FINANCIAL_ATTACHMENT_OCR_PROMPT = (
 class FileContextService:
     """Build compact model context from files attached to an AI Run."""
 
-    def build_context(self, run_name):
+    def build_context(self, run_name, progress_run=None):
         files = self.get_run_files(run_name)
         if not files:
             return ""
 
         sections = []
         for file_doc in files[:5]:
-            sections.append(self.summarize_file(file_doc))
+            sections.append(self.summarize_file(file_doc, progress_run=progress_run))
 
         text = "\n\n".join(section for section in sections if section)
         if len(text) > MAX_FILE_CONTEXT_CHARS:
@@ -115,7 +115,7 @@ class FileContextService:
         )
         return [frappe.get_doc("File", name) for name in names]
 
-    def summarize_file(self, file_doc):
+    def summarize_file(self, file_doc, progress_run=None):
         cache_key = f"ai_agent:file_summary:{file_doc.name}:{file_doc.modified}"
         try:
             cached = frappe.cache().get_value(cache_key)
@@ -123,7 +123,7 @@ class FileContextService:
             cached = None
         if cached:
             return cached
-        summary = self._summarize_file_uncached(file_doc)
+        summary = self._summarize_file_uncached(file_doc, progress_run=progress_run)
         if summary and ("extraction: OCR" in summary or "text_preview" in summary):
             try:
                 frappe.cache().set_value(cache_key, summary, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
@@ -131,7 +131,7 @@ class FileContextService:
                 pass
         return summary
 
-    def _summarize_file_uncached(self, file_doc):
+    def _summarize_file_uncached(self, file_doc, progress_run=None):
         filename = file_doc.file_name or file_doc.name
         extension = os.path.splitext(filename)[1].lower()
         header = (
@@ -142,6 +142,12 @@ class FileContextService:
 
         if extension in IMAGE_EXTENSIONS:
             ocr_text = self._ocr_image_file(file_doc)
+            if ocr_text:
+                self._emit_read_progress(
+                    progress_run,
+                    frappe._("قراءة الصورة {0}").format(filename),
+                    frappe._("استُخرج {0} حرفًا: {1}").format(len(ocr_text), " ".join(ocr_text[:90].split())),
+                )
             if ocr_text:
                 return (
                     f"{header}\n"
@@ -165,7 +171,7 @@ class FileContextService:
         if extension == ".xlsx":
             return f"{header}\n{self._summarize_xlsx(file_doc)}"
         if extension == ".pdf":
-            return f"{header}\n{self._summarize_pdf(file_doc)}"
+            return f"{header}\n{self._summarize_pdf(file_doc, progress_run=progress_run)}"
 
         content = self._read_text(file_doc)
         if not content:
@@ -245,7 +251,24 @@ class FileContextService:
         except Exception as error:
             return f"- summary: Could not extract Excel content: {str(error)}"
 
-    def _summarize_pdf(self, file_doc):
+    def _emit_read_progress(self, run_name, title, summary=""):
+        """Live per-page reading progress: a completed AI Run Step + realtime
+        ping so the open chat's work log updates while OCR is running."""
+        if not run_name:
+            return
+        try:
+            from ai_agent.runtime.trace_service import TraceService
+
+            trace = TraceService()
+            sequence = frappe.db.count("AI Run Step", {"run": run_name}) + 1
+            step = trace.add_step(run_name, sequence, "Tool", title, summary[:400])
+            trace.complete_step(step.name, summary=summary[:400])
+            frappe.db.commit()
+            trace.publish_realtime("ai_agent:step_added", run_name)
+        except Exception:
+            pass
+
+    def _summarize_pdf(self, file_doc, progress_run=None):
         try:
             from pypdf import PdfReader
 
@@ -256,7 +279,7 @@ class FileContextService:
                 pages.append((page.extract_text() or "").strip())
             text = "\n\n".join(page for page in pages if page)
             if not text:
-                ocr_text = self._ocr_pdf(file_doc)
+                ocr_text = self._ocr_pdf(file_doc, progress_run=progress_run)
                 if ocr_text:
                     return (
                         f"- pages: {len(reader.pages)}\n"
@@ -302,7 +325,7 @@ class FileContextService:
                     f"{table_text[:MAX_TEXT_CHARS]}"
                 )
             if self._needs_numeric_ocr_fallback(text):
-                ocr_text = self._ocr_pdf(file_doc)
+                ocr_text = self._ocr_pdf(file_doc, progress_run=progress_run)
                 if ocr_text:
                     return (
                         f"- pages: {len(reader.pages)}\n"
@@ -1149,19 +1172,31 @@ class FileContextService:
         except Exception:
             return ""
 
-    def _ocr_pdf(self, file_doc):
+    def _ocr_pdf(self, file_doc, progress_run=None):
         try:
             import fitz
 
             path = get_file_path(file_doc.name)
+            filename = file_doc.file_name or file_doc.name
             document = fitz.open(path)
+            total = min(len(document), MAX_OCR_PDF_PAGES)
             pages = []
-            for page_index in range(min(len(document), MAX_OCR_PDF_PAGES)):
+            for page_index in range(total):
                 page = document.load_page(page_index)
                 pixmap = page.get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72), alpha=False)
                 text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png")
                 if text:
                     pages.append(f"[page {page_index + 1}]\n{text}")
+                    summary = frappe._("استُخرج {0} حرفًا: {1}").format(
+                        len(text), " ".join(text[:90].split())
+                    )
+                else:
+                    summary = frappe._("لم يُستخرج نص من هذه الصفحة.")
+                self._emit_read_progress(
+                    progress_run,
+                    frappe._("قراءة صفحة {0}/{1} من {2}").format(page_index + 1, total, filename),
+                    summary,
+                )
             document.close()
             return "\n\n".join(pages).strip()
         except Exception:

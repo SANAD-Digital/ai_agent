@@ -1718,6 +1718,10 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                 return;
             }
             target.html(steps.map(render_step).join(""));
+            const details = target.closest("details.work-log");
+            if (runName === currentRun && pollInterval && details.length && !details.data("auto-opened")) {
+                details.attr("open", true).data("auto-opened", true);
+            }
             if (shouldStick) scroll_to_bottom(true);
         });
     }

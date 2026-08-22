@@ -632,6 +632,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         return {
             payload: parsed,
             lead_text: String(extracted.lead || "").trim(),
+            trail_text: String(extracted.trail || "").trim(),
             reply_markdown: String(parsed.reply_markdown || ui.reply_markdown || ""),
             sections: Array.isArray(ui.sections) ? ui.sections.slice(0, 12) : [],
             questions: Array.isArray(ui.questions) ? ui.questions.slice(0, 20) : [],
@@ -647,7 +648,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
             .trim();
         if (!candidate) return null;
         try {
-            return { parsed: JSON.parse(candidate), lead: "" };
+            return { parsed: JSON.parse(candidate), lead: "", trail: "" };
         } catch (error) {
             // Models often prefix the JSON contract with prose ("here is the
             // report picker: {...}"). Extract the first balanced object so the
@@ -679,6 +680,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                             return {
                                 parsed: JSON.parse(text.slice(start, i + 1)),
                                 lead: text.slice(0, start),
+                                trail: text.slice(i + 1),
                             };
                         } catch (error) {
                             break;
@@ -716,6 +718,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                         `).join("")}
                     </div>
                 ` : ""}
+                ${response.trail_text ? `<div class="interactive-reply interactive-trail">${safe_markdown(response.trail_text)}</div>` : ""}
             </section>
         `;
     }

@@ -400,6 +400,7 @@ def _get_artifact_previews(run_name):
             "artifact_type": artifact.artifact_type,
             "title": artifact.title,
             "summary": artifact.summary,
+            "chart": content if artifact.artifact_type == "Chart" and isinstance(content, dict) else None,
             "row_count": artifact.row_count,
             "is_truncated": artifact.is_truncated,
             "columns": (content.get("columns") or [])[:30] if isinstance(content, dict) else [],
@@ -426,6 +427,7 @@ def get_artifact_content(artifact_name):
     columns = content.get("columns") if isinstance(content, dict) else []
     return {
         "name": artifact.name,
+        "chart": content if artifact.artifact_type == "Chart" and isinstance(content, dict) else None,
         "artifact_type": artifact.artifact_type,
         "title": artifact.title,
         "summary": artifact.summary,

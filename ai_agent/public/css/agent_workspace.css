@@ -960,3 +960,14 @@
     .aw-pick { max-width: 110px; }
     .aw-pick-model { max-width: 130px; }
 }
+
+/* --- Chart artifacts ---------------------------------------------------- */
+
+.artifact-chart {
+    margin-top: 8px;
+    min-height: 120px;
+}
+
+.artifact-chart .frappe-chart {
+    width: 100%;
+}

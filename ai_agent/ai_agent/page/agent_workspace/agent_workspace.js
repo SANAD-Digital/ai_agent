@@ -115,6 +115,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     let voiceBasePrompt = "";
     let printLetterHeads = null;
     const journalEntryProposals = {};
+    const pendingCharts = {};
     const interactiveResponses = {};
     let workspaceRequest = take_workspace_route_request();
     let workspaceRequestSubmitted = false;
@@ -541,6 +542,7 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                 load_approvals_for_run(message.run_name);
             }
         });
+        render_pending_charts();
         scroll_to_bottom(true);
         update_layout_height();
     }
@@ -1243,6 +1245,11 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
     function render_artifact(artifact) {
         const columns = artifact.columns || [];
         const rows = artifact.rows || [];
+        let chartBlock = "";
+        if (artifact.artifact_type === "Chart" && artifact.chart) {
+            pendingCharts[artifact.name] = artifact.chart;
+            chartBlock = `<div class="artifact-chart" data-chart-for="${escape_attr(artifact.name)}"></div>`;
+        }
         const hasMore = Boolean(artifact.has_more || artifact.is_truncated);
         const table = columns.length
             ? `
@@ -1279,9 +1286,40 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
                         <button class="btn btn-xs btn-default btn-export-artifact" data-artifact="${escape_attr(artifact.name)}">${__("تصدير CSV")}</button>
                     </div>
                 </div>
+                ${chartBlock}
                 ${table}
             </section>
         `;
+    }
+
+    function render_pending_charts() {
+        Object.keys(pendingCharts).forEach((name) => {
+            const target = page.main.find(`[data-chart-for="${css_escape(name)}"]`);
+            if (!target.length || target.data("rendered")) return;
+            target.data("rendered", true);
+            const spec = pendingCharts[name] || {};
+            const labels = (spec.labels || []).map((label) => String(label));
+            const datasets = (spec.datasets || [])
+                .filter((dataset) => Array.isArray(dataset?.values))
+                .map((dataset) => ({ name: String(dataset.name || ""), values: dataset.values }));
+            if (!labels.length || !datasets.length) {
+                target.html(`<div class="artifact-meta">${__("Chart data is empty.")}</div>`);
+                return;
+            }
+            try {
+                const type = ["bar", "line", "pie", "percentage", "donut"].includes(String(spec.type)) ? String(spec.type) : "bar";
+                new frappe.Chart(target.get(0), {
+                    data: { labels, datasets },
+                    type,
+                    height: 240,
+                    colors: ["#6366f1", "#0ea5e9", "#f59e0b", "#16a34a", "#ef4444"],
+                    truncateLegends: true,
+                    axisOptions: { xIsSeries: 0, shortenYAxisNumbers: 1 },
+                });
+            } catch (error) {
+                target.html(`<div class="artifact-meta">${__("Could not draw the chart.")}</div>`);
+            }
+        });
     }
 
     function load_full_artifact(artifactName) {

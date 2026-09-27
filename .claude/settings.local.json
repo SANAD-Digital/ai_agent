@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql -u_71d2d95b4d2feef8 -pnbYawPRyHHovVvoD _71d2d95b4d2feef8 -N -B -e \"select concat\\('queued=',sum\\(status='Queued'\\),' sent=',sum\\(status='Send'\\),' notsend=',sum\\(status='Not Send'\\)\\) from \\\\`tabWhatsApp Log\\\\` where reference_name='WACAMP-2026-00007';\")",
+      "Bash(mysql -u_71d2d95b4d2feef8 -pnbYawPRyHHovVvoD -N -B -e \"select id, time, state, left\\(info,90\\) from information_schema.processlist where command!='Sleep' and time>2;\")"
+    ]
+  }
+}

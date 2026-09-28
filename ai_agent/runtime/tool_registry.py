@@ -91,6 +91,77 @@ TOOL_PARAMETER_SCHEMAS = {
         },
         "required": ["tools"],
     },
+    "diagnose.document": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string"},
+            "name": {"type": "string"},
+            "company": {"type": "string", "description": "For Item: the company to check Item Defaults for"},
+        },
+        "required": ["doctype", "name"],
+    },
+    "knowledge.search": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "What the user wants to know, in their words"},
+            "top": {"type": "integer", "minimum": 1, "maximum": 10},
+        },
+        "required": ["query"],
+    },
+    "setup.check": {
+        "type": "object",
+        "properties": {
+            "area": {"type": "string", "enum": ["company", "accounts", "stock", "selling", "buying"]},
+            "company": {"type": "string"},
+        },
+        "required": ["area"],
+    },
+    "erp.item_details": {
+        "type": "object",
+        "properties": {
+            "item_code": {"type": "string"}, "company": {"type": "string"},
+            "doctype": {"type": "string", "description": "Transaction type, e.g. Sales Invoice or Purchase Order"},
+            "customer": {"type": "string"}, "supplier": {"type": "string"}, "price_list": {"type": "string"},
+            "currency": {"type": "string"}, "warehouse": {"type": "string"}, "qty": {"type": "number"}, "date": {"type": "string"},
+        },
+        "required": ["item_code"],
+    },
+    "erp.party_details": {
+        "type": "object",
+        "properties": {
+            "party_type": {"type": "string", "enum": ["Customer", "Supplier"]}, "party": {"type": "string"},
+            "company": {"type": "string"}, "doctype": {"type": "string"}, "date": {"type": "string"},
+        },
+        "required": ["party_type", "party"],
+    },
+    "erp.fiscal_year": {
+        "type": "object",
+        "properties": {"date": {"type": "string"}, "company": {"type": "string"}},
+    },
+    "erp.exchange_rate": {
+        "type": "object",
+        "properties": {"from_currency": {"type": "string"}, "to_currency": {"type": "string"}, "date": {"type": "string"}},
+        "required": ["from_currency", "to_currency"],
+    },
+    "erp.stock_balance": {
+        "type": "object",
+        "properties": {"item_code": {"type": "string"}, "warehouse": {"type": "string"}, "date": {"type": "string"}},
+        "required": ["item_code", "warehouse"],
+    },
+    "erp.invoice_payments": {
+        "type": "object",
+        "properties": {"doctype": {"type": "string", "enum": ["Sales Invoice", "Purchase Invoice"]}, "name": {"type": "string"}},
+        "required": ["doctype", "name"],
+    },
+    "actions.request_mapped_draft": {
+        "type": "object",
+        "properties": {
+            "source_doctype": {"type": "string", "enum": ["Sales Order", "Material Request", "Purchase Invoice"]},
+            "source_name": {"type": "string"},
+            "target_doctype": {"type": "string", "enum": ["Sales Invoice", "Delivery Note", "Purchase Order", "Purchase Receipt"]},
+        },
+        "required": ["source_doctype", "source_name", "target_doctype"],
+    },
     "data.query": QUERY_SPEC_SCHEMA,
     "data.get_document": {
         "type": "object",
@@ -340,6 +411,15 @@ class ToolRegistry:
             # Data
             {"name": "tools.request_more", "description": "Ask for extra tools when the ones offered cannot answer the request", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.runtime.router.handle_request_more_stub"},
             {"name": "metrics.query", "description": "Answer a business number (sales, balances, receivables...) from the metric catalog, grouped and compared, permission-scoped", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.metrics.handle_query"},
+            {"name": "diagnose.document", "description": "Read-only checks explaining why a document is missing from stock ledger, general ledger, party statement, or why an item does not show in search", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.diagnose.handle_document"},
+            {"name": "knowledge.search", "description": "Search the user guides for how-to answers; returns short passages with source and page to cite", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.knowledge.handle_search"},
+            {"name": "setup.check", "description": "Read the ERPNext setup of one area and list what is missing, with steps (read only)", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.setup.handle_check"},
+            {"name": "erp.item_details", "description": "ERPNext item details for a transaction: price, uom, stock, default accounts", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_item_details"},
+            {"name": "erp.party_details", "description": "ERPNext party details: account, currency, price list, payment terms, taxes", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_party_details"},
+            {"name": "erp.fiscal_year", "description": "Fiscal year for a date and company", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_fiscal_year"},
+            {"name": "erp.exchange_rate", "description": "ERPNext exchange rate between two currencies on a date", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_exchange_rate"},
+            {"name": "erp.stock_balance", "description": "Stock quantity and value of an item in a warehouse on a date", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_stock_balance"},
+            {"name": "erp.invoice_payments", "description": "Payments allocated against a sales or purchase invoice", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_invoice_payments"},
             {"name": "data.query", "description": "Execute a query specification", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_query"},
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
@@ -362,6 +442,7 @@ class ToolRegistry:
             {"name": "actions.validate_document", "description": "Validate a document payload", "access_level": "Prepare", "side_effect": "prepare_only", "handler": "ai_agent.tools.actions.handle_validate"},
             {"name": "actions.request_create_draft", "description": "Request approval to create a draft document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_create", "requires_approval": True},
             {"name": "actions.request_bulk_create", "description": "Request one approval to create multiple draft documents in one batch", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_bulk_create", "requires_approval": True},
+            {"name": "actions.request_mapped_draft", "description": "Request approval to create a draft from an existing document with ERPNext's standard mapping (Sales Order → Sales Invoice / Delivery Note, Material Request → Purchase Order, Purchase Invoice → Purchase Receipt)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.erpnext_native.handle_request_mapped_draft", "requires_approval": True},
             {"name": "actions.request_update", "description": "Request approval to update a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_update", "requires_approval": True},
             {"name": "actions.request_submit", "description": "Request approval to submit a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_submit", "requires_approval": True},
             {"name": "actions.request_cancel", "description": "Request approval to cancel a document", "access_level": "Destructive", "side_effect": "destructive", "handler": "ai_agent.tools.actions.handle_request_cancel", "requires_approval": True},

@@ -31,7 +31,7 @@ CHAT_RUN_FIELDS = [
 
 @frappe.whitelist()
 def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=None, attachments=None,
-               provider=None, model=None):
+               provider=None, model=None, context_doctype=None, context_name=None):
     """Create a new AI Run."""
     if frappe.session.user == "Guest":
         frappe.throw(_("Guest users cannot create runs."))
@@ -44,6 +44,9 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
             frappe.throw(_("Not authorized to continue this conversation."), frappe.PermissionError)
 
     provider, model = _resolve_run_provider_and_model(provider, model, parent_run)
+    from ai_agent.runtime import document_context
+
+    context = document_context.normalize(context_doctype, context_name)
 
     settings = frappe.get_cached_doc("AI Settings")
     if not settings.enabled:
@@ -89,6 +92,8 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
         "parent_run": parent_run,
         "provider": provider,
         "model": model,
+        "context_doctype": context[0],
+        "context_name": context[1],
         "idempotency_key": idempotency_key or "",
         "started_at": frappe.utils.now_datetime(),
     })

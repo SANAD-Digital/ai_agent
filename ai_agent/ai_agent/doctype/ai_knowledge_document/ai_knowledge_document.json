@@ -1,0 +1,111 @@
+{
+ "name": "AI Knowledge Document",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "creation": "2026-09-28 19:30:00.000000",
+ "modified": "2026-09-28 19:30:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "title",
+  "file",
+  "enabled",
+  "column_break_main",
+  "allowed_roles",
+  "section_index",
+  "indexing_status",
+  "chunk_count",
+  "column_break_index",
+  "indexed_on",
+  "index_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Attach",
+   "label": "File",
+   "reqd": 1,
+   "description": "PDF, Markdown (.md) or plain text (.txt) user guide"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "allowed_roles",
+   "fieldtype": "Small Text",
+   "label": "Allowed Roles",
+   "description": "One role per line. Empty = every desk user can search this document"
+  },
+  {
+   "fieldname": "section_index",
+   "fieldtype": "Section Break",
+   "label": "Indexing"
+  },
+  {
+   "fieldname": "indexing_status",
+   "fieldtype": "Select",
+   "label": "Indexing Status",
+   "options": "Pending\nIndexing\nIndexed\nFailed",
+   "default": "Pending",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "chunk_count",
+   "fieldtype": "Int",
+   "label": "Chunks",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_index",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "indexed_on",
+   "fieldtype": "Datetime",
+   "label": "Indexed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "index_error",
+   "fieldtype": "Small Text",
+   "label": "Index Error",
+   "read_only": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "hash",
+ "title_field": "title",
+ "track_changes": 1,
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "All",
+   "read": 1
+  }
+ ]
+}

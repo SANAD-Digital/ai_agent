@@ -1,0 +1,69 @@
+{
+ "name": "AI Knowledge Chunk",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "creation": "2026-09-28 19:30:00.000000",
+ "modified": "2026-09-28 19:30:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "document",
+  "page",
+  "chunk_index",
+  "heading",
+  "content",
+  "search_text"
+ ],
+ "fields": [
+  {
+   "fieldname": "document",
+   "fieldtype": "Link",
+   "label": "Document",
+   "options": "AI Knowledge Document",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "page",
+   "fieldtype": "Int",
+   "label": "Page",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "chunk_index",
+   "fieldtype": "Int",
+   "label": "Chunk Index"
+  },
+  {
+   "fieldname": "heading",
+   "fieldtype": "Data",
+   "label": "Heading"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Long Text",
+   "label": "Content"
+  },
+  {
+   "fieldname": "search_text",
+   "fieldtype": "Long Text",
+   "label": "Search Text",
+   "description": "Normalized lower-case text used for matching"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "hash",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ]
+}

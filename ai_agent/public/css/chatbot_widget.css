@@ -401,6 +401,44 @@ html[dir="ltr"] .ai-chatbot-bubble .ai-md-table td {
 
 
 /* ---------------------------------------------------------------
+   Open-document context chip ("تعمل على: ...")
+   --------------------------------------------------------------- */
+.ai-chatbot-context {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 12px 0;
+    padding: 4px 6px 4px 10px;
+    border: 1px solid var(--ai-chat-border);
+    border-radius: 999px;
+    background: var(--ai-chat-bg);
+    color: var(--ai-chat-text);
+    font-size: 12px;
+    min-width: 0;
+}
+.ai-chatbot-context[hidden] {
+    display: none;
+}
+.ai-chatbot-context-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ai-chatbot-context-detach {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+/* ---------------------------------------------------------------
    Composer
    --------------------------------------------------------------- */
 .ai-chatbot-composer {

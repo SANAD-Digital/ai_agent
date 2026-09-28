@@ -21,6 +21,7 @@ KNOWN_ACTION_TOOLS = {
     "actions.request_submit",
     "actions.request_cancel",
     "actions.request_workflow_action",
+    "actions.request_mapped_draft",
 }
 
 
@@ -66,6 +67,19 @@ class ActionInterceptor:
                 "document_count": len(documents),
                 "doctypes": sorted({document["doctype"] for document in documents}),
             }
+
+        elif tool_name == "actions.request_mapped_draft":
+            from ai_agent.tools.erpnext_native import build_mapped_payload
+
+            target = arguments.get("target_doctype")
+            try:
+                payload = build_mapped_payload(
+                    arguments.get("source_doctype"), arguments.get("source_name"), target, self.ctx
+                )
+            except PermissionDenied as exc:
+                return {"error": str(exc)}
+            approval = self._create_or_get_create_approval(target, payload)
+            return {"approval_required": True, "approval_id": approval.name}
 
         elif tool_name == "actions.request_update":
             payload = self._document_payload(arguments, include_doctype=False)

@@ -720,7 +720,11 @@ class Orchestrator:
         self.route = "open_analysis"
         self.extra_tools = []
         if self._routing_enabled():
-            self.route = router.classify(self.run.prompt, has_attachments=self._has_current_attachments())
+            self.route = router.classify(
+                self.run.prompt,
+                has_attachments=self._has_current_attachments(),
+                has_document=bool(self.run.get("context_doctype") and self.run.get("context_name")),
+            )
             names = router.route_tools(self.route)
             if names:
                 self._grant_declared_tools(names)

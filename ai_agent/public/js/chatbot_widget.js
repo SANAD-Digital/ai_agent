@@ -11,7 +11,8 @@
         loadedHistory: false,
         lang: "auto",
         pollTimer: null,
-        activeStreamId: null
+        activeStreamId: null,
+        detachedDocument: null
     };
 
     function boot() {
@@ -111,6 +112,10 @@
             '<div class="ai-chatbot-welcome"></div>' +
             '<div class="ai-chatbot-messages"></div>' +
             '</div>' +
+            '<div class="ai-chatbot-context" hidden>' +
+            '<span class="ai-chatbot-context-label"></span>' +
+            '<button type="button" class="ai-chatbot-context-detach" title="' + t("Detach", "فصل") + '">&times;</button>' +
+            '</div>' +
             '<div class="ai-chatbot-composer">' +
             '<textarea class="ai-chatbot-input" rows="1" placeholder="' + t("Type a message…", "اكتب رسالتك هنا…") + '" dir="auto"></textarea>' +
             '<button type="button" class="ai-chatbot-send" title="' + t("Send", "إرسال") + '">' +
@@ -154,8 +159,51 @@
             input.style.height = Math.min(input.scrollHeight, 120) + "px";
         });
 
+        panel.querySelector(".ai-chatbot-context-detach").addEventListener("click", function () {
+            var current = currentDocument();
+            state.detachedDocument = current ? current.doctype + "::" + current.name : null;
+            refreshContextChip(panel);
+        });
+        if (window.frappe && frappe.router && frappe.router.on) {
+            frappe.router.on("change", function () {
+                refreshContextChip(panel);
+            });
+        }
+        refreshContextChip(panel);
+
         if (state.conversation) {
             loadHistory(messagesEl);
+        }
+    }
+
+    // The form the user has open, e.g. {doctype: "Sales Invoice", name: "ACC-SINV-2026-00012"}.
+    function currentDocument() {
+        if (!window.frappe || !frappe.get_route) {
+            return null;
+        }
+        var route = frappe.get_route() || [];
+        if (route[0] !== "Form" || !route[1] || !route[2] || String(route[2]).indexOf("new-") === 0) {
+            return null;
+        }
+        return { doctype: route[1], name: route[2] };
+    }
+
+    // The open document unless the user detached it with the chip's × button.
+    function attachedDocument() {
+        var current = currentDocument();
+        if (!current || state.detachedDocument === current.doctype + "::" + current.name) {
+            return null;
+        }
+        return current;
+    }
+
+    function refreshContextChip(panel) {
+        var chip = panel.querySelector(".ai-chatbot-context");
+        var attached = attachedDocument();
+        chip.hidden = !attached;
+        if (attached) {
+            chip.querySelector(".ai-chatbot-context-label").textContent =
+                t("Working on: ", "تعمل على: ") + __(attached.doctype) + " " + attached.name;
         }
     }
 
@@ -228,9 +276,15 @@
         input.style.height = "auto";
         setBusy(true, input, send, messagesEl);
 
+        var attached = attachedDocument();
         frappe.call({
             method: "ai_agent.chatbot.api.start_message",
-            args: { message: message, conversation: state.conversation },
+            args: {
+                message: message,
+                conversation: state.conversation,
+                context_doctype: attached ? attached.doctype : null,
+                context_name: attached ? attached.name : null
+            },
             callback: function (response) {
                 var result = response && response.message ? response.message : null;
                 if (result && result.stream_id) {

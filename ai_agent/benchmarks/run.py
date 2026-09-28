@@ -34,22 +34,22 @@ PRICES = {
 }
 
 
-def load_questions(ids=None):
-	with open(os.path.join(HERE, "questions.yaml")) as handle:
+def load_questions(ids=None, questions_file="questions.yaml"):
+	with open(os.path.join(HERE, os.path.basename(questions_file))) as handle:
 		questions = yaml.safe_load(handle)["questions"]
 	if ids:
 		questions = [q for q in questions if q["id"] in set(ids)]
 	return questions
 
 
-def run(label="baseline", ids=None, repeat=1, agent=None, company=None):
+def run(label="baseline", ids=None, repeat=1, agent=None, company=None, questions_file="questions.yaml"):
 	frappe.set_user("Administrator")
 	agent = agent or frappe.db.get_value("AI Agent", {"is_default": 1, "enabled": 1}, "name")
 	company = company or frappe.db.get_single_value("Global Defaults", "default_company")
 	_enable_bench_user()
 	results = []
 	try:
-		for question in load_questions(ids):
+		for question in load_questions(ids, questions_file):
 			for attempt in range(int(repeat)):
 				result = run_question(question, agent, company)
 				result["attempt"] = attempt + 1
@@ -110,6 +110,8 @@ def run_question(question, agent, company):
 		"user": BENCH_USER,
 		"company": company,
 		"prompt": question["text"],
+		"context_doctype": question.get("context_doctype"),
+		"context_name": question.get("context_name"),
 		"status": "Queued",
 		"started_at": frappe.utils.now_datetime(),
 	})
@@ -138,6 +140,7 @@ def run_question(question, agent, company):
 		"kind": question.get("kind"),
 		"question": question["text"],
 		"run": run_doc.name,
+		"route": run_doc.get("route"),
 		"status": run_doc.status,
 		"model": model,
 		"model_calls": len(calls),

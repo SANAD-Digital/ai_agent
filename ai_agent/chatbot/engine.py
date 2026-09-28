@@ -107,7 +107,7 @@ def get_messages(conversation: str) -> list[dict]:
     ]
 
 
-def send_message(message: str, conversation: str | None = None):
+def send_message(message: str, conversation: str | None = None, context=None):
     message = str(message or "").strip()
     if not message:
         frappe.throw(_("الرجاء كتابة رسالة قبل الإرسال."))
@@ -129,7 +129,7 @@ def send_message(message: str, conversation: str | None = None):
 
     try:
         if settings.enable_problem_solving():
-            answer, run_name = _agent_answer(message, doc)
+            answer, run_name = _agent_answer(message, doc, context=context)
         else:
             answer, run_name = _chat_answer(message, doc)
     except Exception:
@@ -150,7 +150,10 @@ def send_message(message: str, conversation: str | None = None):
     }
 
 
-def _agent_answer(message: str, conversation_doc) -> tuple[str, str | None]:
+def _agent_answer(message: str, conversation_doc, context=None) -> tuple[str, str | None]:
+    from ai_agent.runtime import document_context
+
+    context_doctype, context_name = document_context.normalize(*(context or (None, None)))
     agent = _resolve_agent()
     company = (
         settings.company()
@@ -168,6 +171,8 @@ def _agent_answer(message: str, conversation_doc) -> tuple[str, str | None]:
             "status": "Queued",
             "parent_run": conversation_doc.last_run or None,
             "started_at": now_datetime(),
+            "context_doctype": context_doctype,
+            "context_name": context_name,
         }
     )
     run.insert(ignore_permissions=True)
@@ -309,7 +314,7 @@ def _clean_answer(answer: str) -> str:
     return text
 
 
-def begin_stream_message(message: str, conversation: str | None = None, user: str | None = None):
+def begin_stream_message(message: str, conversation: str | None = None, user: str | None = None, context=None):
     """Start generating an assistant reply in the background.
 
     Appends the user message, kicks off a background job that streams the
@@ -350,6 +355,7 @@ def begin_stream_message(message: str, conversation: str | None = None, user: st
         message=message,
         conversation=conversation_name,
         user=user,
+        context=list(context) if context else None,
     )
 
     return {
@@ -371,7 +377,7 @@ def get_stream_content(stream_id: str):
     }
 
 
-def _stream_generate_job(stream_id: str, message: str, conversation: str, user: str):
+def _stream_generate_job(stream_id: str, message: str, conversation: str, user: str, context=None):
     """Background job: stream a chat reply token-by-token into the cache."""
     try:
         doc = frappe.get_doc(CONVERSATION_DOCTYPE, conversation)
@@ -379,7 +385,7 @@ def _stream_generate_job(stream_id: str, message: str, conversation: str, user: 
         _set_stream_status(stream_id, STREAM_STATUS_STREAMING)
 
         if settings.enable_problem_solving():
-            answer, run_name = _agent_answer(message, doc)
+            answer, run_name = _agent_answer(message, doc, context=context)
             _set_stream_content(stream_id, answer)
         else:
             answer = _stream_chat_answer(stream_id, message, doc)

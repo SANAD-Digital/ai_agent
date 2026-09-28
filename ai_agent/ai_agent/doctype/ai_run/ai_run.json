@@ -186,6 +186,21 @@
    "description": "Question class chosen by the router (metric, document_lookup, diagnose, guide, action, invoice, open_analysis)."
   },
   {
+   "fieldname": "context_doctype",
+   "fieldtype": "Link",
+   "label": "Context DocType",
+   "options": "DocType",
+   "read_only": 1,
+   "description": "Document the user had open when asking (sent by the chatbot widget)."
+  },
+  {
+   "fieldname": "context_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Context Document",
+   "options": "context_doctype",
+   "read_only": 1
+  },
+  {
    "fieldname": "estimated_cost",
    "fieldtype": "Currency",
    "label": "Estimated Cost",
@@ -250,5 +265,5 @@
  "title_field": "run_id",
  "search_fields": "run_id,agent,user,prompt",
  "description_field": "prompt",
- "modified": "2026-09-28 18:10:00.000000"
+ "modified": "2026-09-28 19:00:00.000000"
 }

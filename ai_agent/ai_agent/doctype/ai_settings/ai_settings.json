@@ -27,6 +27,8 @@
   "default_approval_ttl_minutes",
   "approver_role",
   "require_four_eyes",
+  "section_privacy",
+  "allow_admin_conversation_audit",
   "section_memory",
   "enable_memory",
   "memory_retention_days",
@@ -173,6 +175,18 @@
    "description": "When enabled, the user who requested an action cannot approve it themselves."
   },
   {
+   "fieldname": "section_privacy",
+   "fieldtype": "Section Break",
+   "label": "Privacy"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_admin_conversation_audit",
+   "fieldtype": "Check",
+   "label": "Allow Admin Conversation Audit",
+   "description": "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations."
+  },
+  {
    "fieldname": "section_memory",
    "fieldtype": "Section Break",
    "label": "Memory"
@@ -280,7 +294,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2025-01-01 00:00:00.000000",
+ "modified": "2026-09-28 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

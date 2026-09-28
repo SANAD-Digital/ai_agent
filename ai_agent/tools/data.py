@@ -104,6 +104,56 @@ def _normalize_field_spec(field):
     }
 
 
+NOT_ACCESSIBLE_ERROR = "Document not found or not accessible."
+
+
+def _load_readable_document(doc_type, name, permission_context):
+    """Load a document only if this user may read that exact row.
+
+    Missing and forbidden documents return the same generic error so the
+    agent cannot probe for the existence of records outside the user's scope.
+    """
+    try:
+        doc = frappe.get_doc(doc_type, name)
+    except frappe.DoesNotExistError:
+        return None
+    if not permission_context.can_access_document(doc, "read"):
+        return None
+    return doc
+
+
+def _is_blocked_field(field):
+    fieldname = (field.fieldname or "").lower()
+    return (
+        field.fieldtype in ("Password", "Password Hash")
+        or any(p in fieldname for p in SENSITIVE_FIELD_PATTERNS)
+    )
+
+
+def _child_rows(child_doctype, parent_doctype, children, permission_context, limit=None):
+    """Serialize child rows keeping only fields readable under the parent's DocPerms."""
+    meta = frappe.get_meta(child_doctype)
+    readable = [
+        field for field in meta.fields
+        if field.fieldname
+        and not field.hidden
+        and not _is_blocked_field(field)
+        and field.fieldtype not in frappe.model.no_value_fields
+        and permission_context.check_field_access(
+            child_doctype, field.fieldname, "read", parent_doctype
+        )
+    ]
+    rows = []
+    for child in children[:limit] if limit else children:
+        row = {"name": child.name, "idx": child.idx}
+        for field in readable:
+            val = child.get(field.fieldname)
+            if val is not None:
+                row[field.fieldname] = val
+        rows.append(row)
+    return rows
+
+
 def handle_get_document(arguments, permission_context):
     """Handle data.get_document tool call."""
     doc_type = arguments.get("doctype")
@@ -115,18 +165,22 @@ def handle_get_document(arguments, permission_context):
     if not permission_context.has_doctype_permission(doc_type, "read"):
         return {"error": f"No read permission on '{doc_type}'"}
 
-    try:
-        doc = frappe.get_doc(doc_type, name)
-    except frappe.DoesNotExistError:
-        return {"error": f"Document '{name}' not found in '{doc_type}'"}
+    doc = _load_readable_document(doc_type, name, permission_context)
+    if not doc:
+        return {"error": NOT_ACCESSIBLE_ERROR}
 
     meta = frappe.get_meta(doc_type)
     result = {"name": doc.name, "doctype": doc_type}
 
     for field in meta.fields:
-        if field.hidden or field.fieldtype in ("Password", "Password Hash"):
+        if field.hidden or _is_blocked_field(field):
             continue
         if not permission_context.check_field_access(doc_type, field.fieldname, "read"):
+            continue
+        if field.fieldtype in frappe.model.table_fields:
+            rows = _child_rows(field.options, doc_type, doc.get(field.fieldname) or [], permission_context)
+            if rows:
+                result[field.fieldname] = rows
             continue
         val = doc.get(field.fieldname)
         if val is not None:
@@ -147,27 +201,31 @@ def handle_get_child_records(arguments, permission_context):
     if not permission_context.has_doctype_permission(parent_doctype, "read"):
         return {"error": f"No read permission on '{parent_doctype}'"}
 
+    table_field = frappe.get_meta(parent_doctype).get_field(child_field)
+    if not table_field or table_field.fieldtype not in frappe.model.table_fields:
+        return {"error": f"'{child_field}' is not a child table of '{parent_doctype}'"}
+    if not permission_context.check_field_access(parent_doctype, child_field, "read"):
+        return {"error": f"No read access to field '{child_field}'"}
+
+    doc = _load_readable_document(parent_doctype, parent_name, permission_context)
+    if not doc:
+        return {"error": NOT_ACCESSIBLE_ERROR}
+
     try:
-        doc = frappe.get_doc(parent_doctype, parent_name)
-    except frappe.DoesNotExistError:
-        return {"error": f"Parent document '{parent_name}' not found"}
-
-    children = doc.get(child_field, [])
-    limit = min(arguments.get("limit", 100), 500)
-
-    rows = []
-    for child in children[:limit]:
-        row = {"name": child.name} if hasattr(child, "name") else {}
-        for key, val in child.as_dict().items():
-            if key not in ("name", "parent", "parenttype", "parentfield"):
-                row[key] = val
-        rows.append(row)
-
-    return {"rows": rows, "row_count": len(rows)}
+        limit = max(1, min(int(arguments.get("limit") or 100), 500))
+    except (TypeError, ValueError):
+        limit = 100
+    children = doc.get(child_field) or []
+    rows = _child_rows(table_field.options, parent_doctype, children, permission_context, limit)
+    return {"rows": rows, "row_count": len(rows), "total_rows": len(children)}
 
 
 def handle_count(arguments, permission_context):
-    """Handle data.count tool call."""
+    """Handle data.count tool call.
+
+    Counts through frappe.get_list so User Permissions, permission-query
+    hooks and if_owner rules apply (frappe.db.count bypasses all of them).
+    """
     doc_type = arguments.get("doctype")
     if not doc_type:
         return {"error": "doctype is required"}
@@ -187,7 +245,14 @@ def handle_count(arguments, permission_context):
         filters = raw_filters
 
     try:
-        count = frappe.db.count(doc_type, filters=filters)
+        rows = frappe.get_list(
+            doc_type,
+            filters=filters,
+            fields=[{"COUNT": "name", "as": "count"}],
+            user=permission_context.user,
+            limit_page_length=0,
+        )
+        count = int((rows[0] or {}).get("count") or 0) if rows else 0
         return {"count": count}
     except Exception as e:
         return {"error": f"Count execution failed: {str(e)}"}

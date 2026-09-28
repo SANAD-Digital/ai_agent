@@ -12,7 +12,7 @@ import json
 import frappe
 
 from ai_agent.runtime.constants import RUN_STATUS_WAITING
-from ai_agent.runtime.exceptions import ToolDenied
+from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
 
 KNOWN_ACTION_TOOLS = {
     "actions.request_create_draft",
@@ -157,7 +157,12 @@ class ActionInterceptor:
         if not doc_type or not payload:
             return result
 
-        approval = self._create_or_get_create_approval(doc_type, payload)
+        try:
+            approval = self._create_or_get_create_approval(doc_type, payload)
+        except PermissionDenied as exc:
+            enriched = dict(result)
+            enriched["approval_error"] = str(exc)
+            return enriched
 
         enriched = dict(result)
         enriched.update({

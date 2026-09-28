@@ -1,5 +1,6 @@
 import frappe
 from ai_agent.runtime.approval_engine import ApprovalEngine
+from ai_agent.runtime.exceptions import PermissionDenied
 
 
 NON_INPUT_FIELDTYPES = {
@@ -116,14 +117,17 @@ def handle_request_create(arguments, permission_context):
     engine = ApprovalEngine(permission_context)
     run_name = arguments.get("run")
 
-    approval = engine.create_approval_request(
-        run_name=run_name,
-        action_type="Create",
-        doctype_name=doc_type,
-        action_summary=f"Create {doc_type} draft",
-        impact_summary=f"A new {doc_type} will be created as draft.",
-        payload=payload,
-    )
+    try:
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Create",
+            doctype_name=doc_type,
+            action_summary=f"Create {doc_type} draft",
+            impact_summary=f"A new {doc_type} will be created as draft.",
+            payload=payload,
+        )
+    except PermissionDenied as exc:
+        return {"error": str(exc)}
 
     return {
         "approval_required": True,
@@ -148,14 +152,17 @@ def handle_request_bulk_create(arguments, permission_context):
     engine = ApprovalEngine(permission_context)
     run_name = arguments.get("run")
 
-    approval = engine.create_approval_request(
-        run_name=run_name,
-        action_type="Bulk Create",
-        doctype_name=doctypes[0] if len(doctypes) == 1 else None,
-        action_summary=summary,
-        impact_summary=f"{len(documents)} draft documents will be created after one approval.",
-        payload={"documents": documents},
-    )
+    try:
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Bulk Create",
+            doctype_name=doctypes[0] if len(doctypes) == 1 else None,
+            action_summary=summary,
+            impact_summary=f"{len(documents)} draft documents will be created after one approval.",
+            payload={"documents": documents},
+        )
+    except PermissionDenied as exc:
+        return {"error": str(exc)}
 
     return {
         "approval_required": True,
@@ -178,24 +185,22 @@ def handle_request_update(arguments, permission_context):
     if not permission_context.has_doctype_permission(doc_type, "write"):
         return {"error": f"No write permission on '{doc_type}'"}
 
-    try:
-        doc = frappe.get_doc(doc_type, doc_name)
-        expected_modified = str(doc.modified)
-    except frappe.DoesNotExistError:
-        return {"error": f"Document '{doc_name}' not found"}
-
     engine = ApprovalEngine(permission_context)
     run_name = arguments.get("run")
 
-    approval = engine.create_approval_request(
-        run_name=run_name,
-        action_type="Update",
-        doctype_name=doc_type,
-        document_name=doc_name,
-        action_summary=f"Update {doc_type} {doc_name}",
-        payload=payload,
-        expected_modified=expected_modified,
-    )
+    # The engine checks row-level write access and the payload fields, and
+    # records the document's current `modified` for the concurrency check.
+    try:
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Update",
+            doctype_name=doc_type,
+            document_name=doc_name,
+            action_summary=f"Update {doc_type} {doc_name}",
+            payload=payload,
+        )
+    except PermissionDenied as exc:
+        return {"error": str(exc)}
 
     return {
         "approval_required": True,
@@ -218,15 +223,18 @@ def handle_request_submit(arguments, permission_context):
     engine = ApprovalEngine(permission_context)
     run_name = arguments.get("run")
 
-    approval = engine.create_approval_request(
-        run_name=run_name,
-        action_type="Submit",
-        doctype_name=doc_type,
-        document_name=doc_name,
-        action_summary=f"Submit {doc_type} {doc_name}",
-        impact_summary=f"Document {doc_name} will be submitted (docstatus=1).",
-        payload={"doctype": doc_type, "name": doc_name},
-    )
+    try:
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Submit",
+            doctype_name=doc_type,
+            document_name=doc_name,
+            action_summary=f"Submit {doc_type} {doc_name}",
+            impact_summary=f"Document {doc_name} will be submitted (docstatus=1).",
+            payload={"doctype": doc_type, "name": doc_name},
+        )
+    except PermissionDenied as exc:
+        return {"error": str(exc)}
 
     return {
         "approval_required": True,
@@ -249,15 +257,18 @@ def handle_request_cancel(arguments, permission_context):
     engine = ApprovalEngine(permission_context)
     run_name = arguments.get("run")
 
-    approval = engine.create_approval_request(
-        run_name=run_name,
-        action_type="Cancel",
-        doctype_name=doc_type,
-        document_name=doc_name,
-        action_summary=f"Cancel {doc_type} {doc_name}",
-        impact_summary=f"Document {doc_name} will be cancelled (docstatus=2).",
-        payload={"doctype": doc_type, "name": doc_name},
-    )
+    try:
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Cancel",
+            doctype_name=doc_type,
+            document_name=doc_name,
+            action_summary=f"Cancel {doc_type} {doc_name}",
+            impact_summary=f"Document {doc_name} will be cancelled (docstatus=2).",
+            payload={"doctype": doc_type, "name": doc_name},
+        )
+    except PermissionDenied as exc:
+        return {"error": str(exc)}
 
     return {
         "approval_required": True,
@@ -278,14 +289,17 @@ def handle_request_workflow(arguments, permission_context):
     engine = ApprovalEngine(permission_context)
     run_name = arguments.get("run")
 
-    approval = engine.create_approval_request(
-        run_name=run_name,
-        action_type="Workflow",
-        doctype_name=doc_type,
-        document_name=doc_name,
-        action_summary=f"Workflow action '{action}' on {doc_type} {doc_name}",
-        payload={"doctype": doc_type, "name": doc_name, "action": action},
-    )
+    try:
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Workflow",
+            doctype_name=doc_type,
+            document_name=doc_name,
+            action_summary=f"Workflow action '{action}' on {doc_type} {doc_name}",
+            payload={"doctype": doc_type, "name": doc_name, "action": action},
+        )
+    except PermissionDenied as exc:
+        return {"error": str(exc)}
 
     return {
         "approval_required": True,

@@ -114,37 +114,51 @@ class PermissionContext:
             allowed.append(field)
         return allowed
 
-    def _has_permlevel(self, doc_type, permlevel, perm_type):
-        """Check permlevel access."""
-        perms = frappe.get_all(
-            "DocPerm",
-            filters={"parent": doc_type, "permlevel": permlevel},
-            fields=["role", perm_type],
+    def _has_permlevel(self, doc_type, permlevel, perm_type, parent_doctype=None):
+        """Check permlevel access for this context's user (DocPerm + Custom DocPerm)."""
+        meta = frappe.get_meta(doc_type)
+        if meta.istable and not parent_doctype:
+            return False
+        return permlevel in meta.get_permlevel_access(
+            permission_type=perm_type, parenttype=parent_doctype, user=self.user
         )
-        for p in perms:
-            if p.get(perm_type) and p.role in self.roles:
-                return True
-        return False
 
-    def check_field_access(self, doc_type, fieldname, perm_type="read"):
-        """Check if user can access a specific field."""
+    def check_field_access(self, doc_type, fieldname, perm_type="read", parent_doctype=None):
+        """Check if user can access a specific field.
+
+        Child-table fields take their permlevel rules from the parent DocType,
+        so ``parent_doctype`` must be given for them.
+        """
         standard_fields = {
             "name", "owner", "creation", "modified", "modified_by",
             "docstatus", "idx", "parent", "parenttype", "parentfield",
         }
         if fieldname in standard_fields:
-            return perm_type == "read" or self.has_doctype_permission(doc_type, perm_type)
+            # System fields are never writable through the agent.
+            return perm_type == "read"
 
         meta = frappe.get_meta(doc_type)
         field = meta.get_field(fieldname)
         if not field:
             return False
+        if field.fieldtype in ("Password", "Password Hash"):
+            return False
         if field.hidden or field.read_only:
             if perm_type == "write":
                 return False
-        if field.permlevel and field.permlevel > 0:
-            return self._has_permlevel(doc_type, field.permlevel, perm_type)
+        if meta.istable and not parent_doctype:
+            # Without the parent we cannot evaluate permlevels; only level 0 is safe.
+            return not field.permlevel
+        if field.permlevel and field.permlevel > 0 or meta.istable:
+            return self._has_permlevel(doc_type, field.permlevel or 0, perm_type, parent_doctype)
         return True
+
+    def can_access_document(self, doc, perm_type="read"):
+        """Row-level check on a loaded document: role perms, User Permissions,
+        if_owner, sharing and permission hooks, evaluated for this user."""
+        return bool(
+            frappe.has_permission(doc.doctype, ptype=perm_type, doc=doc, user=self.user)
+        )
 
     def validate_user_identity(self):
         """Ensure user identity is from session, not from model args."""

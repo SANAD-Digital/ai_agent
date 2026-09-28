@@ -1,3 +1,6 @@
+import contextlib
+from unittest.mock import patch
+
 import frappe
 
 TEST_AGENT = "Unit Test Agent"
@@ -53,3 +56,17 @@ def delete_docs(doctype, names):
 				frappe.delete_doc("AI Chat Session", session, ignore_permissions=True, force=True)
 		except Exception:
 			pass
+
+
+def quota_bypass():
+	"""Test users must not be blocked by a site's subscription user quota (site_quota app)."""
+	if "site_quota" in frappe.get_installed_apps():
+		return patch("site_quota.quota.validate_users_limit")
+	return contextlib.nullcontext()
+
+
+def disable_users(users):
+	"""Disable test users afterwards so they do not count toward the site's user quota."""
+	for user in users:
+		if frappe.db.exists("User", user):
+			frappe.db.set_value("User", user, "enabled", 0, update_modified=False)

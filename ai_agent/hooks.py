@@ -43,8 +43,25 @@ doc_events = {
     },
 }
 
+# Conversations are private to their owner; see ai_agent/permissions.py.
 permission_query_conditions = {
-    "AI Chat Session": "ai_agent.ai_agent.doctype.ai_chat_session.ai_chat_session.get_permission_query_conditions",
+    "AI Run": "ai_agent.permissions.ai_run_query",
+    "AI Chat Session": "ai_agent.permissions.ai_chat_session_query",
+    "AI Chatbot Conversation": "ai_agent.permissions.ai_chatbot_conversation_query",
+    "AI Memory": "ai_agent.permissions.ai_memory_query",
+    "AI Tool Call": "ai_agent.permissions.ai_tool_call_query",
+    "AI Approval Request": "ai_agent.permissions.ai_approval_request_query",
+    "Financial Attachment Session": "ai_agent.permissions.financial_attachment_session_query",
+}
+
+has_permission = {
+    "AI Run": "ai_agent.permissions.has_owned_permission",
+    "AI Chat Session": "ai_agent.permissions.has_owned_permission",
+    "AI Chatbot Conversation": "ai_agent.permissions.has_owned_permission",
+    "AI Memory": "ai_agent.permissions.has_owned_permission",
+    "AI Tool Call": "ai_agent.permissions.has_owned_permission",
+    "AI Approval Request": "ai_agent.permissions.has_approval_permission",
+    "Financial Attachment Session": "ai_agent.permissions.has_owned_permission",
 }
 
 # Override whitelisted methods if needed

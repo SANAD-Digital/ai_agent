@@ -49,6 +49,15 @@ def process_received_message(received_log: str):
     if not frappe.db.exists(RECEIVED_LOG_DOCTYPE, received_log):
         return {"ok": False, "reason": "received log not found"}
 
+    if not settings.support_user():
+        frappe.log_error(
+            settings.support_user_problem(
+                str(settings._setting("support_user", settings._conf("ai_whatsapp_support_user", "")) or "")
+            ),
+            "WhatsApp AI Support Refused",
+        )
+        return {"ok": False, "skipped": True, "reason": "support user missing or privileged"}
+
     doc = frappe.get_doc(RECEIVED_LOG_DOCTYPE, received_log)
     if not _sender_is_allowed(doc):
         return {"ok": True, "skipped": True, "reason": "sender not allowed"}
@@ -265,8 +274,11 @@ def diagnose_lid_reply(received_log: str):
 
 def _create_run(doc, ticket, idempotency_key: str) -> str:
     agent = _ensure_support_agent()
+    support_user = settings.support_user()
+    if not support_user:
+        frappe.throw("WhatsApp support user is missing or privileged.", frappe.PermissionError)
     previous_user = frappe.session.user
-    frappe.set_user(settings.support_user())
+    frappe.set_user(support_user)
     try:
         run = frappe.get_doc(
             {
@@ -291,7 +303,13 @@ def _create_run(doc, ticket, idempotency_key: str) -> str:
 def _execute_and_get_answer(run_name: str, source_doc=None) -> str:
     run = frappe.get_doc("AI Run", run_name)
     if run.status not in TERMINAL_RUN_STATUSES:
-        execute_run(run_name)
+        # Run as the run's owner (the support user), never the job's session user.
+        previous_user = frappe.session.user
+        frappe.set_user(run.user)
+        try:
+            execute_run(run_name)
+        finally:
+            frappe.set_user(previous_user)
         run.reload()
 
     if run.status == "Completed" and run.final_answer:

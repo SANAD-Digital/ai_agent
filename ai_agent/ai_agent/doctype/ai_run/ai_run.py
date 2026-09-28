@@ -62,12 +62,3 @@ class AIRun(Document):
             "update `tabAI Chat Session` set message_count = message_count + 1 where name = %s",
             self.chat_session,
         )
-
-    def has_permission(self, perm):
-        if self.flags.ignore_permissions:
-            return True
-        if perm == "read" and self.user == frappe.session.user:
-            return True
-        if perm == "read" and frappe.db.exists("Has Role", {"parent": frappe.session.user, "role": "System Manager"}):
-            return True
-        return super().has_permission(perm)

@@ -102,10 +102,11 @@ def ensure_settings(agent: str | None = None):
 
     doc = frappe.get_single(SETTINGS_DOCTYPE)
     defaults = {
-        "enabled": 1,
+        # No default support user: an admin must pick a dedicated low-privilege
+        # user, and the integration stays off until that is done.
+        "enabled": 1 if settings.support_user() else 0,
         "agent": agent or frappe.db.exists("AI Agent", settings.DEFAULT_AGENT_NAME),
         "whatsapp_device": _default_whatsapp_device(),
-        "support_user": settings.DEFAULT_SUPPORT_USER if frappe.db.exists("User", settings.DEFAULT_SUPPORT_USER) else frappe.session.user,
         "company": frappe.defaults.get_user_default("Company") or frappe.db.get_default("Company"),
         "allow_group_chats": 0,
         "create_issue": 1,
@@ -120,6 +121,11 @@ def ensure_settings(agent: str | None = None):
             changed = True
 
     if changed:
+        problem = settings.support_user_problem(doc.support_user)
+        if problem and doc.support_user:
+            # Runtime already refuses an unsafe support user; don't fail migrate over it.
+            frappe.log_error(problem, "WhatsApp AI Support Refused")
+            doc.flags.ignore_validate = True
         doc.save(ignore_permissions=True)
     return doc
 

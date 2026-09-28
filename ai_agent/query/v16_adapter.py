@@ -208,31 +208,23 @@ class V16Adapter:
         return get_nested_set_hierarchy_result(ref_doctype, value, operator)
 
     def _apply_user_permissions(self, query, table, target_doctype, permission_context):
-        """Row-level user permissions for the manually built (grouped/joined)
-        path; the plain path gets them from frappe.qb.get_query(user=...)."""
-        if not target_doctype or permission_context.is_system_manager:
+        """Row-level permissions for the manually built (grouped/joined) path.
+
+        Restrict to the names Frappe itself would list for this user, so User
+        Permissions, permission-query hooks, if_owner and shares all apply
+        exactly as in frappe.get_list (the plain path gets them from
+        frappe.qb.get_query(user=...)). No role is exempt: System Managers can
+        carry User Permissions too.
+        """
+        if not target_doctype:
             return query
-        user_permissions = permission_context.user_permissions or {}
-        if not user_permissions:
-            return query
-        meta = frappe.get_meta(target_doctype)
-        for allowed_doctype, rules in user_permissions.items():
-            allowed_docs = [
-                rule.get("doc")
-                for rule in rules
-                if not rule.get("applicable_for") or rule.get("applicable_for") == target_doctype
-            ]
-            if not allowed_docs:
-                continue
-            if allowed_doctype == target_doctype:
-                query = query.where(table.name.isin(allowed_docs))
-                continue
-            for link_field in meta.get_link_fields():
-                if link_field.options != allowed_doctype:
-                    continue
-                col = getattr(table, link_field.fieldname)
-                query = query.where(col.isnull() | (col == "") | col.isin(allowed_docs))
-        return query
+        permitted = frappe.qb.get_query(
+            target_doctype,
+            fields=["name"],
+            ignore_permissions=False,
+            user=permission_context.user,
+        )
+        return query.where(table.name.isin(permitted))
 
     def _column_for_filter(self, table, parent_table, fieldname):
         if fieldname and fieldname.startswith("parent."):

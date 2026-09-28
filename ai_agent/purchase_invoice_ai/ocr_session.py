@@ -16,6 +16,7 @@ def start_extraction(company, files, grouping_mode="auto", user_instructions="",
     if frappe.session.user == "Guest":
         frappe.throw(_("Guest users cannot create runs."))
     legacy._assert_read("Company")
+    legacy._assert_company_access(company)
 
     files = frappe.parse_json(files or "[]")
     defaults = frappe.parse_json(defaults or "{}")
@@ -99,7 +100,7 @@ def read_selected_pages(run_name, pages):
     from ai_agent.purchase_invoice_ai import api as legacy
 
     run = frappe.get_doc("AI Run", run_name)
-    legacy._assert_run_access(run)
+    legacy._assert_run_owner(run)
     selected_pages = frappe.parse_json(pages or "[]")
     if not isinstance(selected_pages, list) or not selected_pages:
         frappe.throw(_("Select at least one page to read."))
@@ -186,7 +187,7 @@ def set_selected_pages(session_name, pages):
     from ai_agent.purchase_invoice_ai import api as legacy
 
     session = frappe.get_doc("Financial Attachment Session", session_name)
-    legacy._assert_session_access(session)
+    legacy._assert_session_owner(session)
     selected = frappe.parse_json(pages or "[]")
     selected_ids = {str(row.get("page_id") or "") for row in selected if row.get("page_id")}
     for row in session.pages:

@@ -11,6 +11,7 @@ from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.model_provider import estimate_context_window_tokens
 from ai_agent.runtime import local_answers
 from ai_agent.runtime.run_control import enqueue_run, recover_run_if_orphaned
+from ai_agent.permissions import assert_owned_access, owner_filters
 from frappe.utils.file_manager import save_file
 
 
@@ -35,6 +36,13 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
     if frappe.session.user == "Guest":
         frappe.throw(_("Guest users cannot create runs."))
 
+    if parent_run:
+        # A follow-up pulls the parent's history into the model context, so
+        # only the owner may continue a conversation (auditing is read-only).
+        parent_owner = frappe.db.get_value("AI Run", parent_run, "user")
+        if parent_owner != frappe.session.user:
+            frappe.throw(_("Not authorized to continue this conversation."), frappe.PermissionError)
+
     provider, model = _resolve_run_provider_and_model(provider, model, parent_run)
 
     settings = frappe.get_cached_doc("AI Settings")
@@ -48,6 +56,8 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
         frappe.throw(_("Agent not found or disabled."))
 
     agent_doc = frappe.get_doc("AI Agent", agent)
+    if company and not frappe.has_permission("Company", "read", doc=company, user=frappe.session.user):
+        frappe.throw(_("No permission on company {0}.").format(company), frappe.PermissionError)
     if company and hasattr(agent_doc, "allowed_companies") and agent_doc.allowed_companies:
         allowed = [c.company for c in agent_doc.allowed_companies]
         if company not in allowed:
@@ -59,7 +69,9 @@ def create_run(agent, prompt, company=None, parent_run=None, idempotency_key=Non
         agent_doc = frappe.get_doc("AI Agent", agent)
 
     if idempotency_key:
-        existing = frappe.db.exists("AI Run", {"idempotency_key": idempotency_key})
+        existing = frappe.db.exists(
+            "AI Run", {"idempotency_key": idempotency_key, "user": frappe.session.user}
+        )
         if existing:
             return {
                 "run_name": existing,
@@ -244,15 +256,23 @@ def list_chat_sessions(limit=30, include_archived=0):
 
 
 def _assert_chat_session_access(session):
-    if session.user != frappe.session.user and not _is_system_manager():
-        frappe.throw(_("Not authorized to view this chat session."), frappe.PermissionError)
+    assert_owned_access(
+        session.user, "AI Chat Session", session.name,
+        _("Not authorized to view this chat session."),
+    )
+
+
+def _assert_chat_session_owner(session):
+    """Changes to a conversation are reserved to its owner, even for auditors."""
+    if session.user != frappe.session.user:
+        frappe.throw(_("Not authorized to change this chat session."), frappe.PermissionError)
 
 
 @frappe.whitelist()
 def rename_chat_session(session, title):
     """Rename a chat session from the workspace sidebar."""
     doc = frappe.get_doc("AI Chat Session", session)
-    _assert_chat_session_access(doc)
+    _assert_chat_session_owner(doc)
     title = " ".join(str(title or "").split())[:140]
     if not title:
         frappe.throw(_("Title is required."))
@@ -265,7 +285,7 @@ def rename_chat_session(session, title):
 def archive_chat_session(session, archived=1):
     """Archive (or restore) a chat session; runs are kept, only hidden."""
     doc = frappe.get_doc("AI Chat Session", session)
-    _assert_chat_session_access(doc)
+    _assert_chat_session_owner(doc)
     doc.status = "Archived" if cint(archived) else "Active"
     doc.save(ignore_permissions=True)
     return {"name": doc.name, "status": doc.status}
@@ -656,8 +676,7 @@ def _payment_action_for_invoice(doctype_name, document_name):
 def get_run(run_name):
     """Get run details."""
     run = frappe.get_doc("AI Run", run_name)
-    if run.user != frappe.session.user and not _is_system_manager():
-        frappe.throw(_("Not authorized to view this run."), frappe.PermissionError)
+    _assert_run_access(run)
     if recover_run_if_orphaned(run):
         run.reload()
 
@@ -720,8 +739,7 @@ def _run_execution_status(run):
 def get_run_steps(run_name, start=0, page_length=50):
     """Get steps for a run."""
     run = frappe.get_doc("AI Run", run_name)
-    if run.user != frappe.session.user and not _is_system_manager():
-        frappe.throw(_("Not authorized."), frappe.PermissionError)
+    _assert_run_access(run)
 
     steps = frappe.get_all(
         "AI Run Step",
@@ -738,8 +756,7 @@ def get_run_steps(run_name, start=0, page_length=50):
 def get_run_artifacts(run_name):
     """Get artifacts for a run."""
     run = frappe.get_doc("AI Run", run_name)
-    if run.user != frappe.session.user and not _is_system_manager():
-        frappe.throw(_("Not authorized."), frappe.PermissionError)
+    _assert_run_access(run)
 
     artifacts = frappe.get_all(
         "AI Artifact",
@@ -754,7 +771,7 @@ def get_run_artifacts(run_name):
 def cancel_run(run_name):
     """Cancel a running AI Run."""
     run = frappe.get_doc("AI Run", run_name)
-    if run.user != frappe.session.user and not _is_system_manager():
+    if run.user != frappe.session.user:
         frappe.throw(_("Not authorized."), frappe.PermissionError)
 
     if run.status in ("Completed", "Failed", "Cancelled"):
@@ -869,7 +886,7 @@ def get_pending_approvals(run_name=None):
         run = frappe.get_doc("AI Run", run_name)
         _assert_run_access(run)
         filters["run"] = run_name
-    elif not _is_system_manager():
+    elif not _is_approver():
         user_runs = frappe.get_all("AI Run", filters={"user": frappe.session.user}, pluck="name")
         if not user_runs:
             return {"approvals": []}
@@ -935,9 +952,7 @@ def _append_approval_execution_to_run(approval, result):
 
 
 def _run_access_filters():
-    if _is_system_manager():
-        return {}
-    return {"user": frappe.session.user}
+    return owner_filters()
 
 
 def _run_access_filters_with(extra):
@@ -947,12 +962,14 @@ def _run_access_filters_with(extra):
 
 
 def _assert_run_access(run):
-    if run.user != frappe.session.user and not _is_system_manager():
-        frappe.throw(_("Not authorized to view this run."), frappe.PermissionError)
+    assert_owned_access(run.user, "AI Run", run.name, _("Not authorized to view this run."))
 
 
-def _is_system_manager():
-    return "System Manager" in frappe.get_roles(frappe.session.user)
+def _is_approver():
+    """Approvers work the pending-approval queue across users (not conversations)."""
+    roles = set(frappe.get_roles(frappe.session.user))
+    approver_role = frappe.db.get_single_value("AI Settings", "approver_role")
+    return "System Manager" in roles or bool(approver_role and approver_role in roles)
 
 
 def _get_action_agent_for_prompt(prompt, agent_doc):

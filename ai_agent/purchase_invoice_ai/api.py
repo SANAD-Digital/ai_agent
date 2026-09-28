@@ -15,6 +15,7 @@ from ai_agent.runtime.orchestrator import execute_run
 from ai_agent.runtime.skill_registry import SkillRegistry
 from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.run_control import mark_interrupted_run, run_job_id
+from ai_agent.permissions import assert_owned_access
 from ai_agent.purchase_invoice_ai.payloads import (  # noqa: F401 -- legacy re-exports
     MAX_ANALYSIS_ROW_TEXT_CHARS,
     analysis_failed_payload as _analysis_failed_payload,
@@ -79,7 +80,7 @@ def bootstrap():
     _ensure_purchase_invoice_agent()
     return {
         "agent": PURCHASE_AGENT,
-        "companies": frappe.get_all("Company", fields=["name", "default_currency"], order_by="name asc"),
+        "companies": frappe.get_list("Company", fields=["name", "default_currency"], order_by="name asc"),
         "today": nowdate(),
         "max_files": MAX_FILES,
         "max_file_mb": int(MAX_FILE_BYTES / (1024 * 1024)),
@@ -228,10 +229,11 @@ def start_discussion(company, message, active_step, analysis=None, source_run_na
     if not text:
         frappe.throw(_("Message is required."))
 
+    _assert_company_access(company)
     parent_run = current_run_name or source_run_name or None
     if parent_run:
         parent = frappe.get_doc("AI Run", parent_run)
-        _assert_run_access(parent)
+        _assert_run_owner(parent)
     run = frappe.get_doc({
         "doctype": "AI Run",
         "agent": PURCHASE_AGENT,
@@ -289,7 +291,7 @@ def get_discussion(run_name):
 @frappe.whitelist()
 def cancel_analysis(run_name):
     run = frappe.get_doc("AI Run", run_name)
-    _assert_run_access(run)
+    _assert_run_owner(run)
     if run.status in TERMINAL_STATUSES:
         return {"status": run.status}
     frappe.db.set_value(
@@ -474,13 +476,29 @@ def _assert_read(doctype):
 
 
 def _assert_run_access(run):
-    if run.user != frappe.session.user and "System Manager" not in frappe.get_roles(frappe.session.user):
-        frappe.throw(_("Not authorized."))
+    """Read access: the owner, or an auditor when auditing is enabled (logged)."""
+    assert_owned_access(run.user, "AI Run", run.name, _("Not authorized."))
+
+
+def _assert_run_owner(run):
+    """Changes, and reuse of a run's content in a new run, are owner-only."""
+    if run.user != frappe.session.user:
+        frappe.throw(_("Not authorized."), frappe.PermissionError)
 
 
 def _assert_session_access(session):
-    if session.user != frappe.session.user and "System Manager" not in frappe.get_roles(frappe.session.user):
-        frappe.throw(_("Not authorized."))
+    assert_owned_access(session.user, "Financial Attachment Session", session.name, _("Not authorized."))
+
+
+def _assert_session_owner(session):
+    if session.user != frappe.session.user:
+        frappe.throw(_("Not authorized."), frappe.PermissionError)
+
+
+def _assert_company_access(company):
+    """Row level: User Permissions may restrict which companies a user can use."""
+    if not company or not frappe.has_permission("Company", "read", doc=company, user=frappe.session.user):
+        frappe.throw(_("No permission on company {0}.").format(company), frappe.PermissionError)
 
 
 def _prepare_uploads(files):
@@ -971,7 +989,7 @@ def _latest_discussion_analysis(payload, current_run_name=None, source_run_name=
             continue
         try:
             run = frappe.get_doc("AI Run", run_name)
-            _assert_run_access(run)
+            _assert_run_owner(run)
             parsed = _extract_json(run.final_answer or "")
             if not parsed and run.parent_run:
                 parsed = _analysis_from_parent_run(run)
@@ -1382,7 +1400,16 @@ def _start_background_page_reading(run_name, selected_pages, user, site):
 
 def execute_sequential_page_reading_job(run_name, selected_pages, user=None):
     """Process existing Financial Attachment Session pages one by one."""
-    frappe.set_user(user or "Administrator")
+    # Never fall back to Administrator: page reading runs as the run owner.
+    job_user = user or frappe.db.get_value("AI Run", run_name, "user")
+    if not job_user or job_user == "Guest" or not frappe.db.exists("User", {"name": job_user, "enabled": 1}):
+        frappe.log_error(
+            f"AI Run {run_name} has no valid owner user; page reading refused.",
+            "Financial Attachment Page Reading Rejected",
+        )
+        mark_interrupted_run(run_name, _("Page reading was rejected because the run has no owner user."))
+        return
+    frappe.set_user(job_user)
     ordered_pages = sorted(
         selected_pages or [],
         key=lambda row: (str(row.get("file_id") or ""), cint(row.get("page")) or 1),

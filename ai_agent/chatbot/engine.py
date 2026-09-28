@@ -21,6 +21,7 @@ STREAM_LIST_KEY = STREAM_KEY_PREFIX + "_list"
 STREAM_TTL_SECONDS = 3600
 STREAM_STATUS_KEY = STREAM_KEY_PREFIX + "_status_{stream_id}"
 STREAM_CONTENT_KEY = STREAM_KEY_PREFIX + "_content_{stream_id}"
+STREAM_OWNER_KEY = STREAM_KEY_PREFIX + "_owner_{stream_id}"
 
 STREAM_STATUS_STARTED = "started"
 STREAM_STATUS_STREAMING = "streaming"
@@ -94,7 +95,7 @@ def get_messages(conversation: str) -> list[dict]:
     if not frappe.db.exists(CONVERSATION_DOCTYPE, conversation):
         return []
     doc = frappe.get_doc(CONVERSATION_DOCTYPE, conversation)
-    _assert_conversation_owner(doc)
+    _assert_conversation_read_access(doc)
     return [
         {
             "role": row.role,
@@ -281,10 +282,21 @@ def _append_message(conversation_doc, role: str, content: str, run_name: str | N
 
 
 def _assert_conversation_owner(conversation_doc):
-    if frappe.session.user == "Administrator":
-        return
+    """Owner only: Administrator gets no bypass (see ai_agent.permissions)."""
     if conversation_doc.user != frappe.session.user:
         frappe.throw(_("ليس لديك صلاحية الوصول لهذه المحادثة."), frappe.PermissionError)
+
+
+def _assert_conversation_read_access(conversation_doc):
+    """Reads: owner, or an auditor when conversation auditing is enabled (logged)."""
+    from ai_agent.permissions import assert_owned_access
+
+    assert_owned_access(
+        conversation_doc.user,
+        CONVERSATION_DOCTYPE,
+        conversation_doc.name,
+        _("ليس لديك صلاحية الوصول لهذه المحادثة."),
+    )
 
 
 def _clean_answer(answer: str) -> str:
@@ -328,6 +340,7 @@ def begin_stream_message(message: str, conversation: str | None = None, user: st
     _set_stream_status(stream_id, STREAM_STATUS_STARTED)
     _set_stream_content(stream_id, "")
     _register_stream(stream_id)
+    _set_stream_owner(stream_id, user)
 
     frappe.enqueue(
         "ai_agent.chatbot.engine._stream_generate_job",
@@ -347,6 +360,8 @@ def begin_stream_message(message: str, conversation: str | None = None, user: st
 
 def get_stream_content(stream_id: str):
     """Return the current accumulated answer for a stream plus its status."""
+    if _get_stream_owner(stream_id) != frappe.session.user:
+        frappe.throw(_("ليس لديك صلاحية الوصول لهذه المحادثة."), frappe.PermissionError)
     status = _get_stream_status(stream_id) or STREAM_STATUS_FAILED
     content = _get_stream_content(stream_id) or ""
     return {
@@ -428,6 +443,15 @@ def _stream_chat_answer(stream_id: str, message: str, conversation_doc) -> str:
         full = chunk
         _set_stream_content(stream_id, full)
     return full
+
+
+def _set_stream_owner(stream_id: str, user: str):
+    key = _stream_cache_key(STREAM_OWNER_KEY, stream_id)
+    frappe.cache().set_value(key, user, expires_in_sec=STREAM_TTL_SECONDS)
+
+
+def _get_stream_owner(stream_id: str) -> str | None:
+    return frappe.cache().get_value(_stream_cache_key(STREAM_OWNER_KEY, stream_id))
 
 
 def _new_stream_id() -> str:

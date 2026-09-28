@@ -19,6 +19,10 @@ class QueryValidator:
 
     def __init__(self, permission_context):
         self.ctx = permission_context
+        self._parent_doctype = None
+
+    def _field_parent(self):
+        return getattr(self, "_parent_doctype", None)
 
     def validate(self, spec):
         """Validate a query specification dict. Raises QueryValidationError on failure."""
@@ -48,6 +52,8 @@ class QueryValidator:
         )
         if parent_doctype:
             spec["parent_doctype"] = parent_doctype
+        # Child-table permlevels are evaluated against the parent's DocPerms.
+        self._parent_doctype = parent_doctype
 
         self._validate_fields(doc_type, fields)
 
@@ -93,7 +99,7 @@ class QueryValidator:
                     raise QueryValidationError("Wildcard '*' is not allowed.")
                 if f not in allowed_fieldnames:
                     raise QueryValidationError(f"Field '{f}' not found or not accessible.")
-                if not self.ctx.check_field_access(doc_type, f, "read"):
+                if not self.ctx.check_field_access(doc_type, f, "read", self._field_parent()):
                     raise QueryValidationError(f"No read access to field '{f}'.")
             elif isinstance(f, dict):
                 fieldname = f.get("field")
@@ -102,7 +108,7 @@ class QueryValidator:
 
                 if fieldname and fieldname not in allowed_fieldnames:
                     raise QueryValidationError(f"Field '{fieldname}' not found.")
-                if fieldname and not self.ctx.check_field_access(doc_type, fieldname, "read"):
+                if fieldname and not self.ctx.check_field_access(doc_type, fieldname, "read", self._field_parent()):
                     raise QueryValidationError(f"No read access to field '{fieldname}'.")
 
                 if aggregate and aggregate not in ALLOWED_AGGREGATES:
@@ -245,7 +251,7 @@ class QueryValidator:
                 f"group_by bucket requires a Date/Datetime field; "
                 f"'{fieldname}' is {fieldtype or 'not a date field'}."
             )
-        if field_def and not self.ctx.check_field_access(doc_type, fieldname, "read"):
+        if field_def and not self.ctx.check_field_access(doc_type, fieldname, "read", self._field_parent()):
             raise QueryValidationError(f"No read access to field '{fieldname}'.")
         if alias and not ALIAS_RE.match(alias):
             raise QueryValidationError(f"Invalid alias '{alias}'.")

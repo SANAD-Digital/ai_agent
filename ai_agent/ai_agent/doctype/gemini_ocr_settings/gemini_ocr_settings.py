@@ -21,6 +21,8 @@ class GeminiOCRSettings(Document):
 
 @frappe.whitelist()
 def test_connection():
+    # Spends the stored API key on an outbound call: settings managers only.
+    frappe.only_for("System Manager")
     from ai_agent.runtime.gemini_ocr import test_gemini_ocr_connection
 
     return test_gemini_ocr_connection()

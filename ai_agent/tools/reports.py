@@ -87,6 +87,10 @@ def handle_run(arguments, permission_context):
     if report.ref_doctype and not permission_context.has_doctype_permission(report.ref_doctype, "read"):
         return {"error": f"No permission to run report on '{report.ref_doctype}'"}
 
+    if prepared_report_name and not _owns_prepared_report(prepared_report_name, report_name, permission_context.user):
+        # A prepared report holds data computed with its owner's permissions.
+        return {"error": "Prepared report not found or not accessible."}
+
     try:
         filters = _normalize_filters(filters)
         declared_filters = _declared_report_filters(report)
@@ -347,6 +351,16 @@ def _handle_missing_prepared_report(report_name, filters, permission_context, ge
 
     prepared_report = _create_prepared_report(report_name, report_filters, permission_context.user)
     return _prepared_report_pending_result(report_name, report_filters, prepared_report, created=True)
+
+
+def _owns_prepared_report(prepared_report_name, report_name, user):
+    rows = frappe.get_all(
+        "Prepared Report",
+        filters={"name": prepared_report_name, "owner": user, "report_name": report_name},
+        pluck="name",
+        limit=1,
+    )
+    return bool(rows)
 
 
 def _get_existing_pending_prepared_report(report_name, filters, user):

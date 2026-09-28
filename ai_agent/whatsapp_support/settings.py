@@ -7,7 +7,9 @@ from frappe.utils import cint
 
 
 DEFAULT_AGENT_NAME = "WhatsApp Technical Support"
-DEFAULT_SUPPORT_USER = "Administrator"
+# WhatsApp replies go to outside senders, so the agent must run as a
+# dedicated low-privilege user. There is deliberately no default user.
+PRIVILEGED_SUPPORT_ROLES = frozenset({"Administrator", "System Manager", "Accounts Manager"})
 DEFAULT_REPLY_ON_ERROR = (
     "تم استلام طلبك، لكن تعذر تجهيز رد آلي الآن. "
     "تم تسجيل الطلب وسيقوم فريق الدعم بمتابعته."
@@ -28,11 +30,29 @@ def whatsapp_device() -> str | None:
     return value or None
 
 
-def support_user() -> str:
-    user = str(_setting("support_user", _conf("ai_whatsapp_support_user", DEFAULT_SUPPORT_USER)) or DEFAULT_SUPPORT_USER).strip()
-    if frappe.db.exists("User", user):
-        return user
-    return DEFAULT_SUPPORT_USER
+def support_user() -> str | None:
+    """The configured support user, or None when it is missing or unsafe."""
+    user = str(_setting("support_user", _conf("ai_whatsapp_support_user", "")) or "").strip()
+    if support_user_problem(user):
+        return None
+    return user
+
+
+def support_user_problem(user: str | None) -> str | None:
+    """Why ``user`` cannot run the WhatsApp agent, or None if it can."""
+    if not user:
+        return "No support user is configured."
+    if user in ("Administrator", "Guest"):
+        return f"{user} cannot be the WhatsApp support user."
+    if not frappe.db.exists("User", {"name": user, "enabled": 1}):
+        return f"Support user {user} does not exist or is disabled."
+    privileged = PRIVILEGED_SUPPORT_ROLES & set(frappe.get_roles(user))
+    if privileged:
+        return (
+            f"Support user {user} has privileged roles ({', '.join(sorted(privileged))}); "
+            "use a dedicated low-privilege user."
+        )
+    return None
 
 
 def company() -> str | None:

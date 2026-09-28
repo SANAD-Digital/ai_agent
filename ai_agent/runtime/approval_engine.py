@@ -6,6 +6,16 @@ from ai_agent.runtime.exceptions import (
     ApprovalRequired, ApprovalExpired, ApprovalAlreadyExecuted,
     PermissionDenied, IdempotencyConflict, ConcurrencyConflict,
 )
+from ai_agent.runtime.write_guard import blocked_fields
+
+PERMTYPE_BY_ACTION = {
+    "Create": "create",
+    "Update": "write",
+    "Submit": "submit",
+    "Cancel": "cancel",
+    "Workflow": "write",
+}
+TARGET_NOT_ACCESSIBLE = "Target document not found or not accessible."
 
 
 class ApprovalEngine:
@@ -17,7 +27,18 @@ class ApprovalEngine:
     def create_approval_request(self, *, run_name, action_type, doctype_name=None,
                                  document_name=None, action_summary, impact_summary="",
                                  payload, expected_modified=None, idempotency_key=None):
-        """Create an approval request and pause the run."""
+        """Create an approval request and pause the run.
+
+        Every write path (tools, action interceptor, MCP) comes through here,
+        so the requester's permissions and the payload fields are checked
+        before anything is queued for approval.
+        """
+        target = self.assert_action_allowed(
+            action_type, doctype_name, document_name, payload, self.ctx.user
+        )
+        if action_type == "Update" and not expected_modified and target is not None:
+            expected_modified = str(target.modified)
+
         if idempotency_key:
             existing = frappe.db.exists("AI Approval Request", {"idempotency_key": idempotency_key})
             if existing:
@@ -38,7 +59,8 @@ class ApprovalEngine:
         approval = frappe.get_doc({
             "doctype": "AI Approval Request",
             "run": run_name,
-            "approval_id": f"APR-{frappe.utils.cint(now.timestamp())}",
+            # Seconds alone collide when two requests land in the same second.
+            "approval_id": f"APR-{frappe.utils.cint(now.timestamp())}-{frappe.generate_hash(length=6)}",
             "action_type": action_type,
             "doctype_name": doctype_name,
             "document_name": document_name,
@@ -112,6 +134,10 @@ class ApprovalEngine:
         if approval.status != "Pending":
             raise ApprovalAlreadyExecuted(f"Approval is already {approval.status}.")
 
+        # Requester, run owner or an approver; anyone else could veto other users' work.
+        if not self._can_decide(approval, user):
+            raise PermissionDenied("You are not authorized to reject this action.")
+
         approval.status = "Rejected"
         approval.approved_by = user
         approval.decided_at = frappe.utils.now_datetime()
@@ -135,23 +161,16 @@ class ApprovalEngine:
             frappe.db.commit()
             raise ApprovalExpired("Approval has expired before execution.")
 
+        # Re-check against the approver (who executes it) at execution time:
+        # permissions or the target document may have changed since the request.
         user = approval.approved_by
-        if approval.action_type == "Bulk Create":
-            payload = json.loads(approval.payload_json or "{}")
-            self._assert_bulk_create_permission(payload, user)
-        else:
-            permtype_by_action = {
-                "Create": "create",
-                "Update": "write",
-                "Submit": "submit",
-                "Cancel": "cancel",
-                "Workflow": "write",
-            }
-            permtype = permtype_by_action.get(approval.action_type, "write")
-            if not frappe.has_permission(approval.doctype_name, permtype, user=user):
-                raise PermissionDenied(
-                    f"User {user} no longer has {permtype} permission on {approval.doctype_name}."
-                )
+        self.assert_action_allowed(
+            approval.action_type,
+            approval.doctype_name,
+            approval.document_name,
+            json.loads(approval.payload_json or "{}"),
+            user,
+        )
 
         result = self._execute_by_type(approval)
         try:
@@ -245,8 +264,7 @@ class ApprovalEngine:
             raise ConcurrencyConflict("Document was modified since the approval was requested.")
 
         for key, val in payload.items():
-            if key != "name" and key != "doctype":
-                doc.set(key, val)
+            doc.set(key, val)
 
         doc.save(ignore_permissions=False)
 
@@ -310,14 +328,72 @@ class ApprovalEngine:
             "workflow_state": updated.get("workflow_state"),
         }
 
+    def _can_decide(self, approval, user):
+        if user == "Guest":
+            return False
+        if approval.requested_by == user:
+            return True
+        if approval.run and frappe.db.get_value("AI Run", approval.run, "user") == user:
+            return True
+        roles = set(frappe.get_roles(user))
+        approver_role = frappe.get_cached_doc("AI Settings").get("approver_role")
+        return "System Manager" in roles or bool(approver_role and approver_role in roles)
+
     def _compute_hash(self, payload_json):
         return hashlib.sha256(payload_json.encode()).hexdigest()
 
-    def _assert_bulk_create_permission(self, payload, user):
-        for document in self._bulk_documents(payload):
-            doc_type = document["doctype"]
-            if not frappe.has_permission(doc_type, "create", user=user):
-                raise PermissionDenied(f"User {user} no longer has create permission on {doc_type}.")
+    def assert_action_allowed(self, action_type, doctype_name, document_name, payload, user):
+        """Raise PermissionDenied unless ``user`` may perform this action.
+
+        Returns the loaded target document for document-level actions.
+        """
+        if action_type == "Bulk Create":
+            for document in self._bulk_documents(payload):
+                self._assert_create_allowed(document["doctype"], document["payload"], user)
+            return None
+        if action_type == "Create":
+            self._assert_create_allowed(doctype_name, payload, user)
+            return None
+
+        permtype = PERMTYPE_BY_ACTION.get(action_type)
+        if not permtype:
+            raise PermissionDenied(f"Action type '{action_type}' is not allowed.")
+        if not doctype_name or not document_name or not frappe.db.exists("DocType", doctype_name):
+            raise PermissionDenied(TARGET_NOT_ACCESSIBLE)
+        if not frappe.has_permission(doctype_name, permtype, user=user):
+            raise PermissionDenied(f"User {user} has no {permtype} permission on {doctype_name}.")
+        try:
+            doc = frappe.get_doc(doctype_name, document_name)
+        except frappe.DoesNotExistError:
+            raise PermissionDenied(TARGET_NOT_ACCESSIBLE)
+        # Row level: User Permissions (company, branch...), if_owner, sharing.
+        if not frappe.has_permission(doctype_name, "read", doc=doc, user=user) or not frappe.has_permission(
+            doctype_name, permtype, doc=doc, user=user
+        ):
+            raise PermissionDenied(TARGET_NOT_ACCESSIBLE)
+        if action_type == "Update":
+            problems = blocked_fields(doctype_name, payload, user, mode="update")
+            if problems:
+                raise PermissionDenied(
+                    f"These fields cannot be changed on {doctype_name} through the agent: "
+                    f"{', '.join(problems)}"
+                )
+        return doc
+
+    def _assert_create_allowed(self, doctype_name, payload, user):
+        if not doctype_name or not frappe.db.exists("DocType", doctype_name):
+            raise PermissionDenied(f"DocType '{doctype_name}' not found.")
+        if not frappe.has_permission(doctype_name, "create", user=user):
+            raise PermissionDenied(f"User {user} has no create permission on {doctype_name}.")
+        if isinstance(payload, dict) and payload.get("doctype") not in (None, doctype_name):
+            # The executed insert uses payload["doctype"]: it must be the checked DocType.
+            raise PermissionDenied("Payload doctype does not match the requested DocType.")
+        problems = blocked_fields(doctype_name, payload, user, mode="create")
+        if problems:
+            raise PermissionDenied(
+                f"These fields cannot be set on a new {doctype_name} through the agent: "
+                f"{', '.join(problems)}"
+            )
 
     def _bulk_documents(self, payload):
         documents = payload.get("documents") if isinstance(payload, dict) else None

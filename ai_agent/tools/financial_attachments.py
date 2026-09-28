@@ -33,12 +33,8 @@ def handle_get_session_ocr_text(arguments, permission_context):
     if not session:
         return {"error": "Financial Attachment Session was not found"}
 
-    roles = frappe.get_roles(permission_context.user)
-
-    if (
-        session.user != permission_context.user
-        and "System Manager" not in roles
-    ):
+    # Another user's session is never readable by the agent, auditors included.
+    if session.user != permission_context.user:
         return {"error": "No access to this Financial Attachment Session"}
 
     if (

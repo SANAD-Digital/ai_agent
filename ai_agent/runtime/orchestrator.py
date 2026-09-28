@@ -1084,6 +1084,21 @@ class Orchestrator:
 
 
 def execute_run(run_name):
-    """Entry point for background job."""
+    """Entry point for background job.
+
+    Tools read data through the session (frappe.get_list, has_permission), so
+    the session must be the run owner: otherwise a job queued by another user
+    (or the scheduler's Administrator) would read with the wrong permissions.
+    """
+    run_user = frappe.db.get_value("AI Run", run_name, "user")
+    if not run_user or run_user == "Guest" or frappe.session.user != run_user:
+        from ai_agent.runtime.run_control import mark_interrupted_run
+
+        frappe.log_error(
+            f"AI Run {run_name} refused: session user {frappe.session.user!r} is not the run owner {run_user!r}.",
+            "AI Agent Run Rejected",
+        )
+        mark_interrupted_run(run_name, frappe._("Agent execution was rejected: the run must execute as its owner."))
+        return
     orchestrator = Orchestrator(run_name)
     orchestrator.execute()

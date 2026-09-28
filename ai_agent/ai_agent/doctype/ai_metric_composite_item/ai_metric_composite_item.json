@@ -1,0 +1,37 @@
+{
+ "name": "AI Metric Composite Item",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "creation": "2026-09-28 16:00:00.000000",
+ "modified": "2026-09-28 16:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "metric",
+  "alias"
+ ],
+ "fields": [
+  {
+   "fieldname": "metric",
+   "fieldtype": "Link",
+   "label": "Metric",
+   "options": "AI Metric",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "alias",
+   "fieldtype": "Data",
+   "label": "Alias",
+   "in_list_view": 1,
+   "description": "Name used in the formula; defaults to the metric key"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1,
+ "editable_grid": 1,
+ "permissions": []
+}

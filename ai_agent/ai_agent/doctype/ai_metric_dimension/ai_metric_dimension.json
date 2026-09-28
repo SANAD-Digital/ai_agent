@@ -1,0 +1,59 @@
+{
+ "name": "AI Metric Dimension",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "creation": "2026-09-28 16:00:00.000000",
+ "modified": "2026-09-28 16:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "dimension_key",
+  "label_ar",
+  "field_path",
+  "value_field",
+  "resolver"
+ ],
+ "fields": [
+  {
+   "fieldname": "dimension_key",
+   "fieldtype": "Data",
+   "label": "Dimension Key",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Name the model uses, e.g. item, customer, payment_mode"
+  },
+  {
+   "fieldname": "label_ar",
+   "fieldtype": "Data",
+   "label": "Arabic Label",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "field_path",
+   "fieldtype": "Data",
+   "label": "Field Path",
+   "in_list_view": 1,
+   "description": "Field on the source DocType, `child_table.field` (e.g. items.item_code) or `link_field.field` (e.g. customer.customer_group)"
+  },
+  {
+   "fieldname": "value_field",
+   "fieldtype": "Data",
+   "label": "Value Field (child)",
+   "description": "For child-table dimensions: the child field to aggregate instead of the metric value field, e.g. base_net_amount"
+  },
+  {
+   "fieldname": "resolver",
+   "fieldtype": "Data",
+   "label": "Resolver",
+   "in_list_view": 1,
+   "description": "Registered resolver name for complex dimensions (see ai_agent/metrics/resolvers.py)"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1,
+ "editable_grid": 1,
+ "permissions": []
+}

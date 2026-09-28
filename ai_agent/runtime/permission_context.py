@@ -42,11 +42,16 @@ class PermissionContext:
         """Check if user has permission on a DocType."""
         if perm_type == "read" and self._is_child_table(doc_type):
             return self.has_child_table_read_permission(doc_type)
-        return frappe.permissions.has_permission(
-            doc_type,
-            ptype=perm_type,
-            user=self.user,
-        )
+        try:
+            return frappe.permissions.has_permission(
+                doc_type,
+                ptype=perm_type,
+                user=self.user,
+            )
+        except frappe.PermissionError:
+            # Some Single DocTypes (e.g. System Health Report) raise instead of
+            # returning False when their controller loads for a non-manager.
+            return False
 
     def has_child_table_read_permission(self, child_doctype):
         """Child tables inherit read access from any readable parent table field."""

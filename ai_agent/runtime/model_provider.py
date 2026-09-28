@@ -52,7 +52,7 @@ class OpenAICompatibleProvider(AgentModelProvider):
         """Create a new model step."""
         import requests
 
-        messages = instructions.get("messages", [])
+        messages = _openai_messages(instructions.get("messages", []))
         model = instructions.get("model", self.model)
         is_deepseek = self._is_deepseek_model(model)
 
@@ -153,7 +153,7 @@ class OpenAICompatibleProvider(AgentModelProvider):
         """
         import requests
 
-        messages = instructions.get("messages", [])
+        messages = _openai_messages(instructions.get("messages", []))
         model = instructions.get("model", self.model)
         is_deepseek = self._is_deepseek_model(model)
 
@@ -287,9 +287,16 @@ class OpenAICompatibleProvider(AgentModelProvider):
         total_tokens = usage.get("total_tokens") or usage.get("total_token_count")
         if total_tokens and not (input_tokens or output_tokens):
             input_tokens = total_tokens
+        cached = (
+            usage.get("prompt_cache_hit_tokens")  # DeepSeek
+            or (usage.get("prompt_tokens_details") or {}).get("cached_tokens")  # OpenAI
+            or 0
+        )
         return {
             "input_tokens": int(input_tokens or 0),
             "output_tokens": int(output_tokens or 0),
+            "cache_read_input_tokens": int(cached or 0),
+            "cache_creation_input_tokens": 0,
         }
 
     def get_context_window(self, model=None):
@@ -325,6 +332,16 @@ class OpenAICompatibleProvider(AgentModelProvider):
                 "function": function,
             })
         return formatted
+
+
+def _openai_messages(messages):
+    """Drop provider-private keys: Anthropic content blocks kept for replay and
+    runtime bookkeeping keys starting with "_"."""
+    return [
+        {k: v for k, v in message.items() if k != "provider_blocks" and not k.startswith("_")}
+        if isinstance(message, dict) else message
+        for message in messages or []
+    ]
 
 
 class ProviderConfig:
@@ -419,9 +436,12 @@ def get_provider(provider_name=None):
     records exist. Every supported type speaks the OpenAI chat protocol."""
     settings = frappe.get_cached_doc("AI Settings")
     provider_doc = resolve_provider_doc(provider_name)
-    if provider_doc:
-        return OpenAICompatibleProvider(ProviderConfig(provider_doc, settings))
-    return OpenAICompatibleProvider(settings)
+    config = ProviderConfig(provider_doc, settings) if provider_doc else settings
+    if (config.get("provider_type") or "") == "Anthropic":
+        from ai_agent.providers.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider(config)
+    return OpenAICompatibleProvider(config)
 
 
 def _configured_model_capability(model=None):

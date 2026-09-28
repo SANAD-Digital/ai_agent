@@ -1,0 +1,210 @@
+{
+ "name": "AI Metric",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "creation": "2026-09-28 16:00:00.000000",
+ "modified": "2026-09-28 16:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "field_order": [
+  "metric_key",
+  "label_ar",
+  "label_en",
+  "description",
+  "column_break_main",
+  "enabled",
+  "pending_confirmation",
+  "roles",
+  "section_source",
+  "source_doctype",
+  "aggregate",
+  "value_field",
+  "sign",
+  "column_break_source",
+  "date_field",
+  "time_field",
+  "company_field",
+  "resolver",
+  "section_filters",
+  "base_filters",
+  "currency_note",
+  "assumption_text",
+  "section_dimensions",
+  "dimensions"
+ ],
+ "fields": [
+  {
+   "fieldname": "metric_key",
+   "fieldtype": "Data",
+   "label": "Metric Key",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "label_ar",
+   "fieldtype": "Data",
+   "label": "Arabic Label",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "label_en",
+   "fieldtype": "Data",
+   "label": "English Label"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description",
+   "description": "One line shown to the model in the metric catalog"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "pending_confirmation",
+   "fieldtype": "Check",
+   "label": "Pending Confirmation",
+   "description": "Definition uses an assumed default that the business has not confirmed yet"
+  },
+  {
+   "fieldname": "roles",
+   "fieldtype": "Small Text",
+   "label": "Restrict to Roles",
+   "description": "Optional, one role per line. Extra restriction on top of normal DocType permissions"
+  },
+  {
+   "fieldname": "section_source",
+   "fieldtype": "Section Break",
+   "label": "Source"
+  },
+  {
+   "fieldname": "source_doctype",
+   "fieldtype": "Link",
+   "label": "Source DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "aggregate",
+   "fieldtype": "Select",
+   "label": "Aggregate",
+   "options": "sum\ncount\navg\nbalance",
+   "default": "sum",
+   "reqd": 1,
+   "description": "balance = cumulative up to the period end (no start date)"
+  },
+  {
+   "fieldname": "value_field",
+   "fieldtype": "Data",
+   "label": "Value Field",
+   "description": "Field to aggregate. `a - b` (e.g. debit - credit) is allowed. Empty for count"
+  },
+  {
+   "fieldname": "sign",
+   "fieldtype": "Int",
+   "label": "Sign",
+   "default": "1",
+   "description": "Multiply results by this (-1 for returns stored as negatives)"
+  },
+  {
+   "fieldname": "column_break_source",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "date_field",
+   "fieldtype": "Data",
+   "label": "Date Field",
+   "description": "e.g. posting_date. Empty for point-in-time metrics like stock balance"
+  },
+  {
+   "fieldname": "time_field",
+   "fieldtype": "Data",
+   "label": "Time Field",
+   "description": "Optional, e.g. posting_time, used by yesterday_same_time comparisons"
+  },
+  {
+   "fieldname": "company_field",
+   "fieldtype": "Data",
+   "label": "Company Field",
+   "default": "company"
+  },
+  {
+   "fieldname": "resolver",
+   "fieldtype": "Data",
+   "label": "Metric Resolver",
+   "description": "Registered resolver computing the whole metric (for cases a single aggregate cannot express)"
+  },
+  {
+   "fieldname": "section_filters",
+   "fieldtype": "Section Break",
+   "label": "Filters and Presentation"
+  },
+  {
+   "fieldname": "base_filters",
+   "fieldtype": "Code",
+   "label": "Base Filters",
+   "options": "JSON",
+   "description": "JSON list of [field, operator, value] or {\"field\": value}. Parent filters for child dimensions are applied automatically"
+  },
+  {
+   "fieldname": "currency_note",
+   "fieldtype": "Data",
+   "label": "Currency Note"
+  },
+  {
+   "fieldname": "assumption_text",
+   "fieldtype": "Small Text",
+   "label": "Assumption",
+   "description": "Returned with every value so the answer states what the number means"
+  },
+  {
+   "fieldname": "section_dimensions",
+   "fieldtype": "Section Break",
+   "label": "Dimensions"
+  },
+  {
+   "fieldname": "dimensions",
+   "fieldtype": "Table",
+   "label": "Dimensions",
+   "options": "AI Metric Dimension"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "field:metric_key",
+ "title_field": "label_ar",
+ "track_changes": 1,
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "All",
+   "read": 1
+  }
+ ],
+ "search_fields": "label_ar,label_en"
+}

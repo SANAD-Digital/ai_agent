@@ -14,7 +14,7 @@ from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.local_answers import greeting_or_capability_answer
-from ai_agent.runtime import answer_contract, result_compaction, step_narration
+from ai_agent.runtime import answer_contract, result_compaction, router, step_narration
 from ai_agent.runtime.action_interceptor import ActionInterceptor
 from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
@@ -65,6 +65,8 @@ class Orchestrator:
         self.input_tokens = cint(self.run.input_tokens)
         self.output_tokens = cint(self.run.output_tokens)
         self._timeout_seconds = None
+        self.route = "open_analysis"
+        self.extra_tools = []
 
     def execute(self):
         """Main execution entry point."""
@@ -82,6 +84,7 @@ class Orchestrator:
                 self.run.user, self.run.agent, self.run.company
             )
             self._configure_skill_runtime(effective_skills)
+            self._configure_route()
 
             plan_step = self._add_step("Plan", "Analyzing task and building plan")
 
@@ -90,7 +93,7 @@ class Orchestrator:
             tool_schemas = self._get_tool_schemas()
 
             context = self.context_builder.build(
-                self.run, self.agent, skill_metadata, tool_schemas
+                self.run, self.agent, skill_metadata, tool_schemas, route=self.route
             )
             self.trace.complete_step(
                 plan_step.name,
@@ -115,7 +118,8 @@ class Orchestrator:
                 return
 
             direct_answer = None
-            if not self.run.parent_run and not self._has_current_attachments():
+            # Routed questions are known to need ERP data: skip the preflight call.
+            if self.route == "open_analysis" and not self.run.parent_run and not self._has_current_attachments():
                 direct_answer = self._try_direct_answer_without_tools(context)
             if direct_answer:
                 final_step = self._add_step(
@@ -158,18 +162,34 @@ class Orchestrator:
     def _run_loop(self, state):
         """Main model loop."""
         max_steps = self.agent.maximum_steps or 12
+        route_limit = router.ROUTE_STEP_LIMITS.get(self.route)
+        if route_limit and self.route != "open_analysis":
+            max_steps = min(max_steps, route_limit)
         max_tool_calls = self.agent.maximum_tool_calls or 25
 
         while state["step_count"] < max_steps:
             self._check_cancellation()
 
             state["step_count"] += 1
+            # A routed question gets no tools on its last step, so the model
+            # answers from what it has instead of hitting the limit mid-call.
+            final_step = self.route != "open_analysis" and state["step_count"] == max_steps
 
             policy = self._current_skill_policy()
+            result_compaction.compact_seen_tool_results(state["messages"])
+            messages = state["messages"]
+            if final_step:
+                messages = messages + [{
+                    "role": "system",
+                    "content": (
+                        "No more tools are available in this step. Answer the user's question now "
+                        "from the tool results above; if data is missing or empty, say so plainly."
+                    ),
+                }]
             response = self._call_model_step(
                 "Analyzing context and selecting the next action",
                 instructions={
-                    "messages": state["messages"],
+                    "messages": messages,
                     "model": state["model"],
                     "reasoning_effort": state.get("reasoning_effort"),
                     "max_tokens": policy.get("finalization_max_tokens") or None,
@@ -181,7 +201,7 @@ class Orchestrator:
                     "max_retries": 3,
                 },
                 input_items=[],
-                tools=self._get_tool_schemas(),
+                tools=[] if final_step else self._get_tool_schemas(),
                 state=state,
             )
 
@@ -199,6 +219,9 @@ class Orchestrator:
                 }
                 if "reasoning_content" in message:
                     clean_message["reasoning_content"] = message.get("reasoning_content")
+                if message.get("provider_blocks"):
+                    # Anthropic: thinking blocks must be replayed unchanged with tool results.
+                    clean_message["provider_blocks"] = message["provider_blocks"]
                 clean_message["tool_calls"] = tool_calls
                 state["messages"].append(clean_message)
 
@@ -241,7 +264,9 @@ class Orchestrator:
                     )
 
                     try:
-                        if tool_name.startswith("actions.") and "request" in tool_name:
+                        if tool_name == router.REQUEST_MORE:
+                            result = self._handle_request_more(arguments)
+                        elif tool_name.startswith("actions.") and "request" in tool_name:
                             # Gateway first: agent policy, call limits, argument
                             # validation, and the AI Tool Call audit record.
                             self.tool_gateway.create_approval(
@@ -255,6 +280,7 @@ class Orchestrator:
                     except (ToolDenied, PermissionDenied) as exc:
                         result = {"error": str(exc)}
                     self._track_report_result(state, tool_name, arguments, result)
+                    self._track_metric_fallback(state, tool_name)
                     result = self.action_interceptor.maybe_create_approval_from_prepare(tool_name, result)
                     if tool_name == "skills.load" and isinstance(result, dict) and "error" not in result:
                         self.loaded_skills.append(result)
@@ -283,6 +309,9 @@ class Orchestrator:
                         "role": "tool",
                         "tool_call_id": tc.get("id", ""),
                         "content": result_compaction.tool_result_content_for_model(self.tool_registry, tool_name, model_result),
+                        # Private keys (stripped before sending) for compaction after use.
+                        "_tool": tool_name,
+                        "_summary": tool_summary[:500],
                     })
 
                     if state["tool_attempts"][attempt_key] >= 2:
@@ -322,10 +351,15 @@ class Orchestrator:
                         self.trace.complete_step(final_step.name)
                         return final_answer
 
-            elif message.get("content"):
-                final_step = self._add_step("Final", "Generating final answer", summary=message["content"][:500])
-                self.trace.complete_step(final_step.name)
+            elif message.get("content") and not (
+                final_step and not answer_contract.strip_tool_markup(message["content"]).strip()
+            ):
+                done_step = self._add_step("Final", "Generating final answer", summary=message["content"][:500])
+                self.trace.complete_step(done_step.name)
                 return message["content"]
+            elif final_step:
+                # The forced last step produced no usable text (e.g. tool-call markup).
+                return self._complete_graceful_stop(state, "Routed step limit reached.")
             else:
                 finish_reason = choice.get("finish_reason") or "unknown"
                 final_answer = self._try_final_answer_without_more_tools(
@@ -623,6 +657,25 @@ class Orchestrator:
             "filters": result.get("filters") or arguments.get("filters") or {},
         })
 
+    FALLBACK_TOOL_PREFIXES = ("schema.", "data.query", "data.count", "reports.run")
+
+    def _track_metric_fallback(self, state, tool_name):
+        """Record questions answered by exploration instead of the metric catalog."""
+        if not tool_name.startswith(self.FALLBACK_TOOL_PREFIXES):
+            return
+        used = state.setdefault("fallback_tools", [])
+        if tool_name in used:
+            return
+        used.append(tool_name)
+        try:
+            frappe.db.set_value(
+                "AI Run", self.run_name,
+                {"metric_fallback": 1, "fallback_tools": ", ".join(used)},
+                update_modified=False,
+            )
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Fallback Tracking Failed: {self.run_name}")
+
     def _is_empty_report_loop(self, state):
         if state.get("successful_report_runs"):
             return False
@@ -639,8 +692,14 @@ class Orchestrator:
         """Get tool schemas for the model."""
         schemas = []
         allowed_names = self._allowed_skill_tool_names()
+        route_names = self._route_tool_names()
         for tool in self.tool_registry.list_tools():
-            if self.enforce_skill_tools and tool["name"] not in allowed_names:
+            if route_names is not None and tool["name"] not in route_names:
+                continue
+            if tool["name"] == router.REQUEST_MORE:
+                if route_names is None:
+                    continue
+            elif self.enforce_skill_tools and tool["name"] not in allowed_names:
                 continue
             if not self._is_tool_runtime_enabled(tool["name"]):
                 continue
@@ -655,6 +714,74 @@ class Orchestrator:
             }
             schemas.append(schema)
         return schemas
+
+    def _configure_route(self):
+        """Classify the request and narrow the tool set (see runtime/router.py)."""
+        self.route = "open_analysis"
+        self.extra_tools = []
+        if self._routing_enabled():
+            self.route = router.classify(self.run.prompt, has_attachments=self._has_current_attachments())
+            names = router.route_tools(self.route)
+            if names:
+                self._grant_declared_tools(names)
+        try:
+            frappe.db.set_value("AI Run", self.run_name, "route", self.route, update_modified=False)
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI Agent Route Persist Failed: {self.run_name}")
+
+    def _routing_enabled(self):
+        settings = frappe.get_cached_doc("AI Settings")
+        if settings.get("enable_tool_routing") is not None and not cint(settings.get("enable_tool_routing")):
+            return False
+        # Specialized agents (JSON contracts, WhatsApp) keep their full tool flow.
+        if self._requires_json_final() or self._is_whatsapp_support_agent():
+            return False
+        return True
+
+    def _route_tool_names(self):
+        names = router.route_tools(getattr(self, "route", "open_analysis"))
+        if names is None:
+            return None
+        return set(names) | set(getattr(self, "extra_tools", []))
+
+    def _declared_tool_rows(self, names):
+        wanted = set(names)
+        return [
+            row
+            for skill in self.effective_skills
+            for row in (skill.get("tools") or [])
+            if row.get("tool_name") in wanted
+        ]
+
+    def _grant_declared_tools(self, names):
+        """Tools a routed question may use without skills.load: only those an
+        effective (granted) skill declares, so skill grants still bound access."""
+        self.skill_tools = self._merge_skill_tools(self.skill_tools, self._declared_tool_rows(names))
+        self.tool_gateway.skill_tools = self.skill_tools
+
+    ALWAYS_REQUESTABLE = {
+        "skills.list", "skills.load", "skills.read_reference",
+        "schema.search_doctypes", "schema.describe_doctype",
+    }
+
+    def _handle_request_more(self, arguments):
+        requested = [
+            str(name or "").replace("__", ".").strip()
+            for name in (arguments.get("tools") or [])
+        ][:8]
+        declared = {row.get("tool_name") for row in self._declared_tool_rows(requested)}
+        added, unavailable = [], []
+        for name in requested:
+            if not self.tool_registry.get_tool(name) or name == router.REQUEST_MORE:
+                unavailable.append(name)
+            elif name in declared or name in self.ALWAYS_REQUESTABLE:
+                added.append(name)
+            else:
+                unavailable.append(name)
+        if added:
+            self.extra_tools = sorted(set(self.extra_tools) | set(added))
+            self._grant_declared_tools(added)
+        return {"added": added, "unavailable": unavailable}
 
     def _configure_skill_runtime(self, effective_skills):
         self.effective_skills = list(effective_skills or [])
@@ -761,7 +888,7 @@ class Orchestrator:
                 tools=tools,
                 state=state,
             )
-            self._record_model_usage(response)
+            self._record_model_usage(response, step)
             if self._is_empty_length_response(response):
                 # The model spent the whole token budget (typically on
                 # reasoning) and returned nothing. Retry once with a larger
@@ -777,7 +904,7 @@ class Orchestrator:
                     tools=tools,
                     state=state,
                 )
-                self._record_model_usage(response)
+                self._record_model_usage(response, step)
                 length_retry = True
             else:
                 length_retry = False
@@ -852,7 +979,9 @@ class Orchestrator:
             append_missing()
         return normalized
 
-    def _record_model_usage(self, response):
+    USAGE_FIELDS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+
+    def _record_model_usage(self, response, step=None):
         if not response:
             return
         try:
@@ -868,11 +997,24 @@ class Orchestrator:
 
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
+        cache_read = cint(usage.get("cache_read_input_tokens"))
+        cache_write = cint(usage.get("cache_creation_input_tokens"))
 
         try:
+            if step is not None:
+                # Per model call; a length retry adds to the same step.
+                current = frappe.db.get_value("AI Run Step", step.name, list(self.USAGE_FIELDS), as_dict=True) or {}
+                frappe.db.set_value("AI Run Step", step.name, {
+                    "input_tokens": cint(current.get("input_tokens")) + input_tokens,
+                    "output_tokens": cint(current.get("output_tokens")) + output_tokens,
+                    "cache_read_input_tokens": cint(current.get("cache_read_input_tokens")) + cache_read,
+                    "cache_creation_input_tokens": cint(current.get("cache_creation_input_tokens")) + cache_write,
+                }, update_modified=False)
             self.run.reload()
             self.run.input_tokens = self.input_tokens
             self.run.output_tokens = self.output_tokens
+            self.run.cache_read_input_tokens = cint(self.run.get("cache_read_input_tokens")) + cache_read
+            self.run.cache_creation_input_tokens = cint(self.run.get("cache_creation_input_tokens")) + cache_write
             self.run.save(ignore_permissions=True)
             frappe.db.commit()
             self.trace.publish_realtime(REALTIME_EVENTS["run_updated"], self.run_name)

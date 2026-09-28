@@ -22,6 +22,7 @@
   "maximum_tool_calls",
   "maximum_rows_per_query",
   "maximum_result_bytes",
+  "enable_tool_routing",
   "store_full_tool_results",
   "cb_approval",
   "default_approval_ttl_minutes",
@@ -57,7 +58,7 @@
    "fieldname": "provider_type",
    "fieldtype": "Select",
    "label": "Provider Type",
-   "options": "OpenAI\nOpenAI Compatible\nOllama",
+   "options": "OpenAI\nOpenAI Compatible\nOllama\nAnthropic",
    "default": "OpenAI",
    "reqd": 1
   },
@@ -144,6 +145,13 @@
    "fieldtype": "Int",
    "label": "Maximum Result Bytes",
    "default": "102400"
+  },
+  {
+   "fieldname": "enable_tool_routing",
+   "fieldtype": "Check",
+   "label": "Enable Tool Routing",
+   "default": "1",
+   "description": "Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set."
   },
   {
    "fieldname": "store_full_tool_results",
@@ -294,7 +302,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 12:00:00.000000",
+ "modified": "2026-09-28 18:10:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

@@ -108,3 +108,45 @@ def tool_result_content_for_model(tool_registry, tool_name, result):
     tool = tool_registry.get_tool(tool_name) or {}
     limit = cint(tool.get("model_result_max_chars")) or 4000
     return content[:limit]
+
+
+# Exploration results the model only needs once: after a model call has read
+# them, later calls see a summary. Data results (metrics, queries, reports)
+# stay intact because the final answer quotes their numbers.
+COMPACT_AFTER_USE_PREFIXES = (
+    "schema.", "skills.", "reports.search", "reports.describe",
+    "data.get_document", "data.get_child_records", "attachments.list",
+)
+COMPACT_AFTER_USE_MIN_CHARS = 1500
+
+
+def compact_seen_tool_results(messages):
+    """Replace large, already-read exploration results with their summary.
+
+    A tool result counts as read once an assistant message follows it. The
+    message is edited in place, so every later model call sees the summary.
+    Returns the number of results compacted.
+    """
+    last_assistant = max(
+        (i for i, m in enumerate(messages) if isinstance(m, dict) and m.get("role") == "assistant"),
+        default=-1,
+    )
+    compacted = 0
+    for message in messages[:last_assistant]:
+        if not isinstance(message, dict) or message.get("role") != "tool" or message.get("_compacted"):
+            continue
+        tool_name = message.get("_tool") or ""
+        content = message.get("content") or ""
+        if not tool_name.startswith(COMPACT_AFTER_USE_PREFIXES) or len(content) < COMPACT_AFTER_USE_MIN_CHARS:
+            continue
+        message["content"] = json.dumps(
+            {
+                "compacted": True,
+                "summary": message.get("_summary") or f"{tool_name} result already used",
+                "note": "Full result was read in an earlier step; call the tool again only if a detail is missing.",
+            },
+            ensure_ascii=False,
+        )
+        message["_compacted"] = True
+        compacted += 1
+    return compacted

@@ -1,0 +1,33 @@
+# Reference questions for the token benchmark (Phase B).
+# kind: expected route once the metric layer exists (used to compare targets).
+questions:
+  - id: q01
+    kind: metric
+    text: كم المبيعات اليوم مجمعة على مستوى الفرع وطريقة الدفع؟
+  - id: q02
+    kind: metric
+    text: كم مبيعات اليوم مقارنة بالأمس؟
+  - id: q03
+    kind: metric
+    text: أعلى 10 أصناف مبيعاً هذا الشهر
+  - id: q04
+    kind: metric
+    text: كم رصيد الإسمنت الأبيض في المخزن الرئيسي؟
+  - id: q05
+    kind: metric
+    text: كم لنا عند العملاء، وكم منها متأخر أكثر من 90 يوماً؟
+  - id: q06
+    kind: metric
+    text: كم علينا للموردين، ومتى أقرب الاستحقاقات؟
+  - id: q07
+    kind: metric
+    text: كم السيولة المتاحة في الصندوق والبنوك؟
+  - id: q08
+    kind: open_analysis
+    text: كيف وضع الشركة نهاية السنة المالية الماضية مقارنة بالتي قبلها؟
+  - id: q09
+    kind: metric
+    text: مبيعات كل مندوب الربع الماضي
+  - id: q10
+    kind: metric
+    text: ما الأصناف التي رصيدها تحت حد إعادة الطلب؟

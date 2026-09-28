@@ -42,6 +42,20 @@ def handle_read_reference(arguments, permission_context):
             permission_context.agent_name,
             permission_context.company,
         )
-        return {"skill": skill_name, "reference": skill.get("instructions", "")}
+        reference = arguments.get("reference")
+        if reference:
+            # Loading the skill above already enforced the grant.
+            content = registry.read_reference(skill_name, reference)
+            if content is None:
+                return {
+                    "error": f"Reference '{reference}' not found.",
+                    "available_references": registry.list_references(skill_name),
+                }
+            return {"skill": skill_name, "reference": reference, "content": content}
+        return {
+            "skill": skill_name,
+            "reference": skill.get("instructions", ""),
+            "available_references": registry.list_references(skill_name),
+        }
     except Exception as e:
         return {"error": str(e)}

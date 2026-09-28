@@ -323,6 +323,32 @@ class SkillRegistry:
         with open(full_path, "r", encoding="utf-8") as f:
             return f.read()
 
+    def read_reference(self, skill_name, reference):
+        """A file from skills/<skill>/references/ (no path traversal), or None."""
+        slug = "".join(c if c.isalnum() or c in "-_" else "-" for c in str(reference or "").strip().lower())
+        slug = slug.strip("-")
+        if not slug:
+            return None
+        ref_root = os.path.realpath(os.path.join(SKILLS_DIR, str(skill_name or ""), "references"))
+        path = os.path.realpath(os.path.join(ref_root, f"{slug}.md"))
+        try:
+            if os.path.commonpath([os.path.realpath(SKILLS_DIR), ref_root]) != os.path.realpath(SKILLS_DIR):
+                return None
+            if os.path.commonpath([ref_root, path]) != ref_root:
+                return None
+        except ValueError:
+            return None
+        if not os.path.isfile(path):
+            return None
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def list_references(self, skill_name):
+        ref_root = os.path.join(SKILLS_DIR, str(skill_name or ""), "references")
+        if not os.path.isdir(ref_root):
+            return []
+        return sorted(name[:-3] for name in os.listdir(ref_root) if name.endswith(".md"))
+
     def _read_skill_file(self, path):
         with open(path, "r", encoding="utf-8") as f:
             return f.read()

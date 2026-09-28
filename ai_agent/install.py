@@ -30,7 +30,30 @@ def ensure_standard_configuration():
     sync_skills()
     create_default_skill_grants()
     ensure_purchase_invoice_agent_configuration()
+    ensure_default_metrics()
+    ensure_new_setting_defaults()
     frappe.db.commit()
+
+
+# Check fields added to the AI Settings single after it already exists do not
+# get their JSON default on existing sites. Seed them once; a saved value
+# (including an admin's explicit 0) is never overwritten.
+NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1}
+
+
+def ensure_new_setting_defaults():
+    for fieldname, value in NEW_SETTING_DEFAULTS.items():
+        stored = frappe.db.sql(
+            "select 1 from `tabSingles` where doctype='AI Settings' and field=%s", fieldname
+        )
+        if not stored:
+            frappe.db.set_single_value("AI Settings", fieldname, value)
+
+
+def ensure_default_metrics():
+    from ai_agent.metrics.defaults import ensure_default_metrics as ensure
+
+    ensure()
 
 
 def ensure_workspace_sidebar():

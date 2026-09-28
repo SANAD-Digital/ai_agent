@@ -1,221 +1,254 @@
 {
-  "name": "AI Run",
-  "module": "AI Agent",
-  "doctype": "DocType",
-  "document_type": "Document",
-  "engine": "InnoDB",
-  "autoname": "format:AI-RUN-{####}",
-  "custom": 0,
-  "is_submittable": 0,
-  "issingle": 0,
-  "istable": 0,
-  "editable_grid": 1,
-  "track_changes": 1,
-  "sort_field": "modified",
-  "sort_order": "DESC",
-  "fields": [
-    {
-      "fieldname": "run_id",
-      "fieldtype": "Data",
-      "label": "Run ID",
-      "reqd": 1,
-      "unique": 1,
-      "in_list_view": 1,
-      "in_standard_filter": 1
-    },
-    {
-      "fieldname": "agent",
-      "fieldtype": "Link",
-      "label": "Agent",
-      "options": "AI Agent",
-      "reqd": 1,
-      "in_list_view": 1,
-      "in_standard_filter": 1
-    },
-    {
-      "fieldname": "provider",
-      "fieldtype": "Link",
-      "options": "AI Provider",
-      "label": "Provider",
-      "search_index": 1,
-      "description": "Model provider chosen for this run; empty means the default provider (or the agent/settings model)."
-    },
-    {
-      "fieldname": "model",
-      "fieldtype": "Data",
-      "label": "Model",
-      "description": "Model id chosen for this run; empty means the provider/agent/settings default."
-    },
-    {
-      "fieldname": "user",
-      "fieldtype": "Link",
-      "label": "User",
-      "options": "User",
-      "reqd": 1,
-      "in_list_view": 1,
-      "in_standard_filter": 1
-    },
-    {
-      "fieldname": "company",
-      "fieldtype": "Link",
-      "label": "Company",
-      "options": "Company",
-      "in_standard_filter": 1
-    },
-    {
-      "fieldname": "prompt",
-      "fieldtype": "Long Text",
-      "label": "Prompt",
-      "reqd": 1
-    },
-    {
-      "fieldname": "status",
-      "fieldtype": "Select",
-      "label": "Status",
-      "options": "Queued\nPlanning\nRunning\nWaiting Approval\nResuming\nCompleted\nFailed\nCancelled\nTimed Out",
-      "default": "Queued",
-      "in_list_view": 1,
-      "in_standard_filter": 1
-    },
-    {
-      "fieldname": "parent_run",
-      "fieldtype": "Link",
-      "label": "Parent Run",
-      "options": "AI Run"
-    },
-    {
-      "fieldname": "root_run",
-      "fieldtype": "Link",
-      "options": "AI Run",
-      "label": "Root Run",
-      "search_index": 1,
-      "read_only": 1,
-      "description": "Chat session identity: the first run of this conversation chain. Set once at creation; every follow-up run inherits it."
-    },
-    {
-      "fieldname": "chat_session",
-      "fieldtype": "Link",
-      "options": "AI Chat Session",
-      "label": "Chat Session",
-      "search_index": 1,
-      "read_only": 1,
-      "description": "The chat session this run belongs to. Created automatically for the first run and inherited by follow-ups."
-    },
-    {
-      "fieldname": "plan_summary",
-      "fieldtype": "Long Text",
-      "label": "Plan Summary"
-    },
-    {
-      "fieldname": "final_answer",
-      "fieldtype": "Long Text",
-      "label": "Final Answer"
-    },
-    {
-      "fieldname": "error_summary",
-      "fieldtype": "Small Text",
-      "label": "Error Summary"
-    },
-    {
-      "fieldname": "started_at",
-      "fieldtype": "Datetime",
-      "label": "Started At"
-    },
-    {
-      "fieldname": "completed_at",
-      "fieldtype": "Datetime",
-      "label": "Completed At"
-    },
-    {
-      "fieldname": "cancel_requested",
-      "fieldtype": "Check",
-      "label": "Cancel Requested",
-      "default": 0
-    },
-    {
-      "fieldname": "current_step",
-      "fieldtype": "Int",
-      "label": "Current Step"
-    },
-    {
-      "fieldname": "tool_call_count",
-      "fieldtype": "Int",
-      "label": "Tool Call Count",
-      "default": 0
-    },
-    {
-      "fieldname": "input_tokens",
-      "fieldtype": "Int",
-      "label": "Input Tokens"
-    },
-    {
-      "fieldname": "output_tokens",
-      "fieldtype": "Int",
-      "label": "Output Tokens"
-    },
-    {
-      "fieldname": "estimated_cost",
-      "fieldtype": "Currency",
-      "label": "Estimated Cost",
-      "options": "Company:company:default_currency"
-    },
-    {
-      "fieldname": "provider_response_id",
-      "fieldtype": "Data",
-      "label": "Provider Response ID"
-    },
-    {
-      "fieldname": "permission_snapshot_hash",
-      "fieldtype": "Data",
-      "label": "Permission Snapshot Hash"
-    },
-    {
-      "fieldname": "idempotency_key",
-      "fieldtype": "Data",
-      "label": "Idempotency Key"
-    },
-    {
-      "fieldname": "steps_section",
-      "fieldtype": "Section Break",
-      "label": "Steps"
-    },
-    {
-      "fieldname": "steps",
-      "fieldtype": "Table",
-      "label": "Steps",
-      "options": "AI Run Step"
-    }
-  ],
-  "permissions": [
-    {
-      "role": "System Manager",
-      "read": 1,
-      "write": 1,
-      "create": 1,
-      "delete": 1,
-      "export": 1,
-      "print": 1,
-      "email": 1,
-      "share": 1,
-      "submit": 0,
-      "cancel": 0,
-      "amend": 0
-    },
-    {
-      "role": "User",
-      "read": 1,
-      "write": 0,
-      "create": 0,
-      "delete": 0,
-      "export": 0,
-      "print": 1,
-      "email": 0,
-      "share": 0,
-      "user_permission": 1,
-      "condition": "doc.user == frappe.session.user"
-    }
-  ],
-  "title_field": "run_id",
-  "search_fields": "run_id,agent,user,prompt",
-  "description_field": "prompt"
+ "name": "AI Run",
+ "module": "AI Agent",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "autoname": "format:AI-RUN-{####}",
+ "custom": 0,
+ "is_submittable": 0,
+ "issingle": 0,
+ "istable": 0,
+ "editable_grid": 1,
+ "track_changes": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "fields": [
+  {
+   "fieldname": "run_id",
+   "fieldtype": "Data",
+   "label": "Run ID",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "label": "Agent",
+   "options": "AI Agent",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "options": "AI Provider",
+   "label": "Provider",
+   "search_index": 1,
+   "description": "Model provider chosen for this run; empty means the default provider (or the agent/settings model)."
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "description": "Model id chosen for this run; empty means the provider/agent/settings default."
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "prompt",
+   "fieldtype": "Long Text",
+   "label": "Prompt",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Queued\nPlanning\nRunning\nWaiting Approval\nResuming\nCompleted\nFailed\nCancelled\nTimed Out",
+   "default": "Queued",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "parent_run",
+   "fieldtype": "Link",
+   "label": "Parent Run",
+   "options": "AI Run"
+  },
+  {
+   "fieldname": "root_run",
+   "fieldtype": "Link",
+   "options": "AI Run",
+   "label": "Root Run",
+   "search_index": 1,
+   "read_only": 1,
+   "description": "Chat session identity: the first run of this conversation chain. Set once at creation; every follow-up run inherits it."
+  },
+  {
+   "fieldname": "chat_session",
+   "fieldtype": "Link",
+   "options": "AI Chat Session",
+   "label": "Chat Session",
+   "search_index": 1,
+   "read_only": 1,
+   "description": "The chat session this run belongs to. Created automatically for the first run and inherited by follow-ups."
+  },
+  {
+   "fieldname": "plan_summary",
+   "fieldtype": "Long Text",
+   "label": "Plan Summary"
+  },
+  {
+   "fieldname": "final_answer",
+   "fieldtype": "Long Text",
+   "label": "Final Answer"
+  },
+  {
+   "fieldname": "error_summary",
+   "fieldtype": "Small Text",
+   "label": "Error Summary"
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At"
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At"
+  },
+  {
+   "fieldname": "cancel_requested",
+   "fieldtype": "Check",
+   "label": "Cancel Requested",
+   "default": 0
+  },
+  {
+   "fieldname": "current_step",
+   "fieldtype": "Int",
+   "label": "Current Step"
+  },
+  {
+   "fieldname": "tool_call_count",
+   "fieldtype": "Int",
+   "label": "Tool Call Count",
+   "default": 0
+  },
+  {
+   "fieldname": "input_tokens",
+   "fieldtype": "Int",
+   "label": "Input Tokens"
+  },
+  {
+   "fieldname": "output_tokens",
+   "fieldtype": "Int",
+   "label": "Output Tokens"
+  },
+  {
+   "fieldname": "cache_read_input_tokens",
+   "fieldtype": "Int",
+   "label": "Cache Read Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cache_creation_input_tokens",
+   "fieldtype": "Int",
+   "label": "Cache Write Tokens",
+   "read_only": 1
+  },
+  {
+   "fieldname": "metric_fallback",
+   "fieldtype": "Check",
+   "label": "Used Fallback (not in metric catalog)",
+   "read_only": 1,
+   "description": "The agent answered with exploration tools (schema/data/reports) instead of metrics.query: a candidate for a new catalog metric."
+  },
+  {
+   "fieldname": "fallback_tools",
+   "fieldtype": "Small Text",
+   "label": "Fallback Tools",
+   "read_only": 1
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "read_only": 1,
+   "description": "Question class chosen by the router (metric, document_lookup, diagnose, guide, action, invoice, open_analysis)."
+  },
+  {
+   "fieldname": "estimated_cost",
+   "fieldtype": "Currency",
+   "label": "Estimated Cost",
+   "options": "Company:company:default_currency"
+  },
+  {
+   "fieldname": "provider_response_id",
+   "fieldtype": "Data",
+   "label": "Provider Response ID"
+  },
+  {
+   "fieldname": "permission_snapshot_hash",
+   "fieldtype": "Data",
+   "label": "Permission Snapshot Hash"
+  },
+  {
+   "fieldname": "idempotency_key",
+   "fieldtype": "Data",
+   "label": "Idempotency Key"
+  },
+  {
+   "fieldname": "steps_section",
+   "fieldtype": "Section Break",
+   "label": "Steps"
+  },
+  {
+   "fieldname": "steps",
+   "fieldtype": "Table",
+   "label": "Steps",
+   "options": "AI Run Step"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1,
+   "submit": 0,
+   "cancel": 0,
+   "amend": 0
+  },
+  {
+   "role": "User",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "export": 0,
+   "print": 1,
+   "email": 0,
+   "share": 0,
+   "user_permission": 1,
+   "condition": "doc.user == frappe.session.user"
+  }
+ ],
+ "title_field": "run_id",
+ "search_fields": "run_id,agent,user,prompt",
+ "description_field": "prompt",
+ "modified": "2026-09-28 18:10:00.000000"
 }

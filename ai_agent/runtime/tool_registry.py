@@ -39,7 +39,14 @@ TOOL_PARAMETER_SCHEMAS = {
     },
     "schema.describe_doctype": {
         "type": "object",
-        "properties": {"doctype": {"type": "string"}},
+        "properties": {
+            "doctype": {"type": "string"},
+            "fields_filter": {
+                "type": "array", "items": {"type": "string"},
+                "description": "Only fields whose name or label contains one of these terms",
+            },
+            "limit": {"type": "integer", "minimum": 1, "maximum": 200, "description": "Max fields (default 40, most-used first)"},
+        },
         "required": ["doctype"],
     },
     "schema.describe_links": {
@@ -54,6 +61,35 @@ TOOL_PARAMETER_SCHEMAS = {
         "type": "object",
         "properties": {"doctype": {"type": "string"}},
         "required": ["doctype"],
+    },
+    "metrics.query": {
+        "type": "object",
+        "properties": {
+            "metric": {"type": "string", "description": "Metric key from the metric catalog"},
+            "period": {
+                "description": "today, yesterday, this_week, last_week, this_month, last_month, this_quarter, "
+                "last_quarter, this_fiscal_year, last_fiscal_year, previous_fiscal_year, or {from, to}",
+                "anyOf": [
+                    {"type": "string"},
+                    {"type": "object", "properties": {"from": {"type": "string"}, "to": {"type": "string"}}},
+                ],
+            },
+            "dimensions": {"type": "array", "items": {"type": "string"}, "description": "Group by these (metric's dims, or company)"},
+            "filters": {"type": "object", "description": "{dimension: value | [values] | '%like%'}"},
+            "compare": {"type": "string", "enum": ["previous_period", "same_period_last_year", "yesterday_same_time"]},
+            "top": {"type": "integer", "minimum": 1, "maximum": 50},
+            "sort": {"type": "string", "enum": ["value_desc", "value_asc", "dimension_asc", "dimension_desc"]},
+            "company": {"type": "string"},
+        },
+        "required": ["metric"],
+    },
+    "tools.request_more": {
+        "type": "object",
+        "properties": {
+            "tools": {"type": "array", "items": {"type": "string"}, "description": "Tool names to add, e.g. data.query"},
+            "reason": {"type": "string"},
+        },
+        "required": ["tools"],
     },
     "data.query": QUERY_SPEC_SCHEMA,
     "data.get_document": {
@@ -302,6 +338,8 @@ class ToolRegistry:
             {"name": "schema.describe_links", "description": "Describe link relationships for a DocType", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_links"},
             {"name": "schema.describe_workflow", "description": "Describe workflow for a DocType", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_workflow"},
             # Data
+            {"name": "tools.request_more", "description": "Ask for extra tools when the ones offered cannot answer the request", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.runtime.router.handle_request_more_stub"},
+            {"name": "metrics.query", "description": "Answer a business number (sales, balances, receivables...) from the metric catalog, grouped and compared, permission-scoped", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.metrics.handle_query"},
             {"name": "data.query", "description": "Execute a query specification", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_query"},
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},

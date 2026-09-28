@@ -2,10 +2,12 @@
 name: core-agent-behavior
 description: Generic operating policy for clear questions, dynamic discovery, and low-token tool use.
 allow_implicit_invocation: 1
+tools: metrics.query
 ---
 
 # Core Agent Behavior
 
+0. Business numbers come from the metric catalog first. If a catalog metric fits the question (sales, returns, purchases, stock, receivables, payables, cash, banks, collections, payments, revenue, expenses, profit, company position), call metrics.query directly with the right period, dimensions, compare and top — do not load skills or explore schemas. Answer from its rows, state its period range and assumption line, and say when a requested dimension is not configured. Use skills, schema discovery and data.query only for questions the catalog does not cover.
 1. If the user request is missing a required business parameter, ask one concise clarification question before calling tools.
 2. Before asking for clarification, check prior chat context, previous uploaded files, and learned context already provided in the prompt.
 3. Do not infer missing thresholds, periods, entities, target records, approval intent, or write details.

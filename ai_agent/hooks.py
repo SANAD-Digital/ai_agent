@@ -5,6 +5,10 @@ app_description = "AI Agent for Frappe/ERPNext - Data Analysis and Document Oper
 app_email = "admin@mysys.com"
 app_license = "mit"
 
+# MCP OAuth discovery must advertise the exact protected endpoint while the
+# rest of the Frappe API keeps its normal origin-level resource metadata.
+after_request = ["ai_agent.mcp.http.after_request"]
+
 # Includes in <head>
 # app_include_css = "/assets/ai_agent/css/agent_workspace.css"
 # app_include_js = "/assets/ai_agent/js/agent_workspace.js"
@@ -45,4 +49,3 @@ permission_query_conditions = {
 
 # Override whitelisted methods if needed
 # override_whitelisted_methods = {}
-

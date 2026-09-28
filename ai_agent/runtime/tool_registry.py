@@ -84,6 +84,15 @@ TOOL_PARAMETER_SCHEMAS = {
         "properties": {"session_name": {"type": "string"}},
         "required": ["session_name"],
     },
+    "attachments.list": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string"},
+            "document_name": {"type": "string"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        },
+        "required": ["doctype", "document_name"],
+    },
     "reports.search": {
         "type": "object",
         "properties": {
@@ -298,6 +307,7 @@ class ToolRegistry:
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
             {"name": "data.count", "description": "Count records matching filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_count"},
             {"name": "financial_attachments.get_session_ocr_text", "description": "Get only the ready OCR text from a Financial Attachment Session", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_get_session_ocr_text", "result_max_bytes": 1048576, "model_result_max_chars": 65536},
+            {"name": "attachments.list", "description": "List safe metadata for files attached to a readable document", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.attachments.handle_list"},
             # Reports
             {"name": "reports.search", "description": "Search available reports", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_search"},
             {"name": "reports.describe", "description": "Describe a report's filters and columns", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_describe"},

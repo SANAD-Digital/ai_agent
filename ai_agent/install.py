@@ -16,6 +16,7 @@ def after_migrate():
 
 def ensure_standard_configuration():
     """Install or refresh app-managed defaults without storing secrets."""
+    ensure_mcp_role()
     create_default_settings()
     create_default_gemini_ocr_settings()
     ensure_default_provider()
@@ -332,6 +333,10 @@ def create_default_settings():
             "enable_memory": 1,
             "memory_retention_days": 90,
             "default_approval_ttl_minutes": 1440,
+            "enable_mcp": 0,
+            "mcp_allowed_roles": "AI MCP User\nSystem Manager",
+            "mcp_max_requests_per_minute": 60,
+            "mcp_enable_action_requests": 0,
         })
         settings.insert(ignore_permissions=True)
         return
@@ -348,6 +353,8 @@ def create_default_settings():
         "enable_memory": 1,
         "memory_retention_days": 90,
         "default_approval_ttl_minutes": 1440,
+        "mcp_allowed_roles": "AI MCP User\nSystem Manager",
+        "mcp_max_requests_per_minute": 60,
     }
     changed = False
     for field, value in defaults.items():
@@ -356,6 +363,19 @@ def create_default_settings():
             changed = True
     if changed:
         settings.save(ignore_permissions=True)
+
+
+def ensure_mcp_role():
+    """Create a dedicated MCP access gate without granting ERP permissions."""
+    if not frappe.db.exists("Role", "AI MCP User"):
+        frappe.get_doc(
+            {
+                "doctype": "Role",
+                "role_name": "AI MCP User",
+                "desk_access": 1,
+                "is_custom": 1,
+            }
+        ).insert(ignore_permissions=True)
 
 
 def ensure_default_provider():

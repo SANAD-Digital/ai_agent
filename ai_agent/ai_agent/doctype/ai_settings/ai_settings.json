@@ -32,6 +32,15 @@
   "memory_retention_days",
   "section_model_capabilities",
   "model_capabilities",
+  "section_mcp",
+  "enable_mcp",
+  "mcp_agent",
+  "mcp_company",
+  "column_break_mcp",
+  "mcp_allowed_roles",
+  "mcp_allowed_origins",
+  "mcp_max_requests_per_minute",
+  "mcp_enable_action_requests",
   "section_instructions",
   "system_instructions"
  ],
@@ -192,6 +201,70 @@
    "label": "Model Capabilities",
    "options": "AI Model Capability",
    "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics."
+  },
+  {
+   "fieldname": "section_mcp",
+   "fieldtype": "Section Break",
+   "label": "MCP Server",
+   "collapsible": 1
+  },
+  {
+   "default": "0",
+   "description": "Expose the authenticated MCP endpoint for external AI clients.",
+   "fieldname": "enable_mcp",
+   "fieldtype": "Check",
+   "label": "Enable MCP Server"
+  },
+  {
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "Agent policy applied to every MCP tool call. ERP Analyst is used when empty.",
+   "fieldname": "mcp_agent",
+   "fieldtype": "Link",
+   "label": "MCP Agent",
+   "options": "AI Agent"
+  },
+  {
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "Optional company context applied to MCP calls.",
+   "fieldname": "mcp_company",
+   "fieldtype": "Link",
+   "label": "MCP Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_mcp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "AI MCP User\nSystem Manager",
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "One Frappe role per line. The authenticated user must have at least one listed role.",
+   "fieldname": "mcp_allowed_roles",
+   "fieldtype": "Small Text",
+   "label": "Allowed MCP Roles"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "Expose action-request tools. They only create an approval request; document changes still require approval in Frappe.",
+   "fieldname": "mcp_enable_action_requests",
+   "fieldtype": "Check",
+   "label": "Enable MCP Action Requests"
+  },
+  {
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "Optional browser origins, one per line. Server-to-server clients normally send no Origin header.",
+   "fieldname": "mcp_allowed_origins",
+   "fieldtype": "Small Text",
+   "label": "Allowed MCP Browser Origins"
+  },
+  {
+   "default": "60",
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "Per authenticated user. Applies across web workers.",
+   "fieldname": "mcp_max_requests_per_minute",
+   "fieldtype": "Int",
+   "label": "MCP Requests per Minute"
   },
   {
    "fieldname": "section_instructions",

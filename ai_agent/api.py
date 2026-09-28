@@ -148,12 +148,18 @@ def list_available_providers():
     """Enabled AI Providers with their selectable models (no secrets)."""
     if not frappe.db.exists("DocType", "AI Provider"):
         return {"providers": []}
-    providers = frappe.get_all(
-        "AI Provider",
-        filters={"enabled": 1},
-        fields=["name", "provider_name", "provider_type", "default_model", "is_default", "description"],
-        order_by="is_default desc, provider_name asc",
-    )
+    from ai_agent.runtime import policy
+
+    providers = [
+        provider
+        for provider in frappe.get_all(
+            "AI Provider",
+            filters={"enabled": 1},
+            fields=["name", "provider_name", "provider_type", "default_model", "is_default", "description"],
+            order_by="is_default desc, provider_name asc",
+        )
+        if policy.provider_allowed(provider.provider_type)
+    ]
     for provider in providers:
         rows = frappe.get_all(
             "AI Provider Model",
@@ -167,7 +173,7 @@ def list_available_providers():
                 (row.model_name for row in rows if row.is_default),
                 rows[0].model_name if rows else "",
             )
-    return {"providers": providers}
+    return {"providers": providers, "third_party_warning": policy.third_party_warning()}
 
 
 def _save_run_attachments(run_name, attachments):

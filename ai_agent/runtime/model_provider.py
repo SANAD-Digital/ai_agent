@@ -133,14 +133,14 @@ class OpenAICompatibleProvider(AgentModelProvider):
                     time.sleep(min(2 ** (attempt + 1), 10))
                     continue
             except requests.exceptions.RequestException as e:
-                last_exception = ModelProviderError(f"Model provider error: {str(e)}")
+                last_exception = ModelProviderError(redact_secret(f"Model provider error: {str(e)}", self.api_key))
                 # Retry on 429 or 5xx server errors
                 status_code = getattr(e.response, 'status_code', None) if e.response is not None else None
                 if attempt < max_retries - 1 and (status_code is None or status_code in (429, 500, 502, 503, 504)):
                     time.sleep(min(5 * (2 ** attempt), 10))
                     continue
             except Exception as e:
-                last_exception = ModelProviderError(f"Unexpected error: {str(e)}")
+                last_exception = ModelProviderError(redact_secret(f"Unexpected error: {str(e)}", self.api_key))
                 break
 
         raise last_exception
@@ -224,9 +224,9 @@ class OpenAICompatibleProvider(AgentModelProvider):
         except ModelProviderError:
             raise
         except requests.exceptions.RequestException as e:
-            raise ModelProviderError(f"Model provider error during streaming: {str(e)}")
+            raise ModelProviderError(redact_secret(f"Model provider error during streaming: {str(e)}", self.api_key))
         except Exception as e:
-            raise ModelProviderError(f"Unexpected error during streaming: {str(e)}")
+            raise ModelProviderError(redact_secret(f"Unexpected error during streaming: {str(e)}", self.api_key))
 
     def _format_provider_error(self, response):
         detail = ""
@@ -246,7 +246,7 @@ class OpenAICompatibleProvider(AgentModelProvider):
         message = f"Model provider error: {response.status_code} {response.reason}"
         if detail:
             message = f"{message} - {detail}"
-        return message
+        return redact_secret(message, self.api_key)
 
     def continue_step(self, *, response_id, tool_outputs, tools, state):
         """Continue a model step with tool outputs."""
@@ -332,6 +332,22 @@ class OpenAICompatibleProvider(AgentModelProvider):
                 "function": function,
             })
         return formatted
+
+
+def redact_secret(text, secret):
+    """Remove an API key (and its long fragments) from text headed for logs or users."""
+    text = str(text or "")
+    secret = str(secret or "")
+    if len(secret) < 8:
+        return text
+    text = text.replace(secret, "***")
+    # Some APIs echo a partial key ("sk-abc...wxyz"): drop long fragments too.
+    for size in (16, 12):
+        for start in range(0, len(secret) - size + 1, 4):
+            fragment = secret[start:start + size]
+            if fragment in text:
+                text = text.replace(fragment, "***")
+    return text
 
 
 def _openai_messages(messages):
@@ -437,6 +453,9 @@ def get_provider(provider_name=None):
     settings = frappe.get_cached_doc("AI Settings")
     provider_doc = resolve_provider_doc(provider_name)
     config = ProviderConfig(provider_doc, settings) if provider_doc else settings
+    from ai_agent.runtime import policy
+
+    policy.assert_provider_allowed(config.get("provider_type") or "OpenAI Compatible")
     if (config.get("provider_type") or "") == "Anthropic":
         from ai_agent.providers.anthropic_provider import AnthropicProvider
 

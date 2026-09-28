@@ -104,10 +104,12 @@ def compact_tool_result_for_model(tool_name, result):
 
 def tool_result_content_for_model(tool_registry, tool_name, result):
     """Apply the registered tool's model-context limit."""
+    from ai_agent.runtime.untrusted import wrap
+
     content = json.dumps(result, default=str, ensure_ascii=False)
     tool = tool_registry.get_tool(tool_name) or {}
     limit = cint(tool.get("model_result_max_chars")) or 4000
-    return content[:limit]
+    return wrap(content[:limit], f"tool {tool_name}")
 
 
 # Exploration results the model only needs once: after a model call has read

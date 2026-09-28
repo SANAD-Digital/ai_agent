@@ -28,4 +28,5 @@ class AIProvider(Document):
 			key = self.get_password("api_key") or ""
 		except Exception:
 			key = ""
-		return f"{key[:4]}…{key[-4:]}" if len(key) > 10 else ("set" if key else "")
+		# Last 4 characters only: a prefix identifies the vendor/key type.
+		return f"…{key[-4:]}" if len(key) > 8 else ("set" if key else "")

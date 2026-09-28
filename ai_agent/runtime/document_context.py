@@ -7,6 +7,7 @@ and only as a compact summary of permitted fields.
 
 import frappe
 
+from ai_agent.runtime import masking
 from ai_agent.runtime.permission_context import PermissionContext
 
 MAX_FIELDS = 25
@@ -61,11 +62,12 @@ def build(doctype, name, user):
 		value = doc.get(df.fieldname)
 		if value in (None, "", 0) and not df.reqd:
 			continue
+		value = masking.mask({df.fieldname: value}, doctype)[df.fieldname]
 		lines.append(f"- {df.fieldname}: {str(value)[:120]}")
 		shown += 1
 	for df in tables[:3]:
 		children = doc.get(df.fieldname) or []
-		rows = _child_rows(df.options, doctype, children[:MAX_CHILD_ROWS], ctx)
+		rows = masking.mask(_child_rows(df.options, doctype, children[:MAX_CHILD_ROWS], ctx), doctype)
 		if rows:
 			compact = [{k: v for k, v in row.items() if v not in (None, "", 0)} for row in rows]
 			lines.append(f"- {df.fieldname} ({len(children)} rows, first {len(rows)}): {frappe.as_json(compact, indent=None)[:1500]}")

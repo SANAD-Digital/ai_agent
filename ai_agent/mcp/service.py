@@ -80,6 +80,10 @@ class MCPService:
                 )
                 status = "Completed"
 
+            from ai_agent.runtime.masking import mask_tool_result
+
+            # MCP clients are external models too: same masking as the agent.
+            result = mask_tool_result(internal_name, arguments, result)
             is_error = isinstance(result, dict) and bool(result.get("error"))
             self._finish_run(run.name, status if not is_error else "Failed", result)
             return tool_result(result, is_error=is_error)
@@ -134,9 +138,15 @@ class MCPService:
         )
 
     def _is_exposed(self, tool):
+        from ai_agent.runtime import policy
+
         if tool["name"].startswith("actions.") and (
             cint(self.agent.get("read_only")) or not cint(self.agent.get("allow_actions"))
         ):
+            return False
+        if tool["name"] in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
+            return False
+        if tool["name"] == "tools.request_more":
             return False
         side_effect = tool.get("side_effect") or "read_only"
         if side_effect in SAFE_SIDE_EFFECTS:

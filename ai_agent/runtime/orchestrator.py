@@ -14,7 +14,7 @@ from ai_agent.runtime.trace_service import TraceService
 from ai_agent.runtime.memory_service import MemoryService
 from ai_agent.runtime.file_context import FileContextService
 from ai_agent.runtime.local_answers import greeting_or_capability_answer
-from ai_agent.runtime import answer_contract, result_compaction, router, step_narration
+from ai_agent.runtime import answer_contract, masking, policy, result_compaction, router, step_narration
 from ai_agent.runtime.action_interceptor import ActionInterceptor
 from ai_agent.runtime.run_control import run_timeout_seconds
 from ai_agent.runtime.exceptions import (
@@ -46,7 +46,13 @@ class Orchestrator:
         self.approval_engine = ApprovalEngine(self.ctx)
         self.context_builder = ContextBuilder()
         self.memory = MemoryService()
-        self.provider = get_provider(self.run.get("provider"))
+        self._provider_error = None
+        try:
+            self.provider = get_provider(self.run.get("provider"))
+        except policy.PolicyViolation as exc:
+            # Reported by execute() as a clean run failure.
+            self.provider = None
+            self._provider_error = str(exc)
         self.tool_gateway = ToolGateway(self.ctx, self.tool_registry)
         self.action_interceptor = ActionInterceptor(
             run_name=self.run_name,
@@ -79,6 +85,8 @@ class Orchestrator:
             )
             self._update_status(RUN_STATUS_PLANNING)
             self._check_limits()
+            if self._provider_error:
+                raise MYSYSAgentError(self._provider_error)
 
             effective_skills = self.skill_registry.list_effective_skills(
                 self.run.user, self.run.agent, self.run.company
@@ -289,7 +297,10 @@ class Orchestrator:
                             result.get("tools") or [],
                         )
                         self.tool_gateway.skill_tools = self.skill_tools
-                    tool_summary = step_narration.summarize_tool_result(tool_name, result, arguments)
+                    # Mask once, before anything derived from the result (step summary,
+                    # compact-session checkpoint, model message) can carry it forward.
+                    masked_result = masking.mask_tool_result(tool_name, arguments, result)
+                    tool_summary = step_narration.summarize_tool_result(tool_name, masked_result, arguments)
                     self.trace.complete_step(
                         step.name,
                         summary=tool_summary,
@@ -300,7 +311,8 @@ class Orchestrator:
                         state=state,
                     )
 
-                    model_result = result_compaction.compact_tool_result_for_model(tool_name, result)
+                    # Nothing personal (IBAN, IDs, individual pay) reaches the model.
+                    model_result = result_compaction.compact_tool_result_for_model(tool_name, masked_result)
                     self._record_tool_observation(state, tool_name, arguments, model_result)
 
                     # Every assistant tool_call_id must receive a tool response before
@@ -706,6 +718,8 @@ class Orchestrator:
             if tool["name"].startswith("actions.") and (
                 self.agent.get("read_only") or not self.agent.get("allow_actions")
             ):
+                continue
+            if tool["name"] in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
                 continue
             schema = {
                 "name": tool["name"].replace(".", "__"),

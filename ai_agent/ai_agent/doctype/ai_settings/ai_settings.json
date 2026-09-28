@@ -30,6 +30,14 @@
   "require_four_eyes",
   "section_privacy",
   "allow_admin_conversation_audit",
+  "section_policies",
+  "allow_submit_cancel_actions",
+  "provider_mode",
+  "allow_third_party_providers",
+  "allowed_providers",
+  "column_break_policies",
+  "masking_extra_fields",
+  "masking_extra_doctypes",
   "section_memory",
   "enable_memory",
   "memory_retention_days",
@@ -195,6 +203,57 @@
    "description": "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations."
   },
   {
+   "fieldname": "section_policies",
+   "fieldtype": "Section Break",
+   "label": "Policies"
+  },
+  {
+   "fieldname": "allow_submit_cancel_actions",
+   "fieldtype": "Check",
+   "label": "Allow Submit / Cancel Actions",
+   "default": "0",
+   "description": "Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution."
+  },
+  {
+   "fieldname": "provider_mode",
+   "fieldtype": "Select",
+   "label": "Provider Mode",
+   "options": "Managed\nOwn Key",
+   "default": "Managed",
+   "description": "Managed: only Anthropic (Claude) providers are used. Own Key: other providers are allowed only with the consent below."
+  },
+  {
+   "fieldname": "allow_third_party_providers",
+   "fieldtype": "Check",
+   "label": "I Accept Sending Data to Third-Party Providers",
+   "default": "0",
+   "depends_on": "eval:doc.provider_mode=='Own Key'",
+   "description": "Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider."
+  },
+  {
+   "fieldname": "allowed_providers",
+   "fieldtype": "Small Text",
+   "label": "Allowed Provider Types",
+   "depends_on": "eval:doc.provider_mode=='Own Key'",
+   "description": "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all."
+  },
+  {
+   "fieldname": "column_break_policies",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "masking_extra_fields",
+   "fieldtype": "Small Text",
+   "label": "Extra Masked Fields",
+   "description": "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries)."
+  },
+  {
+   "fieldname": "masking_extra_doctypes",
+   "fieldtype": "Small Text",
+   "label": "Extra Masked DocTypes",
+   "description": "One DocType per line whose amounts are masked like Salary Slip (per-person pay)."
+  },
+  {
    "fieldname": "section_memory",
    "fieldtype": "Section Break",
    "label": "Memory"
@@ -302,7 +361,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 18:10:00.000000",
+ "modified": "2026-09-28 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

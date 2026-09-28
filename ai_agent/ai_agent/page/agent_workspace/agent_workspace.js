@@ -187,6 +187,11 @@ frappe.pages["agent-workspace"].on_page_load = function (wrapper) {
         frappe.xcall("ai_agent.api.list_available_providers").then((result) => {
             const providers = result?.providers || [];
             providersByName = Object.fromEntries(providers.map((provider) => [provider.name, provider]));
+            if (result?.third_party_warning) {
+                // Data leaves to a non-Anthropic provider: say so once per page load.
+                page.set_indicator(__("Third-party AI provider"), "orange");
+                frappe.show_alert({ message: escape_html(result.third_party_warning), indicator: "orange" }, 10);
+            }
             const picker = page.main.find("#model-picker");
             if (!providers.length) {
                 picker.prop("hidden", true);

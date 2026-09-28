@@ -1,0 +1,1403 @@
+{
+ "label": "after_c",
+ "site": "acc.dev.sanad.digital",
+ "agent": "ERP Analyst",
+ "company": "SND Accounting",
+ "created": "2026-09-28 18:24:50.012605",
+ "results": [
+  {
+   "id": "q01",
+   "kind": "metric",
+   "question": "كم المبيعات اليوم مجمعة على مستوى الفرع وطريقة الدفع؟",
+   "run": "AI-RUN-4504",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 2,
+   "seconds": 6.0,
+   "input_tokens": 4485,
+   "cached_input_tokens": 2176,
+   "output_tokens": 969,
+   "total_tokens": 5454,
+   "cost_usd": 0.00184,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.3,
+     "input_tokens": 1734,
+     "cached_input_tokens": 0,
+     "output_tokens": 504,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 88,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.6,
+     "input_tokens": 2751,
+     "cached_input_tokens": 2176,
+     "output_tokens": 465,
+     "message_count": 5,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 88,
+      "assistant": 584,
+      "tool_results": 1542,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "period": "today",
+      "dimensions": [
+       "branch",
+       "payment_mode"
+      ],
+      "company": "SND Accounting",
+      "sort": "value_desc"
+     },
+     "result_chars": 634,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "gross_sales",
+      "period": "today",
+      "dimensions": [
+       "branch",
+       "payment_mode"
+      ],
+      "company": "SND Accounting",
+      "sort": "value_desc"
+     },
+     "result_chars": 640,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "gross_sales",
+      "period": "today",
+      "dimensions": [
+       "branch",
+       "payment_mode"
+      ],
+      "company": "SND Accounting",
+      "sort": "value_desc"
+     },
+     "result_chars": 640,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "period": "today",
+      "dimensions": [
+       "branch",
+       "payment_mode"
+      ],
+      "company": "SND Accounting",
+      "sort": "value_desc"
+     },
+     "result_chars": 634,
+     "error": null
+    }
+   ],
+   "answer_preview": "## المبيعات اليوم — 2026-09-28\n\n**لا توجد مبيعات اليوم.** القراءة حتى الساعة 18:23:54 أعادت صفر صفوف:\n\n| المؤشر | القيمة | عدد الفواتير |\n|---|---|---|\n| صافي المبيعات | 0.00 | 0 |\n| إجمالي المبيعات | 0.00 | 0 |\n\n- **الشركة:** SND Accounting\n- **الفترة:** 2026-09-28 (اليوم، حتى 18:23:54)\n\n**ملاحظات:**\n- **بُعد الفرع (branch) غير مضبوط على هذا الموقع**، لذلك لم يُستخدم في التجميع؛ التجميع المتاح كا",
+   "attempt": 1
+  },
+  {
+   "id": "q02",
+   "kind": "metric",
+   "question": "كم مبيعات اليوم مقارنة بالأمس؟",
+   "run": "AI-RUN-4506",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 2,
+   "seconds": 4.7,
+   "input_tokens": 4307,
+   "cached_input_tokens": 3456,
+   "output_tokens": 614,
+   "total_tokens": 4921,
+   "cost_usd": 0.00115,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.6,
+     "input_tokens": 1727,
+     "cached_input_tokens": 1536,
+     "output_tokens": 310,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 65,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.9,
+     "input_tokens": 2580,
+     "cached_input_tokens": 1920,
+     "output_tokens": 304,
+     "message_count": 5,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 65,
+      "assistant": 504,
+      "tool_results": 1554,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "period": "today",
+      "compare": "previous_period",
+      "company": "SND Accounting"
+     },
+     "result_chars": 624,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "gross_sales",
+      "period": "today",
+      "compare": "previous_period",
+      "company": "SND Accounting"
+     },
+     "result_chars": 630,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "gross_sales",
+      "period": "today",
+      "compare": "previous_period",
+      "company": "SND Accounting"
+     },
+     "result_chars": 630,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "period": "today",
+      "compare": "previous_period",
+      "company": "SND Accounting"
+     },
+     "result_chars": 624,
+     "error": null
+    }
+   ],
+   "answer_preview": "# مبيعات اليوم مقابل الأمس — SND Accounting\n\n**لا توجد مبيعات مسجّلة في اليومين.**\n\n| المقياس | اليوم 2026-09-28 | الأمس 2026-09-27 | الفرق |\n|---|---|---|---|\n| صافي المبيعات | 0 | 0 | 0 |\n| إجمالي المبيعات | 0 | 0 | 0 |\n\n- **الفترة:** اليوم (حتى 18:23:59) مقابل الفترة السابقة المطابقة (الأمس حتى 18:23:59).\n- **المصدر:** فواتير البيع المعتمدة (0 مستندات في كلا الفترتين).\n- **افتراض المقياس:** صاف",
+   "attempt": 1
+  },
+  {
+   "id": "q03",
+   "kind": "metric",
+   "question": "أعلى 10 أصناف مبيعاً هذا الشهر",
+   "run": "AI-RUN-4508",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 2,
+   "seconds": 5.1,
+   "input_tokens": 4251,
+   "cached_input_tokens": 3584,
+   "output_tokens": 774,
+   "total_tokens": 5025,
+   "cost_usd": 0.00128,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.1,
+     "input_tokens": 1731,
+     "cached_input_tokens": 1536,
+     "output_tokens": 405,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 65,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.1,
+     "input_tokens": 2520,
+     "cached_input_tokens": 2048,
+     "output_tokens": 369,
+     "message_count": 5,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 65,
+      "assistant": 577,
+      "tool_results": 1142,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "sold_qty",
+      "period": "this_month",
+      "dimensions": [
+       "item"
+      ],
+      "top": 10,
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 404,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "period": "this_month",
+      "dimensions": [
+       "item"
+      ],
+      "top": 10,
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 474,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "period": "this_month",
+      "dimensions": [
+       "item"
+      ],
+      "top": 10,
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 474,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "sold_qty",
+      "period": "this_month",
+      "dimensions": [
+       "item"
+      ],
+      "top": 10,
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 404,
+     "error": null
+    }
+   ],
+   "answer_preview": "**أعلى 10 أصناف مبيعاً — سبتمبر 2026 (SND Accounting)**\n\nالفترة: 2026-09-01 → 2026-09-28\n\n| # | الصنف | الكمية المباعة | صافي المبيعات |\n|---|-------|----------------|----------------|\n| 1 | CH-001 | 21 | 0.00 |\n\n**ملاحظات:**\n- البيانات المتاحة هذا الشهر تغطي **صنفاً واحداً فقط** (CH-001)، فلا يمكن استكمال قائمة أعلى 10 أصناف — لا توجد أصناف أخرى مسجّلة في الفترة.\n- إجمالي الكمية المباعة: 21 وحدة،",
+   "attempt": 1
+  },
+  {
+   "id": "q04",
+   "kind": "metric",
+   "question": "كم رصيد الإسمنت الأبيض في المخزن الرئيسي؟",
+   "run": "AI-RUN-4510",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 3,
+   "tool_calls": 4,
+   "seconds": 7.8,
+   "input_tokens": 6235,
+   "cached_input_tokens": 4480,
+   "output_tokens": 1137,
+   "total_tokens": 7372,
+   "cost_usd": 0.00204,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.8,
+     "input_tokens": 1733,
+     "cached_input_tokens": 1536,
+     "output_tokens": 367,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 76,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.4,
+     "input_tokens": 2324,
+     "cached_input_tokens": 2048,
+     "output_tokens": 410,
+     "message_count": 5,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 76,
+      "assistant": 626,
+      "tool_results": 692,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.4,
+     "input_tokens": 2178,
+     "cached_input_tokens": 896,
+     "output_tokens": 360,
+     "message_count": 9,
+     "tool_schema_count": 0,
+     "prompt_chars": {
+      "system": 4421,
+      "user": 76,
+      "assistant": 1274,
+      "tool_results": 1678,
+      "tool_schemas": 2
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "stock_qty",
+      "filters": {
+       "item_name": "%أبيض%",
+       "warehouse": "%رئيسي%"
+      },
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "company": "SND Accounting"
+     },
+     "result_chars": 367,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "stock_value",
+      "filters": {
+       "item_name": "%أبيض%",
+       "warehouse": "%رئيسي%"
+      },
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "company": "SND Accounting"
+     },
+     "result_chars": 115,
+     "error": "Dimension 'item_name' is not available for metric 'stock_value'. Allowed: item, item_group, warehouse."
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "filters": {
+       "item_name": "%اسمنت%"
+      },
+      "metric": "stock_qty",
+      "sort": "value_desc",
+      "top": 20
+     },
+     "result_chars": 367,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "filters": {
+       "warehouse": "%رئيسي%"
+      },
+      "metric": "stock_qty",
+      "sort": "value_desc",
+      "top": 20
+     },
+     "result_chars": 367,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "stock_qty",
+      "filters": {
+       "item_name": "%أبيض%",
+       "warehouse": "%رئيسي%"
+      },
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "company": "SND Accounting"
+     },
+     "result_chars": 367,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "filters": {
+       "item_name": "%اسمنت%"
+      },
+      "metric": "stock_qty",
+      "sort": "value_desc",
+      "top": 20
+     },
+     "result_chars": 367,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "item_name",
+       "warehouse"
+      ],
+      "filters": {
+       "warehouse": "%رئيسي%"
+      },
+      "metric": "stock_qty",
+      "sort": "value_desc",
+      "top": 20
+     },
+     "result_chars": 367,
+     "error": null
+    }
+   ],
+   "answer_preview": "**لا يوجد رصيد مسجّل مطابق للطلب.**\n\n- المطلوب: رصيد (كمية) الصنف «الإسمنت الأبيض» في المخزن «الرئيسي» — الشركة SND Accounting.\n- النتيجة: **0 صفوف** (الإجمالي 0، عدد مستندات Bin = 0).\n\nتفاصيل المحاولات:\n1. تصفية `item_name ≈ أبيض` + `warehouse ≈ رئيسي` → لا نتائج.\n2. تصفية `item_name ≈ اسمنت` (بدون تحديد المخزن) → لا نتائج.\n3. تصفية `warehouse ≈ رئيسي` فقط → لا نتائج (أي لا توجد أصناف مسجّلة في ه",
+   "attempt": 1
+  },
+  {
+   "id": "q05",
+   "kind": "metric",
+   "question": "كم لنا عند العملاء، وكم منها متأخر أكثر من 90 يوماً؟",
+   "run": "AI-RUN-4512",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 2,
+   "seconds": 4.2,
+   "input_tokens": 4081,
+   "cached_input_tokens": 3328,
+   "output_tokens": 407,
+   "total_tokens": 4488,
+   "cost_usd": 0.00088,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.4,
+     "input_tokens": 1736,
+     "cached_input_tokens": 1536,
+     "output_tokens": 176,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 87,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.8,
+     "input_tokens": 2345,
+     "cached_input_tokens": 1792,
+     "output_tokens": 231,
+     "message_count": 5,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 87,
+      "assistant": 419,
+      "tool_results": 1294,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "receivables",
+      "company": "SND Accounting",
+      "dimensions": [
+       "age"
+      ]
+     },
+     "result_chars": 577,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "receivables",
+      "company": "SND Accounting"
+     },
+     "result_chars": 445,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "receivables",
+      "company": "SND Accounting",
+      "dimensions": [
+       "age"
+      ]
+     },
+     "result_chars": 577,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "receivables",
+      "company": "SND Accounting"
+     },
+     "result_chars": 445,
+     "error": null
+    }
+   ],
+   "answer_preview": "**ذمم العملاء — شركة SND Accounting** (رصيد حالي حتى 2026-09-28)\n\n| البند | المبلغ |\n|---|---|\n| إجمالي المستحق على العملاء | **337.00** |\n| منها متأخر أكثر من 90 يوماً | **109.00** (≈ 32.3%) |\n| متأخر 61–90 يوماً | 228.00 (≈ 67.7%) |\n\n- المصدر: فواتير البيع المعتمدة — 6 مستندات.\n- افتراض القياس: ذمم العملاء = المتبقي على فواتير البيع المعتمدة الآن؛ لا يشمل القيود اليدوية والدفعات غير المخصصة.\n- ا",
+   "attempt": 1
+  },
+  {
+   "id": "q06",
+   "kind": "metric",
+   "question": "كم علينا للموردين، ومتى أقرب الاستحقاقات؟",
+   "run": "AI-RUN-4514",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 3,
+   "seconds": 5.4,
+   "input_tokens": 4535,
+   "cached_input_tokens": 3584,
+   "output_tokens": 855,
+   "total_tokens": 5390,
+   "cost_usd": 0.00145,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.8,
+     "input_tokens": 1731,
+     "cached_input_tokens": 1536,
+     "output_tokens": 386,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 76,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.7,
+     "input_tokens": 2804,
+     "cached_input_tokens": 2048,
+     "output_tokens": 469,
+     "message_count": 6,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 76,
+      "assistant": 766,
+      "tool_results": 2043,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "payables",
+      "dimensions": [
+       "supplier"
+      ],
+      "company": "SND Accounting",
+      "sort": "value_desc",
+      "top": 10
+     },
+     "result_chars": 488,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "payables",
+      "dimensions": [
+       "due_date"
+      ],
+      "company": "SND Accounting",
+      "sort": "dimension_asc"
+     },
+     "result_chars": 585,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "payables",
+      "dimensions": [
+       "age"
+      ],
+      "company": "SND Accounting",
+      "sort": "dimension_asc"
+     },
+     "result_chars": 552,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "payables",
+      "dimensions": [
+       "due_date"
+      ],
+      "company": "SND Accounting",
+      "sort": "dimension_asc"
+     },
+     "result_chars": 585,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "payables",
+      "dimensions": [
+       "age"
+      ],
+      "company": "SND Accounting",
+      "sort": "dimension_asc"
+     },
+     "result_chars": 552,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "payables",
+      "dimensions": [
+       "supplier"
+      ],
+      "company": "SND Accounting",
+      "sort": "value_desc",
+      "top": 10
+     },
+     "result_chars": 488,
+     "error": null
+    }
+   ],
+   "answer_preview": "## ذمم الموردين — شركة SND Accounting\n\n**الإجمالي المستحق للموردين: 11,100,900** (رصيد حالي حتى 2026-09-28، من 3 فواتير شراء)\n\n**التوزيع حسب المورد:**\n| المورد | المستحق |\n|---|---|\n| test | 11,100,900 |\n\n**الاستحقاقات (أقرب أولاً):**\n| تاريخ الاستحقاق | المبلغ |\n|---|---|\n| 2026-05-20 | 10,600,000 |\n| 2026-06-06 | 500,000 |\n| 2026-06-13 | 900 |\n\n**أقرب استحقاق: 2026-05-20** بمبلغ 10,600,000.\n\n⚠️ ",
+   "attempt": 1
+  },
+  {
+   "id": "q07",
+   "kind": "metric",
+   "question": "كم السيولة المتاحة في الصندوق والبنوك؟",
+   "run": "AI-RUN-4516",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 1,
+   "seconds": 3.8,
+   "input_tokens": 3881,
+   "cached_input_tokens": 3328,
+   "output_tokens": 310,
+   "total_tokens": 4191,
+   "cost_usd": 0.00072,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.1,
+     "input_tokens": 1729,
+     "cached_input_tokens": 1536,
+     "output_tokens": 95,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 73,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.8,
+     "input_tokens": 2152,
+     "cached_input_tokens": 1792,
+     "output_tokens": 215,
+     "message_count": 4,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 73,
+      "assistant": 225,
+      "tool_results": 967,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "company_position",
+      "company": "SND Accounting",
+      "period": "today"
+     },
+     "result_chars": 787,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "company_position",
+      "company": "SND Accounting",
+      "period": "today"
+     },
+     "result_chars": 787,
+     "error": null
+    }
+   ],
+   "answer_preview": "## السيولة المتاحة — SND Accounting\n\nكما في نهاية الفترة **2026-09-28**:\n\n| البند | القيمة |\n|---|---:|\n| النقدية في الصندوق | 876,316 |\n| أرصدة البنوك | **-200** |\n| **إجمالي السيولة** | **876,116** |\n\n**افتراض المقياس (وضع الشركة):** الإيرادات والمصروفات للفترة؛ النقدية والبنوك حتى نهاية الفترة؛ الذمم وقيمة المخزون أرصدة حالية.\n\nملاحظات:\n- رصيد البنوك سالب (-200) وهو ما يستدعي مراجعة تسويات/حركا",
+   "attempt": 1
+  },
+  {
+   "id": "q08",
+   "kind": "open_analysis",
+   "question": "كيف وضع الشركة نهاية السنة المالية الماضية مقارنة بالتي قبلها؟",
+   "run": "AI-RUN-4518",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 3,
+   "tool_calls": 2,
+   "seconds": 8.3,
+   "input_tokens": 5599,
+   "cached_input_tokens": 4224,
+   "output_tokens": 1156,
+   "total_tokens": 6755,
+   "cost_usd": 0.00194,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.2,
+     "input_tokens": 1737,
+     "cached_input_tokens": 1536,
+     "output_tokens": 158,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 97,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.0,
+     "input_tokens": 1962,
+     "cached_input_tokens": 1792,
+     "output_tokens": 190,
+     "message_count": 4,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 97,
+      "assistant": 275,
+      "tool_results": 214,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 4.2,
+     "input_tokens": 1900,
+     "cached_input_tokens": 896,
+     "output_tokens": 808,
+     "message_count": 7,
+     "tool_schema_count": 0,
+     "prompt_chars": {
+      "system": 4421,
+      "user": 97,
+      "assistant": 545,
+      "tool_results": 1642,
+      "tool_schemas": 2
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "company_position",
+      "period": "last_fiscal_year",
+      "compare": "previous_fiscal_year",
+      "company": "SND Accounting"
+     },
+     "result_chars": 130,
+     "error": "Unknown compare mode 'previous_fiscal_year'. Use one of: previous_period, same_period_last_year, yesterday_same_time."
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "compare": "previous_period",
+      "company": "SND Accounting",
+      "metric": "company_position",
+      "period": "last_fiscal_year"
+     },
+     "result_chars": 1196,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "compare": "previous_period",
+      "company": "SND Accounting",
+      "metric": "company_position",
+      "period": "last_fiscal_year"
+     },
+     "result_chars": 1196,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "company_position",
+      "period": "last_fiscal_year",
+      "compare": "previous_fiscal_year",
+      "company": "SND Accounting"
+     },
+     "result_chars": 130,
+     "error": "Unknown compare mode 'previous_fiscal_year'. Use one of: previous_period, same_period_last_year, yesterday_same_time."
+    }
+   ],
+   "answer_preview": "## وضع الشركة — السنة المالية 2025 مقابل 2024\n**الشركة:** SND Accounting\n**الفترة:** 2025-01-01 → 2025-12-31 (مقارنة بـ 2024-01-01 → 2024-12-31)\n\n| البند | 2025 | 2024 | التغيير |\n|---|---:|---:|---:|\n| الإيرادات | 0.00 | 0.00 | 0.00 |\n| المصروفات | 0.00 | 0.00 | 0.00 |\n| النقدية في الصندوق | 0.00 | 0.00 | 0.00 |\n| أرصدة البنوك | 0.00 | 0.00 | 0.00 |\n| ذمم العملاء | 337.00 | 337.00 | 0.00 (0%) |\n|",
+   "attempt": 1
+  },
+  {
+   "id": "q09",
+   "kind": "metric",
+   "question": "مبيعات كل مندوب الربع الماضي",
+   "run": "AI-RUN-4520",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 3,
+   "tool_calls": 4,
+   "seconds": 8.0,
+   "input_tokens": 6715,
+   "cached_input_tokens": 4480,
+   "output_tokens": 1362,
+   "total_tokens": 8077,
+   "cost_usd": 0.00242,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.0,
+     "input_tokens": 1728,
+     "cached_input_tokens": 1536,
+     "output_tokens": 371,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 63,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.2,
+     "input_tokens": 2484,
+     "cached_input_tokens": 2048,
+     "output_tokens": 427,
+     "message_count": 5,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 63,
+      "assistant": 574,
+      "tool_results": 1168,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query",
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.9,
+     "input_tokens": 2503,
+     "cached_input_tokens": 896,
+     "output_tokens": 564,
+     "message_count": 9,
+     "tool_schema_count": 0,
+     "prompt_chars": {
+      "system": 4421,
+      "user": 63,
+      "assistant": 1274,
+      "tool_results": 2602,
+      "tool_schemas": 2
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "net_sales",
+      "dimensions": [
+       "sales_person"
+      ],
+      "period": "last_quarter",
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 453,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "gross_sales",
+      "dimensions": [
+       "sales_person"
+      ],
+      "period": "last_quarter",
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 459,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "sales_person"
+      ],
+      "metric": "net_sales",
+      "period": "this_fiscal_year",
+      "sort": "value_desc"
+     },
+     "result_chars": 457,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "date"
+      ],
+      "metric": "net_sales",
+      "period": "last_quarter",
+      "sort": "dimension_asc"
+     },
+     "result_chars": 685,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "date"
+      ],
+      "metric": "net_sales",
+      "period": "last_quarter",
+      "sort": "dimension_asc"
+     },
+     "result_chars": 685,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "gross_sales",
+      "dimensions": [
+       "sales_person"
+      ],
+      "period": "last_quarter",
+      "sort": "value_desc",
+      "company": "SND Accounting"
+     },
+     "result_chars": 459,
+     "error": null
+    },
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "company": "SND Accounting",
+      "dimensions": [
+       "sales_person"
+      ],
+      "metric": "net_sales",
+      "period": "this_fiscal_year",
+      "sort": "value_desc"
+     },
+     "result_chars": 457,
+     "error": null
+    }
+   ],
+   "answer_preview": "## مبيعات كل مندوب — الربع الماضي (2026‑04‑01 → 2026‑06‑30)\n\n**لا توجد بيانات متاحة على مستوى المندوب.** بعد محاولتين (الربع الماضي، ثم السنة المالية الحالية 2026‑01‑01 → 2026‑09‑28) رجع استعلام المبيعات بُعد `sales_person` **صفر صفوف**، رغم وجود فواتير فعلية — ما يعني أن بعد «المندوب» غير مُعدّ/غير مُعبّأ في بيانات الفواتير لهذه الشركة، وليس أن المبيعات صفر.\n\n### ما توفر فعلاً: صافي المبيعات بالت",
+   "attempt": 1
+  },
+  {
+   "id": "q10",
+   "kind": "metric",
+   "question": "ما الأصناف التي رصيدها تحت حد إعادة الطلب؟",
+   "run": "AI-RUN-4522",
+   "route": "metric",
+   "status": "Completed",
+   "model": "deepseek-v4-flash",
+   "model_calls": 2,
+   "tool_calls": 1,
+   "seconds": 4.5,
+   "input_tokens": 3914,
+   "cached_input_tokens": 3456,
+   "output_tokens": 589,
+   "total_tokens": 4503,
+   "cost_usd": 0.00101,
+   "calls": [
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 1.6,
+     "input_tokens": 1732,
+     "cached_input_tokens": 1536,
+     "output_tokens": 215,
+     "message_count": 2,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 77,
+      "assistant": 0,
+      "tool_results": 0,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": [
+      "metrics__query"
+     ]
+    },
+    {
+     "model": "deepseek-v4-flash",
+     "seconds": 2.1,
+     "input_tokens": 2182,
+     "cached_input_tokens": 1920,
+     "output_tokens": 374,
+     "message_count": 4,
+     "tool_schema_count": 2,
+     "prompt_chars": {
+      "system": 4273,
+      "user": 77,
+      "assistant": 218,
+      "tool_results": 703,
+      "tool_schemas": 1483
+     },
+     "tool_calls_requested": []
+    }
+   ],
+   "tools": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "items_below_reorder",
+      "company": "SND Accounting",
+      "top": 50
+     },
+     "result_chars": 571,
+     "error": null
+    }
+   ],
+   "largest_tool_results": [
+    {
+     "tool": "metrics.query",
+     "arguments": {
+      "metric": "items_below_reorder",
+      "company": "SND Accounting",
+      "top": 50
+     },
+     "result_chars": 571,
+     "error": null
+    }
+   ],
+   "answer_preview": "## أصناف تحت حد إعادة الطلب — SND Accounting\n\n**النتيجة: لا توجد أصناف** (0 صفوف).\n\n- **الفترة:** 2026-09-01 → 2026-09-28 (هذا الشهر)\n- **الشركة:** SND Accounting\n- **الأبعاد المطلوبة:** الصنف، المخزن\n- **المصدر:** Bin + Item Reorder — عدد المستندات: 0\n- **الافتراض:** مقارنة الكمية المتوقعة (projected_qty) بحد إعادة الطلب لكل مخزن في جدول Item Reorder.\n\n**ملاحظات:**\n- لا توجد حدود إعادة طلب (Reord",
+   "attempt": 1
+  }
+ ],
+ "summary": {
+  "questions": 10,
+  "avg_total_tokens": 5618,
+  "avg_model_calls": 2.3,
+  "avg_tool_calls": 2.3,
+  "total_cost_usd": 0.0147,
+  "prompt_share_percent": {
+   "system": 63.6,
+   "user": 1.1,
+   "assistant": 5.1,
+   "tool_results": 11.1,
+   "tool_schemas": 19.1
+  },
+  "per_question": [
+   {
+    "id": "q01",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 5454,
+    "cached_input_tokens": 2176,
+    "model_calls": 2,
+    "tool_calls": 2,
+    "seconds": 6.0,
+    "cost_usd": 0.00184
+   },
+   {
+    "id": "q02",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 4921,
+    "cached_input_tokens": 3456,
+    "model_calls": 2,
+    "tool_calls": 2,
+    "seconds": 4.7,
+    "cost_usd": 0.00115
+   },
+   {
+    "id": "q03",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 5025,
+    "cached_input_tokens": 3584,
+    "model_calls": 2,
+    "tool_calls": 2,
+    "seconds": 5.1,
+    "cost_usd": 0.00128
+   },
+   {
+    "id": "q04",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 7372,
+    "cached_input_tokens": 4480,
+    "model_calls": 3,
+    "tool_calls": 4,
+    "seconds": 7.8,
+    "cost_usd": 0.00204
+   },
+   {
+    "id": "q05",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 4488,
+    "cached_input_tokens": 3328,
+    "model_calls": 2,
+    "tool_calls": 2,
+    "seconds": 4.2,
+    "cost_usd": 0.00088
+   },
+   {
+    "id": "q06",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 5390,
+    "cached_input_tokens": 3584,
+    "model_calls": 2,
+    "tool_calls": 3,
+    "seconds": 5.4,
+    "cost_usd": 0.00145
+   },
+   {
+    "id": "q07",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 4191,
+    "cached_input_tokens": 3328,
+    "model_calls": 2,
+    "tool_calls": 1,
+    "seconds": 3.8,
+    "cost_usd": 0.00072
+   },
+   {
+    "id": "q08",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 6755,
+    "cached_input_tokens": 4224,
+    "model_calls": 3,
+    "tool_calls": 2,
+    "seconds": 8.3,
+    "cost_usd": 0.00194
+   },
+   {
+    "id": "q09",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 8077,
+    "cached_input_tokens": 4480,
+    "model_calls": 3,
+    "tool_calls": 4,
+    "seconds": 8.0,
+    "cost_usd": 0.00242
+   },
+   {
+    "id": "q10",
+    "attempt": 1,
+    "status": "Completed",
+    "total_tokens": 4503,
+    "cached_input_tokens": 3456,
+    "model_calls": 2,
+    "tool_calls": 1,
+    "seconds": 4.5,
+    "cost_usd": 0.00101
+   }
+  ]
+ }
+}

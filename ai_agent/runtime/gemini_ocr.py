@@ -144,9 +144,22 @@ class GeminiOCRClient:
             raise GeminiOCRError(_("Gemini OCR request failed: {0}").format(str(last_exception))) from last_exception
 
 
+def _cloud_ocr_allowed():
+    """Gemini is a third-party provider: Own Key mode with consent only."""
+    from ai_agent.runtime import policy
+
+    return policy.provider_allowed("Gemini OCR")
+
+
+def _uses_cloud_engine(settings):
+    return (getattr(settings, "ocr_engine", None) or "Cloud API (Gemini OCR)") != "Local Engine (PaddleOCR / PyMuPDF)"
+
+
 def is_gemini_ocr_enabled():
     settings = _get_settings_or_none()
-    return bool(settings and settings.enabled)
+    if not settings or not settings.enabled:
+        return False
+    return not _uses_cloud_engine(settings) or _cloud_ocr_allowed()
 
 
 def should_fallback_to_tesseract():
@@ -162,6 +175,9 @@ def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
         return ""
 
     ocr_engine = getattr(settings, "ocr_engine", None) or "Cloud API (Gemini OCR)"
+    if _uses_cloud_engine(settings) and not _cloud_ocr_allowed():
+        _set_last_error("Gemini OCR is disabled by the provider policy (Managed mode or no third-party consent).")
+        return ""
 
     if ocr_engine == "Local Engine (PaddleOCR / PyMuPDF)":
         try:

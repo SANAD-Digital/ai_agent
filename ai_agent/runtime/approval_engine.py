@@ -347,6 +347,28 @@ class ApprovalEngine:
 
         Returns the loaded target document for document-level actions.
         """
+        from ai_agent.runtime import policy
+
+        if action_type in ("Submit", "Cancel") and not policy.submit_cancel_allowed():
+            raise PermissionDenied(
+                "The agent does not submit or cancel documents (disabled in AI Settings). "
+                "The user can do it from the document."
+            )
+        if action_type == "Workflow" and not policy.submit_cancel_allowed():
+            action = (payload or {}).get("action") if isinstance(payload, dict) else None
+            if policy.workflow_changes_docstatus(doctype_name, document_name, action):
+                raise PermissionDenied(
+                    f"Workflow action '{action}' submits or cancels the document, which the agent may not do."
+                )
+        try:
+            if action_type == "Bulk Create":
+                for document in self._bulk_documents(payload):
+                    policy.assert_write_target_allowed(document["doctype"], document["payload"])
+            elif action_type in ("Create", "Update"):
+                policy.assert_write_target_allowed(doctype_name, payload)
+        except policy.PolicyViolation as exc:
+            raise PermissionDenied(str(exc))
+
         if action_type == "Bulk Create":
             for document in self._bulk_documents(payload):
                 self._assert_create_allowed(document["doctype"], document["payload"], user)

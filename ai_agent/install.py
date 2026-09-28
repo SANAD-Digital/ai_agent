@@ -41,7 +41,29 @@ def ensure_standard_configuration():
 NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1}
 
 
+def ensure_provider_policy_defaults():
+    """Existing sites keep working: if a non-Anthropic provider is already
+    configured, the first migrate records Own Key mode with consent (the admin
+    configured that provider deliberately). New sites start Managed."""
+    stored = frappe.db.sql(
+        "select 1 from `tabSingles` where doctype='AI Settings' and field='provider_mode'"
+    )
+    if stored:
+        return
+    types = set(frappe.get_all("AI Provider", filters={"enabled": 1}, pluck="provider_type"))
+    settings = frappe.get_single("AI Settings")
+    if not types and settings.get_password("api_key", raise_exception=False):
+        types.add(settings.provider_type or "OpenAI Compatible")
+    gemini = frappe.db.exists("DocType", "Gemini OCR Settings") and frappe.db.get_single_value("Gemini OCR Settings", "enabled")
+    if types - {"Anthropic"} or gemini:
+        frappe.db.set_single_value("AI Settings", "provider_mode", "Own Key")
+        frappe.db.set_single_value("AI Settings", "allow_third_party_providers", 1)
+    else:
+        frappe.db.set_single_value("AI Settings", "provider_mode", "Managed")
+
+
 def ensure_new_setting_defaults():
+    ensure_provider_policy_defaults()
     for fieldname, value in NEW_SETTING_DEFAULTS.items():
         stored = frappe.db.sql(
             "select 1 from `tabSingles` where doctype='AI Settings' and field=%s", fieldname

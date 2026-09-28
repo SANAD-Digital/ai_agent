@@ -30,6 +30,38 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Iterable
 
+ENABLE_ENV = "AI_AGENT_ENABLE_WINDOWS_OCR"
+ENABLE_SITE_CONFIG = "ai_agent_enable_windows_ocr"
+
+
+class WindowsOCRDisabled(RuntimeError):
+    pass
+
+
+def windows_ocr_enabled() -> bool:
+    """Off by default. This desktop tester is not part of the production path:
+    it runs only with AI_AGENT_ENABLE_WINDOWS_OCR=1 (or --enable), or inside a
+    site only with "ai_agent_enable_windows_ocr": 1 in site_config.json."""
+    import os
+
+    if os.environ.get(ENABLE_ENV) == "1":
+        return True
+    try:
+        import frappe
+
+        return bool(getattr(frappe.local, "conf", None) and frappe.local.conf.get(ENABLE_SITE_CONFIG))
+    except Exception:
+        return False
+
+
+def ensure_windows_ocr_enabled() -> None:
+    if not windows_ocr_enabled():
+        raise WindowsOCRDisabled(
+            f"Local Windows OCR is disabled. Set {ENABLE_ENV}=1 (or pass --enable), "
+            f'or "{ENABLE_SITE_CONFIG}": 1 in site_config.json, to use it explicitly.'
+        )
+
+
 SUPPORTED_IMAGES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 SUPPORTED_INPUTS = SUPPORTED_IMAGES | {".pdf"}
 
@@ -499,7 +531,12 @@ def save_outputs(
     )
 
 
-def process_input(
+def process_input(*args, **kwargs):
+    ensure_windows_ocr_enabled()
+    return _process_input(*args, **kwargs)
+
+
+def _process_input(
     input_path: Path,
     ocr,
     np,
@@ -671,12 +708,26 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional root folder for all output directories.",
     )
+    parser.add_argument(
+        "--enable",
+        action="store_true",
+        help=f"Explicitly enable this local tester (same as {ENABLE_ENV}=1).",
+    )
     return parser
 
 
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.enable:
+        import os
+
+        os.environ[ENABLE_ENV] = "1"
+    try:
+        ensure_windows_ocr_enabled()
+    except WindowsOCRDisabled as exc:
+        print(exc)
+        return 2
 
     input_paths = [Path(value).expanduser().resolve() for value in args.inputs]
     used_gui = False

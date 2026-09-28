@@ -50,6 +50,27 @@ class TestQueryValidator(IntegrationTestCase):
 		with self.assertRaises(QueryValidationError):
 			self.validator.validate({"doctype": "ToDo", "fields": ["name"], "offset": -1})
 
+	def test_field_object_without_field_name_is_rejected(self):
+		with self.assertRaises(QueryValidationError):
+			self.validator.validate({"doctype": "ToDo", "fields": [{"$text": "name"}]})
+
+	def test_malformed_between_value_is_rejected(self):
+		# A wrapped value used to be dropped silently and return a wrong count.
+		with self.assertRaises(QueryValidationError):
+			self.validator.validate({
+				"doctype": "ToDo",
+				"fields": ["name"],
+				"filters": [{"field": "date", "operator": "between", "value": {"item": ["2026-01-01", "2026-12-31"]}}],
+			})
+
+	def test_group_by_object_without_bucket_is_plain_field(self):
+		spec = self.validator.validate({
+			"doctype": "ToDo",
+			"fields": ["status", {"field": "name", "aggregate": "COUNT", "alias": "n"}],
+			"group_by": [{"field": "status"}],
+		})
+		self.assertEqual(spec["group_by"], ["status"])
+
 
 class TestDateBucketGroupBy(IntegrationTestCase):
 	def setUp(self):

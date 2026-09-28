@@ -18,6 +18,53 @@ from ai_agent.runtime.tool_registry import ToolRegistry
 ACTION_PREFIX = "actions.request_"
 SAFE_SIDE_EFFECTS = {"read_only", "prepare_only"}
 
+# Human-readable titles for MCP clients that show them instead of tool names.
+TOOL_TITLES = {
+    "actions.request_bulk_create": "طلب إنشاء عدة مسودات (بموافقة)",
+    "actions.request_create_draft": "طلب إنشاء مسودة (بموافقة)",
+    "actions.request_mapped_draft": "طلب إنشاء مسودة من مستند (بموافقة)",
+    "actions.request_update": "طلب تعديل مستند (بموافقة)",
+    "actions.request_workflow_action": "طلب إجراء سير عمل (بموافقة)",
+    "actions.validate_document": "التحقق من بيانات مستند",
+    "artifacts.create_chart": "إنشاء رسم بياني",
+    "artifacts.create_document_links": "إنشاء روابط مستندات",
+    "artifacts.create_table": "إنشاء جدول",
+    "attachments.list": "عرض المرفقات",
+    "data.count": "عدّ السجلات",
+    "data.get_child_records": "قراءة صفوف جدول فرعي",
+    "data.get_document": "قراءة مستند",
+    "data.query": "استعلام بيانات",
+    "diagnose.document": "تشخيص مستند",
+    "erp.exchange_rate": "سعر الصرف",
+    "erp.fiscal_year": "السنة المالية",
+    "erp.invoice_payments": "مدفوعات الفاتورة",
+    "erp.item_details": "تفاصيل صنف",
+    "erp.party_details": "تفاصيل عميل/مورد",
+    "erp.stock_balance": "رصيد المخزون",
+    "financial_attachments.get_session_ocr_text": "نص المرفق المالي (OCR)",
+    "knowledge.search": "بحث في قاعدة المعرفة",
+    "memory.search": "بحث في الذاكرة",
+    "metrics.query": "استعلام مؤشر",
+    "reports.describe": "وصف تقرير",
+    "reports.run": "تشغيل تقرير",
+    "reports.search": "بحث عن تقرير",
+    "schema.describe_doctype": "وصف بنية نوع مستند",
+    "schema.describe_links": "روابط نوع مستند",
+    "schema.describe_workflow": "سير عمل نوع مستند",
+    "schema.search_doctypes": "بحث عن أنواع المستندات",
+    "setup.check": "فحص الإعداد",
+    "skills.list": "عرض المهارات",
+    "skills.load": "تحميل مهارة",
+    "skills.read_reference": "قراءة مرجع مهارة",
+}
+# MCP clients cannot render artifacts inline; tell the model what to do instead.
+MCP_DESCRIPTION_NOTES = {
+    "artifacts.create_chart": (
+        "Returns chart_url: a link that opens the drawn chart in the browser."
+        " Always give chart_url to the user as a clickable link."
+    ),
+}
+
 
 class MCPService:
     def __init__(self, user=None):
@@ -44,12 +91,14 @@ class MCPService:
         for registered in self.registry.list_tools():
             if not self._is_exposed(registered):
                 continue
+            name = registered["name"]
+            title = TOOL_TITLES.get(name, name)
             tool = {
-                "name": self._external_name(registered["name"]),
-                "title": registered["name"],
-                "description": registered.get("description") or registered["name"],
+                "name": self._external_name(name),
+                "title": title,
+                "description": self._description(registered),
                 "inputSchema": self._input_schema(registered),
-                "annotations": self._annotations(registered),
+                "annotations": {"title": title, **self._annotations(registered)},
             }
             tools.append(tool)
         return sorted(tools, key=lambda tool: tool["name"])
@@ -188,6 +237,12 @@ class MCPService:
         module_path, function_name = tool["handler"].rsplit(".", 1)
         handler = getattr(importlib.import_module(module_path), function_name)
         return handler(arguments, context)
+
+    @staticmethod
+    def _description(tool):
+        description = tool.get("description") or tool["name"]
+        note = MCP_DESCRIPTION_NOTES.get(tool["name"])
+        return f"{description.rstrip('.')}. {note}" if note else description
 
     @staticmethod
     def _external_name(name):

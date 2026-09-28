@@ -14,6 +14,26 @@ STANDARD_FIELDS = {
 }
 
 
+def validate_filter_value(operator, value):
+    """Reject values whose shape does not fit the operator.
+
+    Without this, a malformed value (e.g. {"item": [a, b]} for between) is
+    silently dropped or mis-bound and the tool returns a wrong answer.
+    """
+    if operator not in ALLOWED_OPERATORS:
+        raise QueryValidationError(
+            f"Operator '{operator}' not allowed (use one of: {', '.join(sorted(ALLOWED_OPERATORS))})."
+        )
+    if operator == "between":
+        if not (isinstance(value, list) and len(value) == 2):
+            raise QueryValidationError("'between' requires value as a two-item array: [from, to].")
+    elif operator in ("in", "not in"):
+        if not isinstance(value, list):
+            raise QueryValidationError(f"'{operator}' requires value as an array.")
+    elif operator not in ("is set", "is not set") and isinstance(value, (dict, list)):
+        raise QueryValidationError(f"'{operator}' requires a single scalar value.")
+
+
 class QueryValidator:
     """Validates Query Specification JSON before execution."""
 
@@ -106,9 +126,13 @@ class QueryValidator:
                 aggregate = f.get("aggregate")
                 alias = f.get("alias")
 
-                if fieldname and fieldname not in allowed_fieldnames:
+                if not isinstance(fieldname, str) or not fieldname:
+                    raise QueryValidationError(
+                        f"Invalid field specification: {f} (expected a name or {{field, aggregate, alias}})."
+                    )
+                if fieldname not in allowed_fieldnames:
                     raise QueryValidationError(f"Field '{fieldname}' not found.")
-                if fieldname and not self.ctx.check_field_access(doc_type, fieldname, "read", self._field_parent()):
+                if not self.ctx.check_field_access(doc_type, fieldname, "read", self._field_parent()):
                     raise QueryValidationError(f"No read access to field '{fieldname}'.")
 
                 if aggregate and aggregate not in ALLOWED_AGGREGATES:
@@ -139,8 +163,7 @@ class QueryValidator:
                 pass
             elif field not in allowed_fieldnames:
                 raise QueryValidationError(f"Filter field '{field}' not found.")
-            if operator not in ALLOWED_OPERATORS:
-                raise QueryValidationError(f"Operator '{operator}' not allowed.")
+            validate_filter_value(operator, flt.get("value"))
 
     def _normalize_child_parent_filters(self, doc_type, filters, parent_doctype=None):
         if not parent_doctype or not getattr(frappe.get_meta(doc_type), "istable", False):
@@ -222,7 +245,11 @@ class QueryValidator:
         allowed_fieldnames = {f.fieldname for f in meta.fields if not f.hidden}
         allowed_fieldnames.update(STANDARD_FIELDS)
 
-        for gb in group_by:
+        for index, gb in enumerate(group_by):
+            # {field} without a bucket is a plain field group; clients often
+            # send every group_by entry as an object.
+            if isinstance(gb, dict) and not gb.get("bucket"):
+                gb = group_by[index] = gb.get("field")
             if isinstance(gb, dict):
                 self._validate_group_by_bucket(doc_type, meta, allowed_fieldnames, gb)
             elif gb not in allowed_fieldnames:

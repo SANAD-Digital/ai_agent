@@ -1,6 +1,7 @@
 import re
 import frappe
-from ai_agent.query.validator import QueryValidator
+from ai_agent.query.validator import QueryValidator, validate_filter_value
+from ai_agent.runtime.exceptions import QueryValidationError
 from ai_agent.query.cost_guard import QueryCostGuard
 from ai_agent.query.v16_adapter import V16Adapter
 from ai_agent.runtime.constants import SENSITIVE_FIELD_PATTERNS
@@ -238,7 +239,12 @@ def handle_count(arguments, permission_context):
     if isinstance(raw_filters, list):
         for flt in raw_filters:
             if isinstance(flt, dict) and "field" in flt:
-                filters.append([flt.get("field"), flt.get("operator") or "=", flt.get("value")])
+                operator = flt.get("operator") or "="
+                try:
+                    validate_filter_value(operator, flt.get("value"))
+                except QueryValidationError as exc:
+                    return {"error": str(exc)}
+                filters.append([flt.get("field"), operator, flt.get("value")])
             else:
                 filters.append(flt)
     else:

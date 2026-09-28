@@ -556,6 +556,9 @@ def sync_tool_name_options():
     )
     if field_name:
         frappe.db.set_value("DocField", field_name, "options", options, update_modified=False)
+        # The cached meta still holds the old options; without this, the skill
+        # sync that follows rejects newly registered tools on a fresh migrate.
+        frappe.clear_cache(doctype="AI Skill Tool")
 
 
 def create_default_skill_grants():

@@ -216,5 +216,3 @@ class SessionContextService:
         return text
 
 
-def serialize_context_payload(payload):
-    return json.dumps(payload, ensure_ascii=False, default=str)

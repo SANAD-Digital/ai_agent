@@ -14,6 +14,10 @@ class AIProvider(Document):
 			frappe.throw(_("Only one model can be marked as default."))
 		if not self.default_model and defaults:
 			self.default_model = defaults[0].model_name
+		# an embedding model fails every chat request (400 from the provider)
+		bad = [name for name in [row.model_name for row in self.models or []] + [self.default_model or ""] if "embed" in (name or "").lower()]
+		if bad:
+			frappe.throw(_("هذا نموذج تضمين (embedding) ولا يصلح للمحادثة: {0}. استخدم «جلب النماذج من المزوّد» لاختيار نماذج المحادثة.").format(", ".join(sorted(set(bad)))))
 
 	def on_update(self):
 		if self.is_default:
@@ -30,3 +34,96 @@ class AIProvider(Document):
 			key = ""
 		# Last 4 characters only: a prefix identifies the vendor/key type.
 		return f"…{key[-4:]}" if len(key) > 8 else ("set" if key else "")
+
+
+# Model ids that are not chat models (OpenAI and compatible servers list them all).
+NON_CHAT = (
+	"embed", "whisper", "tts", "dall-e", "moderation", "transcribe", "image", "audio", "realtime", "search", "babbage", "davinci",
+	# Gemini: robotics, computer-use, image (nano-banana), video, music, live audio
+	"robotics", "computer-use", "nano-banana", "veo", "imagen", "lyria", "-live", "aqa",
+)
+
+
+@frappe.whitelist()
+def fetch_models(provider):
+	"""The models the provider offers this account, with the capabilities it reports.
+
+	Returns {models: [...], stale: [configured models the provider no longer lists]}.
+	Read-only: the form adds the rows the admin picks.
+	"""
+	doc = frappe.get_doc("AI Provider", provider)
+	doc.check_permission("write")
+	from ai_agent.engine.providers.factory import provider_config
+
+	config = provider_config(doc)
+	try:
+		if config["type"] == "Anthropic":
+			models = _anthropic_models(config)
+		else:
+			models = _openai_models(config)
+	except Exception as exc:
+		message = str(exc)
+		if config.get("api_key"):
+			message = message.replace(config["api_key"], "***")
+		frappe.throw(_("تعذّر جلب النماذج من المزوّد: {0}").format(message[:300]))
+	existing = {row.model_name for row in doc.models or []}
+	for m in models:
+		m["exists"] = m["model_name"] in existing
+	offered = {m["model_name"] for m in models}
+	stale = sorted(name for name in existing | {doc.default_model or ""} if name and name not in offered)
+	return {"models": sorted(models, key=lambda m: m["model_name"]), "stale": stale}
+
+
+def _anthropic_models(config):
+	import anthropic
+
+	kwargs = {"api_key": config["api_key"], "timeout": 30, "max_retries": 1}
+	if config.get("base_url"):
+		kwargs["base_url"] = config["base_url"]
+	out = []
+	for m in anthropic.Anthropic(**kwargs).models.list():   # iterating auto-paginates
+		caps = getattr(m, "capabilities", None) or {}
+		thinking = caps.get("thinking") or {}
+		out.append({
+			"model_name": m.id,
+			"label": m.display_name or m.id,
+			"context_window_tokens": getattr(m, "max_input_tokens", None) or 0,
+			"max_output_tokens": getattr(m, "max_tokens", None) or 0,
+			"supports_vision": int(bool((caps.get("image_input") or {}).get("supported"))),
+			"supports_thinking": int(bool(thinking.get("supported"))),
+			"supports_pdf": int(bool((caps.get("pdf_input") or {}).get("supported"))),
+			"supports_tools": 1,
+		})
+	return out
+
+
+def _openai_models(config):
+	from openai import OpenAI
+
+	from ai_agent.engine.providers.base import guess_context_window, guess_thinking
+
+	client = OpenAI(api_key=config["api_key"] or "none", base_url=config.get("base_url") or None, timeout=30, max_retries=1)
+	out = []
+	for m in client.models.list():
+		model_id = m.id
+		if model_id.startswith("models/"):   # Gemini's OpenAI endpoint lists "models/<id>" but takes "<id>"
+			model_id = model_id[len("models/"):]
+		if any(part in model_id.lower() for part in NON_CHAT):
+			continue
+		raw = m.model_dump() if hasattr(m, "model_dump") else dict(m)
+		modalities = raw.get("input_modalities") or (raw.get("architecture") or {}).get("input_modalities") or []
+		params = raw.get("supported_parameters") or []
+		context = raw.get("context_window") or raw.get("context_length") or 0
+		output = raw.get("max_output_tokens") or (raw.get("top_provider") or {}).get("max_completion_tokens") or 0
+		reasoning = bool(raw.get("effort") or raw.get("reasoning") or "reasoning" in params)
+		out.append({
+			"model_name": model_id,
+			"label": raw.get("name") or model_id,
+			"context_window_tokens": int(context or guess_context_window(model_id) or 0),
+			"max_output_tokens": int(output or 0),
+			"supports_vision": int("image" in modalities),
+			"supports_thinking": int(reasoning or bool(guess_thinking(model_id))),
+			"supports_pdf": int("file" in modalities or "pdf" in modalities),
+			"supports_tools": int("tools" in params) if params else 1,
+		})
+	return out

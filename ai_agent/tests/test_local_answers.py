@@ -1,6 +1,5 @@
 from frappe.tests import IntegrationTestCase
 
-from ai_agent.api import _local_fast_answer
 from ai_agent.runtime.local_answers import greeting_or_capability_answer
 
 
@@ -29,11 +28,4 @@ class TestLocalAnswers(IntegrationTestCase):
 			)
 		)
 
-	def test_fix_the_error_prompt_is_not_hijacked_by_failure_answer(self):
-		# Regression: the word "خطأ" alone used to trigger the canned
-		# failure explanation before the action guard ran.
-		self.assertIsNone(_local_fast_answer("صحح الخطأ في الفاتورة وحدثها"))
 
-	def test_explicit_failure_question_still_answers_locally(self):
-		answer = _local_fast_answer("ليش فشل الطلب السابق؟")
-		self.assertIsNotNone(answer)

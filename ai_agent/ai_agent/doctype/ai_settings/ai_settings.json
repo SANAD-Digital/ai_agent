@@ -52,66 +52,70 @@
   "mcp_allowed_origins",
   "mcp_max_requests_per_minute",
   "mcp_enable_action_requests",
+  "mcp_require_approval",
+  "mcp_enable_app_approval",
+  "section_access",
+  "access_rules",
   "section_instructions",
   "system_instructions"
  ],
  "fields": [
   {
+   "default": "1",
    "fieldname": "enabled",
    "fieldtype": "Check",
-   "label": "Enabled",
-   "default": "1"
+   "label": "Enabled"
   },
   {
+   "default": "OpenAI",
    "fieldname": "provider_type",
    "fieldtype": "Select",
    "label": "Provider Type",
    "options": "OpenAI\nOpenAI Compatible\nOllama\nAnthropic",
-   "default": "OpenAI",
    "reqd": 1
   },
   {
+   "depends_on": "eval:doc.provider_type != 'OpenAI'",
    "fieldname": "base_url",
    "fieldtype": "Data",
-   "label": "Base URL",
-   "depends_on": "eval:doc.provider_type != 'OpenAI'"
+   "label": "Base URL"
   },
   {
+   "depends_on": "eval:doc.provider_type != 'Ollama'",
    "fieldname": "api_key",
    "fieldtype": "Password",
-   "label": "API Key",
-   "depends_on": "eval:doc.provider_type != 'Ollama'"
+   "label": "API Key"
   },
   {
    "fieldname": "cb_general",
    "fieldtype": "Column Break"
   },
   {
+   "default": "gpt-4o",
    "fieldname": "default_model",
    "fieldtype": "Data",
    "label": "Default Model",
-   "default": "gpt-4o",
    "reqd": 1
   },
   {
+   "default": "0",
+   "depends_on": "eval:doc.provider_type == 'OpenAI Compatible'",
    "fieldname": "enable_thinking_mode",
    "fieldtype": "Check",
-   "label": "Thinking Mode",
-   "default": "0",
-   "depends_on": "eval:doc.provider_type == 'OpenAI Compatible'"
+   "label": "Thinking Mode"
   },
   {
+   "default": "medium",
    "fieldname": "default_reasoning_effort",
    "fieldtype": "Select",
    "label": "Default Reasoning Effort",
-   "options": "low\nmedium\nhigh",
-   "default": "medium"
+   "options": "low\nmedium\nhigh"
   },
   {
+   "default": "0",
    "fieldname": "strict_tool_calling",
    "fieldtype": "Check",
-   "label": "Strict Tool Calling",
-   "default": "0"
+   "label": "Strict Tool Calling"
   },
   {
    "fieldname": "section_limits",
@@ -119,47 +123,47 @@
    "label": "Limits & Timeouts"
   },
   {
+   "default": "120",
    "fieldname": "request_timeout",
    "fieldtype": "Int",
-   "label": "Request Timeout (seconds)",
-   "default": "120"
+   "label": "Request Timeout (seconds)"
   },
   {
+   "default": "300",
    "fieldname": "maximum_run_seconds",
    "fieldtype": "Int",
-   "label": "Maximum Run Seconds",
-   "default": "300"
+   "label": "Maximum Run Seconds"
   },
   {
+   "default": "12",
    "fieldname": "maximum_steps",
    "fieldtype": "Int",
-   "label": "Maximum Steps",
-   "default": "12"
+   "label": "Maximum Steps"
   },
   {
+   "default": "25",
    "fieldname": "maximum_tool_calls",
    "fieldtype": "Int",
-   "label": "Maximum Tool Calls",
-   "default": "25"
+   "label": "Maximum Tool Calls"
   },
   {
+   "default": "500",
    "fieldname": "maximum_rows_per_query",
    "fieldtype": "Int",
-   "label": "Maximum Rows Per Query",
-   "default": "500"
+   "label": "Maximum Rows Per Query"
   },
   {
+   "default": "102400",
    "fieldname": "maximum_result_bytes",
    "fieldtype": "Int",
-   "label": "Maximum Result Bytes",
-   "default": "102400"
+   "label": "Maximum Result Bytes"
   },
   {
+   "default": "1",
+   "description": "Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set.",
    "fieldname": "enable_tool_routing",
    "fieldtype": "Check",
-   "label": "Enable Tool Routing",
-   "default": "1",
-   "description": "Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set."
+   "label": "Enable Tool Routing"
   },
   {
    "fieldname": "store_full_tool_results",
@@ -171,24 +175,24 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "30",
    "fieldname": "default_approval_ttl_minutes",
    "fieldtype": "Int",
-   "label": "Default Approval TTL (minutes)",
-   "default": "30"
+   "label": "Default Approval TTL (minutes)"
   },
   {
+   "description": "Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.",
    "fieldname": "approver_role",
    "fieldtype": "Link",
    "label": "Approver Role",
-   "options": "Role",
-   "description": "Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only."
+   "options": "Role"
   },
   {
+   "default": "0",
+   "description": "When enabled, the user who requested an action cannot approve it themselves.",
    "fieldname": "require_four_eyes",
    "fieldtype": "Check",
-   "label": "Require Four-Eyes Approval",
-   "default": "0",
-   "description": "When enabled, the user who requested an action cannot approve it themselves."
+   "label": "Require Four-Eyes Approval"
   },
   {
    "fieldname": "section_privacy",
@@ -197,10 +201,10 @@
   },
   {
    "default": "0",
+   "description": "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",
    "fieldname": "allow_admin_conversation_audit",
    "fieldtype": "Check",
-   "label": "Allow Admin Conversation Audit",
-   "description": "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations."
+   "label": "Allow Admin Conversation Audit"
   },
   {
    "fieldname": "section_policies",
@@ -208,50 +212,50 @@
    "label": "Policies"
   },
   {
+   "default": "0",
+   "description": "Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.",
    "fieldname": "allow_submit_cancel_actions",
    "fieldtype": "Check",
-   "label": "Allow Submit / Cancel Actions",
-   "default": "0",
-   "description": "Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution."
+   "label": "Allow Submit / Cancel Actions"
   },
   {
+   "default": "Managed",
+   "description": "Managed: only Anthropic (Claude) providers are used. Own Key: other providers are allowed only with the consent below.",
    "fieldname": "provider_mode",
    "fieldtype": "Select",
    "label": "Provider Mode",
-   "options": "Managed\nOwn Key",
-   "default": "Managed",
-   "description": "Managed: only Anthropic (Claude) providers are used. Own Key: other providers are allowed only with the consent below."
+   "options": "Managed\nOwn Key"
   },
   {
-   "fieldname": "allow_third_party_providers",
-   "fieldtype": "Check",
-   "label": "I Accept Sending Data to Third-Party Providers",
    "default": "0",
    "depends_on": "eval:doc.provider_mode=='Own Key'",
-   "description": "Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider."
+   "description": "Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider.",
+   "fieldname": "allow_third_party_providers",
+   "fieldtype": "Check",
+   "label": "I Accept Sending Data to Third-Party Providers"
   },
   {
+   "depends_on": "eval:doc.provider_mode=='Own Key'",
+   "description": "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",
    "fieldname": "allowed_providers",
    "fieldtype": "Small Text",
-   "label": "Allowed Provider Types",
-   "depends_on": "eval:doc.provider_mode=='Own Key'",
-   "description": "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all."
+   "label": "Allowed Provider Types"
   },
   {
    "fieldname": "column_break_policies",
    "fieldtype": "Column Break"
   },
   {
+   "description": "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",
    "fieldname": "masking_extra_fields",
    "fieldtype": "Small Text",
-   "label": "Extra Masked Fields",
-   "description": "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries)."
+   "label": "Extra Masked Fields"
   },
   {
+   "description": "One DocType per line whose amounts are masked like Salary Slip (per-person pay).",
    "fieldname": "masking_extra_doctypes",
    "fieldtype": "Small Text",
-   "label": "Extra Masked DocTypes",
-   "description": "One DocType per line whose amounts are masked like Salary Slip (per-person pay)."
+   "label": "Extra Masked DocTypes"
   },
   {
    "fieldname": "section_memory",
@@ -264,30 +268,30 @@
    "label": "Enable Memory"
   },
   {
+   "default": "30",
+   "depends_on": "eval:doc.enable_memory",
    "fieldname": "memory_retention_days",
    "fieldtype": "Int",
-   "label": "Memory Retention Days",
-   "default": "30",
-   "depends_on": "eval:doc.enable_memory"
+   "label": "Memory Retention Days"
   },
   {
+   "collapsible": 1,
    "fieldname": "section_model_capabilities",
    "fieldtype": "Section Break",
-   "label": "Model Capabilities",
-   "collapsible": 1
+   "label": "Model Capabilities"
   },
   {
+   "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.",
    "fieldname": "model_capabilities",
    "fieldtype": "Table",
    "label": "Model Capabilities",
-   "options": "AI Model Capability",
-   "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics."
+   "options": "AI Model Capability"
   },
   {
+   "collapsible": 1,
    "fieldname": "section_mcp",
    "fieldtype": "Section Break",
-   "label": "MCP Server",
-   "collapsible": 1
+   "label": "MCP Server"
   },
   {
    "default": "0",
@@ -333,6 +337,22 @@
    "label": "Enable MCP Action Requests"
   },
   {
+   "default": "1",
+   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests",
+   "description": "On (default): every write from MCP waits for a human decision (card button or an explicit word in chat). Off: the requester's own requests execute immediately under their ERPNext permissions, and are still recorded as AI Approval Requests.",
+   "fieldname": "mcp_require_approval",
+   "fieldtype": "Check",
+   "label": "MCP Actions Require Approval"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests && doc.mcp_require_approval",
+   "description": "Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat ('موافق') or in Frappe. Independent of 'MCP Actions Require Approval'.",
+   "fieldname": "mcp_enable_app_approval",
+   "fieldtype": "Check",
+   "label": "Allow Approval from MCP App"
+  },
+  {
    "depends_on": "eval:doc.enable_mcp",
    "description": "Optional browser origins, one per line. Server-to-server clients normally send no Origin header.",
    "fieldname": "mcp_allowed_origins",
@@ -348,6 +368,19 @@
    "label": "MCP Requests per Minute"
   },
   {
+   "collapsible": 0,
+   "description": "كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. صف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.",
+   "fieldname": "section_access",
+   "fieldtype": "Section Break",
+   "label": "صلاحيات المهارات والإضافات"
+  },
+  {
+   "fieldname": "access_rules",
+   "fieldtype": "Table",
+   "label": "قواعد الصلاحيات",
+   "options": "AI Access Rule"
+  },
+  {
    "fieldname": "section_instructions",
    "fieldtype": "Section Break",
    "label": "System Instructions"
@@ -361,7 +394,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-28 20:00:00.000000",
+ "modified": "2026-10-08 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

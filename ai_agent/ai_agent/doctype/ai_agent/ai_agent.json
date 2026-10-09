@@ -15,6 +15,8 @@
   "system_instructions",
   "model",
   "reasoning_effort",
+  "thinking",
+  "thinking_budget_tokens",
   "section_limits",
   "maximum_steps",
   "maximum_tool_calls",
@@ -142,10 +144,24 @@
    "fieldname": "compact_session",
    "fieldtype": "Long Text",
    "label": "Compact Session"
+  },
+  {
+   "fieldname": "thinking",
+   "fieldtype": "Select",
+   "label": "Thinking",
+   "options": "off\nadaptive\non",
+   "default": "adaptive",
+   "description": "Extended thinking for models that support it"
+  },
+  {
+   "fieldname": "thinking_budget_tokens",
+   "fieldtype": "Int",
+   "label": "Thinking Budget Tokens",
+   "description": "Only for thinking = on"
   }
  ],
  "links": [],
- "modified": "2026-08-05 18:06:40.585946",
+ "modified": "2026-09-30 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Agent",

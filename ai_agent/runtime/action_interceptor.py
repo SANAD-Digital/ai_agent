@@ -22,6 +22,7 @@ KNOWN_ACTION_TOOLS = {
     "actions.request_cancel",
     "actions.request_workflow_action",
     "actions.request_mapped_draft",
+    "messaging.request_email",
 }
 
 
@@ -96,6 +97,25 @@ class ActionInterceptor:
                 f"Approval required: Update {arguments.get('doctype')}",
                 approval.name,
             )
+            return {"approval_required": True, "approval_id": approval.name}
+
+        elif tool_name == "messaging.request_email":
+            from ai_agent.tools import messaging
+
+            try:
+                payload = messaging.build_payload(arguments)
+            except frappe.ValidationError as exc:
+                return {"error": str(exc)}
+            approval = self.approval_engine.create_approval_request(
+                run_name=self.run_name,
+                action_type="Approved Method",
+                doctype_name=payload.get("reference_doctype"),
+                document_name=payload.get("reference_name"),
+                action_summary=messaging.summary(payload),
+                impact_summary="سيُرسل البريد من حساب البريد الصادر في النظام ويُسجَّل في المراسلات.",
+                payload=payload,
+            )
+            self._record_approval_step(messaging.summary(payload), approval.name)
             return {"approval_required": True, "approval_id": approval.name}
 
         elif tool_name == "actions.request_submit":

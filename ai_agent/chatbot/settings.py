@@ -88,6 +88,17 @@ def allowed_roles() -> set[str]:
     return roles
 
 
+def can_access(user=None) -> bool:
+    """Whether `user` may use the support bubble (empty allowed_roles = everyone)."""
+    user = user or frappe.session.user
+    if user == "Administrator":
+        return True
+    roles = allowed_roles()
+    if not roles:
+        return True
+    return bool(set(frappe.get_roles(user)) & roles)
+
+
 def error_reply() -> str:
     return str(_setting("error_reply", DEFAULT_ERROR_REPLY) or DEFAULT_ERROR_REPLY).strip()
 

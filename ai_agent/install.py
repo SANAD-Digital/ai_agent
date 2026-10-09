@@ -20,6 +20,7 @@ def ensure_standard_configuration():
     create_default_settings()
     create_default_gemini_ocr_settings()
     ensure_default_provider()
+    ensure_preset_providers()
     create_default_agents()
     ensure_whatsapp_support_configuration()
     ensure_chatbot_configuration()
@@ -28,8 +29,8 @@ def ensure_standard_configuration():
     ensure_desktop_icon()
     sync_tool_name_options()
     sync_skills()
+    ensure_standard_plugins()
     create_default_skill_grants()
-    ensure_purchase_invoice_agent_configuration()
     ensure_default_metrics()
     ensure_new_setting_defaults()
     frappe.db.commit()
@@ -38,7 +39,7 @@ def ensure_standard_configuration():
 # Check fields added to the AI Settings single after it already exists do not
 # get their JSON default on existing sites. Seed them once; a saved value
 # (including an admin's explicit 0) is never overwritten.
-NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1}
+NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1, "mcp_require_approval": 1}
 
 
 def ensure_provider_policy_defaults():
@@ -92,44 +93,34 @@ def ensure_workspace_sidebar():
     workspace.public = 1
     workspace.icon = workspace.icon or "bot"
 
-    _ensure_workspace_content_shortcut(workspace, "Purchase Invoice AI")
-    _ensure_workspace_link(
-        workspace,
-        label="Purchase Invoice AI",
-        link_type="Page",
-        link_to="purchase-invoice-ai",
-        after_label="Agent Workspace",
-    )
-    _ensure_workspace_shortcut(
-        workspace,
-        label="Purchase Invoice AI",
-        link_to="purchase-invoice-ai",
-        color="Red",
-        after_label="Agent Workspace",
-    )
-    _ensure_workspace_link(
-        workspace,
-        label="Gemini OCR Settings",
-        link_type="DocType",
-        link_to="Gemini OCR Settings",
-        after_label="AI Settings",
-    )
-    _ensure_workspace_link(
-        workspace,
-        label="AI Chatbot Settings",
-        link_type="DocType",
-        link_to="AI Chatbot Settings",
-        after_label="Gemini OCR Settings",
-    )
-    _ensure_workspace_link(
-        workspace,
-        label="AI Chatbot Conversations",
-        link_type="DocType",
-        link_to="AI Chatbot Conversation",
-        after_label="AI Chatbot Settings",
-    )
+    # Links, cards and labels come from workspace/ai/ai.json (synced on migrate);
+    # here only what an old site may still carry is removed.
+    _drop_retired_workspace_entries(workspace)
     _refresh_workspace_card_counts(workspace)
     workspace.save(ignore_permissions=True)
+
+
+# Pages and DocTypes the app no longer ships; existing sites still carry their links.
+RETIRED_WORKSPACE_TARGETS = {"purchase-invoice-ai", "AI Chatbot Conversation"}
+RETIRED_SHORTCUT_NAMES = {"Purchase Invoice AI"}
+
+
+def _drop_retired_workspace_entries(workspace):
+    for table in ("links", "shortcuts"):
+        rows = [row for row in workspace.get(table) if row.get("link_to") not in RETIRED_WORKSPACE_TARGETS]
+        for index, row in enumerate(rows, start=1):
+            row.idx = index
+        workspace.set(table, rows)
+    try:
+        content = json.loads(workspace.content or "[]")
+    except Exception:
+        return
+    kept = [
+        block for block in content
+        if not (block.get("type") == "shortcut" and block.get("data", {}).get("shortcut_name") in RETIRED_SHORTCUT_NAMES)
+    ]
+    if len(kept) != len(content):
+        workspace.content = json.dumps(kept, separators=(",", ":"))
 
 
 def _ensure_ai_workspace_name():
@@ -176,88 +167,6 @@ def ensure_desktop_icon():
         return
 
     frappe.get_doc({"doctype": "Desktop Icon", **values}).insert(ignore_permissions=True)
-
-
-def _ensure_workspace_content_shortcut(workspace, shortcut_name):
-    try:
-        content = json.loads(workspace.content or "[]")
-    except Exception:
-        return
-
-    if any(
-        block.get("type") == "shortcut"
-        and block.get("data", {}).get("shortcut_name") == shortcut_name
-        for block in content
-    ):
-        return
-
-    block = {
-        "id": "ai-agent-shortcut-purchase-invoice-ai",
-        "type": "shortcut",
-        "data": {"shortcut_name": shortcut_name, "col": 3},
-    }
-    insert_at = _content_index_after_shortcut(content, "Agent Workspace")
-    content.insert(insert_at, block)
-    workspace.content = json.dumps(content, separators=(",", ":"))
-
-
-def _content_index_after_shortcut(content, shortcut_name):
-    for index, block in enumerate(content):
-        if (
-            block.get("type") == "shortcut"
-            and block.get("data", {}).get("shortcut_name") == shortcut_name
-        ):
-            return index + 1
-    return len(content)
-
-
-def _ensure_workspace_link(workspace, label, link_type, link_to, after_label=None):
-    for row in workspace.links:
-        if row.get("type") == "Link" and row.get("link_type") == link_type and row.get("link_to") == link_to:
-            row.label = label
-            row.hidden = 0
-            return
-
-    row = {
-        "type": "Link",
-        "label": label,
-        "link_type": link_type,
-        "link_to": link_to,
-        "hidden": 0,
-        "is_query_report": 0,
-        "onboard": 0,
-        "link_count": 0,
-    }
-    _insert_child_row(workspace, "links", row, _child_index_after_label(workspace.links, after_label))
-
-
-def _ensure_workspace_shortcut(workspace, label, link_to, color, after_label=None):
-    for row in workspace.shortcuts:
-        if row.get("type") == "Page" and row.get("link_to") == link_to:
-            row.label = label
-            row.color = color
-            return
-
-    row = {"type": "Page", "label": label, "link_to": link_to, "color": color}
-    _insert_child_row(workspace, "shortcuts", row, _child_index_after_label(workspace.shortcuts, after_label))
-
-
-def _insert_child_row(doc, table_field, row, insert_at):
-    rows = doc.get(table_field)
-    child = doc.append(table_field, row)
-    rows.remove(child)
-    rows.insert(min(insert_at, len(rows)), child)
-    for index, existing in enumerate(rows, start=1):
-        existing.idx = index
-
-
-def _child_index_after_label(rows, label):
-    if not label:
-        return len(rows)
-    for index, row in enumerate(rows):
-        if row.get("label") == label:
-            return index + 1
-    return len(rows)
 
 
 def _refresh_workspace_card_counts(workspace):
@@ -307,56 +216,30 @@ def ensure_workspace_sidebar_doc():
 
 
 def _ai_workspace_sidebar_items():
+    def link(label, link_to, icon, link_type="DocType"):
+        return {"label": label, "type": "Link", "link_type": link_type, "link_to": link_to, "icon": icon}
+
+    def section(label, icon):
+        return {"label": label, "type": "Section Break", "icon": icon, "collapsible": 1}
+
     return [
-        {"label": "AI", "type": "Link", "link_type": "Workspace", "link_to": "AI", "icon": "bot"},
-        {
-            "label": "Agent Workspace",
-            "type": "Link",
-            "link_type": "Page",
-            "link_to": "agent-workspace",
-            "icon": "message-square",
-        },
-        {
-            "label": "Purchase Invoice AI",
-            "type": "Link",
-            "link_type": "Page",
-            "link_to": "purchase-invoice-ai",
-            "icon": "receipt-text",
-        },
-        {"label": "Runs", "type": "Link", "link_type": "DocType", "link_to": "AI Run", "icon": "activity"},
-        {
-            "label": "Approvals",
-            "type": "Link",
-            "link_type": "DocType",
-            "link_to": "AI Approval Request",
-            "icon": "check-circle",
-        },
-        {"label": "Setup", "type": "Section Break", "icon": "settings", "collapsible": 1},
-        {"label": "Agents", "type": "Link", "link_type": "DocType", "link_to": "AI Agent", "icon": "bot"},
-        {
-            "label": "Gemini OCR Settings",
-            "type": "Link",
-            "link_type": "DocType",
-            "link_to": "Gemini OCR Settings",
-            "icon": "scan-text",
-        },
-        {
-            "label": "WhatsApp Support Settings",
-            "type": "Link",
-            "link_type": "DocType",
-            "link_to": "AI WhatsApp Support Settings",
-            "icon": "message-circle",
-        },
-        {"label": "Skills", "type": "Link", "link_type": "DocType", "link_to": "AI Skill", "icon": "zap"},
-        {
-            "label": "Skill Grants",
-            "type": "Link",
-            "link_type": "DocType",
-            "link_to": "AI Skill Grant",
-            "icon": "key-round",
-        },
-        {"label": "AI Providers", "type": "Link", "link_type": "DocType", "link_to": "AI Provider", "icon": "settings"},
-        {"label": "Settings", "type": "Link", "link_type": "DocType", "link_to": "AI Settings", "icon": "settings"},
+        link("الرئيسية", "AI", "home", "Workspace"),
+        link("المحادثة", "agent-workspace", "message-square", "Page"),
+        link("طلبات الموافقة", "AI Approval Request", "check-circle"),
+        section("القدرات", "zap"),
+        link("الوكلاء", "AI Agent", "bot"),
+        link("المهارات", "AI Skill", "sparkles"),
+        link("الإضافات", "AI Plugin", "puzzle"),
+        link("منح المهارات للوكلاء", "AI Skill Grant", "key-round"),
+        section("المراقبة", "activity"),
+        link("التشغيلات", "AI Run", "activity"),
+        link("استدعاءات الأدوات", "AI Tool Call", "wrench"),
+        section("الإعدادات", "settings"),
+        link("الإعدادات والصلاحيات", "AI Settings", "settings"),
+        link("مزوّدو النماذج", "AI Provider", "server"),
+        link("فقاعة الدعم", "AI Chatbot Settings", "message-circle"),
+        link("دعم واتساب", "AI WhatsApp Support Settings", "phone"),
+        link("قراءة الصور (OCR)", "Gemini OCR Settings", "scan-text"),
     ]
 
 
@@ -452,6 +335,46 @@ def ensure_default_provider():
     provider.insert(ignore_permissions=True)
 
 
+# Ready-made providers, created disabled and without a key: the admin pastes the
+# key, presses "جلب النماذج من المزوّد", picks models and enables. Created once;
+# an existing record (edited or renamed by the admin) is never touched.
+PRESET_PROVIDERS = [
+    {
+        "provider_name": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "description": "OpenRouter: مئات النماذج من مزوّدين مختلفين (Claude وGPT وGemini وDeepSeek وLlama…) بمفتاح واحد. "
+        "أنشئ المفتاح من openrouter.ai/keys، الصقه هنا واحفظ، ثم «جلب النماذج من المزوّد» واختر ما تريد، ثم فعّل المزوّد.",
+    },
+    {
+        "provider_name": "Gemini",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "description": "Google Gemini عبر رابطه المتوافق مع OpenAI. للباقة المجانية: أنشئ المفتاح من aistudio.google.com/apikey "
+        "في مشروع غير مربوط بالدفع (المشروع المربوط بالدفع يتوقف حين ينفد رصيده). الصق المفتاح واحفظ، ثم «جلب النماذج من المزوّد» واختر ما تريد، ثم فعّل المزوّد.",
+    },
+    {
+        "provider_name": "Groq",
+        "base_url": "https://api.groq.com/openai/v1",
+        "description": "Groq: نماذج مفتوحة (Llama وQwen وغيرها) بسرعة استجابة عالية جداً. "
+        "أنشئ المفتاح من console.groq.com/keys، الصقه هنا واحفظ، ثم «جلب النماذج من المزوّد» واختر ما تريد، ثم فعّل المزوّد.",
+    },
+]
+
+
+def ensure_preset_providers():
+    if not frappe.db.exists("DocType", "AI Provider"):
+        return
+    for preset in PRESET_PROVIDERS:
+        if frappe.db.exists("AI Provider", preset["provider_name"]):
+            continue
+        frappe.get_doc({
+            "doctype": "AI Provider",
+            "provider_type": "OpenAI Compatible",
+            "enabled": 0,
+            "is_default": 0,
+            **preset,
+        }).insert(ignore_permissions=True)
+
+
 def create_default_gemini_ocr_settings():
     """Create Gemini OCR Settings without storing secrets."""
     if not frappe.db.exists("DocType", "Gemini OCR Settings"):
@@ -537,11 +460,68 @@ def sync_skills():
     registry.sync_app_skills()
 
 
-def ensure_purchase_invoice_agent_configuration():
-    """Keep the OCR Journal Entry agent settings stable across migrations."""
-    from ai_agent.purchase_invoice_ai.api import _ensure_purchase_invoice_agent
+# Plugins the app ships. Their text is app-managed (refreshed on migrate); an
+# admin may disable one, and may add own plugins (is_standard = 0) that stay untouched.
+STANDARD_PLUGINS = [
+    {
+        "plugin_name": "excel", "title": "Excel", "output": "Excel", "icon": "file-spreadsheet", "tool": "export.excel",
+        "description": "يعطيك النتيجة ملف Excel جاهزاً للتحميل",
+        "instructions": "Get the rows the request needs (data.query, reports.run or metrics.query), then call export.excel once. Pass `artifact` when the result has artifact.artifact_name, otherwise pass the same `query`; send inline `rows` only for a few computed lines. Columns in a sensible order with the user's language labels. Reply with one or two sentences about what the file holds.",
+    },
+    {
+        "plugin_name": "pdf", "title": "تقرير PDF", "output": "PDF", "icon": "file-text", "tool": "export.pdf",
+        "description": "تقرير PDF بعنوان وملخص وجدول",
+        "instructions": "Get the rows the request needs, then call export.pdf once with a clear `title`, a `summary` of 2-5 short findings (one per line, numbers included) and the table via `artifact` or `query`. Keep only the columns a reader needs (at most 8). Reply briefly; the user downloads the file.",
+    },
+    {
+        "plugin_name": "image", "title": "صورة", "output": "Image", "icon": "image", "tool": "export.image",
+        "description": "صورة PNG لرسم بياني أو جدول قصير، للمشاركة",
+        "instructions": "Prefer a chart: compute the aggregated values (at most ~15 labels) and call export.image with `chart` {type, labels, datasets}. For a short list (≤30 rows) pass the table via `artifact`/`query`/`rows` instead. Reply briefly.",
+    },
+    {
+        "plugin_name": "chart", "title": "رسم بياني", "output": "Chart", "icon": "bar-chart-2", "tool": "artifacts.create_chart",
+        "description": "رسم بياني تفاعلي داخل المحادثة",
+        "instructions": "Aggregate the data first (group by the dimension the user asked about, at most ~20 labels), then call artifacts.create_chart with an Arabic title. bar for comparisons, line for time series, pie/donut for shares. Add one or two sentences on what the chart shows.",
+    },
+    {
+        "plugin_name": "print", "title": "طباعة مستند", "output": "PDF", "icon": "printer", "tool": "export.print",
+        "description": "المستند PDF بقالب الطباعة الرسمي: فاتورة، أمر، سند",
+        "instructions": "Find the exact document the user means (data.query on its DocType with the customer/date/number they gave; ask only if several match), then call export.print once with doctype and name. Use the default print format unless the user named one. Reply with one line naming the document.",
+    },
+    {
+        "plugin_name": "statement", "title": "كشف حساب", "output": "PDF", "icon": "file-text", "tool": "export.statement",
+        "description": "كشف حساب عميل أو مورد PDF: الافتتاحي والحركات والختامي",
+        "instructions": "Call export.statement directly with party_type, party exactly as the user wrote it (ID or name; the tool resolves it), the period the user asked for (default: last 12 months to today) and language = the language the user writes in. If it returns candidates, ask the user which one in one line. Reply with the closing balance in one sentence (له/عليه) and nothing else.",
+    },
+    {
+        "plugin_name": "email", "title": "إرسال بريد", "output": "Other", "icon": "mail", "tool": "messaging.request_email",
+        "description": "يرسل النتيجة أو الملف بالبريد بعد موافقتك",
+        "instructions": "Prepare what to send first (e.g. export.statement, export.print or export.excel) unless a file from this conversation already fits. Find the recipient's email: use the address the user gave, otherwise the party's Contact (data.query on Contact Email / the party's email_id); never guess an address. Then call messaging.request_email once with recipients, a short subject, a short polite message in the user's language and the file_url values as attachments. The email goes out only after the user approves the card.",
+    },
+    {
+        "plugin_name": "csv", "title": "CSV", "output": "CSV", "icon": "file", "tool": "export.csv",
+        "description": "ملف CSV للبيانات الخام",
+        "instructions": "Get the rows, then call export.csv once with `artifact` or `query` (inline `rows` only for a few lines). Reply briefly.",
+    },
+]
 
-    _ensure_purchase_invoice_agent()
+
+def ensure_standard_plugins():
+    if not frappe.db.exists("DocType", "AI Plugin"):
+        return
+    for spec in STANDARD_PLUGINS:
+        values = {**spec, "is_standard": 1}
+        if frappe.db.exists("AI Plugin", spec["plugin_name"]):
+            doc = frappe.get_doc("AI Plugin", spec["plugin_name"])
+            changed = False
+            for field, value in values.items():
+                if doc.get(field) != value:
+                    doc.set(field, value)
+                    changed = True
+            if changed:
+                doc.save(ignore_permissions=True)
+        else:
+            frappe.get_doc({"doctype": "AI Plugin", "enabled": 1, **values}).insert(ignore_permissions=True)
 
 
 def sync_tool_name_options():
@@ -686,6 +666,6 @@ def _skills_for_agent(agent, skills):
         or not frappe.db.get_value("AI Skill", skill, "allow_implicit_invocation")
     ]
     if agent == "ERP Analyst":
-        excluded = {"document-creation", "document-workflow"}
+        excluded = {"documents"}  # read-only agent: no document creation or workflow playbook
         return [skill for skill in skills if skill not in excluded]
     return list(skills)

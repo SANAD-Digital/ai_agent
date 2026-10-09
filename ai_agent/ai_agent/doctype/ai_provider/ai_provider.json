@@ -102,6 +102,13 @@
    "label": "Available Models",
    "options": "AI Provider Model",
    "description": "These appear in the Agent Workspace model picker for this provider."
+  },
+  {
+   "fieldname": "extra_request_json",
+   "fieldtype": "Code",
+   "label": "Extra Request JSON",
+   "options": "JSON",
+   "description": "Merged into every request body (e.g. {\"thinking\": {\"type\": \"enabled\"}} for DeepSeek)"
   }
  ],
  "permissions": [
@@ -119,5 +126,24 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-09-28 18:00:00.000000"
+ "modified": "2026-09-30 12:00:00.000000",
+ "field_order": [
+  "provider_name",
+  "enabled",
+  "is_default",
+  "cb_identity",
+  "provider_type",
+  "description",
+  "section_connection",
+  "base_url",
+  "api_key",
+  "cb_connection",
+  "request_timeout",
+  "strict_tool_calling",
+  "default_reasoning_effort",
+  "extra_request_json",
+  "section_models",
+  "default_model",
+  "models"
+ ]
 }

@@ -26,7 +26,7 @@ ROUTE_TOOLS = {
 		"actions.request_update", "erp.item_details", "erp.party_details", "data.query", REQUEST_MORE,
 	],
 	"invoice": [
-		"financial_attachments.get_session_ocr_text", "skills.load", "skills.read_reference", "data.query",
+		"skills.load", "skills.read_reference", "data.query",
 		"actions.prepare_document", "actions.request_create_draft", "memory.search", REQUEST_MORE,
 	],
 	"open_analysis": None,  # every tool the agent and skills allow

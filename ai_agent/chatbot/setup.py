@@ -9,14 +9,11 @@ SETTINGS_DOCTYPE = "AI Chatbot Settings"
 
 CHATBOT_SKILLS = (
     "core-agent-behavior",
-    "accounting-analysis",
-    "receivables-analysis",
-    "payables-analysis",
-    "sales-analysis",
-    "customer-analysis",
-    "report-analysis",
-    "data-quality-audit",
-    "frappe-schema-discovery",
+    "sales",
+    "purchasing",
+    "inventory",
+    "accounting",
+    "system",
 )
 
 

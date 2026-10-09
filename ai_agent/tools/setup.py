@@ -1,5 +1,5 @@
 """setup.check: read the actual ERPNext configuration for one area and report
-what is missing against the setup-readiness checklist. Read only.
+what is missing against the setup checklist of the system skill. Read only.
 
 Company data goes through frappe.get_list (User Permissions apply); settings
 singles are read only when the user has read permission on them.

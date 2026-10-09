@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP App minimal</title>
+<style>
+  :root { --bg: var(--color-background-primary, #fff); --text: var(--color-text-primary, #1a1f2b); --muted: var(--color-text-secondary, #4b5565);
+          --ok: var(--color-text-success, #12794a); --border: var(--color-border-secondary, #e3e6eb); }
+  :root[data-theme="dark"] { --bg: var(--color-background-primary, #171b22); --text: var(--color-text-primary, #e8ebf0); --muted: var(--color-text-secondary, #aab2c0); --ok: var(--color-text-success, #57d39a); --border: var(--color-border-secondary, #2b323e); }
+  body { margin: 0; padding: 12px 16px; background: var(--bg); color: var(--text); font: 14px/1.6 var(--font-sans, system-ui, "Noto Sans Arabic", Tahoma, sans-serif); }
+  .ok { color: var(--ok); font-weight: 650; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--border); }
+  dt { color: var(--muted); } dd { margin: 0; direction: ltr; unicode-bidi: plaintext; text-align: start; }
+</style>
+</head>
+<body>
+<div class="ok" id="status" role="status">…</div>
+<div id="count"></div>
+<dl id="info"></dl>
+<script>
+"use strict";
+// MCP Apps standard only (spec 2026-01-26): ui/initialize -> ui/notifications/initialized, then host notifications.
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var pending = {}, nextId = 1, seen = { input: "—", result: "—", theme: "—", locale: "—", host: "—", timeZone: "—", platform: "—" };
+  function post(msg) { window.parent.postMessage(msg, "*"); }
+  function request(method, params) {
+    return new Promise(function (resolve, reject) { var id = nextId++; pending[id] = { resolve: resolve, reject: reject }; post({ jsonrpc: "2.0", id: id, method: method, params: params }); });
+  }
+  var caps = {}, queue = [], sent = false;
+  function trace(event, detail) { queue.push({ event: event, detail: detail }); }
+  function flush() {
+    if (sent || !caps.serverTools || !queue.length || queue.map(function (q) { return q.event; }).indexOf("ui_render_completed") < 0) return;   // standard capability only
+    sent = true;
+    request("tools/call", { name: "view__event", arguments: { events: queue.splice(0, 12), view: "ai-agent-minimal" } }).catch(function () {});
+  }
+  function draw() {
+    var dl = $("info"); dl.textContent = "";
+    Object.keys(seen).forEach(function (k) { var dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = seen[k]; dl.appendChild(dt); dl.appendChild(dd); });
+    var h = Math.ceil(document.documentElement.getBoundingClientRect().height);
+    post({ jsonrpc: "2.0", method: "ui/notifications/size-changed", params: { height: h } });
+  }
+  function context(ctx) {
+    if (!ctx) return;
+    if (ctx.theme) { document.documentElement.setAttribute("data-theme", ctx.theme); seen.theme = ctx.theme; }
+    if (ctx.locale) { document.documentElement.setAttribute("dir", /^(ar|he|fa|ur)/i.test(ctx.locale) ? "rtl" : "ltr"); seen.locale = ctx.locale; }
+    if (ctx.timeZone) seen.timeZone = ctx.timeZone;
+    if (ctx.platform) seen.platform = ctx.platform;
+    if (ctx.styles && ctx.styles.variables) Object.keys(ctx.styles.variables).forEach(function (k) { if (ctx.styles.variables[k]) document.documentElement.style.setProperty(k, ctx.styles.variables[k]); });
+    draw();
+  }
+  window.addEventListener("message", function (e) {
+    var m = e.data; if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id != null && !m.method && pending[m.id]) { var p = pending[m.id]; delete pending[m.id]; return m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result); }
+    if (m.method === "ui/notifications/tool-input") { seen.input = JSON.stringify(m.params && m.params.arguments || {}); draw(); }
+    else if (m.method === "ui/notifications/tool-result") {
+      var sc = m.params && m.params.structuredContent;
+      $("count").textContent = sc && sc.companies != null ? "عدد الشركات: " + sc.companies : ((m.params.content || [{}])[0].text || "");
+      seen.result = sc ? Object.keys(sc).join(", ") : "text only"; draw();
+      trace("ui_tool_result_received", "probe"); trace("ui_render_completed", "probe"); flush();
+    }
+    else if (m.method === "ui/notifications/host-context-changed") context(m.params);
+    else if (m.method === "ui/resource-teardown" && m.id != null) post({ jsonrpc: "2.0", id: m.id, result: {} });
+    else if (m.method === "ping" && m.id != null) post({ jsonrpc: "2.0", id: m.id, result: {} });
+    else if (m.method && m.id != null) post({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "Method not found: " + m.method } });
+  });
+  $("status").textContent = "جارٍ الاتصال بالمضيف…";
+  trace("ui_handshake_started");
+  var ready = false;
+  // Repeated until the host answers: a host that starts listening late must not leave the view unopened.
+  (function handshake(attempt) {
+    request("ui/initialize", { protocolVersion: "2026-01-26", appInfo: { name: "ai-agent-minimal", version: "0.1.1" }, appCapabilities: {} }).then(function (res) {
+      if (ready) return;
+      ready = true;
+      caps = (res && res.hostCapabilities) || {};
+      seen.host = res && res.hostInfo ? res.hostInfo.name + " " + (res.hostInfo.version || "") : "?";
+      $("status").textContent = "MCP App connected successfully";
+      post({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} });
+      context(res && res.hostContext);
+      trace("ui_handshake_completed", seen.host);
+      flush();
+    }).catch(function (e) { if (!ready) $("status").textContent = "فشل الاتصال: " + e.message; });
+    setTimeout(function () { if (!ready && attempt < 12) handshake(attempt + 1); }, attempt < 4 ? 500 : 1500);
+  })(0);
+})();
+</script>
+</body>
+</html>

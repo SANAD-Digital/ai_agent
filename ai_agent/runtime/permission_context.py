@@ -106,19 +106,6 @@ class PermissionContext:
         except Exception:
             return False
 
-    def get_allowed_fields(self, doc_type):
-        """Get fields the user can access for a DocType."""
-        meta = frappe.get_meta(doc_type)
-        allowed = []
-        for field in meta.fields:
-            if field.hidden:
-                continue
-            if field.permlevel and field.permlevel > 0:
-                if not self._has_permlevel(doc_type, field.permlevel, "read"):
-                    continue
-            allowed.append(field)
-        return allowed
-
     def _has_permlevel(self, doc_type, permlevel, perm_type, parent_doctype=None):
         """Check permlevel access for this context's user (DocPerm + Custom DocPerm)."""
         meta = frappe.get_meta(doc_type)
@@ -165,17 +152,4 @@ class PermissionContext:
             frappe.has_permission(doc.doctype, ptype=perm_type, doc=doc, user=self.user)
         )
 
-    def validate_user_identity(self):
-        """Ensure user identity is from session, not from model args."""
-        return frappe.session.user
 
-    def snapshot_hash(self):
-        """Return a hash of the permission snapshot for audit."""
-        import hashlib
-        import json
-        data = {
-            "user": self.user,
-            "roles": sorted(self.roles),
-            "company": self.company,
-        }
-        return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()

@@ -1,0 +1,2383 @@
+{
+ "initialize_2025-06-18": {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+   "protocolVersion": "2025-06-18",
+   "capabilities": {
+    "tools": {
+     "listChanged": false
+    },
+    "resources": {
+     "listChanged": false
+    }
+   },
+   "serverInfo": {
+    "name": "frappe-ai-agent",
+    "version": "0.2.0"
+   },
+   "instructions": "ERPNext/Frappe tools with server-side user permissions. This connection provides read access plus approval-gated action requests. Discover DocTypes and schemas before querying. Never invent document names or field names. Action-request tools do not modify documents directly; they create a pending approval. Results carry a structured `summary` for you and a `presentation` that the host renders for the user: do not re-print tables or repeat the numbers, add analysis and the next step instead. When an approval is pending, the user may click the card's button OR approve in chat: if they say 'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you just received) and approve; never approve without the user's explicit word. approvals__decide executes, verifies and returns the document link. If the request needs prerequisite records (a customer or item that does not exist), put them in ONE bulk request, and once the user approves it continue with the main document (for example the invoice) in the same task instead of presenting the prerequisites as the final result. Ask with app__choose when a choice is ambiguous (which company, which warehouse) instead of guessing."
+  }
+ },
+ "initialize_2025-11-25": {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+   "protocolVersion": "2025-11-25",
+   "capabilities": {
+    "tools": {
+     "listChanged": false
+    },
+    "resources": {
+     "listChanged": false
+    }
+   },
+   "serverInfo": {
+    "name": "frappe-ai-agent",
+    "version": "0.2.0"
+   },
+   "instructions": "ERPNext/Frappe tools with server-side user permissions. This connection provides read access plus approval-gated action requests. Discover DocTypes and schemas before querying. Never invent document names or field names. Action-request tools do not modify documents directly; they create a pending approval. Results carry a structured `summary` for you and a `presentation` that the host renders for the user: do not re-print tables or repeat the numbers, add analysis and the next step instead. When an approval is pending, the user may click the card's button OR approve in chat: if they say 'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you just received) and approve; never approve without the user's explicit word. approvals__decide executes, verifies and returns the document link. If the request needs prerequisite records (a customer or item that does not exist), put them in ONE bulk request, and once the user approves it continue with the main document (for example the invoice) in the same task instead of presenting the prerequisites as the final result. Ask with app__choose when a choice is ambiguous (which company, which warehouse) instead of guessing."
+  }
+ },
+ "initialize_2025-03-26": {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+   "protocolVersion": "2025-03-26",
+   "capabilities": {
+    "tools": {
+     "listChanged": false
+    },
+    "resources": {
+     "listChanged": false
+    }
+   },
+   "serverInfo": {
+    "name": "frappe-ai-agent",
+    "version": "0.2.0"
+   },
+   "instructions": "ERPNext/Frappe tools with server-side user permissions. This connection provides read access plus approval-gated action requests. Discover DocTypes and schemas before querying. Never invent document names or field names. Action-request tools do not modify documents directly; they create a pending approval. Results carry a structured `summary` for you and a `presentation` that the host renders for the user: do not re-print tables or repeat the numbers, add analysis and the next step instead. When an approval is pending, the user may click the card's button OR approve in chat: if they say 'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you just received) and approve; never approve without the user's explicit word. approvals__decide executes, verifies and returns the document link. If the request needs prerequisite records (a customer or item that does not exist), put them in ONE bulk request, and once the user approves it continue with the main document (for example the invoice) in the same task instead of presenting the prerequisites as the final result. Ask with app__choose when a choice is ambiguous (which company, which warehouse) instead of guessing."
+  }
+ },
+ "tools_list": {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+   "tools": [
+    {
+     "name": "actions__prepare_document",
+     "title": "actions.prepare_document",
+     "description": "Prepare a document draft without saving",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "payload": {
+        "type": "object",
+        "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit."
+       }
+      },
+      "required": [
+       "doctype",
+       "payload"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "actions.prepare_document",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "actions__request_bulk_create",
+     "title": "طلب إنشاء عدة مسودات (بموافقة)",
+     "description": "Request one approval to create multiple draft documents in one batch",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "documents": {
+        "type": "array",
+        "description": "Multiple draft documents to create after one approval. Use for bulk missing master data such as several Items, Suppliers, Customers, or other prerequisite records.",
+        "items": {
+         "type": "object",
+         "properties": {
+          "doctype": {
+           "type": "string"
+          },
+          "payload": {
+           "type": "object",
+           "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit."
+          }
+         },
+         "required": [
+          "doctype",
+          "payload"
+         ]
+        }
+       },
+       "summary": {
+        "type": "string",
+        "description": "Short user-facing summary of the batch."
+       },
+       "then": {
+        "type": "object",
+        "description": "Optional: the user's ORIGINAL goal to continue automatically once this request is approved and executed (for example: create the customer and item now, `then` the sales invoice). Placeholders `$created.<DocType>` (e.g. \"$created.Customer\", \"$created.Item\") are replaced by the names of the records this request creates.",
+        "properties": {
+         "goal": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "One sentence, e.g. 'إنشاء فاتورة بيع نقدية لحمود صالح'"
+         },
+         "tool": {
+          "type": "string",
+          "enum": [
+           "actions__request_create_draft",
+           "actions__request_bulk_create"
+          ]
+         },
+         "arguments": {
+          "type": "object",
+          "description": "Arguments for that tool, with $created placeholders where the new records go"
+         }
+        },
+        "required": [
+         "goal",
+         "tool",
+         "arguments"
+        ]
+       }
+      },
+      "required": [
+       "documents"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "طلب إنشاء عدة مسودات (بموافقة)",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__request_cancel",
+     "title": "actions.request_cancel",
+     "description": "Request approval to cancel a document",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "document_name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype",
+       "document_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "actions.request_cancel",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__request_create_draft",
+     "title": "طلب إنشاء مسودة (بموافقة)",
+     "description": "Request approval to create a draft document",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "payload": {
+        "type": "object",
+        "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit."
+       },
+       "then": {
+        "type": "object",
+        "description": "Optional: the user's ORIGINAL goal to continue automatically once this request is approved and executed (for example: create the customer and item now, `then` the sales invoice). Placeholders `$created.<DocType>` (e.g. \"$created.Customer\", \"$created.Item\") are replaced by the names of the records this request creates.",
+        "properties": {
+         "goal": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "One sentence, e.g. 'إنشاء فاتورة بيع نقدية لحمود صالح'"
+         },
+         "tool": {
+          "type": "string",
+          "enum": [
+           "actions__request_create_draft",
+           "actions__request_bulk_create"
+          ]
+         },
+         "arguments": {
+          "type": "object",
+          "description": "Arguments for that tool, with $created placeholders where the new records go"
+         }
+        },
+        "required": [
+         "goal",
+         "tool",
+         "arguments"
+        ]
+       }
+      },
+      "required": [
+       "doctype",
+       "payload"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "طلب إنشاء مسودة (بموافقة)",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__request_mapped_draft",
+     "title": "طلب إنشاء مسودة من مستند (بموافقة)",
+     "description": "Request approval to create a draft from an existing document with ERPNext's standard mapping (Sales Order → Sales Invoice / Delivery Note, Material Request → Purchase Order, Purchase Invoice → Purchase Receipt)",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "source_doctype": {
+        "type": "string",
+        "enum": [
+         "Sales Order",
+         "Material Request",
+         "Purchase Invoice"
+        ]
+       },
+       "source_name": {
+        "type": "string"
+       },
+       "target_doctype": {
+        "type": "string",
+        "enum": [
+         "Sales Invoice",
+         "Delivery Note",
+         "Purchase Order",
+         "Purchase Receipt"
+        ]
+       }
+      },
+      "required": [
+       "source_doctype",
+       "source_name",
+       "target_doctype"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "طلب إنشاء مسودة من مستند (بموافقة)",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__request_submit",
+     "title": "actions.request_submit",
+     "description": "Request approval to submit a document",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "document_name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype",
+       "document_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "actions.request_submit",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__request_update",
+     "title": "طلب تعديل مستند (بموافقة)",
+     "description": "Request approval to update a document",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "document_name": {
+        "type": "string"
+       },
+       "payload": {
+        "type": "object",
+        "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit."
+       },
+       "expected_modified": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype",
+       "document_name",
+       "payload"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "طلب تعديل مستند (بموافقة)",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__request_workflow_action",
+     "title": "طلب إجراء سير عمل (بموافقة)",
+     "description": "Request approval for a workflow action",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "document_name": {
+        "type": "string"
+       },
+       "action": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype",
+       "document_name",
+       "action"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "طلب إجراء سير عمل (بموافقة)",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "actions__validate_document",
+     "title": "التحقق من بيانات مستند",
+     "description": "Validate a document payload",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "payload": {
+        "type": "object",
+        "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit."
+       }
+      },
+      "required": [
+       "doctype",
+       "payload"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "التحقق من بيانات مستند",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "analysis__sales",
+     "title": "تحليل المبيعات",
+     "description": "Sales analysis for a period: total sales, invoice and customer counts, average invoice and the top customers with their share (read only, permission-scoped)",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "period": {
+        "type": "string",
+        "enum": [
+         "today",
+         "yesterday",
+         "this_week",
+         "last_week",
+         "this_month",
+         "last_month",
+         "this_quarter",
+         "last_quarter",
+         "this_fiscal_year"
+        ],
+        "description": "Named period, default this_month"
+       },
+       "company": {
+        "type": "string",
+        "description": "Company to analyse; required when companies use different currencies"
+       },
+       "top": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 20,
+        "description": "How many top customers to rank, default 5"
+       }
+      },
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تحليل المبيعات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "app__choose",
+     "title": "اختيار من قائمة",
+     "description": "Ask the user to pick one option instead of guessing (for example which company or warehouse). Use source=companies or source=warehouses to list what the user can read, or pass options. In hosts with MCP Apps the user sees a choice card and the answer arrives as their next message; elsewhere the same numbered list is in the text: ask them to reply.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "source": {
+        "type": "string",
+        "enum": [
+         "companies",
+         "warehouses"
+        ]
+       },
+       "title": {
+        "type": "string",
+        "maxLength": 120
+       },
+       "subtitle": {
+        "type": "string",
+        "maxLength": 200
+       },
+       "reply_template": {
+        "type": "string",
+        "maxLength": 120
+       },
+       "options": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+         "type": "object",
+         "properties": {
+          "value": {
+           "type": "string"
+          },
+          "label": {
+           "type": "string"
+          },
+          "description": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "label"
+         ]
+        }
+       }
+      },
+      "required": [],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "اختيار من قائمة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "app__probe",
+     "title": "فحص اتصال واجهة MCP App",
+     "description": "Read-only connection check for the MCP App view: returns the number of companies the user can read. Renders a minimal view in hosts that support MCP Apps; plain text and structuredContent elsewhere.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "فحص اتصال واجهة MCP App",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/minimal/ba6304bc84"
+      },
+      "ui/resourceUri": "ui://ai-agent/minimal/ba6304bc84",
+      "openai/outputTemplate": "ui://ai-agent/minimal/ba6304bc84",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "approvals__decide",
+     "title": "الموافقة على طلب أو رفضه",
+     "description": "Approve or reject a pending approval request. Use it when the user explicitly approves in chat ('موافق', 'اعتمد', 'نعم نفذ') or rejects ('ألغِ', 'لا'). Approving executes the action, verifies the created/changed document and returns its link; when the request carried a next step (`then`) the server prepares it and returns that next request too. Never call it without an explicit decision from the user. The card's buttons call the same tool with a signed token.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "approval_id": {
+        "type": "string"
+       },
+       "decision": {
+        "type": "string",
+        "enum": [
+         "approve",
+         "reject"
+        ]
+       },
+       "reason": {
+        "type": "string",
+        "maxLength": 300
+       },
+       "token": {
+        "type": "string",
+        "description": "Set by the approval card only; leave empty from chat."
+       }
+      },
+      "required": [
+       "approval_id",
+       "decision"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "الموافقة على طلب أو رفضه",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "approvals__list_pending",
+     "title": "طلبات الموافقة المعلّقة",
+     "description": "The user's own pending approval requests. Call it when the user says 'موافق' / 'اعتمد' / 'نفذ' / 'yes go ahead' without naming a request: one pending request → decide on it; several → the result asks the user which one; none → say so.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "طلبات الموافقة المعلّقة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "approvals__revise",
+     "title": "تعديل طلب قبل الموافقة (من البطاقة)",
+     "description": "App-only. Change quantity, price, company or warehouse of a pending create request before approval.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "approval_id": {
+        "type": "string"
+       },
+       "token": {
+        "type": "string"
+       },
+       "changes": {
+        "type": "object"
+       }
+      },
+      "required": [
+       "approval_id",
+       "token",
+       "changes"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تعديل طلب قبل الموافقة (من البطاقة)",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "app"
+       ]
+      }
+     }
+    },
+    {
+     "name": "approvals__status",
+     "title": "حالة طلب موافقة",
+     "description": "Read the current state of an approval request (pending, executed, rejected, expired, failed) and its result.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "approval_id": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "approval_id"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "حالة طلب موافقة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "artifacts__create_chart",
+     "title": "إنشاء رسم بياني",
+     "description": "Create a chart artifact. Returns chart_url: a link that opens the drawn chart in the browser. Always give chart_url to the user as a clickable link.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string",
+        "description": "Short Arabic title shown above the chart"
+       },
+       "chart_spec": {
+        "type": "object",
+        "description": "Frappe Charts spec: {type: bar|line|pie|percentage, labels: [...], datasets: [{name, values}]}"
+       }
+      },
+      "required": [
+       "chart_spec"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "إنشاء رسم بياني",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "artifacts__create_document_links",
+     "title": "إنشاء روابط مستندات",
+     "description": "Create document links artifact",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string"
+       },
+       "links": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "doctype": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "label": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      },
+      "required": [
+       "links"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "إنشاء روابط مستندات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "artifacts__create_table",
+     "title": "إنشاء جدول",
+     "description": "Create a table artifact",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string",
+        "description": "Short Arabic title shown above the table"
+       },
+       "columns": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "rows": {
+        "type": "array",
+        "items": {
+         "type": "object"
+        }
+       }
+      },
+      "required": [
+       "rows"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "إنشاء جدول",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "attachments__list",
+     "title": "عرض المرفقات",
+     "description": "List safe metadata for files attached to a readable document",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "document_name": {
+        "type": "string"
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+       }
+      },
+      "required": [
+       "doctype",
+       "document_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "عرض المرفقات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "data__count",
+     "title": "عدّ السجلات",
+     "description": "Count records matching filters",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "filters": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "operator": {
+           "type": "string",
+           "enum": [
+            ">",
+            "=",
+            "not like",
+            "in",
+            "like",
+            "<",
+            "<=",
+            "!=",
+            "is set",
+            ">=",
+            "ancestors of",
+            "between",
+            "is not set",
+            "like_normalized",
+            "not in",
+            "descendants of"
+           ],
+           "description": "Use like_normalized for Arabic text lookups: it folds أ/إ/آ→ا, ة→ه, ى→ي on both the column and the value, so 'شركه المروه' matches 'شركة المروة'."
+          },
+          "value": {}
+         },
+         "required": [
+          "field",
+          "operator"
+         ]
+        },
+        "maxItems": 20
+       }
+      },
+      "required": [
+       "doctype"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "عدّ السجلات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "data__get_child_records",
+     "title": "قراءة صفوف جدول فرعي",
+     "description": "Get child table records",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "parent_doctype": {
+        "type": "string"
+       },
+       "parent_name": {
+        "type": "string"
+       },
+       "child_field": {
+        "type": "string"
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 500
+       }
+      },
+      "required": [
+       "parent_doctype",
+       "parent_name",
+       "child_field"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "قراءة صفوف جدول فرعي",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "data__get_document",
+     "title": "قراءة مستند",
+     "description": "Get a document by name",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype",
+       "name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "قراءة مستند",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "data__query",
+     "title": "استعلام بيانات",
+     "description": "Execute a query specification",
+     "inputSchema": {
+      "type": "object",
+      "required": [
+       "doctype",
+       "fields"
+      ],
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "parent_doctype": {
+        "type": "string",
+        "description": "Optional parent DocType when querying child-table rows and filtering with parent.<field>."
+       },
+       "fields": {
+        "type": "array",
+        "items": {
+         "oneOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "object",
+           "properties": {
+            "field": {
+             "type": "string"
+            },
+            "aggregate": {
+             "type": "string",
+             "enum": [
+              "COUNT",
+              "AVG",
+              "SUM",
+              "MIN",
+              "MAX"
+             ]
+            },
+            "alias": {
+             "type": "string"
+            }
+           }
+          }
+         ]
+        },
+        "minItems": 1,
+        "maxItems": 50
+       },
+       "filters": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "operator": {
+           "type": "string",
+           "enum": [
+            ">",
+            "=",
+            "not like",
+            "in",
+            "like",
+            "<",
+            "<=",
+            "!=",
+            "is set",
+            ">=",
+            "ancestors of",
+            "between",
+            "is not set",
+            "like_normalized",
+            "not in",
+            "descendants of"
+           ],
+           "description": "Use like_normalized for Arabic text lookups: it folds أ/إ/آ→ا, ة→ه, ى→ي on both the column and the value, so 'شركه المروه' matches 'شركة المروة'."
+          },
+          "value": {}
+         },
+         "required": [
+          "field",
+          "operator"
+         ]
+        },
+        "maxItems": 20
+       },
+       "group_by": {
+        "type": "array",
+        "description": "Plain field names, or {field, bucket, alias} objects to bucket a Date/Datetime field by time period (bucket: year|quarter|month|week|day) for trend queries like monthly sales.",
+        "items": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "object",
+           "properties": {
+            "field": {
+             "type": "string"
+            },
+            "bucket": {
+             "type": "string",
+             "enum": [
+              "year",
+              "quarter",
+              "month",
+              "week",
+              "day"
+             ]
+            },
+            "alias": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "field",
+            "bucket"
+           ]
+          }
+         ]
+        }
+       },
+       "order_by": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "direction": {
+           "type": "string",
+           "enum": [
+            "asc",
+            "desc"
+           ]
+          }
+         }
+        }
+       },
+       "distinct": {
+        "type": "boolean",
+        "default": false
+       },
+       "limit": {
+        "type": "integer",
+        "default": 500,
+        "minimum": 1,
+        "maximum": 500
+       },
+       "offset": {
+        "type": "integer",
+        "default": 0,
+        "minimum": 0
+       }
+      },
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "استعلام بيانات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "diagnose__document",
+     "title": "تشخيص مستند",
+     "description": "Read-only checks explaining why a document is missing from stock ledger, general ledger, party statement, or why an item does not show in search",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       },
+       "company": {
+        "type": "string",
+        "description": "For Item: the company to check Item Defaults for"
+       }
+      },
+      "required": [
+       "doctype",
+       "name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تشخيص مستند",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "erp__exchange_rate",
+     "title": "سعر الصرف",
+     "description": "ERPNext exchange rate between two currencies on a date",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "from_currency": {
+        "type": "string"
+       },
+       "to_currency": {
+        "type": "string"
+       },
+       "date": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "from_currency",
+       "to_currency"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "سعر الصرف",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "erp__fiscal_year",
+     "title": "السنة المالية",
+     "description": "Fiscal year for a date and company",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "company": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "السنة المالية",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "erp__invoice_payments",
+     "title": "مدفوعات الفاتورة",
+     "description": "Payments allocated against a sales or purchase invoice",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string",
+        "enum": [
+         "Sales Invoice",
+         "Purchase Invoice"
+        ]
+       },
+       "name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype",
+       "name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "مدفوعات الفاتورة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "erp__item_details",
+     "title": "تفاصيل صنف",
+     "description": "ERPNext item details for a transaction: price, uom, stock, default accounts",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "item_code": {
+        "type": "string"
+       },
+       "company": {
+        "type": "string"
+       },
+       "doctype": {
+        "type": "string",
+        "description": "Transaction type, e.g. Sales Invoice or Purchase Order"
+       },
+       "customer": {
+        "type": "string"
+       },
+       "supplier": {
+        "type": "string"
+       },
+       "price_list": {
+        "type": "string"
+       },
+       "currency": {
+        "type": "string"
+       },
+       "warehouse": {
+        "type": "string"
+       },
+       "qty": {
+        "type": "number"
+       },
+       "date": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "item_code"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تفاصيل صنف",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "erp__party_details",
+     "title": "تفاصيل عميل/مورد",
+     "description": "ERPNext party details: account, currency, price list, payment terms, taxes",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "party_type": {
+        "type": "string",
+        "enum": [
+         "Customer",
+         "Supplier"
+        ]
+       },
+       "party": {
+        "type": "string"
+       },
+       "company": {
+        "type": "string"
+       },
+       "doctype": {
+        "type": "string"
+       },
+       "date": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "party_type",
+       "party"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تفاصيل عميل/مورد",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "erp__stock_balance",
+     "title": "رصيد المخزون",
+     "description": "Stock quantity and value of an item in a warehouse on a date",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "item_code": {
+        "type": "string"
+       },
+       "warehouse": {
+        "type": "string"
+       },
+       "date": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "item_code",
+       "warehouse"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "رصيد المخزون",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "financial_attachments__get_session_ocr_text",
+     "title": "نص المرفق المالي (OCR)",
+     "description": "Get only the ready OCR text from a Financial Attachment Session",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "session_name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "session_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "نص المرفق المالي (OCR)",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "knowledge__search",
+     "title": "بحث في قاعدة المعرفة",
+     "description": "Search the user guides for how-to answers; returns short passages with source and page to cite",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "query": {
+        "type": "string",
+        "description": "What the user wants to know, in their words"
+       },
+       "top": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10
+       }
+      },
+      "required": [
+       "query"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "بحث في قاعدة المعرفة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "memory__search",
+     "title": "بحث في الذاكرة",
+     "description": "Search reusable AI memory for mappings and prior confirmed context",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "query": {
+        "type": "string",
+        "description": "Keyword, supplier, item, account, or mapping to search in AI memory."
+       },
+       "company": {
+        "type": "string"
+       },
+       "agent": {
+        "type": "string"
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 20
+       }
+      },
+      "required": [
+       "query"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "بحث في الذاكرة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "metrics__query",
+     "title": "استعلام مؤشر",
+     "description": "Answer a business number (sales, balances, receivables...) from the metric catalog, grouped and compared, permission-scoped",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "metric": {
+        "type": "string",
+        "description": "Metric key from the metric catalog"
+       },
+       "period": {
+        "description": "today, yesterday, this_week, last_week, this_month, last_month, this_quarter, last_quarter, this_fiscal_year, last_fiscal_year, previous_fiscal_year, or {from, to}",
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "object",
+          "properties": {
+           "from": {
+            "type": "string"
+           },
+           "to": {
+            "type": "string"
+           }
+          }
+         }
+        ]
+       },
+       "dimensions": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "Group by these (metric's dims, or company)"
+       },
+       "filters": {
+        "type": "object",
+        "description": "{dimension: value | [values] | '%like%'}"
+       },
+       "compare": {
+        "type": "string",
+        "enum": [
+         "previous_period",
+         "same_period_last_year",
+         "yesterday_same_time"
+        ]
+       },
+       "top": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+       },
+       "sort": {
+        "type": "string",
+        "enum": [
+         "value_desc",
+         "value_asc",
+         "dimension_asc",
+         "dimension_desc"
+        ]
+       },
+       "company": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "metric"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "استعلام مؤشر",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "reports__describe",
+     "title": "وصف تقرير",
+     "description": "Describe a report's filters and columns",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "report_name": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "report_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "وصف تقرير",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "reports__run",
+     "title": "تشغيل تقرير",
+     "description": "Run a report with filters",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "report_name": {
+        "type": "string"
+       },
+       "filters": {
+        "type": "object"
+       },
+       "prepared_report_name": {
+        "type": "string",
+        "description": "Optional Prepared Report document name to read a specific generated report."
+       },
+       "generate_if_missing": {
+        "type": "boolean",
+        "description": "For Prepared Reports, queue generation when no completed result exists. Defaults to true."
+       },
+       "sample_limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50,
+        "description": "Number of compact sample rows to return. Keep low unless raw review is needed."
+       },
+       "include_raw_rows": {
+        "type": "boolean",
+        "description": "Return raw rows instead of compact rows only when the user explicitly needs row-level detail."
+       }
+      },
+      "required": [
+       "report_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تشغيل تقرير",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "model",
+        "app"
+       ],
+       "resourceUri": "ui://ai-agent/main/bb84a5d064"
+      },
+      "ui/resourceUri": "ui://ai-agent/main/bb84a5d064",
+      "openai/outputTemplate": "ui://ai-agent/main/bb84a5d064",
+      "openai/widgetAccessible": true
+     }
+    },
+    {
+     "name": "reports__search",
+     "title": "بحث عن تقرير",
+     "description": "Search available reports",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "query": {
+        "type": "string"
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+       }
+      },
+      "required": [
+       "query"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "بحث عن تقرير",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "schema__describe_doctype",
+     "title": "وصف بنية نوع مستند",
+     "description": "Describe a DocType's fields and relationships",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "fields_filter": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "Only fields whose name or label contains one of these terms"
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 200,
+        "description": "Max fields (default 40, most-used first)"
+       }
+      },
+      "required": [
+       "doctype"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "وصف بنية نوع مستند",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "schema__describe_links",
+     "title": "روابط نوع مستند",
+     "description": "Describe link relationships for a DocType",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       },
+       "depth": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2
+       }
+      },
+      "required": [
+       "doctype"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "روابط نوع مستند",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "schema__describe_workflow",
+     "title": "سير عمل نوع مستند",
+     "description": "Describe workflow for a DocType",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "doctype": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "doctype"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "سير عمل نوع مستند",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "schema__search_doctypes",
+     "title": "بحث عن أنواع المستندات",
+     "description": "Search DocTypes by name/description",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "query": {
+        "type": "string",
+        "description": "DocType name, module, or description to search for"
+       },
+       "module": {
+        "type": "string"
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+       }
+      },
+      "required": [
+       "query"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "بحث عن أنواع المستندات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "setup__check",
+     "title": "فحص الإعداد",
+     "description": "Read the ERPNext setup of one area and list what is missing, with steps (read only)",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "area": {
+        "type": "string",
+        "enum": [
+         "company",
+         "accounts",
+         "stock",
+         "selling",
+         "buying"
+        ]
+       },
+       "company": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "area"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "فحص الإعداد",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "skills__list",
+     "title": "عرض المهارات",
+     "description": "List available skills",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "agent": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "عرض المهارات",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "skills__load",
+     "title": "تحميل مهارة",
+     "description": "Load a skill's instructions and tools",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "skill_name": {
+        "type": "string"
+       },
+       "agent": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "skill_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تحميل مهارة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "skills__read_reference",
+     "title": "قراءة مرجع مهارة",
+     "description": "Read skill reference documentation",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "skill_name": {
+        "type": "string"
+       },
+       "reference": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "skill_name"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "قراءة مرجع مهارة",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     }
+    },
+    {
+     "name": "view__event",
+     "title": "تشخيص الواجهة (من البطاقة)",
+     "description": "App-only. The embedded view reports its lifecycle (handshake, result received, render) for diagnostics.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "view": {
+        "type": "string",
+        "maxLength": 40
+       },
+       "events": {
+        "type": "array",
+        "maxItems": 12,
+        "items": {
+         "type": "object",
+         "properties": {
+          "event": {
+           "type": "string",
+           "enum": [
+            "ui_handshake_completed",
+            "ui_handshake_started",
+            "ui_render_completed",
+            "ui_render_failed",
+            "ui_render_started",
+            "ui_tool_result_received"
+           ]
+          },
+          "detail": {
+           "type": "string",
+           "maxLength": 200
+          }
+         },
+         "required": [
+          "event"
+         ]
+        }
+       }
+      },
+      "required": [
+       "events"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تشخيص الواجهة (من البطاقة)",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "app"
+       ]
+      }
+     }
+    },
+    {
+     "name": "view__load",
+     "title": "تحميل العرض الكامل (من البطاقة)",
+     "description": "App-only. The embedded view loads its complete view model (rows, chart, action arguments) from the reference in structuredContent.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "ref": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "ref"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "تحميل العرض الكامل (من البطاقة)",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "app"
+       ]
+      }
+     }
+    },
+    {
+     "name": "view__page",
+     "title": "صفحة/ترتيب/بحث في جدول (من البطاقة)",
+     "description": "App-only. Load another page, sort order or search of a table shown by a previous result.",
+     "inputSchema": {
+      "type": "object",
+      "properties": {
+       "token": {
+        "type": "string"
+       },
+       "offset": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 200
+       },
+       "sort_key": {
+        "type": "string"
+       },
+       "sort_dir": {
+        "type": "string",
+        "enum": [
+         "asc",
+         "desc"
+        ]
+       },
+       "search_key": {
+        "type": "string"
+       },
+       "search": {
+        "type": "string"
+       },
+       "filters": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "operator": {
+           "type": "string",
+           "enum": [
+            "=",
+            "!=",
+            ">=",
+            "<=",
+            "like",
+            "in"
+           ]
+          },
+          "value": {}
+         },
+         "required": [
+          "field",
+          "operator",
+          "value"
+         ]
+        }
+       }
+      },
+      "required": [
+       "token"
+      ],
+      "additionalProperties": false
+     },
+     "annotations": {
+      "title": "صفحة/ترتيب/بحث في جدول (من البطاقة)",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+     },
+     "_meta": {
+      "ui": {
+       "visibility": [
+        "app"
+       ]
+      }
+     }
+    }
+   ]
+  }
+ },
+ "resources_list": {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+   "resources": [
+    {
+     "uri": "ui://ai-agent/main/bb84a5d064",
+     "name": "ai-agent-view",
+     "title": "AI Agent View",
+     "description": "Portable result viewer: tables, cards, charts, approval and choice cards (RTL).",
+     "mimeType": "text/html;profile=mcp-app",
+     "_meta": {
+      "ui": {
+       "prefersBorder": false,
+       "csp": {
+        "connectDomains": [],
+        "resourceDomains": [],
+        "frameDomains": [],
+        "baseUriDomains": []
+       },
+       "permissions": {
+        "clipboardWrite": {}
+       }
+      }
+     }
+    },
+    {
+     "uri": "ui://ai-agent/minimal/ba6304bc84",
+     "name": "ai-agent-minimal",
+     "title": "AI Agent Minimal View",
+     "description": "Connection check: MCP Apps handshake and one structuredContent field.",
+     "mimeType": "text/html;profile=mcp-app",
+     "_meta": {
+      "ui": {
+       "prefersBorder": false,
+       "csp": {
+        "connectDomains": [],
+        "resourceDomains": [],
+        "frameDomains": [],
+        "baseUriDomains": []
+       },
+       "permissions": {
+        "clipboardWrite": {}
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "resources_read": {
+  "ui://ai-agent/main/bb84a5d064": {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "result": {
+    "contents": [
+     {
+      "uri": "ui://ai-agent/main/bb84a5d064",
+      "mimeType": "text/html;profile=mcp-app",
+      "text": "<!doctype html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>AI Agent View</title>\n<style>\n/* Design system tokens. Ours, not the host's: the host contributes only light/dark, locale and viewport. */\n:root {\n  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;\n  --radius-sm: 8px; --radius: 12px; --radius-lg: 16px; --radius-pill: 999px;\n\n  --bg: #f4f7fb;           /* page: very light blue-grey */\n  --surface: #ffffff;      /* cards */\n  --surface-2: #f6f8fc;    /* table header,... [107800 bytes total]",
+      "_meta": {
+       "ui": {
+        "prefersBorder": false,
+        "csp": {
+         "connectDomains": [],
+         "resourceDomains": [],
+         "frameDomains": [],
+         "baseUriDomains": []
+        },
+        "permissions": {
+         "clipboardWrite": {}
+        }
+       }
+      }
+     }
+    ]
+   }
+  },
+  "ui://ai-agent/minimal/ba6304bc84": {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "result": {
+    "contents": [
+     {
+      "uri": "ui://ai-agent/minimal/ba6304bc84",
+      "mimeType": "text/html;profile=mcp-app",
+      "text": "<!doctype html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>MCP App minimal</title>\n<style>\n  :root { --bg: var(--color-background-primary, #fff); --text: var(--color-text-primary, #1a1f2b); --muted: var(--color-text-secondary, #4b5565);\n          --ok: var(--color-text-success, #12794a); --border: var(--color-border-secondary, #e3e6eb); }\n  :root[data-theme=\"dark\"] { --bg: var(--color-background-primary, #171b22); --text: var(--color-text-primary, #e8ebf0); --muted: var(--color-text-secondary, #aab2c0); -... [5220 bytes total]",
+      "_meta": {
+       "ui": {
+        "prefersBorder": false,
+        "csp": {
+         "connectDomains": [],
+         "resourceDomains": [],
+         "frameDomains": [],
+         "baseUriDomains": []
+        },
+        "permissions": {
+         "clipboardWrite": {}
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "tools_call_app__probe": {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+   "content": [
+    {
+     "type": "text",
+     "text": "عدد الشركات: 5"
+    }
+   ],
+   "structuredContent": {
+    "companies": 5,
+    "user": "ai-approver-test@example.com"
+   },
+   "isError": false
+  }
+ }
+}

@@ -20,11 +20,8 @@ MAX_TABLE_ROWS = 20
 MAX_DETECTED_INVOICE_ROWS = 40
 MAX_PDF_LAYOUT_PAGES = 25
 MAX_PDF_OCR_PAGES = MAX_PDF_LAYOUT_PAGES
-MAX_ATTACHMENT_PREVIEW_PAGES = 120
-MAX_ATTACHMENT_PREVIEW_BYTES = 350 * 1024
 MIN_PDF_NUMERIC_CHARS = 6
 SUPPORTED_TEXT_EXTENSIONS = {".csv", ".json", ".txt", ".md", ".log", ".xlsx", ".pdf"}
-TEXT_DOCUMENT_EXTENSIONS = {".xlsx", ".xls", ".docx", ".csv", ".xml", ".json", ".txt", ".md", ".log"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_VISION_IMAGES = 4
 MAX_VISION_PDF_PAGES = 3
@@ -161,6 +158,12 @@ class FileContextService:
                 "it will be provided to the model visually when the selected model supports vision."
                 + (f"\n- ocr_diagnostics: {'; '.join(diagnostics)}" if diagnostics else "")
             )
+
+        if extension in (".docx", ".xls"):
+            text = self._read_docx_text(file_doc) if extension == ".docx" else self._read_xls_text(file_doc)
+            if not text:
+                return f"{header}\n- summary: Empty or unreadable file."
+            return f"{header}\n- preview:\n{text[:MAX_TEXT_CHARS]}"
 
         if extension not in SUPPORTED_TEXT_EXTENSIONS:
             return (
@@ -374,222 +377,6 @@ class FileContextService:
         except Exception:
             return []
 
-    def extract_pdf_attachment_page(self, file_doc, page_number):
-        """Re-read one PDF page without reprocessing the whole file."""
-        page_number = max(1, int(page_number or 1))
-        try:
-            import fitz
-
-            path = get_file_path(file_doc.name)
-            document = fitz.open(path)
-            if page_number > len(document):
-                document.close()
-                return {
-                    "page": page_number,
-                    "extraction": "pdf_page_not_found",
-                    "metadata": {},
-                    "rows": [],
-                    "totals": {},
-                    "text_preview": "",
-                    "status": "failed",
-                    "can_reprocess": 1,
-                    "warnings": ["رقم الصفحة غير موجود في هذا الملف."],
-                }
-            result = self._extract_pdf_page_result(document.load_page(page_number - 1), page_number)
-            document.close()
-            return result
-        except Exception:
-            return {
-                "page": page_number,
-                "extraction": "pdf_page_ocr_failed",
-                "metadata": {},
-                "rows": [],
-                "totals": {},
-                "text_preview": "",
-                "status": "failed",
-                "can_reprocess": 1,
-                "warnings": ["تعذرت إعادة قراءة هذه الصفحة."],
-            }
-
-    def render_attachment_pages(self, file_doc):
-        """Return lightweight page previews without running OCR."""
-        filename = file_doc.file_name or file_doc.name
-        extension = os.path.splitext(filename)[1].lower()
-        if extension == ".pdf":
-            return self._render_pdf_pages(file_doc)
-        if extension in IMAGE_EXTENSIONS:
-            return [self._render_image_page(file_doc)]
-        if extension in TEXT_DOCUMENT_EXTENSIONS:
-            return [self._render_text_attachment_page(file_doc)]
-        return [{
-            "file_id": file_doc.name,
-            "file_name": filename,
-            "page_id": f"{file_doc.name}::p1",
-            "page": 1,
-            "page_type": "unsupported_attachment",
-            "status": "unsupported",
-            "can_read": 0,
-            "preview_data_url": "",
-            "note": "هذا النوع لا يدعم معاينة الصفحات.",
-        }]
-
-    def _render_pdf_pages(self, file_doc):
-        try:
-            import fitz
-
-            filename = file_doc.file_name or file_doc.name
-            path = get_file_path(file_doc.name)
-            document = fitz.open(path)
-            pages = []
-            for page_index in range(min(len(document), MAX_ATTACHMENT_PREVIEW_PAGES)):
-                page_number = page_index + 1
-                pages.append({
-                    "file_id": file_doc.name,
-                    "file_name": filename,
-                    "page_id": f"{file_doc.name}::p{page_number}",
-                    "page": page_number,
-                    "page_type": "pdf_page",
-                    "status": "ready",
-                    "can_read": 1,
-                    "preview_data_url": "",
-                    "note": "",
-                })
-            if len(document) > MAX_ATTACHMENT_PREVIEW_PAGES:
-                pages.append({
-                    "file_id": file_doc.name,
-                    "file_name": filename,
-                    "page_id": f"{file_doc.name}::overflow",
-                    "page": MAX_ATTACHMENT_PREVIEW_PAGES + 1,
-                    "page_type": "pdf_page_limit",
-                    "status": "skipped",
-                    "can_read": 0,
-                    "preview_data_url": "",
-                    "note": f"تم عرض أول {MAX_ATTACHMENT_PREVIEW_PAGES} صفحة فقط.",
-                })
-            document.close()
-            return pages
-        except Exception:
-            return [{
-                "file_id": file_doc.name,
-                "file_name": file_doc.file_name or file_doc.name,
-                "page_id": f"{file_doc.name}::p1",
-                "page": 1,
-                "page_type": "pdf_page",
-                "status": "failed",
-                "can_read": 0,
-                "preview_data_url": "",
-                "note": "تعذر تفكيك ملف PDF إلى صفحات.",
-            }]
-
-    def _render_image_page(self, file_doc):
-        return {
-            "file_id": file_doc.name,
-            "file_name": file_doc.file_name or file_doc.name,
-            "page_id": f"{file_doc.name}::p1",
-            "page": 1,
-            "page_type": "image",
-            "status": "ready",
-            "can_read": 1,
-            "preview_data_url": "",
-            "note": "",
-        }
-
-    def _render_text_attachment_page(self, file_doc):
-        """Render a single-page preview for text-based files that do not need OCR."""
-        extraction = self.extract_text_attachment_page(file_doc)
-        text_preview = extraction.get("text_preview") or ""
-        return {
-            "file_id": file_doc.name,
-            "file_name": file_doc.file_name or file_doc.name,
-            "page_id": f"{file_doc.name}::p1",
-            "page": 1,
-            "page_type": "text_document",
-            "status": "ready" if text_preview else "failed",
-            "can_read": 1,
-            "preview_data_url": "",
-            "text_preview": text_preview,
-            "note": "" if text_preview else "تعذرت قراءة محتوى الملف نصياً.",
-        }
-
-    def extract_text_attachment_page(self, file_doc):
-        """Read a text-based attachment directly without OCR.
-
-        Returns the same page-result shape as PDF/image extraction so the
-        purchase invoice workspace can treat it like any other page.
-        """
-        filename = file_doc.file_name or file_doc.name
-        extension = os.path.splitext(filename)[1].lower()
-        warnings = []
-        text = ""
-        extraction = "direct_text_parse"
-
-        try:
-            if extension == ".xlsx":
-                text = self._read_xlsx_text(file_doc)
-                extraction = "xlsx_sheet_parse"
-            elif extension == ".xls":
-                text = self._read_xls_text(file_doc)
-                extraction = "xls_sheet_parse"
-            elif extension == ".docx":
-                text = self._read_docx_text(file_doc)
-                extraction = "docx_parse"
-            elif extension == ".csv":
-                text = self._read_text(file_doc)
-                extraction = "csv_parse"
-            elif extension in {".json", ".txt", ".md", ".log", ".xml"}:
-                text = self._read_text(file_doc)
-                extraction = "text_file_parse"
-            else:
-                warnings.append("هذا النوع لا يدعم القراءة المباشرة للنص.")
-        except Exception as exc:
-            frappe.log_error(frappe.get_traceback(), "Financial Attachment Direct Text Parse Failed")
-            warnings.append(f"تعذرت قراءة محتوى الملف نصياً: {exc}")
-
-        text = (text or "").strip()
-        rows = self._extract_invoice_like_rows_from_layout(text) if text else []
-        totals = self._extract_invoice_like_totals_from_layout(text) if text else {}
-        metadata = self._extract_financial_document_metadata(text) if text else {}
-        for row in rows:
-            row["source_page"] = 1
-            for key, value in metadata.items():
-                if value and key not in row:
-                    row[key] = value
-        if text and not rows and not totals:
-            warnings.append("تمت قراءة النص مباشرة من الملف وسيتم تحليله في الخطوة التالية.")
-        elif not text:
-            warnings.append("تعذر استخراج نص من هذا الملف.")
-        return {
-            "page": 1,
-            "extraction": extraction,
-            "metadata": metadata,
-            "rows": rows,
-            "totals": totals,
-            "text_preview": text[:6000],
-            "status": "read" if text else "failed",
-            "can_reprocess": 1,
-            "warnings": warnings,
-        }
-
-    def _read_xlsx_text(self, file_doc):
-        try:
-            from openpyxl import load_workbook
-
-            path = get_file_path(file_doc.name)
-            workbook = load_workbook(path, read_only=True, data_only=True)
-            sections = []
-            for worksheet in workbook.worksheets[:20]:
-                lines = []
-                for row in worksheet.iter_rows(values_only=True):
-                    cells = [str(cell).strip() for cell in row if cell is not None and str(cell).strip()]
-                    if cells:
-                        lines.append(" | ".join(cells))
-                if lines:
-                    sections.append(f"[sheet: {worksheet.title}]\n" + "\n".join(lines))
-            workbook.close()
-            return "\n\n".join(sections)
-        except Exception:
-            return ""
-
     def _read_xls_text(self, file_doc):
         try:
             import xlrd
@@ -655,41 +442,6 @@ class FileContextService:
         except Exception:
             return ""
 
-    def _page_preview_data_url(self, page):
-        try:
-            import fitz
-            from PIL import Image
-
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(0.6, 0.6), alpha=False)
-            image = Image.open(io.BytesIO(pixmap.tobytes("png"))).convert("RGB")
-            output = io.BytesIO()
-            image.save(output, format="JPEG", quality=65)
-            data = output.getvalue()
-            return f"data:image/jpeg;base64,{base64.b64encode(data).decode('ascii')}"
-        except Exception:
-            return ""
-
-    def _image_preview_data_url(self, file_doc):
-        try:
-            from PIL import Image
-
-            path = get_file_path(file_doc.name)
-            image = Image.open(path).convert("RGB")
-            image.thumbnail((800, 1000))
-            output = io.BytesIO()
-            image.save(output, format="JPEG", quality=65)
-            data = output.getvalue()
-            return f"data:image/jpeg;base64,{base64.b64encode(data).decode('ascii')}"
-        except Exception:
-            try:
-                path = get_file_path(file_doc.name)
-                with open(path, "rb") as handle:
-                    data = handle.read(MAX_ATTACHMENT_PREVIEW_BYTES)
-                mime_type = mimetypes.guess_type(file_doc.file_name or "")[0] or "image/png"
-                return f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
-            except Exception:
-                return ""
-
     def _extract_pdf_page_result(self, page, page_number):
         layout_text = (page.get_text("text", sort=True) or "").strip()
         extraction = "pdf_layout_text"
@@ -729,48 +481,6 @@ class FileContextService:
             "can_reprocess": 1,
             "warnings": warnings,
         }
-
-    def extract_image_attachment_page(self, file_doc):
-        """Return a page-like extraction record for image attachments."""
-        try:
-            text = self._ocr_image_file(file_doc)
-            rows = self._extract_invoice_like_rows_from_layout(text)
-            totals = self._extract_invoice_like_totals_from_layout(text)
-            metadata = self._extract_financial_document_metadata(text)
-            for row in rows:
-                row["source_page"] = 1
-                for key, value in metadata.items():
-                    if value and key not in row:
-                        row[key] = value
-            warnings = []
-            if not text:
-                warnings.append("OCR did not return readable text for this image after preprocessing and rotation attempts.")
-                warnings.extend(self._ocr_diagnostics())
-            elif not rows and not totals:
-                warnings.append("تمت قراءة النص وسيتم تحليله في الخطوة التالية.")
-            return [{
-                "page": 1,
-                "extraction": "image_ocr",
-                "metadata": metadata,
-                "rows": rows,
-                "totals": totals,
-                "text_preview": (text or "")[:6000],
-                "status": "read" if text else "failed",
-                "can_reprocess": 1,
-                "warnings": warnings,
-            }]
-        except Exception:
-            return [{
-                "page": 1,
-                "extraction": "image_ocr",
-                "metadata": {},
-                "rows": [],
-                "totals": {},
-                "text_preview": "",
-                "status": "failed",
-                "can_reprocess": 1,
-                "warnings": ["Image OCR failed before returning a result."] + self._ocr_diagnostics(),
-            }]
 
     def _ocr_diagnostics(self):
         try:
@@ -881,144 +591,6 @@ class FileContextService:
             return self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png")
         except Exception:
             return ""
-
-    def _preprocess_image_bytes(self, data):
-        try:
-            try:
-                import cv2
-                import numpy as np
-
-                array = np.frombuffer(data, np.uint8)
-                image = cv2.imdecode(array, cv2.IMREAD_GRAYSCALE)
-                if image is None:
-                    return data
-                image = cv2.GaussianBlur(image, (3, 3), 0)
-                image = cv2.adaptiveThreshold(
-                    image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                    cv2.THRESH_BINARY, 31, 9,
-                )
-                ok, encoded = cv2.imencode(".png", image)
-                return encoded.tobytes() if ok else data
-            except Exception:
-                from PIL import Image, ImageOps
-
-                image = Image.open(io.BytesIO(data)).convert("L")
-                image = ImageOps.autocontrast(image)
-                output = io.BytesIO()
-                image.save(output, format="PNG")
-                return output.getvalue()
-        except Exception:
-            return data
-
-    def _ocr_image_variants(self, data):
-        variants = [data]
-        try:
-            processed = self._preprocess_image_bytes(data)
-            if processed and processed not in variants:
-                variants.append(processed)
-        except Exception:
-            pass
-        try:
-            import cv2
-            import numpy as np
-
-            array = np.frombuffer(data, np.uint8)
-            image = cv2.imdecode(array, cv2.IMREAD_GRAYSCALE)
-            if image is None:
-                return variants
-
-            image = self._crop_dark_content_cv2(image)
-            scaled = self._scale_for_ocr_cv2(image)
-            deskewed = self._deskew_cv2(scaled)
-            for candidate in (image, scaled, deskewed):
-                if candidate is None:
-                    continue
-                ok, encoded = cv2.imencode(".png", candidate)
-                if ok:
-                    content = encoded.tobytes()
-                    if content not in variants:
-                        variants.append(content)
-        except Exception:
-            pass
-        return variants[:3]
-
-    def _crop_dark_content_cv2(self, image):
-        try:
-            import cv2
-
-            blurred = cv2.GaussianBlur(image, (3, 3), 0)
-            _, binary = cv2.threshold(blurred, 245, 255, cv2.THRESH_BINARY_INV)
-            points = cv2.findNonZero(binary)
-            if points is None:
-                return image
-            x, y, width, height = cv2.boundingRect(points)
-            margin = max(20, int(min(image.shape[:2]) * 0.03))
-            y1 = max(0, y - margin)
-            x1 = max(0, x - margin)
-            y2 = min(image.shape[0], y + height + margin)
-            x2 = min(image.shape[1], x + width + margin)
-            cropped = image[y1:y2, x1:x2]
-            return cropped if cropped.size else image
-        except Exception:
-            return image
-
-    def _scale_for_ocr_cv2(self, image):
-        try:
-            import cv2
-
-            height, width = image.shape[:2]
-            longest = max(height, width)
-            if longest >= 1800:
-                return image
-            scale = min(2.0, 1800 / max(longest, 1))
-            return cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
-        except Exception:
-            return image
-
-    def _deskew_cv2(self, image):
-        try:
-            import cv2
-            import numpy as np
-
-            edges = cv2.Canny(image, 50, 150, apertureSize=3)
-            lines = cv2.HoughLinesP(
-                edges,
-                1,
-                np.pi / 180,
-                threshold=80,
-                minLineLength=max(80, int(max(image.shape[:2]) * 0.18)),
-                maxLineGap=20,
-            )
-            if lines is None:
-                return image
-            angles = []
-            for line in lines[:, 0]:
-                x1, y1, x2, y2 = line
-                angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
-                if -45 <= angle <= 45:
-                    angles.append(angle)
-            if not angles:
-                return image
-            angle = float(np.median(angles))
-            if abs(angle) < 0.5 or abs(angle) > 30:
-                return image
-            height, width = image.shape[:2]
-            matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-            return cv2.warpAffine(image, matrix, (width, height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-        except Exception:
-            return image
-
-    def _threshold_for_ocr_cv2(self, image):
-        try:
-            import cv2
-
-            blurred = cv2.GaussianBlur(image, (3, 3), 0)
-            return cv2.adaptiveThreshold(
-                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                cv2.THRESH_BINARY, 31, 9,
-            )
-        except Exception:
-            return image
 
     def _is_better_pdf_table_text(self, text, layout_text):
         if not layout_text or layout_text == text:

@@ -9,13 +9,10 @@ app_license = "mit"
 # rest of the Frappe API keeps its normal origin-level resource metadata.
 after_request = ["ai_agent.mcp.http.after_request"]
 
-# Includes in <head>
-# app_include_css = "/assets/ai_agent/css/agent_workspace.css"
-# app_include_js = "/assets/ai_agent/js/agent_workspace.js"
-
-# Floating AI chatbot / technical support widget
-app_include_css = "/assets/ai_agent/css/chatbot_widget.css"
-app_include_js = "/assets/ai_agent/js/chatbot_widget.js"
+# The support bubble on the chat engine (ai_agent/chat/support.py). Only this
+# tiny loader ships on every Desk page; the chat itself loads on first open.
+app_include_css = "/assets/ai_agent/css/chat_bubble.css"
+app_include_js = "/assets/ai_agent/js/chat_bubble.js"
 
 # Installation
 after_install = "ai_agent.install.after_install"
@@ -30,6 +27,7 @@ scheduler_events = {
     },
     "hourly": [
         "ai_agent.runtime.approval_engine.expire_pending_approvals",
+        "ai_agent.engine.memory.extract_idle_sessions",
     ],
     "daily": [
         "ai_agent.runtime.memory_service.clear_expired",
@@ -47,21 +45,21 @@ doc_events = {
 permission_query_conditions = {
     "AI Run": "ai_agent.permissions.ai_run_query",
     "AI Chat Session": "ai_agent.permissions.ai_chat_session_query",
-    "AI Chatbot Conversation": "ai_agent.permissions.ai_chatbot_conversation_query",
+    "AI Chat Message": "ai_agent.permissions.ai_chat_message_query",
+    "AI Message Block": "ai_agent.permissions.ai_message_block_query",
     "AI Memory": "ai_agent.permissions.ai_memory_query",
     "AI Tool Call": "ai_agent.permissions.ai_tool_call_query",
     "AI Approval Request": "ai_agent.permissions.ai_approval_request_query",
-    "Financial Attachment Session": "ai_agent.permissions.financial_attachment_session_query",
 }
 
 has_permission = {
     "AI Run": "ai_agent.permissions.has_owned_permission",
     "AI Chat Session": "ai_agent.permissions.has_owned_permission",
-    "AI Chatbot Conversation": "ai_agent.permissions.has_owned_permission",
+    "AI Chat Message": "ai_agent.permissions.has_owned_permission",
+    "AI Message Block": "ai_agent.permissions.has_owned_permission",
     "AI Memory": "ai_agent.permissions.has_owned_permission",
     "AI Tool Call": "ai_agent.permissions.has_owned_permission",
     "AI Approval Request": "ai_agent.permissions.has_approval_permission",
-    "Financial Attachment Session": "ai_agent.permissions.has_owned_permission",
 }
 
 # Override whitelisted methods if needed

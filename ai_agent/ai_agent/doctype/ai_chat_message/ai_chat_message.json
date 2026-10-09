@@ -1,0 +1,254 @@
+{
+ "doctype": "DocType",
+ "module": "AI Agent",
+ "engine": "InnoDB",
+ "editable_grid": 1,
+ "track_changes": 0,
+ "creation": "2026-09-30 12:00:00.000000",
+ "modified": "2026-09-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "idx": 0,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "sort_field": "seq",
+ "sort_order": "ASC",
+ "name": "AI Chat Message",
+ "autoname": "hash",
+ "title_field": "text",
+ "search_fields": "text",
+ "field_order": [
+  "session",
+  "seq",
+  "role",
+  "status",
+  "user",
+  "column_break_a",
+  "run",
+  "parent_message",
+  "provider",
+  "model",
+  "stop_reason",
+  "section_content",
+  "text",
+  "error",
+  "section_context",
+  "context_doctype",
+  "context_name",
+  "feedback",
+  "event_seq",
+  "section_usage",
+  "input_tokens",
+  "output_tokens",
+  "cache_read_input_tokens",
+  "cache_creation_input_tokens",
+  "column_break_u",
+  "estimated_cost",
+  "context_tokens",
+  "steps",
+  "tool_calls",
+  "section_timing",
+  "started_at",
+  "completed_at",
+  "duration_ms"
+ ],
+ "fields": [
+  {
+   "fieldname": "session",
+   "fieldtype": "Link",
+   "label": "Session",
+   "options": "AI Chat Session",
+   "reqd": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "seq",
+   "fieldtype": "Int",
+   "label": "Sequence",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "label": "Role",
+   "options": "user\nassistant",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "pending\nstreaming\ncompleted\nfailed\ncancelled\nawaiting_approval",
+   "default": "completed",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "run",
+   "fieldtype": "Link",
+   "label": "Run",
+   "options": "AI Run"
+  },
+  {
+   "fieldname": "parent_message",
+   "fieldtype": "Link",
+   "label": "Parent Message",
+   "options": "AI Chat Message"
+  },
+  {
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "label": "Provider",
+   "options": "AI Provider"
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model"
+  },
+  {
+   "fieldname": "stop_reason",
+   "fieldtype": "Data",
+   "label": "Stop Reason"
+  },
+  {
+   "fieldname": "section_content",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "text",
+   "fieldtype": "Long Text",
+   "label": "Text",
+   "ignore_xss_filter": 1
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
+  },
+  {
+   "fieldname": "section_context",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "context_doctype",
+   "fieldtype": "Link",
+   "label": "Context DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "context_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Context Name",
+   "options": "context_doctype"
+  },
+  {
+   "fieldname": "feedback",
+   "fieldtype": "Int",
+   "label": "Feedback",
+   "description": "1 = helpful, -1 = not helpful"
+  },
+  {
+   "fieldname": "event_seq",
+   "fieldtype": "Int",
+   "label": "Last Event Sequence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_usage",
+   "fieldtype": "Section Break",
+   "label": "Usage"
+  },
+  {
+   "fieldname": "input_tokens",
+   "fieldtype": "Int",
+   "label": "Input Tokens"
+  },
+  {
+   "fieldname": "output_tokens",
+   "fieldtype": "Int",
+   "label": "Output Tokens"
+  },
+  {
+   "fieldname": "cache_read_input_tokens",
+   "fieldtype": "Int",
+   "label": "Cache Read Input Tokens"
+  },
+  {
+   "fieldname": "cache_creation_input_tokens",
+   "fieldtype": "Int",
+   "label": "Cache Creation Input Tokens"
+  },
+  {
+   "fieldname": "column_break_u",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "estimated_cost",
+   "fieldtype": "Float",
+   "label": "Estimated Cost",
+   "precision": "6"
+  },
+  {
+   "fieldname": "context_tokens",
+   "fieldtype": "Int",
+   "label": "Context Tokens",
+   "description": "Tokens the last model call held"
+  },
+  {
+   "fieldname": "steps",
+   "fieldtype": "Int",
+   "label": "Model Calls"
+  },
+  {
+   "fieldname": "tool_calls",
+   "fieldtype": "Int",
+   "label": "Tool Calls"
+  },
+  {
+   "fieldname": "section_timing",
+   "fieldtype": "Section Break",
+   "label": "Timing"
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At"
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At"
+  },
+  {
+   "fieldname": "duration_ms",
+   "fieldtype": "Int",
+   "label": "Duration (ms)"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ]
+}

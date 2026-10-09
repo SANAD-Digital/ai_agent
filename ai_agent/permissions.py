@@ -22,9 +22,8 @@ AUDIT_METHOD = "ai_agent.conversation_audit"
 OWNED_DOCTYPES = {
 	"AI Run": "user",
 	"AI Chat Session": "user",
-	"AI Chatbot Conversation": "user",
+	"AI Chat Message": "user",
 	"AI Memory": "user",
-	"Financial Attachment Session": "user",
 }
 # DocTypes owned through their AI Run.
 RUN_LINKED_DOCTYPES = ("AI Tool Call",)
@@ -104,6 +103,8 @@ def _owner_of(doc):
 		return doc.get(field)
 	if doc.doctype in RUN_LINKED_DOCTYPES:
 		return frappe.db.get_value("AI Run", doc.get("run"), "user") if doc.get("run") else None
+	if doc.doctype == "AI Message Block":
+		return frappe.db.get_value("AI Chat Message", doc.get("message"), "user") if doc.get("message") else None
 	return None
 
 
@@ -145,16 +146,8 @@ def ai_chat_session_query(user=None):
 	return _owned_condition("AI Chat Session", "user", user)
 
 
-def ai_chatbot_conversation_query(user=None):
-	return _owned_condition("AI Chatbot Conversation", "user", user)
-
-
 def ai_memory_query(user=None):
 	return _owned_condition("AI Memory", "user", user)
-
-
-def financial_attachment_session_query(user=None):
-	return _owned_condition("Financial Attachment Session", "user", user)
 
 
 def ai_tool_call_query(user=None):
@@ -177,4 +170,18 @@ def ai_approval_request_query(user=None):
 	return (
 		f"(`tabAI Approval Request`.`requested_by` = {escaped} or `tabAI Approval Request`.`run` in "
 		f"(select `name` from `tabAI Run` where `user` = {escaped}))"
+	)
+
+
+def ai_chat_message_query(user=None):
+	return _owned_condition("AI Chat Message", "user", user)
+
+
+def ai_message_block_query(user=None):
+	user = user or frappe.session.user
+	if can_audit_conversations(user):
+		return ""
+	return (
+		"(`tabAI Message Block`.`message` in (select `name` from `tabAI Chat Message` "
+		f"where `user` = {frappe.db.escape(user)}))"
 	)

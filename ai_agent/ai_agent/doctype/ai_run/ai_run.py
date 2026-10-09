@@ -26,6 +26,10 @@ class AIRun(Document):
     def after_insert(self):
         if not self.root_run:
             self.db_set("root_run", self.name, update_modified=False)
+        if self.session:
+            # A run created by the chat engine: the session already exists and
+            # its counters are maintained by the chat API, not by the run.
+            return
         if self.chat_session:
             self._touch_chat_session()
         else:
@@ -33,9 +37,14 @@ class AIRun(Document):
 
     def _create_chat_session(self):
         title = " ".join(str(self.prompt or "").split())[:80] or self.name
+        # Runs that still come through this legacy path (MCP tool calls,
+        # WhatsApp) are not Desk chats:
+        # tag them so the chat workspace sidebar never lists them.
+        surface = "MCP" if str(self.prompt or "").startswith("MCP tool call:") else "API"
         session = frappe.get_doc({
             "doctype": "AI Chat Session",
             "title": title,
+            "surface": surface,
             "user": self.user,
             "agent": self.agent,
             "company": self.company,

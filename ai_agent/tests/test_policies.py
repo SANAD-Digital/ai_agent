@@ -2,7 +2,6 @@
 local OCR, prompt injection, API keys)."""
 
 import json
-import os
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -256,23 +255,6 @@ class TestProviderPolicy(PolicyTestCase):
 			self.assertFalse(gemini_ocr.is_gemini_ocr_enabled())
 			self.assertEqual(gemini_ocr.gemini_ocr_image_bytes(b"x"), "")
 		client.assert_not_called()
-
-
-class TestLocalWindowsOCR(IntegrationTestCase):
-	def test_disabled_by_default_and_explicit_opt_in(self):
-		from ai_agent.purchase_invoice_ai import local_ocr_windows as win
-
-		saved = os.environ.pop(win.ENABLE_ENV, None)
-		try:
-			with patch.dict(frappe.local.conf, {win.ENABLE_SITE_CONFIG: 0}):
-				self.assertFalse(win.windows_ocr_enabled())
-				with self.assertRaises(win.WindowsOCRDisabled):
-					win.process_input(None, None, None, None, None, 0, 0, 0)
-			with patch.dict(os.environ, {win.ENABLE_ENV: "1"}):
-				self.assertTrue(win.windows_ocr_enabled())
-		finally:
-			if saved is not None:
-				os.environ[win.ENABLE_ENV] = saved
 
 
 class TestPromptInjection(IntegrationTestCase):

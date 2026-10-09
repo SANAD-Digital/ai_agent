@@ -5,6 +5,7 @@ by Frappe and is safe to serve from any web worker.
 """
 
 import json
+import os
 
 
 MCP_PROTOCOL_VERSION = "2026-07-28"
@@ -15,7 +16,17 @@ HANDSHAKE_PROTOCOL_VERSIONS = {
     "2025-06-18",
     LEGACY_PROTOCOL_VERSION,
 }
-SERVER_INFO = {"name": "frappe-ai-agent", "version": "0.1.0"}
+# Results a client may cache (protocol 2026-07-28): `ttlMs` and `cacheScope` are required on all of them.
+CACHEABLE_METHODS = {"server/discover", "tools/list", "prompts/list", "resources/list", "resources/templates/list", "resources/read"}
+SERVER_INFO = {"name": "frappe-ai-agent", "version": "0.2.0"}
+CLIENT_CAPS_META = "io.modelcontextprotocol/clientCapabilities"
+UI_FILE = os.path.join(os.path.dirname(__file__), "ui", "minimal.html")
+
+
+def _client_capabilities(method, params):
+    if method == "initialize":
+        return params.get("capabilities")
+    return (params.get("_meta") or {}).get(CLIENT_CAPS_META)
 
 
 class MCPProtocolError(Exception):
@@ -24,6 +35,52 @@ class MCPProtocolError(Exception):
         self.code = code
         self.message = message
         self.data = data
+
+
+UI_SRC = os.path.join(os.path.dirname(UI_FILE), "src")
+# Order matters: helpers first, then the bridge, components, then the entry point that starts the app.
+UI_SCRIPTS = ("core.js", "icons.js", "host.js", "components.js", "chart.js", "table.js", "cards.js", "approval.js", "app.js")
+
+
+def _read(*parts):
+    with open(os.path.join(*parts), encoding="utf-8") as handle:
+        return handle.read()
+
+
+def build_main_view():
+    """Assemble the source modules into the one self-contained HTML document MCP Apps hosts render.
+
+    The sources stay small and reviewable; the resource stays a single document with no external files,
+    so it works under a CSP that allows no network origins."""
+    shell = _read(UI_SRC, "shell.html")
+    script = "\n".join(_read(UI_SRC, name) for name in UI_SCRIPTS)
+    return shell.replace("/*STYLES*/", _read(UI_SRC, "styles.css")).replace("/*SCRIPT*/", script)
+
+
+def read_minimal_view():
+    return _read(os.path.dirname(UI_FILE), "minimal.html")
+
+
+def read_ui_resource(uri):
+    from ai_agent.mcp import hosts
+
+    base = hosts.base_of(uri)
+    if base == hosts.UI_BASE_URI:
+        html = build_main_view()
+    elif base == hosts.UI_MINIMAL_BASE_URI:
+        html = read_minimal_view()
+    else:
+        raise MCPProtocolError(-32002, "Resource not found", {"uri": uri})
+    return {"contents": [{"uri": uri, "mimeType": hosts.UI_MIME, "text": html, "_meta": hosts.resource_meta()}]}
+
+
+def list_ui_resources():
+    from ai_agent.mcp import hosts
+
+    entries = ((hosts.main_uri(), "ai-agent-view", "AI Agent View", "Portable result viewer: tables, cards, charts, approval and choice cards (RTL)."),
+               (hosts.minimal_uri(), "ai-agent-minimal", "AI Agent Minimal View", "Connection check: MCP Apps handshake and one structuredContent field."))
+    return {"resources": [{"uri": uri, "name": n, "title": t, "description": d, "mimeType": hosts.UI_MIME, "_meta": hosts.resource_meta()}
+                          for uri, n, t, d in entries]}
 
 
 def dispatch(payload, service, protocol_version=None):
@@ -41,10 +98,15 @@ def dispatch(payload, service, protocol_version=None):
         if not isinstance(params, dict):
             raise MCPProtocolError(-32602, "params must be an object")
 
+        if hasattr(service, "note_request"):
+            service.note_request(method, params)
+        if hasattr(service, "set_client_capabilities") and method in ("initialize", "tools/list", "tools/call", "server/discover"):
+            service.set_client_capabilities(_client_capabilities(method, params), remember=method == "initialize")
+
         if method == "server/discover":
             result = {
                 "supportedVersions": [MCP_PROTOCOL_VERSION],
-                "capabilities": {"tools": {}},
+                "capabilities": {"tools": {}, "resources": {}},
                 "instructions": service.instructions(),
                 "ttlMs": 0,
                 "cacheScope": "private",
@@ -55,7 +117,7 @@ def dispatch(payload, service, protocol_version=None):
             protocol_version = requested if requested in HANDSHAKE_PROTOCOL_VERSIONS else LEGACY_PROTOCOL_VERSION
             result = {
                 "protocolVersion": protocol_version,
-                "capabilities": {"tools": {"listChanged": False}},
+                "capabilities": {"tools": {"listChanged": False}, "resources": {"listChanged": False}},
                 "serverInfo": SERVER_INFO,
                 "instructions": service.instructions(),
             }
@@ -65,8 +127,27 @@ def dispatch(payload, service, protocol_version=None):
             result = {}
         elif method == "tools/list":
             result = {"tools": service.list_tools()}
-            if protocol_version == MCP_PROTOCOL_VERSION:
-                result.update({"ttlMs": 0, "cacheScope": "private"})
+        elif method == "resources/list":
+            result = list_ui_resources()
+        elif method == "resources/templates/list":
+            result = {"resourceTemplates": []}
+        elif method == "resources/read":
+            uri = params.get("uri")
+            if not isinstance(uri, str) or not uri:
+                raise MCPProtocolError(-32602, "resources/read requires a uri")
+            if hasattr(service, "note_resource_requested"):
+                service.note_resource_requested(uri)
+            try:
+                result = read_ui_resource(uri)
+            except MCPProtocolError:
+                raise
+            except Exception as exc:
+                # A broken view is a loud error, never a silent text fallback.
+                if hasattr(service, "note_resource_failed"):
+                    service.note_resource_failed(uri, str(exc))
+                raise MCPProtocolError(-32603, f"UI resource could not be built: {exc}")
+            if hasattr(service, "note_resource_read"):
+                service.note_resource_read(uri)
         elif method == "tools/call":
             tool_name = params.get("name")
             raw_arguments = params.get("arguments")
@@ -82,6 +163,10 @@ def dispatch(payload, service, protocol_version=None):
         if request_id is None:
             return None
         if protocol_version == MCP_PROTOCOL_VERSION:
+            if method in CACHEABLE_METHODS:
+                # Required on every cacheable result in this revision; per-user data, never cached by intermediaries.
+                result.setdefault("ttlMs", 0)
+                result.setdefault("cacheScope", "private")
             result.setdefault("resultType", "complete")
             result.setdefault("_meta", {})["io.modelcontextprotocol/serverInfo"] = SERVER_INFO
         return {"jsonrpc": "2.0", "id": request_id, "result": result}

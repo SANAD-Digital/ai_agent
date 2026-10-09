@@ -1,16 +1,15 @@
-from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from ai_agent.api import create_run, list_available_providers
+from ai_agent.chat.api import available_providers
 from ai_agent.runtime.model_provider import (
 	estimate_context_window_tokens,
 	get_provider,
 	resolve_run_model,
 	supports_vision_model,
 )
-from ai_agent.tests.utils import TEST_AGENT, delete_docs, ensure_test_agent
+from ai_agent.tests.utils import delete_docs, ensure_test_agent
 
 PROVIDER = "Unit Test Provider"
 
@@ -70,28 +69,12 @@ class TestProviders(IntegrationTestCase):
 		self.assertEqual(resolve_run_model(frappe._dict(model="", provider=PROVIDER), agent), "unit-model")
 		self.assertEqual(resolve_run_model(frappe._dict(model="", provider=""), agent), "agent-model")
 
-	def test_list_available_providers_exposes_models_not_secrets(self):
-		providers = list_available_providers()["providers"]
+	def test_available_providers_exposes_models_not_secrets(self):
+		providers = available_providers()
 		mine = next((p for p in providers if p["name"] == PROVIDER), None)
 		self.assertIsNotNone(mine)
 		self.assertEqual([m["model_name"] for m in mine["models"]], ["unit-model", "unit-vision"])
 		self.assertNotIn("api_key", mine)
-
-	def test_create_run_stores_provider_and_model_and_inherits(self):
-		with patch("ai_agent.api.enqueue_run"):
-			first = create_run(
-				agent=TEST_AGENT, prompt="قارن مبيعات الأشهر الثلاثة الماضية حسب العميل",
-				provider=PROVIDER, model="unit-vision",
-			)
-			self._runs.append(first["run_name"])
-			row = frappe.db.get_value("AI Run", first["run_name"], ["provider", "model"], as_dict=True)
-			self.assertEqual((row.provider, row.model), (PROVIDER, "unit-vision"))
-			follow_up = create_run(
-				agent=TEST_AGENT, prompt="وما نسبة النمو بينها؟", parent_run=first["run_name"],
-			)
-			self._runs.append(follow_up["run_name"])
-			row = frappe.db.get_value("AI Run", follow_up["run_name"], ["provider", "model"], as_dict=True)
-			self.assertEqual((row.provider, row.model), (PROVIDER, "unit-vision"))
 
 	def test_only_one_default_provider(self):
 		original = frappe.db.get_value("AI Provider", {"is_default": 1}, "name")
@@ -114,3 +97,31 @@ class TestProviders(IntegrationTestCase):
 				for name in self._created:
 					frappe.db.set_value("AI Provider", name, "is_default", 0, update_modified=False)
 				frappe.clear_document_cache("AI Provider", original)
+
+
+class TestFetchModels(IntegrationTestCase):
+	def test_openai_compatible_list_is_mapped_and_filtered(self):
+		from types import SimpleNamespace
+		from unittest.mock import MagicMock, patch as mock_patch
+
+		from ai_agent.ai_agent.doctype.ai_provider import ai_provider
+
+		def model(**raw):
+			return SimpleNamespace(id=raw["id"], model_dump=lambda: raw)
+
+		listed = [
+			model(id="deepseek-flash", name="DeepSeek-V4.1-Flash", context_window=1048576, max_output_tokens=393216, input_modalities=["text", "image"], effort={"supported_levels": ["low"]}),
+			model(id="text-embedding-3-small"),
+			model(id="vendor/model", context_length=200000, architecture={"input_modalities": ["text"]}, supported_parameters=["tools"], top_provider={"max_completion_tokens": 8000}),
+		]
+		client = MagicMock()
+		client.models.list.return_value = listed
+		with mock_patch("openai.OpenAI", return_value=client):
+			out = {m["model_name"]: m for m in ai_provider._openai_models({"api_key": "k", "base_url": "https://x"})}
+		self.assertNotIn("text-embedding-3-small", out)              # not a chat model
+		self.assertEqual(out["deepseek-flash"]["context_window_tokens"], 1048576)
+		self.assertEqual(out["deepseek-flash"]["supports_vision"], 1)
+		self.assertEqual(out["deepseek-flash"]["supports_thinking"], 1)
+		self.assertEqual(out["deepseek-flash"]["label"], "DeepSeek-V4.1-Flash")
+		self.assertEqual(out["vendor/model"]["max_output_tokens"], 8000)  # OpenRouter shape
+		self.assertEqual(out["vendor/model"]["supports_tools"], 1)

@@ -1,0 +1,119 @@
+{
+ "actions": [],
+ "autoname": "field:plugin_name",
+ "creation": "2026-10-08 22:00:00.000000",
+ "description": "إضافة يختارها المستخدم من قائمة / لتعطيه مخرجاً محدداً (Excel، PDF، صورة، رسم بياني)",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "plugin_name",
+  "title",
+  "enabled",
+  "is_standard",
+  "column_break_1",
+  "output",
+  "tool",
+  "icon",
+  "section_text",
+  "description",
+  "instructions"
+ ],
+ "fields": [
+  {
+   "description": "يُكتب بعد / في الشات، مثل excel",
+   "fieldname": "plugin_name",
+   "fieldtype": "Data",
+   "label": "المعرّف",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "الاسم",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "مفعّلة"
+  },
+  {
+   "description": "يديرها التطبيق ويحدّثها مع كل ترقية",
+   "fieldname": "is_standard",
+   "fieldtype": "Check",
+   "label": "قياسية",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "output",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "المُخرَج",
+   "options": "Excel\nPDF\nImage\nChart\nCSV\nOther"
+  },
+  {
+   "description": "اسم الأداة في سجل الأدوات، مثل export.excel",
+   "fieldname": "tool",
+   "fieldtype": "Data",
+   "label": "الأداة",
+   "reqd": 1
+  },
+  {
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "label": "الأيقونة"
+  },
+  {
+   "fieldname": "section_text",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "يظهر تحت الاسم في قائمة /",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "الوصف"
+  },
+  {
+   "description": "تُرسل للنموذج حين يختار المستخدم الإضافة",
+   "fieldname": "instructions",
+   "fieldtype": "Long Text",
+   "label": "تعليمات للنموذج"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-08 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Plugin",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "title",
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 0
+}

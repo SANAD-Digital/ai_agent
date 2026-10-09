@@ -44,6 +44,13 @@ def delete_docs(doctype, names):
 			session = frappe.db.get_value("AI Run", name, "chat_session")
 			if session:
 				sessions.append(session)
+	if doctype == "AI Run" and names:
+		# A run leaves learned memory behind; left in place it crowds real memory out of later runs' context.
+		for memory in frappe.get_all("AI Memory", filters={"source_run": ["in", list(names)]}, pluck="name"):
+			try:
+				frappe.delete_doc("AI Memory", memory, ignore_permissions=True, force=True)
+			except Exception:
+				pass
 	for name in names:
 		try:
 			frappe.delete_doc(doctype, name, ignore_permissions=True, force=True)
@@ -70,3 +77,18 @@ def disable_users(users):
 	for user in users:
 		if frappe.db.exists("User", user):
 			frappe.db.set_value("User", user, "enabled", 0, update_modified=False)
+
+
+def user_states(users):
+	"""Snapshot of each user's enabled flag (None when the user does not exist yet), for restore_users."""
+	return {user: frappe.db.get_value("User", user, "enabled") for user in users}
+
+
+def restore_users(states):
+	"""Put users back the way user_states found them: a user that was enabled before the test
+	(for example one that also serves a real MCP client through an API key) stays enabled,
+	a user the test created or found disabled is disabled so it does not count toward the quota."""
+	for user, enabled in states.items():
+		if not frappe.db.exists("User", user):
+			continue
+		frappe.db.set_value("User", user, "enabled", 1 if enabled else 0, update_modified=False)

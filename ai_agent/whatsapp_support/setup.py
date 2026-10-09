@@ -62,10 +62,8 @@ def ensure_support_skill_grants(agent: str):
     required_skills = (
         "core-agent-behavior",
         "whatsapp-business-support",
-        "customer-analysis",
-        "receivables-analysis",
-        "accounting-analysis",
-        "sales-analysis",
+        "sales",
+        "accounting",
     )
     if any(not frappe.db.exists("AI Skill", skill) for skill in required_skills):
         try:

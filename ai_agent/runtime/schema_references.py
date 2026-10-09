@@ -1,6 +1,6 @@
 """Generate compact schema summaries for the most used DocTypes.
 
-The agent reads these (skills.read_reference on frappe-schema-discovery)
+The agent reads these (skills.read_reference on the system skill)
 instead of live schema.describe_doctype dumps. Standard fields only: site
 custom fields are left to live discovery.
 
@@ -23,7 +23,7 @@ MAX_FIELDS = 45
 
 
 def generate(target=None):
-	target = target or os.path.join(frappe.get_app_path("ai_agent"), "skills", "frappe-schema-discovery", "references")
+	target = target or os.path.join(frappe.get_app_path("ai_agent"), "skills", "system", "references")
 	os.makedirs(target, exist_ok=True)
 	written = []
 	for doctype in DOCTYPES:

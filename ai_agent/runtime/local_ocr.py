@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Local PP-OCRv5 bridge used by Financial Attachment Session page reading.
+"""Local PP-OCRv5 bridge used by chat attachment OCR (gemini_ocr, engine "Local Engine").
 
 Frappe stays on its normal Python environment. Every OCR call launches the
 isolated Python 3.13 runtime, reads exactly one existing session page, returns
@@ -21,7 +21,6 @@ from typing import Any, Callable
 import frappe
 from frappe import _
 from frappe.utils import cint
-from frappe.utils.file_manager import get_file_path
 
 RESULT_MARKER = "__AI_AGENT_OCR_RESULT__="
 DEFAULT_DPI = 170
@@ -478,75 +477,3 @@ def run_local_ocr_bytes(
                 pass
 
 
-def extract_financial_attachment_page(file_doc, page_number: int, run_name: str = "") -> dict[str, Any]:
-    """Return the page-result contract expected by purchase_invoice_ai.api.
-
-    The Financial Attachment Session and its page rows must already exist.
-    This function only reads the requested page and returns its extraction.
-    """
-    source_path = Path(get_file_path(file_doc.name)).resolve()
-    def is_cancelled() -> bool:
-        if not run_name:
-            return False
-        try:
-            values = frappe.db.get_value("AI Run", run_name, ["status", "cancel_requested"], as_dict=True)
-            return bool(
-                values
-                and (
-                    values.get("cancel_requested")
-                    or values.get("status") in {"Cancelled", "Timed Out"}
-                )
-            )
-        except Exception:
-            return False
-
-    result = run_local_ocr_page(
-        source_path,
-        page_number=page_number,
-        dpi=cint(frappe.conf.get("ai_agent_ocr_dpi") or DEFAULT_DPI),
-        min_confidence=float(frappe.conf.get("ai_agent_ocr_min_confidence") or DEFAULT_MIN_CONFIDENCE),
-        retry_threshold=float(frappe.conf.get("ai_agent_ocr_retry_threshold") or DEFAULT_RETRY_THRESHOLD),
-        timeout=cint(frappe.conf.get("ai_agent_ocr_page_timeout") or DEFAULT_PAGE_TIMEOUT),
-        cancel_check=is_cancelled,
-    )
-    page = result.get("page") or {}
-    blocks = page.get("blocks") or []
-    full_text = str(page.get("full_text") or "").strip()
-    low_count = cint(result.get("low_confidence_blocks_count"))
-    extraction_method = result.get("extraction_method") or "local_ocr_fast"
-
-    warnings: list[str] = []
-    if low_count:
-        warnings.append(
-            _("يوجد {0} جزء منخفض الثقة ويحتاج إلى مراجعة.").format(low_count)
-        )
-    if not full_text:
-        warnings.append(_("لم يتم استخراج نص واضح من الصفحة."))
-
-    return {
-        "page": cint(page.get("page_no")) or max(1, cint(page_number)),
-        "status": "read" if full_text else "failed",
-        "can_reprocess": 1,
-        "extraction": extraction_method,
-        "text_preview": full_text,
-        "rows": [],
-        "totals": {},
-        "warnings": warnings,
-        "extracted_lines_count": len(blocks),
-        "metadata": {
-            "extraction_method": extraction_method,
-            "ocr_engine": "pymupdf" if extraction_method == "pdf_text" else "onnxruntime",
-            "ocr_pipeline": "PyMuPDF text" if extraction_method == "pdf_text" else "PP-OCR adaptive",
-            "ocr_detection_model": result.get("text_detection_model") or "",
-            "ocr_recognition_model": result.get("text_recognition_model") or "",
-            "source_pages_count": cint(result.get("source_pages_count")),
-            "page_no": cint(page.get("page_no")) or max(1, cint(page_number)),
-            "width": cint(page.get("width")),
-            "height": cint(page.get("height")),
-            "average_confidence": float(page.get("average_confidence") or 0),
-            "elapsed_seconds": float(page.get("elapsed_seconds") or 0),
-            "retry_used": bool(page.get("retry_used")),
-            "low_confidence_blocks_count": low_count,
-            "blocks": blocks,
-        },
-    }

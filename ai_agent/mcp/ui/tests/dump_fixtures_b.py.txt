@@ -1,0 +1,78 @@
+import base64, io, json, os
+from unittest.mock import patch
+import frappe
+from frappe.tests import IntegrationTestCase
+from ai_agent.mcp import approvals
+from ai_agent.mcp.protocol import build_main_view
+from ai_agent.tests.test_mcp_service_views import make_service, run_tool
+from ai_agent.presentation import present, schema
+
+OUT = os.environ["FIXTURE_DIR"]
+def dump(name, result):
+	json.dump(result, open(f"{OUT}/{name}.json", "w"), ensure_ascii=False, default=str)
+
+def box_photo():
+	from PIL import Image, ImageDraw
+	im = Image.new("RGB", (200, 220), "white"); d = ImageDraw.Draw(im)
+	d.rectangle([50, 30, 150, 200], fill="#f5a623", outline="#c77800", width=4); d.rectangle([50, 30, 150, 80], fill="#e8590c")
+	d.ellipse([85, 100, 115, 130], fill="#ffd166")
+	b = io.BytesIO(); im.save(b, "PNG"); return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
+
+class TestDump(IntegrationTestCase):
+	def test_dump(self):
+		pin = patch.object(approvals, "four_eyes_enabled", return_value=False)   # fixtures must not depend on the site's policy
+		pin.start(); self.addCleanup(pin.stop)
+		open(f"{OUT}/main.html", "w").write(build_main_view())
+		svc = make_service(True)
+		# 1. companies (real data, real enrichment)
+		dump("s1_companies", run_tool(svc, "data__query", {"specification": {"doctype": "Company", "fields": ["name", "default_currency", "creation", "owner"], "limit": 20}}))
+		# 3. customer statement
+		report = {"report": "General Ledger", "row_count": 6, "is_truncated": False, "filters": {"party": ["حمود صالح"], "party_type": "Customer"}, "columns": [
+			{"fieldname": "posting_date", "label": "Posting Date", "fieldtype": "Date"}, {"fieldname": "voucher_no", "label": "Voucher No", "fieldtype": "Data"},
+			{"fieldname": "voucher_type", "label": "Voucher Type", "fieldtype": "Data"}, {"fieldname": "remarks", "label": "Remarks", "fieldtype": "Data"},
+			{"fieldname": "debit", "label": "Debit", "fieldtype": "Currency"}, {"fieldname": "credit", "label": "Credit", "fieldtype": "Currency"}, {"fieldname": "balance", "label": "Balance", "fieldtype": "Currency"}],
+			"result": [{"account": "'Opening'", "debit": 0, "credit": 0, "balance": 0},
+			{"posting_date": "2026-09-15", "voucher_no": "SINV-0389", "voucher_type": "Sales Invoice", "remarks": "فاتورة بيع", "debit": 200000, "credit": 0, "balance": 200000},
+			{"posting_date": "2026-09-20", "voucher_no": "SINV-0987", "voucher_type": "Sales Invoice", "remarks": "فاتورة بيع", "debit": 250000, "credit": 0, "balance": 450000},
+			{"posting_date": "2026-09-25", "voucher_no": "PE-0412", "voucher_type": "Payment Entry", "remarks": "دفعة نقدية", "debit": 0, "credit": 100000, "balance": 350000},
+			{"posting_date": "2026-09-29", "voucher_no": "SINV-1024", "voucher_type": "Sales Invoice", "remarks": "فاتورة بيع", "debit": 800000, "credit": 0, "balance": 1150000},
+			{"account": "'Closing (Opening + Total)'", "debit": 1250000, "credit": 900000, "balance": 350000}]}
+		overdue = {"count": 3, "amount": 210000, "currency": "YER", "query": {"specification": {"doctype": "Sales Invoice", "fields": ["name"], "limit": 10}}}
+		with patch("ai_agent.presentation.presenters.reports._default_currency", return_value="YER"), patch("ai_agent.presentation.presenters.reports._overdue", return_value=overdue), \
+				patch("ai_agent.presentation.presenters.reports._can", return_value=True):
+			dump("s3_statement", svc._envelope_result(present("reports.run", {}, report, None), "reports.run", {}))
+		# 4. sales analysis
+		res = {"period": {"key": "this_month", "from": "2026-09-01", "to": "2026-09-29", "label": "هذا الشهر"}, "company": "SND", "currency": "YER", "truncated": False,
+			"totals": {"sales": 4800000.0, "invoices": 94, "customers": 27, "avg_invoice": 51000.0}, "top3_share": 0.51,
+			"top": [{"customer": f"C{i}", "customer_name": f"العميل {n}", "sales": s, "invoices": inv, "share": s / 4800000} for i, (n, s, inv) in enumerate([("أ", 1200000, 18), ("ب", 860000, 14), ("ج", 720000, 12), ("د", 480000, 9), ("هـ", 310000, 6)])]}
+		dump("s4_sales", svc._envelope_result(present("analysis.sales", {}, res, None), "analysis.sales", {}))
+		# 2 + 5. approval ready / blocked
+		payload = {"doctype": "Sales Invoice", "customer": "CUST-1", "company": "SND Accounting", "posting_date": "2026-09-29", "update_stock": 1, "items": [{"item_code": "JUICE", "qty": 100, "rate": 1500}]}
+		apr = frappe._dict(name="APR-T1", action_type="Create", doctype_name="Sales Invoice", document_name=None, status="Pending", payload_json=json.dumps(payload), payload_hash="h",
+			action_summary="x", impact_summary="", expires_at=None, run=None, requested_by="Administrator")
+		def item(stock_ok):
+			it = {"idx": 1, "item": "عصير سنتوب", "item_code": "JUICE", "qty": 100, "rate": 1500, "amount": 150000, "warehouse": "المخزن الرئيسي - SND", "uom": "كرتون", "image": "/files/x.png",
+				"stock": {"available": 240 if stock_ok else 60, "d": "240" if stock_ok else "60", "ok": stock_ok}, "d": {"qty": "100", "rate": "1,500 YER", "amount": "150,000 YER"}}
+			return it
+		src = {"customer_name": "حمود صالح", "company": "SND Accounting", "mode_of_payment": "نقدي", "update_stock": 1}
+		frappe.flags.mcp_ui_supported = True
+		for name, ok in (("s2_approval", True), ("s5_blocked", False)):
+			items = [item(ok)]
+			facts = approvals._facts("Sales Invoice", src, items, "YER", 150000)
+			warns, blocked = approvals._stock_check("Sales Invoice", items, src)
+			with patch.object(approvals, "thumbnail_data_uri", return_value=box_photo()), patch("frappe.has_permission", return_value=False):
+				blk = approvals._blocked("Sales Invoice", blocked, src) if blocked else None
+			if blk:
+				blk["alternatives"] = [{"warehouse": "مخزن الفرع الثاني - SND", "available": 420, "d": "420 كرتون"}, {"warehouse": "مخزن جدة - SND", "available": 150, "d": "150 كرتون"}]
+			preview = {"fields": facts, "items": items, "kpis": [], "warnings": warns, "valid": True, "currency": "YER", "photo": box_photo(), "blocked": blk}
+			with patch.object(approvals, "_preview", return_value=preview), patch.object(approvals, "app_approval_enabled", return_value=True):
+				dump(name, svc._envelope_result(approvals.card_envelope(apr, "Administrator"), "actions.request_create_draft", {}))
+		# 6. choice (real)
+		dump("s6_choice", svc.call_tool("app__choose", {"source": "companies"}))
+		# 7. bulk approval (customer + item that do not exist yet)
+		bulk_payload = {"documents": [{"doctype": "Customer", "payload": {"customer_name": "حمود صالح", "customer_type": "Individual", "customer_group": "Individual", "territory": "Yemen", "default_currency": "YER"}},
+			{"doctype": "Item", "payload": {"item_code": "عصير سنتوب", "item_name": "عصير سنتوب", "item_group": "All Item Groups", "stock_uom": "Box", "is_stock_item": 1, "standard_rate": 1500}}]}
+		bulk = frappe._dict(name="0vhbu5o09g", action_type="Bulk Create", doctype_name=None, document_name=None, status="Pending", payload_json=json.dumps(bulk_payload), payload_hash="h",
+			action_summary="إنشاء العميل حمود صالح والصنف عصير سنتوب تمهيدًا لفاتورة بيع نقدية على شركة SND Accounting بقيمة 150,000 YER.", impact_summary="", expires_at=None, run=None, requested_by="Administrator")
+		with patch.object(approvals, "app_approval_enabled", return_value=True):
+			dump("s7_bulk", svc._envelope_result(approvals.card_envelope(bulk, "Administrator"), "actions.request_bulk_create", {}))

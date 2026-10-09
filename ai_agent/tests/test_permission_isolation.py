@@ -341,24 +341,8 @@ class TestPermissionIsolation(IntegrationTestCase):
 				payload={"doctype": "Project", "name": self.project_b, "action": "Approve"},
 			)
 
-
 	# -- A7 endpoints --------------------------------------------------------
 
-	def test_create_run_rejects_company_outside_user_permissions(self):
-		from ai_agent import api
-
-		frappe.set_user(USER_A)
-		agent = frappe.db.get_value("AI Run", self.run_a, "agent")
-		with self.assertRaises(frappe.PermissionError):
-			api.create_run(agent, "hello", company=self.company_b)
-
-	def test_purchase_discussion_rejects_company_outside_user_permissions(self):
-		from ai_agent.purchase_invoice_ai import api as pi_api
-
-		frappe.set_user(USER_A)
-		with patch.object(pi_api, "_assert_ai_enabled"), patch.object(pi_api, "_ensure_purchase_invoice_agent"):
-			with self.assertRaises(frappe.PermissionError):
-				pi_api.start_discussion(self.company_b, "hi", "review", analysis="{}")
 
 	def test_unrelated_user_cannot_reject_approval(self):
 		approval = self._request_update(USER_A, self.project_a, {"notes": "to reject"})
@@ -428,57 +412,6 @@ class TestConversationOwnership(IntegrationTestCase):
 		frappe.db.delete("Access Log", {"reference_document": self.run.name})
 		frappe.db.commit()
 
-	def test_other_user_cannot_read_run(self):
-		from ai_agent import api
-
-		frappe.set_user(USER_B)
-		with self.assertRaises(frappe.PermissionError):
-			api.get_run(self.run.name)
-		with self.assertRaises(frappe.PermissionError):
-			api.get_run_steps(self.run.name)
-		self.assertNotIn(self.run.name, _listable_runs())
-		self.assertFalse(frappe.has_permission("AI Run", "read", doc=self.run.name, user=USER_B))
-
-	def test_system_manager_blocked_without_audit_setting(self):
-		from ai_agent import api
-
-		frappe.set_user(USER_SM)
-		with self.assertRaises(frappe.PermissionError):
-			api.get_run(self.run.name)
-		self.assertNotIn(self.run.name, _listable_runs())
-
-	def test_system_manager_audit_is_logged(self):
-		from ai_agent import api
-
-		frappe.db.set_single_value("AI Settings", "allow_admin_conversation_audit", 1)
-		frappe.set_user(USER_SM)
-		self.assertEqual(api.get_run(self.run.name)["name"], self.run.name)
-		frappe.set_user("Administrator")
-		self.assertTrue(frappe.db.exists("Access Log", {
-			"user": USER_SM, "reference_document": self.run.name, "export_from": "AI Run",
-		}))
-
-	def test_owner_reads_own_run(self):
-		from ai_agent import api
-
-		frappe.set_user(USER_A)
-		self.assertEqual(api.get_run(self.run.name)["name"], self.run.name)
-
-	def test_cannot_continue_another_users_conversation(self):
-		from ai_agent import api
-
-		frappe.set_user(USER_B)
-		with self.assertRaises(frappe.PermissionError):
-			api.create_run(self.run.agent, "follow up", parent_run=self.run.name)
-
-	def test_chatbot_stream_is_owner_only(self):
-		from ai_agent.chatbot import engine
-
-		engine._set_stream_owner("teststream1", USER_A)
-		frappe.set_user(USER_B)
-		with self.assertRaises(frappe.PermissionError):
-			engine.get_stream_content("teststream1")
-
 	def test_run_executes_only_as_owner(self):
 		from ai_agent.runtime import orchestrator
 
@@ -502,17 +435,6 @@ class TestBackgroundUserFallbacks(IntegrationTestCase):
 		delete_docs("AI Run", [self.run.name])
 		_disable_test_users()
 		frappe.db.commit()
-
-	def test_page_reading_without_owner_is_refused(self):
-		from ai_agent.purchase_invoice_ai import api as pi_api
-
-		frappe.db.set_value("AI Run", self.run.name, "user", "", update_modified=False)
-		with patch.object(pi_api, "_complete_single_page_reading") as mocked, \
-				patch.object(frappe, "set_user") as set_user:
-			pi_api.execute_sequential_page_reading_job(self.run.name, [{"file_id": "f", "page": 1}])
-		mocked.assert_not_called()
-		set_user.assert_not_called()
-		self.assertEqual(frappe.db.get_value("AI Run", self.run.name, "status"), "Failed")
 
 	def test_whatsapp_support_user_must_be_low_privilege(self):
 		from ai_agent.whatsapp_support import settings

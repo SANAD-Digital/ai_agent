@@ -30,6 +30,11 @@ class ToolGateway:
         if not self._is_tool_allowed_by_agent(tool_name, agent_doc):
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
 
+        from ai_agent.runtime import access
+
+        if not access.tool_allowed(tool_name, self.ctx.user):
+            raise ToolDenied(f"Tool '{tool_name}' belongs to a plugin this user is not allowed to use.")
+
         if not self._is_tool_allowed_by_skill(tool_name):
             if tool_name not in (
                 "skills.list", "skills.load", "skills.read_reference",
@@ -78,6 +83,11 @@ class ToolGateway:
 
         if not self._is_tool_allowed_by_agent(tool_name, agent_doc):
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
+
+        from ai_agent.runtime import access
+
+        if not access.tool_allowed(tool_name, self.ctx.user):
+            raise ToolDenied(f"Tool '{tool_name}' belongs to a plugin this user is not allowed to use.")
 
         self._check_call_limit(tool_name, agent_doc)
 

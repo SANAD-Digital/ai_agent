@@ -1,0 +1,63 @@
+import json, os
+from unittest.mock import patch
+import frappe
+from frappe.tests import IntegrationTestCase
+from ai_agent.mcp import approvals
+from ai_agent.mcp.protocol import build_main_view
+from ai_agent.tests.test_mcp_service_views import make_service, run_tool
+from ai_agent.presentation import present, schema
+
+OUT = os.environ["FIXTURE_DIR"]
+def dump(name, result):
+	json.dump(result, open(f"{OUT}/{name}.json", "w"), ensure_ascii=False, default=str)
+
+def invoice_rows(n, start=0):
+	return [{"name": f"ACC-SINV-2026-{i:03d}", "customer_name": ["حمود صالح", "Al-Noor Trading", "سالم"][i % 3], "posting_date": f"2026-09-{(i % 28) + 1:02d}", "due_date": "2026-10-15",
+		"grand_total": 150000 - i * 3100.5, "outstanding_amount": 0 if i % 3 == 0 else 50000, "status": ["Paid", "Unpaid", "Overdue", "Partly Paid"][i % 4], "owner": "a@b.c", "docstatus": 1,
+		"currency": "YER", "remarks": f"ملاحظة {i}", "branch": "الفرع الرئيسي", "cost_center": "Main - S"} for i in range(start, start + n)]
+
+class TestDump(IntegrationTestCase):
+	def test_dump(self):
+		pin = patch.object(approvals, "four_eyes_enabled", return_value=False)   # fixtures must not depend on the site's policy
+		pin.start(); self.addCleanup(pin.stop)
+		open(f"{OUT}/main.html", "w").write(build_main_view())
+		svc = make_service(True)
+		spec = {"specification": {"doctype": "Sales Invoice", "limit": 25}}
+		with patch("ai_agent.presentation.presenters.lists._default_currency", return_value="YER"):
+			page1 = present("data.query", spec, {"rows": invoice_rows(25), "row_count": 128}, None)
+			page2 = present("data.query", {"specification": {**spec["specification"], "offset": 25}}, {"rows": invoice_rows(25, 25), "row_count": 128}, None)
+			wide = present("data.query", {"specification": {"doctype": "Sales Invoice"}}, {"rows": invoice_rows(9), "row_count": 9}, None)
+			empty = present("data.query", {"specification": {"doctype": "Sales Invoice"}}, {"rows": [], "row_count": 0}, None)
+		dump("srv1", svc._envelope_result(page1, "data.query", spec))
+		dump("srv2", svc._envelope_result(page2, "data.query", spec))
+		dump("wide", svc._envelope_result(wide, "data.query", {"specification": {"doctype": "Sales Invoice", "limit": 500}}))
+		empty_res = svc._envelope_result(empty, "data.query", {})
+		empty_res["_meta"]["ai_agent/presentation"]["empty"]["followup"] = "اعرض جميع فواتير البيع"
+		dump("empty", empty_res)
+		gl = {"report": "General Ledger", "row_count": 4, "filters": {}, "columns": [{"fieldname": "posting_date", "label": "d", "fieldtype": "Date"}, {"fieldname": "account", "label": "a", "fieldtype": "Link"},
+			{"fieldname": "voucher_no", "label": "v", "fieldtype": "Data"}, {"fieldname": "debit", "label": "d", "fieldtype": "Currency"}, {"fieldname": "credit", "label": "c", "fieldtype": "Currency"}],
+			"result": [{"posting_date": "2026-09-02", "account": "Cash", "voucher_no": "V2", "debit": 500, "credit": 0}, {"posting_date": "2026-09-01", "account": "Debtors", "voucher_no": "V1", "debit": 100, "credit": 0},
+			{"posting_date": "2026-09-03", "account": "Debtors", "voucher_no": "V3", "debit": 0, "credit": 40}, {"posting_date": "2026-09-04", "account": "Sales", "voucher_no": "V4", "debit": 0, "credit": 560}]}
+		with patch("ai_agent.presentation.presenters.reports._default_currency", return_value="YER"):
+			dump("gl", svc._envelope_result(present("reports.run", {}, gl, None), "reports.run", {}))
+		stacked = {"type": "table", "variant": "comparison", "title": "المبيعات حسب الفرع", "subtitle": "2026", "kpis": [], "warnings": [], "actions": [], "insights": [],
+			"columns": [schema.column("m", "الشهر", priority="primary"), schema.column("a", "الفرع أ", "currency", total=True)],
+			"rows": [schema.make_row({"m": {"v": "يناير", "d": "يناير"}, "a": {"v": 5, "d": "5 YER"}})],
+			"chart": {"kind": "stacked_bar", "title": "المبيعات حسب الفرع", "labels": ["يناير", "فبراير", "مارس"], "series": [
+				{"name": "الفرع أ", "values": [100, 150, 120], "d": ["100 YER", "150 YER", "120 YER"]}, {"name": "الفرع ب", "values": [80, 60, 140], "d": ["80 YER", "60 YER", "140 YER"]}]}}
+		dump("stacked", {"content": [{"type": "text", "text": "x"}], "structuredContent": {"presentation": {}}, "_meta": {"ai_agent/presentation": stacked}, "isError": False})
+		payload = {"doctype": "Sales Invoice", "customer": "حمود صالح", "company": "SND Accounting", "posting_date": "2026-09-29", "items": [{"item_code": "JUICE", "item_name": "عصير سنتوب", "qty": 100, "rate": 1500}]}
+		apr = frappe._dict(name="APR-T1", action_type="Create", doctype_name="Sales Invoice", document_name=None, status="Pending", payload_json=json.dumps(payload), payload_hash="h",
+			action_summary="x", impact_summary="ستُنشأ فاتورة بيع كمسودة.", expires_at=None, run=None, requested_by="Administrator")
+		preview = {"fields": [{"key": "customer", "label": "العميل", "d": "حمود صالح", "tier": 1}], "items": [{"idx": 1, "item": "عصير سنتوب", "item_code": "JUICE", "qty": 100, "rate": 1500, "amount": 150000, "warehouse": "W", "d": {"qty": "100", "rate": "1,500 YER", "amount": "150,000 YER"}}],
+			"kpis": [{"key": "grand_total", "label": "الإجمالي", "type": "currency", "tone": "info", "v": 150000, "d": "150,000 YER"}], "warnings": [], "valid": True, "currency": "YER"}
+		frappe.flags.mcp_ui_supported = True
+		with patch.object(approvals, "_preview", return_value=preview), patch.object(approvals, "app_approval_enabled", return_value=True):
+			dump("approval", svc._envelope_result(approvals.card_envelope(apr, "Administrator"), "actions.request_create_draft", {}))
+			done = frappe._dict(apr, status="Executed")
+			dump("approval_done", svc._envelope_result(approvals.card_envelope(done, "Administrator", state="verified", result={"document_name": "ACC-SINV-2026-777", "doctype": "Sales Invoice"}), "approvals.decide", {}))
+			p2 = dict(payload, items=[dict(payload["items"][0], qty=120)])
+			revised = frappe._dict(apr, name="APR-T2", payload_json=json.dumps(p2))
+			dump("approval_revised", svc._envelope_result(approvals.card_envelope(revised, "Administrator"), "approvals.revise", {}))
+		name = frappe.db.get_value("Company", {}, "name")
+		dump("document", run_tool(svc, "data__get_document", {"doctype": "Company", "name": name}))

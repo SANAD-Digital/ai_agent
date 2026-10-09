@@ -11,7 +11,7 @@ import json
 import operator
 
 import frappe
-from frappe.utils import cint, flt, getdate
+from frappe.utils import cint, flt
 
 from ai_agent.metrics import periods
 from ai_agent.metrics.resolvers import DIMENSION_RESOLVERS, METRIC_RESOLVERS

@@ -7,6 +7,16 @@ DOCUMENT_PAYLOAD_SCHEMA = {
     "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit.",
 }
 
+EXPORT_SOURCE = {
+    "title": {"type": "string", "description": "Short title in the user's language; also used for the file name"},
+    "artifact": {"type": "string", "description": "Preferred source: artifact_name of a table result in this conversation (data.query and reports.run return artifact.artifact_name). The rows are not sent again."},
+    "query": {"type": "object", "description": "Otherwise: the data.query arguments (doctype, fields, filters, group_by, order_by, limit) to fetch the rows here with the user's permissions"},
+    "columns": {"type": "array", "items": {}, "description": "Optional: column keys in order, or {key, label}"},
+    "rows": {"type": "array", "items": {"type": "object"}, "description": "Only for a few inline rows (e.g. KPI lines) that came from no query"},
+    "doctype": {"type": "string", "description": "Optional: DocType of the rows, for column labels"},
+}
+
+
 TOOL_PARAMETER_SCHEMAS = {
     "skills.list": {
         "type": "object",
@@ -162,6 +172,15 @@ TOOL_PARAMETER_SCHEMAS = {
         },
         "required": ["source_doctype", "source_name", "target_doctype"],
     },
+    "analysis.sales": {
+        "type": "object",
+        "properties": {
+            "period": {"type": "string", "enum": ["today", "yesterday", "this_week", "last_week", "this_month", "last_month", "this_quarter", "last_quarter", "this_fiscal_year"],
+                       "description": "Named period, default this_month"},
+            "company": {"type": "string", "description": "Company to analyse; required when companies use different currencies"},
+            "top": {"type": "integer", "minimum": 1, "maximum": 20, "description": "How many top customers to rank, default 5"},
+        },
+    },
     "data.query": QUERY_SPEC_SCHEMA,
     "data.get_document": {
         "type": "object",
@@ -186,10 +205,12 @@ TOOL_PARAMETER_SCHEMAS = {
         },
         "required": ["doctype"],
     },
-    "financial_attachments.get_session_ocr_text": {
+    "files.read": {
         "type": "object",
-        "properties": {"session_name": {"type": "string"}},
-        "required": ["session_name"],
+        "properties": {
+            "file": {"type": "string", "description": "File id or file name from the list; omit to list this conversation's attachments"},
+            "refresh": {"type": "boolean", "description": "Read again instead of using the cached extraction"},
+        },
     },
     "attachments.list": {
         "type": "object",
@@ -286,6 +307,57 @@ TOOL_PARAMETER_SCHEMAS = {
             },
         },
         "required": ["chart_spec"],
+    },
+    "export.excel": {"type": "object", "properties": EXPORT_SOURCE},
+    "export.csv": {"type": "object", "properties": EXPORT_SOURCE},
+    "export.pdf": {
+        "type": "object",
+        "properties": {
+            **EXPORT_SOURCE,
+            "summary": {"type": "string", "description": "Optional short findings printed above the table (plain text, one point per line)"},
+        },
+    },
+    "export.image": {
+        "type": "object",
+        "properties": {
+            **EXPORT_SOURCE,
+            "chart": {"type": "object", "description": "Draw this chart as a PNG instead of a table: {type: bar|line|pie|donut, labels: [...], datasets: [{name, values}]}"},
+        },
+    },
+    "export.print": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string", "description": "DocType of the document, e.g. Sales Invoice"},
+            "name": {"type": "string", "description": "Document name (ID), e.g. ACC-SINV-2026-00041"},
+            "print_format": {"type": "string", "description": "Optional print format; the DocType's default otherwise"},
+            "letterhead": {"type": "boolean", "description": "Print with the company letterhead (default true)"},
+        },
+        "required": ["doctype", "name"],
+    },
+    "export.statement": {
+        "type": "object",
+        "properties": {
+            "party_type": {"type": "string", "enum": ["Customer", "Supplier", "Employee", "Shareholder"]},
+            "party": {"type": "string", "description": "The party as the user wrote it: ID or name. The tool resolves it and returns candidates when several match"},
+            "from_date": {"type": "string", "description": "YYYY-MM-DD; default 12 months before to_date"},
+            "to_date": {"type": "string", "description": "YYYY-MM-DD; default today"},
+            "company": {"type": "string", "description": "Default: the user's default company"},
+            "language": {"type": "string", "enum": ["ar", "en"], "description": "The language the user is writing in"},
+        },
+        "required": ["party_type", "party"],
+    },
+    "messaging.request_email": {
+        "type": "object",
+        "properties": {
+            "recipients": {"type": "array", "items": {"type": "string"}, "description": "Email addresses (look them up on the party's Contact if the user named a party)"},
+            "cc": {"type": "array", "items": {"type": "string"}},
+            "subject": {"type": "string"},
+            "message": {"type": "string", "description": "Plain-text body in the user's language; short and polite"},
+            "attachments": {"type": "array", "items": {"type": "string"}, "description": "file_url values of files made in this conversation (export.* results)"},
+            "reference_doctype": {"type": "string", "description": "Optional document the email is about (logged on its timeline)"},
+            "reference_name": {"type": "string"},
+        },
+        "required": ["recipients", "subject", "message"],
     },
     "artifacts.create_document_links": {
         "type": "object",
@@ -420,11 +492,12 @@ class ToolRegistry:
             {"name": "erp.exchange_rate", "description": "ERPNext exchange rate between two currencies on a date", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_exchange_rate"},
             {"name": "erp.stock_balance", "description": "Stock quantity and value of an item in a warehouse on a date", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_stock_balance"},
             {"name": "erp.invoice_payments", "description": "Payments allocated against a sales or purchase invoice", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.erpnext_native.handle_invoice_payments"},
+            {"name": "analysis.sales", "description": "Sales analysis for a period: total sales, invoice and customer counts, average invoice and the top customers with their share (read only, permission-scoped)", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.analysis.handle_sales"},
             {"name": "data.query", "description": "Execute a query specification", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_query"},
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
             {"name": "data.count", "description": "Count records matching filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_count"},
-            {"name": "financial_attachments.get_session_ocr_text", "description": "Get only the ready OCR text from a Financial Attachment Session", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.financial_attachments.handle_get_session_ocr_text", "result_max_bytes": 1048576, "model_result_max_chars": 65536},
+            {"name": "files.read", "description": "List the files the user attached in this chat conversation, or read one (text of PDF/Word/Excel/CSV, OCR of images and scans). Use it whenever the user refers to a file or image sent earlier.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.chat_files.handle_read", "model_result_max_chars": 40000},
             {"name": "attachments.list", "description": "List safe metadata for files attached to a readable document", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.attachments.handle_list"},
             # Reports
             {"name": "reports.search", "description": "Search available reports", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_search"},
@@ -436,6 +509,14 @@ class ToolRegistry:
             # Artifacts
             {"name": "artifacts.create_table", "description": "Create a table artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_table"},
             {"name": "artifacts.create_chart", "description": "Create a chart artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_chart"},
+            # Plugins (gated per user by AI Settings access rules)
+            {"name": "export.excel", "description": "Give the user an Excel (.xlsx) file of a table result", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.exports.handle_excel"},
+            {"name": "export.csv", "description": "Give the user a CSV file of a table result", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.exports.handle_csv"},
+            {"name": "export.pdf", "description": "Give the user a PDF report: title, optional summary lines and the table", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.exports.handle_pdf"},
+            {"name": "export.print", "description": "Give the user a document as a PDF in its print format (invoice, order, payment...)", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.exports.handle_print"},
+            {"name": "export.statement", "description": "Give the user a statement of account PDF for a customer/supplier: opening balance, entries, closing balance", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.exports.handle_statement"},
+            {"name": "messaging.request_email", "description": "Request to send an email (optionally with files from this conversation); it is sent only after the user approves", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.messaging.build_payload", "requires_approval": True},
+            {"name": "export.image", "description": "Give the user a PNG image of a chart or of a short table", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.exports.handle_image"},
             {"name": "artifacts.create_document_links", "description": "Create document links artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_document_links"},
             # Actions
             {"name": "actions.prepare_document", "description": "Prepare a document draft without saving", "access_level": "Prepare", "side_effect": "prepare_only", "handler": "ai_agent.tools.actions.handle_prepare"},
@@ -458,5 +539,3 @@ class ToolRegistry:
     def list_tools(self):
         return list(self._tools.values())
 
-    def is_registered(self, name):
-        return name in self._tools

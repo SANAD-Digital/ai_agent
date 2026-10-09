@@ -25,10 +25,6 @@ BLOCKED_CHILD_FIELDS = frozenset({
 })
 
 
-class WritePayloadError(frappe.ValidationError):
-    pass
-
-
 def _writable_fieldnames(doctype, user, parent_doctype=None, *, allow_computed=False):
     """Fields this user may write at a permitted permlevel.
 
@@ -102,9 +98,3 @@ def blocked_fields(doctype, payload, user, *, mode="update", parent_doctype=None
     return sorted(set(problems))
 
 
-def assert_payload_allowed(doctype, payload, user, *, mode="update"):
-    problems = blocked_fields(doctype, payload, user, mode=mode)
-    if problems:
-        raise WritePayloadError(
-            f"These fields cannot be set on {doctype} through the agent: {', '.join(problems)}"
-        )

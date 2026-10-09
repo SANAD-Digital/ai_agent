@@ -810,14 +810,6 @@ def _send_reply_without_idempotency(doc, answer: str) -> str | None:
     return log_name
 
 
-def _send_whatsapp_log_now(log_name: str):
-    from snd_whatsapp.snd_whatsapp.doctype.whatsapp_log.whatsapp_log import send
-
-    reply_doc = frappe.get_doc(WHATSAPP_LOG_DOCTYPE, log_name)
-    send([reply_doc.as_dict()])
-    frappe.db.commit()
-
-
 def _send_lid_reply_via_platform(log_name: str, doc, message: str, device: str, chat_jid: str):
     """Send LID conversations without changing snd_whatsapp's recipient normalization."""
     try:

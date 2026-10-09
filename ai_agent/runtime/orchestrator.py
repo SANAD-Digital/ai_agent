@@ -411,19 +411,8 @@ class Orchestrator:
         priority = {
             "core-agent-behavior": 0,
             "whatsapp-business-support": 1,
-            "compound-document-operations": 1,
-            "document-creation": 2,
-            "document-workflow": 3,
-            "frappe-schema-discovery": 4,
-            # Legacy purchase-invoice bundle skills (superseded by the OCR →
-            # journal-entry pipeline): keep them last so they never evict the
-            # analysis skills from the 12 context slots.
-            "classify_purchase_invoice_attachments": 99,
-            "analyze_purchase_invoice_bundle": 99,
-            "match_purchase_invoice_supplier": 99,
-            "match_purchase_invoice_items": 99,
-            "validate_purchase_invoice_analysis": 99,
-            "create_purchase_invoice_from_analysis": 99,
+            "documents": 1,
+            "system": 4,
         }
         ordered = sorted(
             effective_skills or [],

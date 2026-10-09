@@ -1,0 +1,55 @@
+import json, os
+from unittest.mock import patch
+import frappe
+from frappe.tests import IntegrationTestCase
+from ai_agent.mcp import approvals
+from ai_agent.mcp.protocol import build_main_view
+from ai_agent.tests.test_mcp_service_views import make_service
+from ai_agent.presentation import present
+from ai_agent.tests.test_scenarios import TestDocumentView
+
+OUT = os.environ["FIXTURE_DIR"]
+def dump(name, result):
+	json.dump(result, open(f"{OUT}/{name}.json", "w"), ensure_ascii=False, default=str)
+
+class TestDump(IntegrationTestCase):
+	def test_dump(self):
+		pin = patch.object(approvals, "four_eyes_enabled", return_value=False); pin.start(); self.addCleanup(pin.stop)
+		open(f"{OUT}/main.html", "w").write(build_main_view())
+		svc = make_service(True)
+		frappe.flags.mcp_ui_supported = True
+		# document: foreign-currency invoice
+		with patch("ai_agent.presentation.money.company_currency", return_value="YER"):
+			dump("u_document", svc._envelope_result(present("data.get_document", {}, dict(TestDocumentView.INVOICE, mode_of_payment="نقدي", due_date="2026-10-15", debit_to="1310 - مدينون - SA", remarks="فاتورة تصدير"), None), "data.get_document", {}))
+			# approval: review card with impact, next steps, details
+			payload = {"customer": "CUST-1", "company": "SND Accounting", "posting_date": "2026-09-29", "update_stock": 0, "currency": "USD", "conversion_rate": 530,
+				"items": [{"item_code": "JUICE", "item_name": "عصير سنتوب", "qty": 100, "rate": 200, "uom": "كرتون"}]}
+			apr = frappe._dict(name="APR-U1", action_type="Create", doctype_name="Sales Invoice", document_name=None, status="Pending", payload_json=json.dumps(payload), payload_hash="h",
+				action_summary="x", impact_summary="", expires_at=None, run=None, requested_by="Administrator", execution_result=None)
+			items = [{"idx": 1, "item": "عصير سنتوب", "item_code": "JUICE", "qty": 100, "rate": 200, "amount": 20000, "warehouse": "المخزن الرئيسي - SA", "uom": "كرتون", "image": None,
+				"stock": {"available": 60, "d": "60", "ok": False}, "d": {"qty": "100", "rate": "200 USD", "amount": "20,000 USD"}}]
+			src = {"customer_name": "حمود صالح", "company": "SND Accounting", "mode_of_payment": "نقدي", "update_stock": 0, "currency": "USD", "conversion_rate": 530,
+				"grand_total": 20000, "base_grand_total": 10600000, "total_taxes_and_charges": 0}
+			warns, blocked = approvals._stock_check("Sales Invoice", items, src)
+			preview = {"fields": approvals._facts("Sales Invoice", src, items, "USD", 20000), "items": items, "kpis": [], "warnings": warns, "valid": True, "currency": "USD", "photo": None, "blocked": None,
+				"impact": approvals._impact("Create", "Sales Invoice", src, items, "USD", 20000), "details": approvals._details("Sales Invoice", payload)}
+			with patch.object(approvals, "_preview", return_value=preview), patch.object(approvals, "app_approval_enabled", return_value=True), \
+					patch("ai_agent.mcp.continuation.peek", return_value=None):
+				dump("u_approval", svc._envelope_result(approvals.card_envelope(apr, "Administrator"), "actions.request_create_draft", {}))
+				for state, status, extra in (("verified", "Executed", {"result": {"document_name": "ACC-SINV-2026-00777", "doctype": "Sales Invoice"}}), ("failed", "Failed", {"error": "الحقل «حساب المدينين» مطلوب."}),
+						("expired", "Expired", {}), ("rejected", "Rejected", {})):
+					dump("u_approval_" + state, svc._envelope_result(approvals.card_envelope(frappe._dict(apr, status=status), "Administrator", state=state, **extra), "approvals.decide", {}, for_app=True))
+		# trial balance with findings + drill
+		tb = {"report": "Trial Balance", "row_count": 4, "filters": {"company": "SND Accounting", "from_date": "2026-01-01", "to_date": "2026-12-31"}, "columns": [
+			{"fieldname": "account", "label": "Account", "fieldtype": "Link"}, {"fieldname": "opening_debit", "label": "Opening (Dr)", "fieldtype": "Currency"}, {"fieldname": "opening_credit", "label": "Opening (Cr)", "fieldtype": "Currency"},
+			{"fieldname": "debit", "label": "Debit", "fieldtype": "Currency"}, {"fieldname": "credit", "label": "Credit", "fieldtype": "Currency"},
+			{"fieldname": "closing_debit", "label": "Closing (Dr)", "fieldtype": "Currency"}, {"fieldname": "closing_credit", "label": "Closing (Cr)", "fieldtype": "Currency"}],
+			"result": [{"account": "1110 - نقد - SA", "account_name": "نقد", "opening_debit": 0, "opening_credit": 0, "debit": 120000, "credit": 170000, "closing_debit": 0, "closing_credit": 50000},
+				{"account": "1310 - مدينون - SA", "account_name": "مدينون", "opening_debit": 0, "opening_credit": 0, "debit": 900000, "credit": 250000, "closing_debit": 650000, "closing_credit": 0},
+				{"account": "4110 - مبيعات - SA", "account_name": "مبيعات", "opening_debit": 0, "opening_credit": 0, "debit": 0, "credit": 900000, "closing_debit": 0, "closing_credit": 900000},
+				{"account": "2110 - دائنون - SA", "account_name": "دائنون", "opening_debit": 0, "opening_credit": 0, "debit": 300000, "credit": 0, "closing_debit": 300000, "closing_credit": 0}]}
+		roots = {"1110 - نقد - SA": "Asset", "1310 - مدينون - SA": "Asset", "4110 - مبيعات - SA": "Income", "2110 - دائنون - SA": "Liability"}
+		with patch("ai_agent.presentation.presenters.reports._default_currency", return_value="YER"), patch("ai_agent.presentation.insights._root_type", side_effect=roots.get):
+			dump("u_trial", svc._envelope_result(present("reports.run", {}, tb, None), "reports.run", {}))
+		dump("u_error", svc._error("No read permission on 'Sales Invoice'", "data.query"))
+		dump("u_error_retry", svc._error("Report execution failed: Fiscal Year 2027 not found", "reports.run"))

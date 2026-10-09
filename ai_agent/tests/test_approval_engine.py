@@ -12,7 +12,7 @@ from ai_agent.runtime.exceptions import (
 	PermissionDenied,
 )
 from ai_agent.runtime.permission_context import PermissionContext
-from ai_agent.tests.utils import delete_docs, disable_users, make_test_run, quota_bypass
+from ai_agent.tests.utils import delete_docs, make_test_run, quota_bypass, restore_users, user_states
 
 
 TEST_APPROVER_ROLE = "AI Test Approver Role"
@@ -28,6 +28,7 @@ class TestApprovalEngine(IntegrationTestCase):
 			"approver_role": frappe.db.get_single_value("AI Settings", "approver_role"),
 			"require_four_eyes": frappe.db.get_single_value("AI Settings", "require_four_eyes"),
 		}
+		self._user_states = user_states([TEST_APPROVER_USER])
 
 	def tearDown(self):
 		self._set_policy(
@@ -38,7 +39,7 @@ class TestApprovalEngine(IntegrationTestCase):
 		# rollback and must be deleted explicitly.
 		for doctype, names in self._cleanup.items():
 			delete_docs(doctype, names)
-		disable_users([TEST_APPROVER_USER])
+		restore_users(self._user_states)
 		frappe.db.commit()
 
 	def _set_policy(self, approver_role=None, require_four_eyes=0):

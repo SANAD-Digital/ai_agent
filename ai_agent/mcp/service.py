@@ -8,10 +8,15 @@ import time
 import frappe
 from frappe.utils import cint
 
+from ai_agent.mcp import approvals, continuation, diagnostics, events, hosts, paging, refs
 from ai_agent.mcp.protocol import MCPProtocolError, tool_result
+from ai_agent.presentation import errors as friendly_errors
+from ai_agent.presentation import present, schema, text as presentation_text
+from ai_agent.presentation.registry import registered_tools
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
 from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.tool_gateway import ToolGateway
+from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.tool_registry import ToolRegistry
 
 
@@ -41,7 +46,6 @@ TOOL_TITLES = {
     "erp.item_details": "تفاصيل صنف",
     "erp.party_details": "تفاصيل عميل/مورد",
     "erp.stock_balance": "رصيد المخزون",
-    "financial_attachments.get_session_ocr_text": "نص المرفق المالي (OCR)",
     "knowledge.search": "بحث في قاعدة المعرفة",
     "memory.search": "بحث في الذاكرة",
     "metrics.query": "استعلام مؤشر",
@@ -56,6 +60,89 @@ TOOL_TITLES = {
     "skills.list": "عرض المهارات",
     "skills.load": "تحميل مهارة",
     "skills.read_reference": "قراءة مرجع مهارة",
+    "approvals__status": "حالة طلب موافقة",
+    "approvals__decide": "الموافقة على طلب أو رفضه",
+    "approvals__revise": "تعديل طلب قبل الموافقة (من البطاقة)",
+    "view__page": "صفحة/ترتيب/بحث في جدول (من البطاقة)",
+    "view__event": "تشخيص الواجهة (من البطاقة)",
+    "view__load": "تحميل العرض الكامل (من البطاقة)",
+    "approvals__list_pending": "طلبات الموافقة المعلّقة",
+    "app__probe": "فحص اتصال واجهة MCP App",
+    "app__choose": "اختيار من قائمة",
+    "analysis.sales": "تحليل المبيعات",
+}
+
+THEN_SCHEMA = {
+    "type": "object",
+    "description": "Optional: the user's ORIGINAL goal to continue automatically once this request is approved and executed "
+    "(for example: create the customer and item now, `then` the sales invoice). Placeholders `$created.<DocType>` "
+    "(e.g. \"$created.Customer\", \"$created.Item\") are replaced by the names of the records this request creates.",
+    "properties": {
+        "goal": {"type": "string", "maxLength": 300, "description": "One sentence, e.g. 'إنشاء فاتورة بيع نقدية لحمود صالح'"},
+        "tool": {"type": "string", "enum": ["actions__request_create_draft", "actions__request_bulk_create"]},
+        "arguments": {"type": "object", "description": "Arguments for that tool, with $created placeholders where the new records go"},
+    },
+    "required": ["goal", "tool", "arguments"],
+}
+
+# Tools the embedded app calls itself, or that complete the approval lifecycle for the model.
+SYNTHETIC_TOOLS = {
+    "app__choose": {
+        "description": "Ask the user to pick one option instead of guessing (for example which company or warehouse). "
+        "Use source=companies or source=warehouses to list what the user can read, or pass options. In hosts with MCP Apps the user sees a "
+        "choice card and the answer arrives as their next message; elsewhere the same numbered list is in the text: ask them to reply.",
+        "properties": {"source": {"type": "string", "enum": ["companies", "warehouses"]}, "title": {"type": "string", "maxLength": 120},
+                       "subtitle": {"type": "string", "maxLength": 200}, "reply_template": {"type": "string", "maxLength": 120},
+                       "options": {"type": "array", "maxItems": 20, "items": {"type": "object", "properties": {"value": {"type": "string"}, "label": {"type": "string"}, "description": {"type": "string"}}, "required": ["label"]}}},
+        "required": [], "app_only": False, "read_only": True,
+    },
+    "app__probe": {
+        "description": "Read-only connection check for the MCP App view: returns the number of companies the user can read. "
+        "Renders a minimal view in hosts that support MCP Apps; plain text and structuredContent elsewhere.",
+        "properties": {}, "required": [], "app_only": False, "read_only": True, "resource": "minimal",
+    },
+    "approvals__status": {
+        "description": "Read the current state of an approval request (pending, executed, rejected, expired, failed) and its result.",
+        "properties": {"approval_id": {"type": "string"}}, "required": ["approval_id"], "app_only": False, "read_only": True,
+    },
+    "approvals__list_pending": {
+        "description": "The user's own pending approval requests. Call it when the user says 'موافق' / 'اعتمد' / 'نفذ' / 'yes go ahead' without naming a "
+        "request: one pending request → decide on it; several → the result asks the user which one; none → say so.",
+        "properties": {}, "required": [], "app_only": False, "read_only": True,
+    },
+    "approvals__decide": {
+        "description": "Approve or reject a pending approval request. Use it when the user explicitly approves in chat ('موافق', 'اعتمد', 'نعم نفذ') "
+        "or rejects ('ألغِ', 'لا'). Approving executes the action, verifies the created/changed document and returns its link; "
+        "when the request carried a next step (`then`) the server prepares it and returns that next request too. Never call it "
+        "without an explicit decision from the user. The card's buttons call the same tool with a signed token.",
+        "properties": {"approval_id": {"type": "string"}, "decision": {"type": "string", "enum": ["approve", "reject"]},
+                       "reason": {"type": "string", "maxLength": 300}, "token": {"type": "string", "description": "Set by the approval card only; leave empty from chat."}},
+        "required": ["approval_id", "decision"], "app_only": False, "read_only": False, "destructive": True,
+    },
+    "approvals__revise": {
+        "description": "App-only. Change quantity, price, company or warehouse of a pending create request before approval.",
+        "properties": {"approval_id": {"type": "string"}, "token": {"type": "string"}, "changes": {"type": "object"}},
+        "required": ["approval_id", "token", "changes"], "app_only": True, "read_only": False,
+    },
+    "view__event": {
+        "description": "App-only. The embedded view reports its lifecycle (handshake, result received, render) for diagnostics.",
+        "properties": {"view": {"type": "string", "maxLength": 40},
+                       "events": {"type": "array", "maxItems": 12, "items": {"type": "object", "properties": {
+                           "event": {"type": "string", "enum": sorted(events.VIEW_EVENTS)}, "detail": {"type": "string", "maxLength": 200}}, "required": ["event"]}}},
+        "required": ["events"], "app_only": True, "read_only": True,
+    },
+    "view__load": {
+        "description": "App-only. The embedded view loads its complete view model (rows, chart, action arguments) from the reference in structuredContent.",
+        "properties": {"ref": {"type": "string"}}, "required": ["ref"], "app_only": True, "read_only": True,
+    },
+    "view__page": {
+        "description": "App-only. Load another page, sort order or search of a table shown by a previous result.",
+        "properties": {"token": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                       "sort_key": {"type": "string"}, "sort_dir": {"type": "string", "enum": ["asc", "desc"]},
+                       "search_key": {"type": "string"}, "search": {"type": "string"},
+                       "filters": {"type": "array", "maxItems": 8, "items": {"type": "object", "properties": {"field": {"type": "string"}, "operator": {"type": "string", "enum": ["=", "!=", ">=", "<=", "like", "in"]}, "value": {}}, "required": ["field", "operator", "value"]}}},
+        "required": ["token"], "app_only": True, "read_only": True,
+    },
 }
 # MCP clients cannot render artifacts inline; tell the model what to do instead.
 MCP_DESCRIPTION_NOTES = {
@@ -83,8 +170,46 @@ class MCPService:
             "ERPNext/Frappe tools with server-side user permissions. "
             f"This connection provides {mode}. Discover DocTypes and schemas before querying. "
             "Never invent document names or field names. Action-request tools do not modify "
-            "documents directly; they create a pending approval in Frappe."
-        )
+            "documents directly; they create a pending approval. Results carry a structured "
+            "`summary` for you and a `presentation` that the host renders for the user: do not "
+            "re-print tables or repeat the numbers, add analysis and the next step instead. "
+            "When an approval is pending, the user may click the card's button OR approve in chat: if they say "
+            "'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you "
+            "just received) and approve; never approve without the user's explicit word. approvals__decide "
+            "executes, verifies and returns the document link. If the request needs prerequisite records "
+            "(a customer or item that does not exist), put them in ONE bulk request, and once the user "
+            "approves it continue with the main document (for example the invoice) in the same task "
+            "instead of presenting the prerequisites as the final result. Ask with app__choose when "
+            "a choice is ambiguous (which company, which warehouse) instead of guessing."
+        ) + self._memory_instructions()
+
+    def _memory_instructions(self):
+        """What the user's Desk conversations taught the assistant, so every MCP host
+        (ChatGPT, Claude, Cline) starts from the same preferences. Preferences only —
+        they are few and short; facts stay behind memory__search."""
+        try:
+            from ai_agent.engine import memory as memory_mod
+
+            if not memory_mod.enabled(self.agent, self.settings):
+                return ""
+            rows = frappe.get_all(
+                "AI Memory",
+                filters={"user": self.user, "memory_type": "Preference"},
+                fields=["content", "expires_at"],
+                order_by="modified desc",
+                limit=memory_mod.MAX_PREFERENCES,
+            )
+            now = frappe.utils.now_datetime()
+            lines = [f"- {memory_mod._line(frappe._dict(r))}" for r in rows if not (r.expires_at and r.expires_at < now)]
+            facts = frappe.db.count("AI Memory", {"user": self.user, "memory_type": ("!=", "Preference")})
+        except Exception:
+            return ""
+        out = ""
+        if lines:
+            out += "\n\nThis user's remembered preferences (apply them):\n" + "\n".join(lines)
+        if facts:
+            out += f"\n\n{facts} remembered facts about this user's work (customers, mappings, habits) are available: call memory__search with the entity or topic before asking the user something they may have told you before."
+        return out
 
     def list_tools(self):
         tools = []
@@ -100,27 +225,108 @@ class MCPService:
                 "inputSchema": self._input_schema(registered),
                 "annotations": {"title": title, **self._annotations(registered)},
             }
+            meta = self._tool_meta(name)
+            if meta:
+                tool["_meta"] = meta
             tools.append(tool)
+        tools += self._synthetic_tools()
+        events.log("tool_registered", user=self.user, count=len(tools), with_ui=sum(1 for t in tools if "_meta" in t and t["_meta"].get("ui", {}).get("resourceUri")))
         return sorted(tools, key=lambda tool: tool["name"])
 
+    def _tool_meta(self, internal_name):
+        if internal_name in registered_tools():
+            return hosts.tool_ui_meta()
+        return None
+
+    def _synthetic_tools(self):
+        if not self._action_requests_enabled():
+            available = {k: SYNTHETIC_TOOLS[k] for k in ("app__probe", "app__choose", "view__page", "view__load", "view__event")}
+        elif not approvals.app_approval_enabled():
+            available = {k: v for k, v in SYNTHETIC_TOOLS.items() if not v["app_only"] or k in ("view__page", "view__load", "view__event")}
+        else:
+            available = SYNTHETIC_TOOLS
+        out = []
+        for name, spec in available.items():
+            out.append({
+                "name": name, "title": TOOL_TITLES[name], "description": spec["description"],
+                "inputSchema": {"type": "object", "properties": spec["properties"], "required": spec["required"], "additionalProperties": False},
+                "annotations": {"title": TOOL_TITLES[name], "readOnlyHint": spec["read_only"], "destructiveHint": bool(spec.get("destructive")),
+                                "idempotentHint": spec["read_only"], "openWorldHint": False},
+                "_meta": hosts.tool_ui_meta(app_only=spec["app_only"], with_view=not spec["app_only"],
+                                            resource_uri=hosts.minimal_uri() if spec.get("resource") == "minimal" else None),
+            })
+        return out
+
+    def note_request(self, method, params):
+        try:
+            diagnostics.note_request(self.user, method, params if isinstance(params, dict) else {}, dict(frappe.request.headers) if getattr(frappe, "request", None) else {})
+        except Exception:
+            pass   # diagnostics must never break a request
+
+    def note_resource_requested(self, uri):
+        events.log("ui_resource_requested", user=self.user, uri=uri)
+
+    def note_resource_failed(self, uri, error):
+        events.log("ui_resource_failed", user=self.user, uri=uri, error=str(error)[:200])
+
+    def note_resource_read(self, uri):
+        events.log("ui_resource_loaded", user=self.user, uri=uri)
+        try:
+            diagnostics.note_resource_read(self.user, uri)
+        except Exception:
+            pass
+
+    def set_client_capabilities(self, capabilities, *, remember=False):
+        """Host capability detection, best evidence first.
+
+        1. The host declared MCP Apps (``extensions["io.modelcontextprotocol/ui"]``): supported.
+        2. The host already fetched one of our UI resources: it renders views, whatever it declared.
+        3. The host declared capabilities without MCP Apps: not supported (clean text fallback).
+        4. Nothing known yet: unknown (views are offered, approval buttons wait for evidence).
+        """
+        declared = hosts.ui_supported(capabilities)
+        key = frappe.cache.make_key(f"ai-agent-mcp-ui:{self.user}")
+        if declared is None:
+            raw = frappe.cache.get_value(key)
+            declared = None if raw is None else bool(raw)
+        elif remember:
+            frappe.cache.set_value(key, 1 if declared else 0, expires_in_sec=86400)
+        supported = True if declared or diagnostics.render_seen(self.user) else declared
+        self.ui_supported = supported
+        frappe.flags.mcp_ui_supported = supported
+
     def call_tool(self, external_name, arguments):
+        if external_name in SYNTHETIC_TOOLS:
+            return self._call_synthetic(external_name, arguments)
         internal_name = self._internal_name(external_name)
         registered = self.registry.get_tool(internal_name)
         if not registered or not self._is_exposed(registered):
-            return tool_result({"error": f"Tool '{external_name}' is not available."}, is_error=True)
+            return self._error(f"Tool '{external_name}' is not available.")
 
         run = self._create_run(internal_name, arguments)
         ctx = PermissionContext(self.user, self.agent.name, self.company)
         gateway = ToolGateway(ctx, self.registry)
 
+        then = None
         try:
             if internal_name.startswith(ACTION_PREFIX):
+                then = arguments.pop("then", None)
+                if then is not None:
+                    then = continuation.clean(then)
                 gateway.create_approval(internal_name, arguments, run.name, None, self.agent)
                 handler_arguments = dict(arguments)
                 handler_arguments["run"] = run.name
                 result = self._execute_handler(registered, handler_arguments, ctx)
                 status = "Waiting Approval"
+                if isinstance(result, dict) and result.get("approval_id"):
+                    events.log("approval_created", user=self.user, tool=internal_name, approval_id=result["approval_id"], doctype=result.get("doctype"))
+                    if then:
+                        continuation.store(result["approval_id"], self.user, then)
+                        events.log("continuation_stored", user=self.user, approval_id=result["approval_id"], goal=then["goal"])
+                    if not approvals.approval_required():
+                        return self._direct_execute(result["approval_id"], internal_name, run.name)
             else:
+                events.log("tool_called", user=self.user, tool=internal_name)
                 result = gateway.authorize_and_execute(
                     internal_name,
                     dict(arguments),
@@ -135,16 +341,263 @@ class MCPService:
             result = mask_tool_result(internal_name, arguments, result)
             is_error = isinstance(result, dict) and bool(result.get("error"))
             self._finish_run(run.name, status if not is_error else "Failed", result)
-            return tool_result(result, is_error=is_error)
+            if is_error:
+                return self._error(result.get("error"), internal_name)
+            envelope = present(internal_name, arguments, result, ctx)
+            if envelope:
+                return self._envelope_result(envelope, internal_name, arguments)
+            return tool_result(result)
+        except continuation.ContinuationError as exc:
+            self._finish_run(run.name, "Failed", {"error": str(exc)})
+            return self._error(str(exc))
         except (ToolDenied, PermissionDenied, frappe.PermissionError) as exc:
             frappe.db.rollback()
             self._finish_run(run.name, "Failed", {"error": str(exc)})
-            return tool_result({"error": str(exc)}, is_error=True)
+            return self._error(str(exc))
         except Exception:
             frappe.db.rollback()
             frappe.log_error(frappe.get_traceback(), f"MCP Tool Failed: {internal_name}")
             self._finish_run(run.name, "Failed", {"error": "Tool execution failed."})
-            return tool_result({"error": "Tool execution failed."}, is_error=True)
+            return self._error("Tool execution failed.")
+
+    ui_supported = None
+
+    def _envelope_result(self, envelope, internal_name, arguments, *, for_app=False):
+        """One contract for every presented tool: data / summary / presentation / actions / warnings / meta.
+
+        content            text fallback, complete on its own
+        structuredContent  what the model needs: data preview, summary, a lean presentation (no rows) and `ref`
+        _meta              the full view model for hosts that hand `_meta` to the view
+        Results of calls made by the view itself (`for_app`) carry the full view model in structuredContent, because
+        that is the one channel every MCP Apps host is documented to deliver to the view.
+        """
+        presentation = envelope.get("presentation")
+        if presentation and (presentation.get("paging") or {}).get("pageable") and internal_name in paging.PAGEABLE_TOOLS:
+            presentation["paging"]["token"] = paging.issue(internal_name, arguments, self.user)
+            presentation["paging"]["search_key"] = next(
+                (c["key"] for c in presentation.get("columns", []) if c["type"] == "text"), None)
+        if presentation and for_app:
+            shown = {**presentation, "full": True}
+        else:
+            shown = schema.lite(presentation)
+            ref = self._ref(presentation, internal_name, arguments)
+            if ref and isinstance(shown, dict):
+                shown["ref"] = ref
+        structured = {**envelope, "presentation": shown}
+        rows_in_text = 40 if self.ui_supported is False else 15
+        text = presentation_text.render(presentation, (envelope.get("summary") or {}).get("text"), max_rows=rows_in_text)
+        result = {
+            "content": [{"type": "text", "text": text or json.dumps(envelope["summary"], ensure_ascii=False, default=str)}],
+            "structuredContent": structured,
+            "isError": False,
+        }
+        if presentation and self.ui_supported is not False:
+            result["_meta"] = {"ai_agent/presentation": presentation}
+        else:
+            events.log("fallback_used", user=self.user, tool=internal_name, reason="host declared no MCP Apps support" if presentation else "tool has no view")
+        return result
+
+    def _error(self, message, tool=None):
+        """An error as the user should read it (title, reason, what to do); the raw text stays available to the model."""
+        view = friendly_errors.friendly(message, tool)
+        presentation = {"type": "error", "title": view["title"], "reason": view["reason"], "suggestion": view["suggestion"], "retry": view["retry"],
+                        "kind": view["kind"], "warnings": [], "actions": [], "insights": [], "developer": {"error": view["raw"], "tool": tool}}
+        result = {
+            "content": [{"type": "text", "text": friendly_errors.text_of(view)}],
+            "structuredContent": {"error": view["raw"], "error_view": {k: view[k] for k in ("kind", "title", "reason", "suggestion", "retry")},
+                                  "presentation": {k: v for k, v in presentation.items() if k != "developer"}},
+            "isError": True,
+        }
+        if self.ui_supported is not False:
+            result["_meta"] = {"ai_agent/presentation": presentation}
+        return result
+
+    def _ref(self, presentation, internal_name, arguments):
+        if not isinstance(presentation, dict) or self.ui_supported is False:
+            return None
+        if presentation.get("type") == "approval" and presentation.get("approval_id"):
+            return refs.issue("approval", {"id": presentation["approval_id"]}, self.user)
+        tool = self.registry.get_tool(internal_name) if internal_name else None
+        if tool and (tool.get("side_effect") or "read_only") in SAFE_SIDE_EFFECTS and presentation.get("type") in ("table", "document"):
+            return refs.issue("tool", {"t": internal_name, "a": arguments}, self.user)
+        return None
+
+    def _load(self, arguments):
+        """view__load: rebuild the full view model a reference names (an approval, or a read-only tool call repeated)."""
+        kind, payload = refs.read(arguments.get("ref"), self.user)
+        if kind == "approval":
+            return approvals.status(self.user, payload["id"]), "approvals.status", {}
+        tool, args = payload["t"], payload.get("a") or {}
+        registered = self.registry.get_tool(tool)
+        if not registered or not self._is_exposed(registered) or (registered.get("side_effect") or "read_only") not in SAFE_SIDE_EFFECTS:
+            raise approvals.ApprovalUiError("مرجع العرض غير صالح.")
+        run = self._create_run(tool, args)
+        ctx = PermissionContext(self.user, self.agent.name, self.company)
+        result = ToolGateway(ctx, self.registry).authorize_and_execute(tool, dict(args), run_name=run.name, agent_doc=self.agent)
+        from ai_agent.runtime.masking import mask_tool_result
+
+        result = mask_tool_result(tool, args, result)
+        if isinstance(result, dict) and result.get("error"):
+            self._finish_run(run.name, "Failed", result)
+            raise approvals.ApprovalUiError(str(result["error"]))
+        self._finish_run(run.name, "Completed", result)
+        envelope = present(tool, args, result, ctx)
+        if not envelope:
+            raise approvals.ApprovalUiError("تعذر بناء العرض.")
+        return envelope, tool, args
+
+    def _call_synthetic(self, name, arguments):
+        try:
+            if name == "app__probe":
+                return self._probe()
+            if name == "view__event":
+                for item in (arguments.get("events") or [])[:12]:
+                    if isinstance(item, dict) and item.get("event") in events.VIEW_EVENTS:
+                        events.log(item["event"], user=self.user, detail=str(item.get("detail") or "")[:200], view=str(arguments.get("view") or "")[:40])
+                try:
+                    diagnostics.note_resource_read(self.user, "rendered:" + str(arguments.get("view") or "view")[:40])   # proof the host renders views
+                except Exception:
+                    pass
+                return {"content": [{"type": "text", "text": "ok"}], "structuredContent": {"ok": True}, "isError": False}
+            if name == "app__choose":
+                return self._envelope_result(self._choose(arguments), "app.choose", {})
+            if name == "approvals__status":
+                envelope = approvals.status(self.user, arguments.get("approval_id"))
+            elif name == "approvals__list_pending":
+                envelope = approvals.list_pending(self.user)
+            elif name == "approvals__decide":
+                envelope = approvals.decide(self.user, arguments.get("approval_id"), arguments.get("decision"),
+                                            arguments.get("token") or None, arguments.get("reason"))
+                envelope = self._continue_after(envelope, arguments.get("approval_id"))
+            elif name == "approvals__revise":
+                envelope = approvals.revise(self.user, arguments.get("approval_id"), arguments.get("token"), arguments.get("changes"))
+            elif name == "view__load":
+                envelope, tool, load_args = self._load(arguments)
+                return self._envelope_result(envelope, tool, load_args, for_app=True)
+            else:
+                envelope, tool, page_args = self._page(arguments)
+                return self._envelope_result(envelope, tool, page_args, for_app=True)
+            # A call that carries the card's token was made by the view: it gets the full view model back.
+            by_app = name == "approvals__revise" or bool(arguments.get("token"))
+            return self._envelope_result(envelope, envelope["meta"].get("tool", name), {}, for_app=by_app)
+        except approvals.ApprovalUiError as exc:
+            return self._error(str(exc))
+        except (ToolDenied, PermissionDenied, frappe.PermissionError) as exc:
+            frappe.db.rollback()
+            return self._error(str(exc))
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(frappe.get_traceback(), f"MCP Synthetic Tool Failed: {name}")
+            return self._error("Tool execution failed.")
+
+    def _choose(self, arguments):
+        from ai_agent.presentation.presenters import choice
+
+        source = arguments.get("source")
+        if source:
+            if source not in choice.SOURCES:
+                raise approvals.ApprovalUiError("مصدر غير معروف.")
+            spec, options = choice.options_from_source(source, self.user)
+            title, subtitle, icon, reply = spec["title"], spec["subtitle"], spec["icon"], spec["reply"]
+        else:
+            options = choice.clean_options(arguments.get("options"))
+            title, subtitle, icon, reply = "اختر أحد الخيارات", None, "check", "اخترت: {label}"
+        if not options:
+            raise approvals.ApprovalUiError("لا توجد خيارات متاحة للاختيار.")
+        return choice.build(arguments.get("title") or title, options, subtitle=arguments.get("subtitle") or subtitle, icon=icon,
+                            reply_template=arguments.get("reply_template") or reply)
+
+    def _direct_execute(self, approval_id, internal_name, run_name):
+        """Approval not required: run the requester's own request now, verify, and continue its `then`."""
+        events.log("approval_skipped", user=self.user, tool=internal_name, approval_id=approval_id, reason="mcp_require_approval=0")
+        engine = ApprovalEngine(PermissionContext(self.user))
+        approval = frappe.get_doc("AI Approval Request", approval_id)
+        try:
+            events.log("approval_direct_execute", user=self.user, approval_id=approval_id, doctype=approval.doctype_name)
+            result = engine.execute_direct(approval_id, self.user)
+        except Exception as exc:
+            frappe.db.rollback()
+            events.log("approval_failed", user=self.user, approval_id=approval_id, error=str(exc)[:200])
+            self._finish_run(run_name, "Failed", {"error": str(exc)})
+            approval.reload()
+            return self._envelope_result(approvals.card_envelope(approval, self.user, tool=internal_name, state="failed", error=approvals._plain_error(exc)), internal_name, {})
+        approval.reload()
+        verified = approvals.record_verification(self.user, approval, result, via="direct", mode="direct")
+        approval.reload()
+        self._finish_run(run_name, "Completed", result)
+        envelope = approvals.card_envelope(approval, self.user, tool=internal_name, state="verified" if verified else "executed", result=result)
+        envelope["data"]["approval_required"] = False
+        return self._envelope_result(self._continue_after(envelope, approval_id), internal_name, {})
+
+    def _continue_after(self, envelope, approval_id):
+        """After an executed request, prepare the stored next step (the user's original goal) and attach it."""
+        state = (envelope.get("summary") or {}).get("state")
+        if state not in ("executed", "verified") or not approval_id:
+            return envelope
+        then = continuation.take(approval_id)
+        if not then:
+            return envelope
+        events.log("continuation_started", user=self.user, approval_id=approval_id, goal=then["goal"], tool=then["tool"])
+        created = continuation.created_documents((envelope.get("data") or {}).get("result") or {})
+        try:
+            args = continuation.resolve(then["arguments"], created)
+            next_result = self.call_tool(then["tool"], dict(args))
+        except continuation.ContinuationError as exc:
+            events.log("continuation_failed", user=self.user, approval_id=approval_id, error=str(exc)[:200])
+            envelope["warnings"].append({"level": "warning", "text": f"تعذّر متابعة الهدف الأصلي ({then['goal']}): {exc}", "code": "continuation"})
+            envelope["summary"]["text"] += f" تعذّرت المتابعة التلقائية: {exc}"
+            return envelope
+        nxt = next_result.get("structuredContent") or {}
+        next_text = (nxt.get("summary") or {}).get("text") or "".join(c.get("text", "") for c in next_result.get("content") or [] if c.get("type") == "text")
+        if next_result.get("isError"):
+            events.log("continuation_failed", user=self.user, approval_id=approval_id, error=str(next_text)[:200])
+            envelope["warnings"].append({"level": "warning", "text": f"تعذّر متابعة الهدف الأصلي ({then['goal']}): {next_text}", "code": "continuation"})
+            envelope["summary"]["text"] += f" تعذّرت المتابعة التلقائية: {next_text}"
+            return envelope
+        events.log("continuation_completed", user=self.user, approval_id=approval_id, next_approval=(nxt.get("data") or {}).get("approval_id"))
+        # The next step's card replaces the finished one; the finished step is summarised in a line above it.
+        done_text = envelope["summary"]["text"]
+        merged = next_result.get("_meta", {}).get("ai_agent/presentation") or nxt.get("presentation")
+        out = {**nxt}
+        out["summary"] = {**(nxt.get("summary") or {}), "text": f"{done_text} ثم تابعنا الهدف الأصلي ({then['goal']}): {(nxt.get('summary') or {}).get('text', '')}"}
+        out["data"] = {**(nxt.get("data") or {}), "previous_step": envelope.get("data")}
+        out["meta"] = {**(nxt.get("meta") or {}), "continued_from": approval_id, "goal": then["goal"]}
+        out["presentation"] = merged
+        if merged and isinstance(merged, dict):
+            merged.setdefault("insights", []).insert(0, f"اكتملت الخطوة السابقة: {done_text}")
+        out["warnings"] = list(nxt.get("warnings") or [])
+        out["actions"] = list(nxt.get("actions") or [])
+        return out
+
+    def _probe(self):
+        """Smallest possible tool result: structuredContent + a plain sentence that stands alone without any UI."""
+        count = len(frappe.get_list("Company", pluck="name", user=self.user, limit_page_length=0))
+        return {
+            "content": [{"type": "text", "text": f"عدد الشركات: {count}"}],
+            "structuredContent": {"companies": count, "user": self.user},
+            "isError": False,
+        }
+
+    def _page(self, arguments):
+        tool, original = paging.read(arguments.get("token"), self.user)
+        args = paging.page_arguments(
+            original, offset=arguments.get("offset"), limit=arguments.get("limit"), sort_key=arguments.get("sort_key"),
+            sort_dir=arguments.get("sort_dir"), search_key=arguments.get("search_key"), search=arguments.get("search"), filters=arguments.get("filters"))
+        run = self._create_run(tool, args)
+        ctx = PermissionContext(self.user, self.agent.name, self.company)
+        result = ToolGateway(ctx, self.registry).authorize_and_execute(tool, dict(args), run_name=run.name, agent_doc=self.agent)
+        from ai_agent.runtime.masking import mask_tool_result
+
+        result = mask_tool_result(tool, args, result)
+        if isinstance(result, dict) and result.get("error"):
+            self._finish_run(run.name, "Failed", result)
+            raise approvals.ApprovalUiError(str(result["error"]))
+        self._finish_run(run.name, "Completed", result)
+        envelope = present(tool, args, result, ctx)
+        if not envelope:
+            raise approvals.ApprovalUiError("تعذر عرض الصفحة.")
+        envelope["meta"]["paged"] = True
+        return envelope, tool, args
 
     def _assert_access(self):
         if self.user in (None, "", "Guest"):
@@ -195,7 +648,11 @@ class MCPService:
             return False
         if tool["name"] in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
             return False
-        if tool["name"] == "tools.request_more":
+        if tool["name"] in ("tools.request_more", "files.read"):   # files.read reads Desk chat attachments only
+            return False
+        from ai_agent.runtime import access
+
+        if not access.tool_allowed(tool["name"]):   # a plugin's tool: AI Settings access rules
             return False
         side_effect = tool.get("side_effect") or "read_only"
         if side_effect in SAFE_SIDE_EFFECTS:
@@ -258,6 +715,8 @@ class MCPService:
         schema.setdefault("type", "object")
         schema.setdefault("properties", {})
         schema.setdefault("additionalProperties", False)
+        if tool["name"] in ("actions.request_bulk_create", "actions.request_create_draft"):
+            schema["properties"]["then"] = THEN_SCHEMA
         return schema
 
     @staticmethod

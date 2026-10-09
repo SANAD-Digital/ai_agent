@@ -18,6 +18,13 @@ PERMTYPE_BY_ACTION = {
 TARGET_NOT_ACCESSIBLE = "Target document not found or not accessible."
 
 
+def _approved_methods():
+    """The only methods an "Approved Method" approval may run: name -> (check, execute)."""
+    from ai_agent.tools import messaging
+
+    return {messaging.METHOD: (messaging.assert_email_allowed, messaging.send_email)}
+
+
 class ApprovalEngine:
     """Manages the approval lifecycle for write operations."""
 
@@ -92,7 +99,8 @@ class ApprovalEngine:
         if user == "Guest":
             raise PermissionDenied("Guest users cannot approve actions.")
 
-        approval = frappe.get_doc("AI Approval Request", approval_name)
+        # SELECT ... FOR UPDATE: a concurrent second decision waits for the first and then sees its final status.
+        approval = frappe.get_doc("AI Approval Request", approval_name, for_update=True)
 
         if approval.status != "Pending":
             raise ApprovalAlreadyExecuted(f"Approval is already {approval.status}.")
@@ -129,7 +137,7 @@ class ApprovalEngine:
     def reject(self, approval_name, reason=None, user=None):
         """Reject an approval request."""
         user = user or frappe.session.user
-        approval = frappe.get_doc("AI Approval Request", approval_name)
+        approval = frappe.get_doc("AI Approval Request", approval_name, for_update=True)
 
         if approval.status != "Pending":
             raise ApprovalAlreadyExecuted(f"Approval is already {approval.status}.")
@@ -149,8 +157,8 @@ class ApprovalEngine:
         return approval
 
     def execute_approved_action(self, approval_name):
-        """Execute an approved action."""
-        approval = frappe.get_doc("AI Approval Request", approval_name)
+        """Execute an approved action, exactly once."""
+        approval = frappe.get_doc("AI Approval Request", approval_name, for_update=True)
 
         if approval.status != "Approved":
             raise ApprovalAlreadyExecuted(f"Cannot execute: approval status is {approval.status}.")
@@ -172,7 +180,12 @@ class ApprovalEngine:
             user,
         )
 
-        result = self._execute_by_type(approval)
+        try:
+            result = self._execute_by_type(approval)
+        except Exception as exc:
+            frappe.db.rollback()
+            self._mark_failed(approval_name, exc)
+            raise
         try:
             from ai_agent.runtime.memory_learning import learn_from_executed_approval
 
@@ -183,6 +196,37 @@ class ApprovalEngine:
                 frappe.get_traceback(), f"AI Memory Learning Failed: {approval.name}"
             )
         return result
+
+    def _mark_failed(self, approval_name, exc):
+        """A failed execution ends as Failed (never left Approved, which would invite a blind retry)."""
+        frappe.log_error(frappe.get_traceback(), f"AI Approval execution failed: {approval_name}")
+        approval = frappe.get_doc("AI Approval Request", approval_name, for_update=True)
+        if approval.status in ("Executed", "Failed"):
+            return
+        approval.status = "Failed"
+        approval.executed_at = frappe.utils.now_datetime()
+        approval.execution_result = json.dumps({"error": frappe.utils.strip_html(str(exc))[:500]}, ensure_ascii=False)
+        approval.save(ignore_permissions=True)
+        frappe.db.commit()
+
+    def execute_direct(self, approval_name, user):
+        """Approval is not required by policy: the requester's own request runs at once, under the requester's permissions.
+
+        Same validation and the same executor as an approved request; only the human step is skipped.
+        """
+        approval = frappe.get_doc("AI Approval Request", approval_name, for_update=True)
+        if approval.status != "Pending":
+            raise ApprovalAlreadyExecuted(f"Request is already {approval.status}.")
+        if approval.requested_by != user:
+            raise PermissionDenied("Only the requester can run this request directly.")
+        if approval.payload_hash != self._compute_hash(approval.payload_json):
+            raise PermissionDenied("Payload has been tampered with.")
+        approval.status = "Approved"
+        approval.approved_by = user
+        approval.decided_at = frappe.utils.now_datetime()
+        approval.save(ignore_permissions=True)
+        frappe.db.commit()
+        return self.execute_approved_action(approval.name)
 
     def _execute_by_type(self, approval):
         """Route execution based on action type."""
@@ -200,6 +244,9 @@ class ApprovalEngine:
             return self._execute_cancel(approval)
         elif approval.action_type == "Workflow":
             return self._execute_workflow(approval, payload)
+        elif approval.action_type == "Approved Method":
+            _check, execute = _approved_methods()[payload.get("method")]
+            return execute(payload, approval)
         else:
             raise ApprovalRequired(f"Action type '{approval.action_type}' not yet implemented.")
 
@@ -210,12 +257,14 @@ class ApprovalEngine:
         crash cannot leave an executed document behind a still-Approved
         request (which would invite a duplicate re-execution).
         """
-        doc = frappe.get_doc(payload)
+        # The approved DocType is authoritative: request tools send the payload without a "doctype" key, and
+        # assert_action_allowed has already refused a payload that names a different one.
+        doc = frappe.get_doc({**payload, "doctype": approval.doctype_name})
         doc.insert(ignore_permissions=False)
 
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
-        approval.execution_result = json.dumps({"document_name": doc.name}, default=str)
+        approval.execution_result = json.dumps({"document_name": doc.name, "doctype": approval.doctype_name}, default=str)
         approval.save(ignore_permissions=True)
         frappe.db.commit()
 
@@ -369,6 +418,15 @@ class ApprovalEngine:
         except policy.PolicyViolation as exc:
             raise PermissionDenied(str(exc))
 
+        if action_type == "Approved Method":
+            method = (payload or {}).get("method") if isinstance(payload, dict) else None
+            if method not in _approved_methods():
+                raise PermissionDenied(f"Method '{method}' is not an approved method.")
+            try:
+                _approved_methods()[method][0](payload, user)
+            except (frappe.PermissionError, frappe.ValidationError) as exc:
+                raise PermissionDenied(str(exc))
+            return None
         if action_type == "Bulk Create":
             for document in self._bulk_documents(payload):
                 self._assert_create_allowed(document["doctype"], document["payload"], user)

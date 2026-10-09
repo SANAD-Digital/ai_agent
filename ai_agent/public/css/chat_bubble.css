@@ -1,0 +1,130 @@
+/* chat_bubble.css — the floating support chat button only (loaded on every
+ * Desk page; the panel styles live in chat.css and load on first open). */
+
+:root {
+    --acb-accent: #c96442;
+    --acb-accent-hover: #b5573a;
+    --acb-on-accent: #ffffff;
+    --acb-ring: rgba(201, 100, 66, 0.32);
+    --acb-dot: #c53030;
+    --acb-shadow: 0 2px 6px rgba(20, 20, 16, 0.14), 0 10px 28px rgba(20, 20, 16, 0.18);
+}
+[data-theme="dark"] {
+    --acb-accent: #d97757;
+    --acb-accent-hover: #e48a6c;
+    --acb-on-accent: #1b1b19;
+    --acb-ring: rgba(217, 119, 87, 0.4);
+    --acb-dot: #f0605d;
+    --acb-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+.acb-fab {
+    position: fixed;
+    inset-inline-end: 20px;
+    bottom: 20px;
+    z-index: 1020;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--acb-accent);
+    color: var(--acb-on-accent);
+    box-shadow: var(--acb-shadow);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.acb-fab[hidden] {
+    display: none;
+}
+.acb-fab:hover {
+    background: var(--acb-accent-hover);
+    transform: translateY(-1px);
+}
+.acb-fab:active {
+    transform: scale(0.96);
+}
+.acb-fab:focus-visible {
+    outline: none;
+    box-shadow: var(--acb-shadow), 0 0 0 4px var(--acb-ring);
+}
+.acb-icon {
+    width: 24px;
+    height: 24px;
+}
+.acb-icon-down,
+.acb-fab.is-open .acb-icon-chat {
+    display: none;
+}
+.acb-fab.is-open .acb-icon-down {
+    display: block;
+}
+
+/* unread: a reply finished (or asks for approval) while the panel was closed */
+.acb-dot {
+    position: absolute;
+    top: 2px;
+    inset-inline-end: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--acb-dot);
+    box-shadow: 0 0 0 2px var(--acb-on-accent);
+    opacity: 0;
+    transform: scale(0.4);
+    transition: opacity 0.15s, transform 0.15s;
+}
+.acb-fab.is-unread .acb-dot {
+    opacity: 1;
+    transform: none;
+}
+
+/* working: a message is pending / streaming, or the modules are loading */
+.acb-fab.is-working::after,
+.acb-fab.is-loading::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 var(--acb-ring);
+    animation: acb-pulse 1.6s ease-out infinite;
+    pointer-events: none;
+}
+@keyframes acb-pulse {
+    0% { box-shadow: 0 0 0 0 var(--acb-ring); }
+    100% { box-shadow: 0 0 0 14px rgba(0, 0, 0, 0); }
+}
+
+@media (max-width: 639.98px) {
+    .acb-fab {
+        inset-inline-end: 16px;
+        bottom: 16px;
+    }
+    /* the panel is a full-screen sheet with its own close button */
+    .acb-fab.is-open {
+        display: none;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .acb-fab,
+    .acb-dot {
+        transition: none;
+    }
+    .acb-fab:hover,
+    .acb-fab:active {
+        transform: none;
+    }
+    .acb-fab.is-working::after,
+    .acb-fab.is-loading::after {
+        animation: none;
+        box-shadow: 0 0 0 3px var(--acb-ring);
+    }
+}
+@media print {
+    .acb-fab {
+        display: none;
+    }
+}

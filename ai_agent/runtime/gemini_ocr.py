@@ -162,13 +162,6 @@ def is_gemini_ocr_enabled():
     return not _uses_cloud_engine(settings) or _cloud_ocr_allowed()
 
 
-def should_fallback_to_tesseract():
-    settings = _get_settings_or_none()
-    if not settings:
-        return True
-    return bool(settings.fallback_to_tesseract)
-
-
 def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
     settings = _get_settings_or_none()
     if not settings or not settings.enabled:
@@ -180,6 +173,10 @@ def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
         return ""
 
     if ocr_engine == "Local Engine (PaddleOCR / PyMuPDF)":
+        if not _paddle_runtime_installed():
+            # The heavy PaddleOCR environment is optional; RapidOCR runs the same
+            # models on onnxruntime in-process and is what most servers use.
+            return _rapid_ocr(data)
         try:
             from ai_agent.runtime.local_ocr import run_local_ocr_bytes
             # Same downscale/compress pass the cloud path gets: raw high-res
@@ -190,34 +187,44 @@ def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
         except Exception as exc:
             _set_last_error(str(exc))
             frappe.log_error(frappe.get_traceback(), "Local OCR Engine Failed")
-            return ""
+            return _rapid_ocr(data)
 
     try:
         _set_last_error("")
-        return GeminiOCRClient(settings).extract_text_from_image(data, mime_type=mime_type, prompt=prompt)
+        text = GeminiOCRClient(settings).extract_text_from_image(data, mime_type=mime_type, prompt=prompt)
+        if text and text.strip():
+            return text
     except Exception as exc:
         _set_last_error(str(exc))
         frappe.log_error(frappe.get_traceback(), "Gemini OCR Failed")
+    # Cloud failed (no credits, network, quota): a light local read beats nothing.
+    return _rapid_ocr(data)
+
+
+def _paddle_runtime_installed():
+    try:
+        from ai_agent.runtime.local_ocr import _validate_runtime
+
+        _validate_runtime()
+        return True
+    except Exception:
+        return False
+
+
+def _rapid_ocr(data):
+    from ai_agent.runtime import rapid_ocr
+
+    if not rapid_ocr.available():
+        _set_last_error((get_last_gemini_ocr_error() + " | " if get_last_gemini_ocr_error() else "") + "No local OCR engine is installed (rapidocr).")
         return ""
+    text = rapid_ocr.ocr_text(data)
+    if not text:
+        _set_last_error("Local OCR (RapidOCR) found no text in the image.")
+    return text
 
 
 def get_last_gemini_ocr_error():
     return getattr(frappe.local, "gemini_ocr_last_error", "")
-
-
-def is_fatal_gemini_ocr_error(message):
-    text = str(message or "").lower()
-    markers = (
-        "credits are depleted",
-        "prepayment credits",
-        "billing",
-        "api key is not configured",
-        "api key not valid",
-        "invalid api key",
-        "permission denied",
-        "authentication",
-    )
-    return any(marker in text for marker in markers)
 
 
 def test_gemini_ocr_connection():

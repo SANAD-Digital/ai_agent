@@ -22,10 +22,6 @@ class QueryValidationError(MYSYSAgentError):
     pass
 
 
-class QueryCostError(MYSYSAgentError):
-    pass
-
-
 class ApprovalRequired(MYSYSAgentError):
     pass
 
@@ -51,10 +47,6 @@ class RunLimitExceeded(MYSYSAgentError):
 
 
 class ModelProviderError(MYSYSAgentError):
-    pass
-
-
-class SchemaDiscoveryError(MYSYSAgentError):
     pass
 
 

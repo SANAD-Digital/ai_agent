@@ -75,19 +75,3 @@ class ArtifactService:
         frappe.db.commit()
         return artifact
 
-    def create_text(self, run_name, title, text, sequence=1):
-        """Create a text artifact."""
-        artifact = frappe.get_doc({
-            "doctype": "AI Artifact",
-            "parent": run_name,
-            "parenttype": "AI Run",
-            "parentfield": "artifacts",
-            "run": run_name,
-            "artifact_type": "Text",
-            "title": title,
-            "content_json": json.dumps({"text": text}, default=str),
-            "sequence": sequence,
-        })
-        artifact.insert(ignore_permissions=True)
-        frappe.db.commit()
-        return artifact

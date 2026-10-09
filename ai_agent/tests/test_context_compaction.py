@@ -2,7 +2,6 @@
 
 import json
 
-import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.runtime import result_compaction
@@ -41,16 +40,16 @@ class TestDescribeDoctype(IntegrationTestCase):
 
 class TestSchemaReferences(IntegrationTestCase):
 	def test_reference_files_exist_for_top_doctypes(self):
-		references = SkillRegistry().list_references("frappe-schema-discovery")
+		references = SkillRegistry().list_references("system")
 		for name in ("sales-invoice", "payment-entry", "gl-entry", "bin", "item", "customer"):
 			self.assertIn(name, references)
 		self.assertGreaterEqual(len(references), 15)
 
 	def test_reference_path_traversal_is_blocked(self):
 		registry = SkillRegistry()
-		self.assertIn("# Sales Invoice", registry.read_reference("frappe-schema-discovery", "sales-invoice"))
+		self.assertIn("# Sales Invoice", registry.read_reference("system", "sales-invoice"))
 		for bad in ("../../hooks", "../SKILL", "/etc/passwd", "..%2f..%2fhooks"):
-			self.assertIsNone(registry.read_reference("frappe-schema-discovery", bad), bad)
+			self.assertIsNone(registry.read_reference("system", bad), bad)
 		self.assertIsNone(registry.read_reference("../..", "hooks"))
 
 

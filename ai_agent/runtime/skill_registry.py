@@ -8,6 +8,17 @@ from ai_agent.runtime.exceptions import SkillNotFound, SkillDenied
 SKILLS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), SKILL_INSTRUCTIONS_DIR)
 
 
+# The small skills of before 2026-10 were merged into one skill per domain.
+MERGED_INTO = {
+    **dict.fromkeys(("sales-analysis", "customer-analysis", "receivables-analysis"), "sales"),
+    **dict.fromkeys(("purchase-analysis", "supplier-analysis", "payables-analysis"), "purchasing"),
+    **dict.fromkeys(("inventory-analysis", "diagnose-stock-movement", "diagnose-item-search"), "inventory"),
+    **dict.fromkeys(("accounting-analysis", "profitability-analysis", "diagnose-gl-entries", "diagnose-party-statement"), "accounting"),
+    **dict.fromkeys(("document-creation", "document-workflow", "compound-document-operations", "erpnext-native-tools"), "documents"),
+    **dict.fromkeys(("setup-readiness", "data-quality-audit", "frappe-schema-discovery", "report-analysis"), "system"),
+}
+
+
 class SkillRegistry:
     """Manages skill discovery, loading, and grant resolution."""
 
@@ -38,10 +49,6 @@ class SkillRegistry:
 
         self._permission_cache[cache_key] = skills
         return skills
-
-    def get_skill_metadata(self, skill_name, user, agent_name, company=None):
-        """Get metadata for a specific skill."""
-        return self._get_skill_metadata(skill_name)
 
     def load_skill(self, skill_name, user, agent_name, company=None):
         """Load full skill instructions and tool list."""
@@ -114,7 +121,7 @@ class SkillRegistry:
                     continue
                 changed = False
                 standard_values = {
-                    "title": skill_name.replace("-", " ").title(),
+                    "title": meta.get("title") or skill_name.replace("-", " ").title(),
                     "description": description,
                     "source_type": "App File",
                     "skill_path": entry,
@@ -146,7 +153,7 @@ class SkillRegistry:
                 skill_doc = frappe.get_doc({
                     "doctype": "AI Skill",
                     "skill_name": skill_name,
-                    "title": skill_name.replace("-", " ").title(),
+                    "title": meta.get("title") or skill_name.replace("-", " ").title(),
                     "description": description,
                     "source_type": "App File",
                     "skill_path": entry,
@@ -169,7 +176,23 @@ class SkillRegistry:
                         tool_result_limits,
                     )
                 skill_doc.insert(ignore_permissions=True)
+        self._drop_retired_app_skills()
         frappe.db.commit()
+
+    def _drop_retired_app_skills(self):
+        """App-file skills whose folder the app no longer ships. A skill merged into a
+        domain skill hands its grants over to it; then it goes, with its grants."""
+        for row in frappe.get_all("AI Skill", filters={"source_type": "App File"}, fields=["name", "skill_path"]):
+            if row.skill_path and os.path.isfile(os.path.join(SKILLS_DIR, row.skill_path, "SKILL.md")):
+                continue
+            target = MERGED_INTO.get(row.name)
+            for grant in frappe.get_all("AI Skill Grant", filters={"skill": row.name}, fields=["*"]):
+                if target and frappe.db.exists("AI Skill", target):
+                    keys = {"agent": grant.agent, "skill": target, "grant_type": grant.grant_type, "role": grant.role, "user": grant.user, "company": grant.company}
+                    if not frappe.db.exists("AI Skill Grant", keys):
+                        frappe.get_doc({"doctype": "AI Skill Grant", **keys, "enabled": grant.enabled, "valid_from": grant.valid_from, "valid_until": grant.valid_until}).insert(ignore_permissions=True)
+                frappe.delete_doc("AI Skill Grant", grant.name, ignore_permissions=True, force=True)
+            frappe.delete_doc("AI Skill", row.name, ignore_permissions=True, force=True)
 
     def _get_skill_metadata(self, skill_name):
         if skill_name in self._metadata_cache:
@@ -304,6 +327,14 @@ class SkillRegistry:
                     if grant in matched:
                         matched.remove(grant)
 
+        # The agent may hold the skill, but the user also needs a rule in AI Settings
+        # (always-on skills are policy and stay out of that table).
+        from ai_agent.runtime import access
+
+        allowed = access.allowed_names(access.SKILL, user)
+        if allowed is not None:
+            implicit = set(frappe.get_all("AI Skill", filters={"allow_implicit_invocation": 1}, pluck="name"))
+            matched = [g for g in matched if g.skill in implicit or g.skill in allowed]
         return matched
 
     def _is_skill_granted(self, skill_name, user, agent_name, company=None):

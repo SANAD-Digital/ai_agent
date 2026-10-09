@@ -1,0 +1,212 @@
+{#-
+	Overrides frappe/templates/includes/oauth_confirmation.html (the OAuth
+	Allow/Deny screen shown to MCP clients such as Claude and ChatGPT).
+	Same inputs: client_id, success_url, failure_url, details, csrf_token, error.
+	client_id is the client-chosen app name from dynamic registration, so it is
+	always escaped.
+-#}
+{%- set ar = ((frappe.lang or "en")[:2] == "ar") -%}
+{%- set user = frappe.session.user -%}
+{%- set full_name = frappe.get_fullname(user) or user -%}
+{%- set user_image = frappe.db.get_value("User", user, "user_image") -%}
+{#- The domain, not a configurable name, so users can confirm where they sign in. -#}
+{%- set site_name = (frappe.utils.get_url() | string).split("://")[-1] -%}
+{%- set site_logo = frappe.db.get_single_value("Website Settings", "app_logo")
+	or frappe.db.get_single_value("Navbar Settings", "app_logo")
+	or frappe.db.get_single_value("Website Settings", "favicon")
+	or ("/assets/erpnext/images/erpnext-favicon.svg" if frappe.db.exists("Module Def", "Selling") else "") -%}
+{%- set app_name = (client_id or "App") | string -%}
+{%- set redirect_host = ((failure_url or "") | string).split("/")[2] if "://" in (failure_url or "") | string else "" -%}
+{%- macro t(en, ar_text) -%}{{ ar_text if ar else en }}{%- endmacro -%}
+{%- macro initials(name) -%}{{ (name or "?")[:1] | upper }}{%- endmacro -%}
+
+<style>
+	:root {
+		--oc-bg: #f5f6f8;
+		--oc-card: #ffffff;
+		--oc-text: #1b1d21;
+		--oc-muted: #6b7280;
+		--oc-border: #e6e8ec;
+		--oc-soft: #f3f4f6;
+		--oc-accent: #111827;
+		--oc-accent-text: #ffffff;
+		--oc-ok: #0f9d58;
+		--oc-ok-soft: #e7f6ee;
+		--oc-warn-soft: #fff7e6;
+		--oc-warn: #9a6700;
+	}
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--oc-bg: #0f1115;
+			--oc-card: #171a20;
+			--oc-text: #eef0f3;
+			--oc-muted: #9aa1ad;
+			--oc-border: #272b33;
+			--oc-soft: #1f232a;
+			--oc-accent: #f3f4f6;
+			--oc-accent-text: #111827;
+			--oc-ok: #34c77b;
+			--oc-ok-soft: #13261c;
+			--oc-warn-soft: #2a2312;
+			--oc-warn: #f0c060;
+		}
+	}
+	/* Strip the generic message-page chrome around this card. */
+	body { background: var(--oc-bg) !important; }
+	.page-card-head { display: none !important; }
+	.error-page, .error-page > div, .error-page .details {
+		max-width: none !important; width: 100% !important; padding: 0 !important;
+		margin: 0 !important; background: transparent !important; box-shadow: none !important; border: 0 !important;
+	}
+
+	.oc-wrap { min-height: calc(100vh - 40px); display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+	.oc-card {
+		width: 100%; max-width: 440px; background: var(--oc-card); color: var(--oc-text);
+		border: 1px solid var(--oc-border); border-radius: 20px; padding: 32px 28px 24px;
+		box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 12px 32px rgba(16, 24, 40, .08);
+		text-align: start;
+	}
+	.oc-link { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 22px; }
+	.oc-badge {
+		width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; overflow: hidden;
+		font-size: 24px; font-weight: 700; background: var(--oc-soft); border: 1px solid var(--oc-border); color: var(--oc-text);
+	}
+	.oc-badge img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+	.oc-badge.client { background: #d97757; color: #fff; border-color: transparent; }
+	.oc-dots { display: flex; align-items: center; gap: 6px; color: var(--oc-muted); }
+	.oc-dots span { width: 4px; height: 4px; border-radius: 50%; background: var(--oc-border); }
+	.oc-lock {
+		width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+		background: var(--oc-ok-soft); color: var(--oc-ok);
+	}
+	.oc-title { font-size: 20px; font-weight: 650; line-height: 1.4; text-align: center; margin: 0 0 6px; }
+	.oc-sub { font-size: 14px; color: var(--oc-muted); text-align: center; margin: 0 0 22px; }
+
+	.oc-account {
+		display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
+		background: var(--oc-soft); margin-bottom: 20px;
+	}
+	.oc-avatar {
+		width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex: none; display: grid; place-items: center;
+		background: var(--oc-accent); color: var(--oc-accent-text); font-weight: 650;
+	}
+	.oc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+	.oc-account-text { min-width: 0; flex: 1; }
+	.oc-account-name { font-size: 14px; font-weight: 600; }
+	.oc-account-mail { font-size: 12.5px; color: var(--oc-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; }
+	.oc-switch { font-size: 12.5px; color: var(--oc-muted); text-decoration: underline; white-space: nowrap; }
+
+	.oc-section { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--oc-muted); margin: 0 0 10px; }
+	.oc-list { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 10px; }
+	.oc-item { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
+	.oc-icon {
+		flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+		background: var(--oc-ok-soft); color: var(--oc-ok);
+	}
+	.oc-icon.warn { background: var(--oc-warn-soft); color: var(--oc-warn); }
+	.oc-item small { display: block; color: var(--oc-muted); font-size: 12.5px; }
+
+	.oc-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+	.oc-actions form { margin: 0; }
+	.oc-btn {
+		display: flex; align-items: center; justify-content: center; width: 100%; height: 44px; border-radius: 12px;
+		font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none !important; transition: opacity .15s, background .15s;
+	}
+	.oc-btn.allow { background: var(--oc-accent); color: var(--oc-accent-text); border: 0; }
+	.oc-btn.allow:hover { opacity: .9; }
+	.oc-btn.deny { background: transparent; color: var(--oc-text) !important; border: 1px solid var(--oc-border); }
+	.oc-btn.deny:hover { background: var(--oc-soft); }
+	.oc-btn:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+
+	.oc-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--oc-border); font-size: 12.5px; color: var(--oc-muted); line-height: 1.6; }
+	.oc-foot b { color: var(--oc-text); font-weight: 600; direction: ltr; unicode-bidi: isolate; }
+	.oc-error { text-align: center; }
+	.oc-error .oc-icon { margin: 0 auto 14px; width: 44px; height: 44px; border-radius: 14px; }
+	.oc-error code { display: block; margin-top: 12px; padding: 10px; border-radius: 10px; background: var(--oc-soft); font-size: 12.5px; word-break: break-word; }
+
+	@media (max-width: 420px) {
+		.oc-card { padding: 24px 18px 18px; border-radius: 16px; }
+		.oc-actions { grid-template-columns: 1fr; }
+		.oc-actions .allow-wrap { order: -1; }
+	}
+</style>
+
+<div class="oc-wrap" dir="{{ 'rtl' if ar else 'ltr' }}">
+	<div class="oc-card">
+	{% if not error %}
+		<div class="oc-link" aria-hidden="true">
+			<div class="oc-badge client">{{ initials(app_name) | e }}</div>
+			<div class="oc-dots"><span></span><span></span>
+				<div class="oc-lock">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+				</div>
+			<span></span><span></span></div>
+			<div class="oc-badge">
+				{% if site_logo %}<img src="{{ site_logo | e }}" alt="">{% else %}{{ initials(site_name) | e }}{% endif %}
+			</div>
+		</div>
+
+		<h1 class="oc-title">
+			{% if ar %}<bdi>{{ app_name | e }}</bdi> يطلب الوصول إلى حسابك{% else %}<bdi>{{ app_name | e }}</bdi> wants to access your account{% endif %}
+		</h1>
+		<p class="oc-sub">{{ t("on", "على") }} <bdi dir="ltr">{{ site_name | e }}</bdi></p>
+
+		<div class="oc-account">
+			<div class="oc-avatar">
+				{% if user_image %}<img src="{{ user_image | e }}" alt="">{% else %}{{ initials(full_name) | e }}{% endif %}
+			</div>
+			<div class="oc-account-text">
+				<div class="oc-account-name">{{ full_name | e }}</div>
+				<div class="oc-account-mail">{{ user | e }}</div>
+			</div>
+			<a class="oc-switch" href="/logout">{{ t("Not you?", "لست أنت؟") }}</a>
+		</div>
+
+		<p class="oc-section">{{ t("This will allow it to", "سيتمكن من") }}</p>
+		<ul class="oc-list">
+			{% for scope in details %}
+				{% set s = (scope | string) %}
+				{% if s == "all" %}
+				<li class="oc-item">
+					<span class="oc-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+					<span>{{ t("Access the system on your behalf", "الوصول إلى النظام نيابةً عنك") }}
+						<small>{{ t("With your exact roles and permissions, nothing more.", "بنفس أدوارك وصلاحياتك تماماً، لا أكثر.") }}</small></span>
+				</li>
+				<li class="oc-item">
+					<span class="oc-icon warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+					<span>{{ t("Including changes where you're allowed to make them", "بما في ذلك التعديل حيث تسمح صلاحياتك") }}
+						<small>{{ t("Only allow apps you trust.", "اسمح فقط للتطبيقات التي تثق بها.") }}</small></span>
+				</li>
+				{% else %}
+				<li class="oc-item">
+					<span class="oc-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+					<span>{{ _(s.title()) | e }}</span>
+				</li>
+				{% endif %}
+			{% endfor %}
+		</ul>
+
+		<div class="oc-actions">
+			<a href="{{ failure_url | string | e }}" class="oc-btn deny">{{ t("Deny", "رفض") }}</a>
+			<form method="POST" action="{{ success_url | string | e }}" class="allow-wrap">
+				<input type="hidden" name="csrf_token" value="{{ csrf_token | e }}">
+				<button type="submit" class="oc-btn allow">{{ t("Allow", "السماح") }}</button>
+			</form>
+		</div>
+
+		<div class="oc-foot">
+			{% if redirect_host %}
+				{{ t("After you allow, you'll return to", "بعد الموافقة ستعود إلى") }} <b>{{ redirect_host | e }}</b>.
+			{% endif %}
+			{{ t("It never sees your password, and you can revoke access at any time.", "لن يطّلع على كلمة المرور، ويمكنك سحب الإذن في أي وقت.") }}
+		</div>
+	{% else %}
+		<div class="oc-error">
+			<div class="oc-icon warn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+			<h1 class="oc-title">{{ t("Couldn't authorize", "تعذّر إتمام الربط مع") }} <bdi>{{ app_name | e }}</bdi></h1>
+			<p class="oc-sub">{{ t("An unexpected error occurred. Try connecting again from the app.", "حدث خطأ غير متوقع. حاول الربط مرة أخرى من التطبيق.") }}</p>
+			<code>{{ error | e }}</code>
+		</div>
+	{% endif %}
+	</div>
+</div>

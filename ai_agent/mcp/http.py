@@ -13,6 +13,10 @@ def after_request(response, request):
     metadata_path = f"/.well-known/oauth-protected-resource{MCP_ENDPOINT}"
 
     if request.path == MCP_ENDPOINT and response.status_code in (401, 403):
+        # Frappe answers an unauthenticated call with 403, but MCP clients
+        # (Claude, ChatGPT) only start the OAuth flow on 401.
+        if getattr(frappe.session, "user", "Guest") == "Guest":
+            response.status_code = 401
         value = f'Bearer resource_metadata="{origin}{metadata_path}"'
         # Frappe adds its origin-level challenge after after_request hooks.
         # response_headers is applied last, so the MCP-specific resource wins.

@@ -73,7 +73,10 @@ class TestCompanyView(IntegrationTestCase):
 		svc = make_service(True)
 		with patch.object(MCPService, "_is_exposed", return_value=True), patch.object(MCPService, "_action_requests_enabled", return_value=False):
 			tools = {t["name"]: t for t in svc.list_tools()}
-		self.assertRegex(tools["data__query"]["_meta"]["ui"]["resourceUri"], r"^ui://ai-agent/main/[0-9a-f]{10}$")
+		# Only final-result tools get a view; lookups made along the way stay text.
+		self.assertRegex(tools["artifacts__create_table"]["_meta"]["ui"]["resourceUri"], r"^ui://ai-agent/main/[0-9a-f]{10}$")
+		self.assertRegex(tools["artifacts__create_chart"]["_meta"]["ui"]["resourceUri"], r"^ui://ai-agent/main/[0-9a-f]{10}$")
+		self.assertNotIn("_meta", tools["data__query"])
 		self.assertNotIn("_meta", tools["data__count"])
 		self.assertEqual(tools["view__page"]["_meta"]["ui"]["visibility"], ["app"])
 		self.assertNotIn("resourceUri", tools["view__page"]["_meta"]["ui"])
@@ -87,3 +90,42 @@ class TestCompanyView(IntegrationTestCase):
 		self.assertIn(name, p["title"])
 		shown = json.dumps([f["label"] for s in p["sections"] for f in s["fields"]], ensure_ascii=False)
 		self.assertNotIn("owner", shown)
+
+
+class TestFinalChartView(IntegrationTestCase):
+	def test_create_chart_renders_chart_and_its_table(self):
+		from ai_agent.presentation.registry import present
+
+		args = {"title": "المبيعات الشهرية", "chart_spec": {"type": "pie", "labels": ["أ", "ب"],
+			"datasets": [{"name": "المبيعات", "values": ["300", 100]}]}}
+		env = present("artifacts.create_chart", args, {"artifact_name": "x", "chart_url": "/ai-chart?artifact=x"})
+		p = env["presentation"]
+		self.assertEqual(p["chart"]["kind"], "donut")
+		self.assertEqual(p["chart"]["series"][0]["values"], [300.0, 100.0])
+		self.assertEqual([r["cells"]["label"]["v"] for r in p["rows"]], ["أ", "ب"])
+
+	def test_malformed_chart_has_no_view(self):
+		from ai_agent.presentation.registry import present
+
+		self.assertIsNone(present("artifacts.create_chart", {"chart_spec": {"labels": {"item": ["a"]}}}, {"artifact_name": "x"}))
+
+
+class TestTextOnlyHost(IntegrationTestCase):
+	def test_claude_ai_gets_no_views_even_when_it_declares_apps(self):
+		svc = make_service(None)
+		caps = {"extensions": {"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}}
+		with patch("ai_agent.mcp.events.host_name", return_value="Claude-User"):
+			svc.set_client_capabilities(caps)
+		self.assertIs(svc.ui_supported, False)
+		with patch.object(MCPService, "_is_exposed", return_value=True), patch.object(MCPService, "_action_requests_enabled", return_value=False):
+			tools = {t["name"]: t for t in svc.list_tools()}
+		self.assertFalse([n for n, t in tools.items() if "_meta" in t])
+		self.assertNotIn("view__page", tools, "app-only tools need a rendered view")
+		self.assertIn("app__choose", tools)
+
+	def test_other_hosts_declaring_apps_keep_views(self):
+		svc = make_service(None)
+		caps = {"extensions": {"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}}
+		with patch("ai_agent.mcp.events.host_name", return_value="openai-mcp/1.0.0"):
+			svc.set_client_capabilities(caps)
+		self.assertIs(svc.ui_supported, True)

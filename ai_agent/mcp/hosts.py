@@ -45,6 +45,16 @@ UI_EXTENSION = "io.modelcontextprotocol/ui"
 APP_ONLY_TOOLS = {"approvals__revise", "view__page", "view__load", "view__event"}
 
 
+# Hosts that declare MCP Apps but do not render our view: Claude.ai (Claude-User) shows
+# "Connector not found" in place of the card and never reads the resource. They get the
+# text-only path until they render views; remove the entry to try again.
+TEXT_ONLY_HOSTS = ("Claude-User",)
+
+
+def text_only_host(user_agent):
+    return any(str(user_agent or "").startswith(prefix) for prefix in TEXT_ONLY_HOSTS)
+
+
 def ui_supported(client_capabilities):
     """True when the client advertises MCP Apps, False when it declared capabilities without it,
     None when capabilities are unknown (legacy handshake seen on a different request)."""

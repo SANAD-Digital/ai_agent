@@ -113,3 +113,33 @@ def _composite(tool, result, label, period, currency):
                     "actions": [], "insights": [], "developer": {"assumption": result.get("assumption")}}
     text = f"{label} ({period}): " + "، ".join(f"{k['label']} {k['d']}" for k in kpis)
     return schema.envelope(tool=tool, data=result, summary={"text": text}, presentation=presentation, warnings=warnings)
+
+
+CHART_KINDS = {"bar": "bar", "line": "line", "pie": "donut", "donut": "donut", "percentage": "donut"}
+
+
+@register("artifacts.create_chart")
+def present_artifact_chart(tool, arguments, result, ctx):
+    """The model's final chart: the chart plus the table behind it."""
+    from ai_agent.tools.artifacts import _normalize_chart_spec
+
+    spec, error = _normalize_chart_spec(arguments.get("chart_spec"))
+    if error:
+        return None
+    title = arguments.get("title") or "رسم بياني"
+    labels, datasets = spec["labels"], spec["datasets"]
+    columns = [schema.column("label", "البند", priority="primary")]
+    columns += [schema.column(f"s{i}", d["name"] or title, "number", priority="secondary", total=True)
+                for i, d in enumerate(datasets)]
+    rows = []
+    for li, label in enumerate(labels):
+        cells = {"label": {"v": label, "d": label}}
+        for i, d in enumerate(datasets):
+            cells[f"s{i}"] = schema.cell(d["values"][li], columns[i + 1])
+        rows.append(schema.make_row(cells, id=label))
+    chart = chart_spec(CHART_KINDS.get(spec["type"], "bar"), labels,
+                       [{"name": d["name"] or title, "values": d["values"]} for d in datasets], title=title)
+    presentation = schema.table(title, columns, rows, variant="ranking", chart=chart,
+                                paging={"total": len(rows), "shown": len(rows), "offset": 0})
+    return schema.envelope(tool=tool, data={"artifact": result.get("artifact_name"), "chart_url": result.get("chart_url")},
+                           summary={"text": f"{title}: {len(labels)} بند"}, presentation=presentation)

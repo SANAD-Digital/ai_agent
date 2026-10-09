@@ -153,6 +153,21 @@ MCP_DESCRIPTION_NOTES = {
 }
 
 
+# Only the final result gets a view (table, chart, approval card). Lookups made while the
+# model works stay plain text, so the host does not draw a card for every intermediate step.
+VIEW_TOOLS = {
+    "artifacts.create_table",
+    "artifacts.create_chart",
+    "actions.request_bulk_create",
+    "actions.request_cancel",
+    "actions.request_create_draft",
+    "actions.request_mapped_draft",
+    "actions.request_submit",
+    "actions.request_update",
+    "actions.request_workflow_action",
+}
+
+
 class MCPService:
     def __init__(self, user=None):
         self.user = user or frappe.session.user
@@ -170,9 +185,9 @@ class MCPService:
             "ERPNext/Frappe tools with server-side user permissions. "
             f"This connection provides {mode}. Discover DocTypes and schemas before querying. "
             "Never invent document names or field names. Action-request tools do not modify "
-            "documents directly; they create a pending approval. Results carry a structured "
-            "`summary` for you and a `presentation` that the host renders for the user: do not "
-            "re-print tables or repeat the numbers, add analysis and the next step instead. "
+            "documents directly; they create a pending approval. Lookup tools (queries, reports, "
+            "documents) are your working steps and are not shown to the user as views. "
+            + self._final_result_instructions() +
             "When an approval is pending, the user may click the card's button OR approve in chat: if they say "
             "'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you "
             "just received) and approve; never approve without the user's explicit word. approvals__decide "
@@ -182,6 +197,16 @@ class MCPService:
             "instead of presenting the prerequisites as the final result. Ask with app__choose when "
             "a choice is ambiguous (which company, which warehouse) instead of guessing."
         ) + self._memory_instructions()
+
+    def _final_result_instructions(self):
+        if self.ui_supported is False:
+            # This host shows no views: the reply itself carries the result.
+            return ("Give the final answer in your reply as a short markdown table. For a trend or "
+                    "comparison also call artifacts__create_chart and give the user its chart_url as a "
+                    "link. For a pending approval, summarise it and ask the user to reply 'موافق'. ")
+        return ("When you have the final answer, show it once with artifacts__create_table (rows) or "
+                "artifacts__create_chart (trend or comparison); the host renders that view, so do not "
+                "re-print the table or repeat its numbers, add analysis and the next step instead. ")
 
     def _memory_instructions(self):
         """What the user's Desk conversations taught the assistant, so every MCP host
@@ -234,7 +259,9 @@ class MCPService:
         return sorted(tools, key=lambda tool: tool["name"])
 
     def _tool_meta(self, internal_name):
-        if internal_name in registered_tools():
+        if self.ui_supported is False:
+            return None
+        if internal_name in VIEW_TOOLS and internal_name in registered_tools():
             return hosts.tool_ui_meta()
         return None
 
@@ -245,16 +272,21 @@ class MCPService:
             available = {k: v for k, v in SYNTHETIC_TOOLS.items() if not v["app_only"] or k in ("view__page", "view__load", "view__event")}
         else:
             available = SYNTHETIC_TOOLS
+        text_only = self.ui_supported is False
         out = []
         for name, spec in available.items():
-            out.append({
+            if text_only and spec["app_only"]:
+                continue   # only a rendered view can call these
+            tool = {
                 "name": name, "title": TOOL_TITLES[name], "description": spec["description"],
                 "inputSchema": {"type": "object", "properties": spec["properties"], "required": spec["required"], "additionalProperties": False},
                 "annotations": {"title": TOOL_TITLES[name], "readOnlyHint": spec["read_only"], "destructiveHint": bool(spec.get("destructive")),
                                 "idempotentHint": spec["read_only"], "openWorldHint": False},
-                "_meta": hosts.tool_ui_meta(app_only=spec["app_only"], with_view=not spec["app_only"],
-                                            resource_uri=hosts.minimal_uri() if spec.get("resource") == "minimal" else None),
-            })
+            }
+            if not text_only:
+                tool["_meta"] = hosts.tool_ui_meta(app_only=spec["app_only"], with_view=not spec["app_only"],
+                                                   resource_uri=hosts.minimal_uri() if spec.get("resource") == "minimal" else None)
+            out.append(tool)
         return out
 
     def note_request(self, method, params):
@@ -292,6 +324,8 @@ class MCPService:
         elif remember:
             frappe.cache.set_value(key, 1 if declared else 0, expires_in_sec=86400)
         supported = True if declared or diagnostics.render_seen(self.user) else declared
+        if hosts.text_only_host(events.host_name()):
+            supported = False
         self.ui_supported = supported
         frappe.flags.mcp_ui_supported = supported
 

@@ -91,9 +91,13 @@ def mark_interrupted_run(run_name, message):
     run.status = "Failed"
     run.error_summary = message
     run.completed_at = frappe.utils.now_datetime()
+    # The run's session/message may have been deleted since it was queued; a
+    # broken link must not keep it "active" forever (recovery would retry it
+    # every five minutes and log an error each time).
+    run.flags.ignore_links = True
     run.save(ignore_permissions=True)
     frappe.db.commit()
-    if run.get("message"):
+    if run.get("message") and frappe.db.exists("AI Chat Message", run.message):
         from ai_agent.engine.runner import fail_orphaned_message
 
         fail_orphaned_message(run.message, message)

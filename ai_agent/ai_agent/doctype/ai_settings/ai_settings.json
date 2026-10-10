@@ -6,6 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "tab_model",
+  "section_provider",
   "enabled",
   "provider_type",
   "base_url",
@@ -15,53 +17,78 @@
   "enable_thinking_mode",
   "default_reasoning_effort",
   "strict_tool_calling",
+  "section_model_capabilities",
+  "model_capabilities",
+  "tab_limits",
   "section_limits",
   "request_timeout",
   "maximum_run_seconds",
   "maximum_steps",
   "maximum_tool_calls",
+  "cb_approval",
   "maximum_rows_per_query",
   "maximum_result_bytes",
+  "section_tool_results",
   "enable_tool_routing",
   "store_full_tool_results",
-  "cb_approval",
+  "section_approvals",
   "default_approval_ttl_minutes",
   "approver_role",
+  "cb_approvals2",
   "require_four_eyes",
-  "section_privacy",
-  "allow_admin_conversation_audit",
-  "section_policies",
   "allow_submit_cancel_actions",
+  "tab_privacy",
+  "section_policies",
   "provider_mode",
   "allow_third_party_providers",
+  "cb_providers",
   "allowed_providers",
-  "column_break_policies",
+  "section_masking",
   "masking_extra_fields",
+  "column_break_policies",
   "masking_extra_doctypes",
+  "section_privacy",
+  "allow_admin_conversation_audit",
   "section_memory",
   "enable_memory",
   "memory_retention_days",
-  "section_model_capabilities",
-  "model_capabilities",
+  "tab_mcp",
+  "mcp_status_html",
   "section_mcp",
   "enable_mcp",
   "mcp_agent",
   "mcp_company",
   "column_break_mcp",
   "mcp_allowed_roles",
-  "mcp_allowed_origins",
   "mcp_max_requests_per_minute",
+  "section_mcp_actions",
   "mcp_enable_action_requests",
   "mcp_require_approval",
   "mcp_enable_app_approval",
-  "section_mcp_guide",
-  "mcp_guide",
+  "section_mcp_connect",
+  "mcp_connect_html",
+  "section_mcp_clients",
+  "mcp_clients_html",
+  "section_mcp_advanced",
+  "mcp_allowed_origins",
+  "tab_access",
   "section_access",
   "access_rules",
+  "tab_instructions",
   "section_instructions",
   "system_instructions"
  ],
  "fields": [
+  {
+   "fieldname": "tab_model",
+   "fieldtype": "Tab Break",
+   "label": "Model"
+  },
+  {
+   "fieldname": "section_provider",
+   "fieldtype": "Section Break",
+   "label": "Provider"
+  },
   {
    "default": "1",
    "fieldname": "enabled",
@@ -120,6 +147,24 @@
    "label": "Strict Tool Calling"
   },
   {
+   "collapsible": 1,
+   "fieldname": "section_model_capabilities",
+   "fieldtype": "Section Break",
+   "label": "Model Capabilities"
+  },
+  {
+   "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.",
+   "fieldname": "model_capabilities",
+   "fieldtype": "Table",
+   "label": "Model Capabilities",
+   "options": "AI Model Capability"
+  },
+  {
+   "fieldname": "tab_limits",
+   "fieldtype": "Tab Break",
+   "label": "Limits & Approvals"
+  },
+  {
    "fieldname": "section_limits",
    "fieldtype": "Section Break",
    "label": "Limits & Timeouts"
@@ -149,6 +194,10 @@
    "label": "Maximum Tool Calls"
   },
   {
+   "fieldname": "cb_approval",
+   "fieldtype": "Column Break"
+  },
+  {
    "default": "500",
    "fieldname": "maximum_rows_per_query",
    "fieldtype": "Int",
@@ -159,6 +208,11 @@
    "fieldname": "maximum_result_bytes",
    "fieldtype": "Int",
    "label": "Maximum Result Bytes"
+  },
+  {
+   "fieldname": "section_tool_results",
+   "fieldtype": "Section Break",
+   "label": "Tool Results"
   },
   {
    "default": "1",
@@ -173,8 +227,9 @@
    "label": "Store Full Tool Results"
   },
   {
-   "fieldname": "cb_approval",
-   "fieldtype": "Column Break"
+   "fieldname": "section_approvals",
+   "fieldtype": "Section Break",
+   "label": "Approvals"
   },
   {
    "default": "30",
@@ -190,6 +245,10 @@
    "options": "Role"
   },
   {
+   "fieldname": "cb_approvals2",
+   "fieldtype": "Column Break"
+  },
+  {
    "default": "0",
    "description": "When enabled, the user who requested an action cannot approve it themselves.",
    "fieldname": "require_four_eyes",
@@ -197,28 +256,21 @@
    "label": "Require Four-Eyes Approval"
   },
   {
-   "fieldname": "section_privacy",
-   "fieldtype": "Section Break",
-   "label": "Privacy"
-  },
-  {
-   "default": "0",
-   "description": "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",
-   "fieldname": "allow_admin_conversation_audit",
-   "fieldtype": "Check",
-   "label": "Allow Admin Conversation Audit"
-  },
-  {
-   "fieldname": "section_policies",
-   "fieldtype": "Section Break",
-   "label": "Policies"
-  },
-  {
    "default": "0",
    "description": "Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.",
    "fieldname": "allow_submit_cancel_actions",
    "fieldtype": "Check",
    "label": "Allow Submit / Cancel Actions"
+  },
+  {
+   "fieldname": "tab_privacy",
+   "fieldtype": "Tab Break",
+   "label": "Privacy & Data"
+  },
+  {
+   "fieldname": "section_policies",
+   "fieldtype": "Section Break",
+   "label": "Providers"
   },
   {
    "default": "Managed",
@@ -237,6 +289,10 @@
    "label": "I Accept Sending Data to Third-Party Providers"
   },
   {
+   "fieldname": "cb_providers",
+   "fieldtype": "Column Break"
+  },
+  {
    "depends_on": "eval:doc.provider_mode=='Own Key'",
    "description": "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",
    "fieldname": "allowed_providers",
@@ -244,8 +300,9 @@
    "label": "Allowed Provider Types"
   },
   {
-   "fieldname": "column_break_policies",
-   "fieldtype": "Column Break"
+   "fieldname": "section_masking",
+   "fieldtype": "Section Break",
+   "label": "Data Masking"
   },
   {
    "description": "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",
@@ -254,10 +311,26 @@
    "label": "Extra Masked Fields"
   },
   {
+   "fieldname": "column_break_policies",
+   "fieldtype": "Column Break"
+  },
+  {
    "description": "One DocType per line whose amounts are masked like Salary Slip (per-person pay).",
    "fieldname": "masking_extra_doctypes",
    "fieldtype": "Small Text",
    "label": "Extra Masked DocTypes"
+  },
+  {
+   "fieldname": "section_privacy",
+   "fieldtype": "Section Break",
+   "label": "Conversations"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",
+   "fieldname": "allow_admin_conversation_audit",
+   "fieldtype": "Check",
+   "label": "Allow Admin Conversation Audit"
   },
   {
    "fieldname": "section_memory",
@@ -277,45 +350,42 @@
    "label": "Memory Retention Days"
   },
   {
-   "collapsible": 1,
-   "fieldname": "section_model_capabilities",
-   "fieldtype": "Section Break",
-   "label": "Model Capabilities"
+   "fieldname": "tab_mcp",
+   "fieldtype": "Tab Break",
+   "label": "External AI Tools"
   },
   {
-   "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.",
-   "fieldname": "model_capabilities",
-   "fieldtype": "Table",
-   "label": "Model Capabilities",
-   "options": "AI Model Capability"
+   "fieldname": "mcp_status_html",
+   "fieldtype": "HTML",
+   "label": "Connection Status"
   },
   {
-   "collapsible": 1,
+   "collapsible": 0,
    "fieldname": "section_mcp",
    "fieldtype": "Section Break",
-   "label": "MCP Server"
+   "label": "Access"
   },
   {
    "default": "0",
-   "description": "Expose the authenticated MCP endpoint for external AI clients.",
+   "description": "Claude, ChatGPT and other tools can connect, each user with their own account and permissions.",
    "fieldname": "enable_mcp",
    "fieldtype": "Check",
-   "label": "Enable MCP Server"
+   "label": "Allow External AI Tools"
   },
   {
    "depends_on": "eval:doc.enable_mcp",
-   "description": "Agent policy applied to every MCP tool call. ERP Analyst is used when empty.",
+   "description": "Rules applied to every request from external tools. Default: ERP Analyst.",
    "fieldname": "mcp_agent",
    "fieldtype": "Link",
-   "label": "MCP Agent",
+   "label": "Agent",
    "options": "AI Agent"
   },
   {
    "depends_on": "eval:doc.enable_mcp",
-   "description": "Optional company context applied to MCP calls.",
+   "description": "Company used when a request does not name one.",
    "fieldname": "mcp_company",
    "fieldtype": "Link",
-   "label": "MCP Company",
+   "label": "Default Company",
    "options": "Company"
   },
   {
@@ -325,60 +395,89 @@
   {
    "default": "AI MCP User\nSystem Manager",
    "depends_on": "eval:doc.enable_mcp",
-   "description": "One Frappe role per line. The authenticated user must have at least one listed role.",
+   "description": "One role per line. A user needs one of these roles to connect.",
    "fieldname": "mcp_allowed_roles",
    "fieldtype": "Small Text",
-   "label": "Allowed MCP Roles"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:doc.enable_mcp",
-   "description": "Expose action-request tools. They only create an approval request; document changes still require approval in Frappe.",
-   "fieldname": "mcp_enable_action_requests",
-   "fieldtype": "Check",
-   "label": "Enable MCP Action Requests"
-  },
-  {
-   "default": "1",
-   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests",
-   "description": "On (default): every write from MCP waits for a human decision (card button or an explicit word in chat). Off: the requester's own requests execute immediately under their ERPNext permissions, and are still recorded as AI Approval Requests.",
-   "fieldname": "mcp_require_approval",
-   "fieldtype": "Check",
-   "label": "MCP Actions Require Approval"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests && doc.mcp_require_approval",
-   "description": "Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat or in Frappe. Independent of 'MCP Actions Require Approval'.",
-   "fieldname": "mcp_enable_app_approval",
-   "fieldtype": "Check",
-   "label": "Allow Approval from MCP App"
-  },
-  {
-   "depends_on": "eval:doc.enable_mcp",
-   "description": "Optional browser origins, one per line. Server-to-server clients normally send no Origin header.",
-   "fieldname": "mcp_allowed_origins",
-   "fieldtype": "Small Text",
-   "label": "Allowed MCP Browser Origins"
+   "label": "Allowed Roles"
   },
   {
    "default": "60",
    "depends_on": "eval:doc.enable_mcp",
-   "description": "Per authenticated user. Applies across web workers.",
+   "description": "Limit per user.",
    "fieldname": "mcp_max_requests_per_minute",
    "fieldtype": "Int",
-   "label": "MCP Requests per Minute"
+   "label": "Requests per Minute"
   },
   {
-   "collapsible": 0,
-   "fieldname": "section_mcp_guide",
+   "fieldname": "section_mcp_actions",
    "fieldtype": "Section Break",
-   "label": "MCP Setup"
+   "label": "Actions & Approvals",
+   "depends_on": "eval:doc.enable_mcp"
   },
   {
-   "fieldname": "mcp_guide",
+   "default": "0",
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "External tools can prepare documents and changes. Nothing is saved until it is approved.",
+   "fieldname": "mcp_enable_action_requests",
+   "fieldtype": "Check",
+   "label": "Allow Action Requests"
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests",
+   "description": "Every change waits for a person to approve it. Turn off only for trusted users.",
+   "fieldname": "mcp_require_approval",
+   "fieldtype": "Check",
+   "label": "Require Approval"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests && doc.mcp_require_approval",
+   "description": "Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",
+   "fieldname": "mcp_enable_app_approval",
+   "fieldtype": "Check",
+   "label": "Approval Buttons in Cards"
+  },
+  {
+   "fieldname": "section_mcp_connect",
+   "fieldtype": "Section Break",
+   "label": "Connect an AI Tool",
+   "depends_on": "eval:doc.enable_mcp"
+  },
+  {
+   "fieldname": "mcp_connect_html",
    "fieldtype": "HTML",
-   "label": "MCP Setup"
+   "label": "Connect an AI Tool"
+  },
+  {
+   "fieldname": "section_mcp_clients",
+   "fieldtype": "Section Break",
+   "label": "Connected Apps",
+   "depends_on": "eval:doc.enable_mcp"
+  },
+  {
+   "fieldname": "mcp_clients_html",
+   "fieldtype": "HTML",
+   "label": "Connected Apps"
+  },
+  {
+   "fieldname": "section_mcp_advanced",
+   "fieldtype": "Section Break",
+   "label": "Advanced",
+   "collapsible": 1,
+   "depends_on": "eval:doc.enable_mcp"
+  },
+  {
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "Only for tools that connect from a web page. One address per line.",
+   "fieldname": "mcp_allowed_origins",
+   "fieldtype": "Small Text",
+   "label": "Allowed Web Origins"
+  },
+  {
+   "fieldname": "tab_access",
+   "fieldtype": "Tab Break",
+   "label": "Skills & Plugins"
   },
   {
    "collapsible": 0,
@@ -394,6 +493,11 @@
    "options": "AI Access Rule"
   },
   {
+   "fieldname": "tab_instructions",
+   "fieldtype": "Tab Break",
+   "label": "Instructions"
+  },
+  {
    "fieldname": "section_instructions",
    "fieldtype": "Section Break",
    "label": "System Instructions"
@@ -407,7 +511,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 04:00:00.000000",
+ "modified": "2026-10-10 05:30:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

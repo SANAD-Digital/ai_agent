@@ -93,7 +93,7 @@ def fix(item):
 
 def _ensure_role(user):
 	if MCP_ROLE not in _allowed_roles():
-		frappe.throw(_("Add {0} to Allowed MCP Roles first.").format(MCP_ROLE))
+		frappe.throw(_("Add {0} to Allowed Roles first.").format(MCP_ROLE))
 	if MCP_ROLE not in frappe.get_roles(user):
 		frappe.get_doc("User", user).add_roles(MCP_ROLE)
 

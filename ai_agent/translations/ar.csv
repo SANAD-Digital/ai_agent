@@ -1,29 +1,34 @@
 API Key,مفتاح API
+Access,الوصول
 Access Rules,قواعد الصلاحيات
-Add user,إضافة مستخدم
-Add {0} to Allowed MCP Roles first.,أضف {0} إلى أدوار MCP المسموحة أولاً.
-Agent policy applied to every MCP tool call. ERP Analyst is used when empty.,سياسة الوكيل المطبّقة على كل استدعاء أداة عبر MCP. يُستخدم ERP Analyst إذا تُرك فارغاً.
-Agent: {0},الوكيل: {0}
+Actions & Approvals,الإجراءات والموافقات
+Add {0} to Allowed Roles first.,أضف {0} إلى الأدوار المسموحة أولاً.
+Advanced,متقدم
+Agent,الوكيل
 Allow,السماح
+Allow Action Requests,السماح بطلبات الإجراءات
 Allow Admin Conversation Audit,السماح للمدير بمراجعة المحادثات
-Allow Approval from MCP App,السماح بالموافقة من بطاقة MCP
+Allow External AI Tools,السماح لأدوات الذكاء الاصطناعي الخارجية
 Allow Submit / Cancel Actions,السماح بإجراءات الاعتماد والإلغاء
-Allowed MCP Browser Origins,المواقع المسموح لها بالاتصال من المتصفح
-Allowed MCP Roles,أدوار MCP المسموحة
 Allowed Provider Types,أنواع المزوّدات المسموحة
-Allows ChatGPT to complete the sign-in.,يسمح لـ ChatGPT بإكمال تسجيل الدخول.
+Allowed Roles,الأدوار المسموحة
+Allowed Web Origins,المواقع المسموح لها
+Approval Buttons in Cards,أزرار الموافقة في البطاقات
+Approvals,الموافقات
 Approver Role,دور المعتمِد
 Base URL,الرابط الأساسي
-ChatGPT access,السماح لـ ChatGPT
-ChatGPT access is not allowed yet.,لم يُسمح لـ ChatGPT بعد.
+ChatGPT is not allowed to sign in,ChatGPT غير مسموح له بتسجيل الدخول
+ChatGPT is not allowed to sign in yet. Use Fix in the status above.,ChatGPT غير مسموح له بتسجيل الدخول بعد. استخدم زر السماح في حالة الربط أعلاه.
 Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set.,يُصنَّف كل سؤال أولاً ويُرسل للنموذج أدوات ذلك التصنيف فقط (8 كحد أقصى). الأسئلة غير المصنّفة تحصل على كل الأدوات.
-"Claude, ChatGPT and other tools sign in with each user's own account.",يدخل Claude وChatGPT وغيرهما بحساب كل مستخدم في النظام.
+"Claude, ChatGPT and other tools can connect, each user with their own account and permissions.",يمكن لـ Claude وChatGPT وغيرهما الاتصال، كل مستخدم بحسابه وصلاحياته.
 "Click <b>Create app</b>, paste the link and choose <b>OAuth</b>.",اضغط <b>إنشاء تطبيق (Create app)</b>، والصق الرابط، واختر <b>تسجيل الدخول بالحساب (OAuth)</b>.
 "Click <b>Open Claude settings</b>, then <b>Add custom connector</b>.",اضغط <b>فتح إعدادات Claude</b>، ثم <b>إضافة موصل مخصص (Add custom connector)</b>.
 Click <b>Start</b> above the server name and sign in.,اضغط <b>Start</b> فوق اسم الخادم، ثم سجّل دخولك.
-Connect an AI tool,ربط أداة ذكاء اصطناعي
-Connected apps,التطبيقات المتصلة
-Connection link,رابط الربط
+Company used when a request does not name one.,الشركة المستخدمة عندما لا يحدد الطلب شركة.
+Connect an AI Tool,ربط أداة ذكاء اصطناعي
+Connected Apps,التطبيقات المتصلة
+Connection Status,حالة الربط
+Conversations,المحادثات
 Copy,نسخ
 Copy link,نسخ الرابط
 Copy the command and run it in the terminal.,انسخ الأمر وشغّله في نافذة الأوامر (Terminal).
@@ -31,43 +36,38 @@ Copy the settings into <b>.vscode/mcp.json</b>.,انسخ الإعدادات إل
 Copy the settings into <b>opencode.json</b>.,انسخ الإعدادات إلى الملف <b>opencode.json</b>.
 Copy the settings into <b>~/.cursor/mcp.json</b>.,انسخ الإعدادات إلى الملف <b>~/.cursor/mcp.json</b>.
 Could not reach the server.,تعذّر الوصول إلى الخادم.
+Data Masking,إخفاء البيانات
 Default Approval TTL (minutes),مدة صلاحية الموافقة الافتراضية (بالدقائق)
+Default Company,الشركة الافتراضية
 Default Model,النموذج الافتراضي
 Default Reasoning Effort,مستوى التفكير الافتراضي
 Disconnect,فصل
 Disconnect {0}? Its users must sign in again.,فصل {0}؟ سيحتاج مستخدموه إلى تسجيل الدخول من جديد.
 Done,تم
-Enable,تفعيل
-Enable MCP Action Requests,تفعيل طلبات الإجراءات عبر MCP
-Enable MCP Server,تفعيل خادم MCP
 Enable Memory,تفعيل الذاكرة
 Enable Tool Routing,تفعيل توجيه الأدوات
 Enabled,مفعّل
+Every change waits for a person to approve it. Turn off only for trusted users.,كل تعديل ينتظر موافقة شخص. أوقفه فقط للمستخدمين الموثوقين.
 "Every skill or plugin is blocked until it is allowed here. A row with no role and no user applies to everyone. A user row overrides a role row; on a tie, deny wins. Automatic skills (always on) are not subject to this table.",كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. الصف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.
-Expose action-request tools. They only create an approval request; document changes still require approval in Frappe.,إتاحة أدوات طلب الإجراءات. هي تنشئ طلب موافقة فقط، وتعديل المستندات يبقى بحاجة إلى اعتماد داخل النظام.
-Expose the authenticated MCP endpoint for external AI clients.,إتاحة الربط مع أدوات الذكاء الاصطناعي الخارجية (مثل Claude وChatGPT) بعد تسجيل الدخول.
+External AI Tools,أدوات الذكاء الاصطناعي الخارجية
+External AI tools cannot connect to this site.,لا تستطيع أدوات الذكاء الاصطناعي الخارجية الاتصال بهذا الموقع.
+External tools can prepare documents and changes. Nothing is saved until it is approved.,يمكن للأدوات الخارجية تجهيز المستندات والتعديلات، ولا يُحفظ شيء قبل الموافقة.
 Extra Masked DocTypes,أنواع مستندات إضافية مخفية
 Extra Masked Fields,حقول إضافية مخفية
 Fix all,إصلاح الكل
 For tools without sign-in: open your user page and click <b>Generate Keys</b> under API access.,للأدوات التي لا تدعم تسجيل الدخول: افتح صفحتك في النظام واضغط <b>توليد المفاتيح</b> في قسم تفاصيل وصول API.
-Give MCP access,منح صلاحية الربط
+Give a user access,منح مستخدم صلاحية الربط
 Give access,منح الصلاحية
 Give me access,أعطني الصلاحية
 I Accept Sending Data to Third-Party Providers,أوافق على إرسال البيانات إلى مزوّدين خارجيين
 In ChatGPT open <b>Settings → Apps → Advanced settings</b> and turn on <b>Developer mode</b>.,في ChatGPT افتح <b>الإعدادات (Settings) ← التطبيقات (Apps) ← الإعدادات المتقدمة (Advanced settings)</b> وفعّل <b>وضع المطوّر (Developer mode)</b>.
 In Claude Code type <b>/mcp</b> and choose the server to sign in.,داخل Claude Code اكتب <b>/mcp</b> واختر الخادم لتسجيل الدخول.
 "In the tool, paste the link and add the header below with your key and secret.",في الأداة الصق الرابط، وأضف السطر التالي في إعدادات الترويسة (Headers) مع مفتاحك والمفتاح السري.
+Instructions,التعليمات
 Last used {0},آخر استخدام {0}
-"Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat or in Frappe. Independent of 'MCP Actions Require Approval'.",تمكين بطاقة الموافقة من اعتماد الإجراء المعلّق أو تعديله أو إلغائه بأزرارها (برمز موقّع لمرة واحدة، مع إعادة التحقق من صلاحيات المستخدم عند التنفيذ). متوقف: تتم الموافقة في المحادثة أو داخل النظام. مستقل عن «إجراءات MCP تتطلب موافقة».
-Lets external AI tools connect to this site.,يسمح لأدوات الذكاء الاصطناعي الخارجية بالاتصال بهذا الموقع.
+Limit per user.,الحد لكل مستخدم.
+Limits & Approvals,الحدود والموافقات
 Limits & Timeouts,الحدود والمهل
-MCP Actions Require Approval,إجراءات MCP تتطلب موافقة
-MCP Agent,وكيل MCP
-MCP Company,شركة MCP
-MCP Requests per Minute,طلبات MCP في الدقيقة
-MCP Server,خادم MCP
-MCP Setup,إعداد الربط مع أدوات الذكاء الاصطناعي
-MCP server,خادم الربط (MCP)
 Managed,مُدار
 Managed: only Anthropic (Claude) providers are used. Own Key: other providers are allowed only with the consent below.,مُدار: تُستخدم مزوّدات Anthropic (Claude) فقط. مفتاح خاص: يُسمح بمزوّدات أخرى بشرط الموافقة أدناه.
 Maximum Result Bytes,أقصى حجم للنتيجة (بايت)
@@ -77,43 +77,44 @@ Maximum Steps,أقصى عدد للخطوات
 Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات
 Memory,الذاكرة
 Memory Retention Days,مدة الاحتفاظ بالذاكرة (بالأيام)
+Model,النموذج
 Model Capabilities,قدرات النماذج
 No app is connected yet.,لا يوجد تطبيق متصل حتى الآن.
+Off,متوقف
 Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.,متوقف (الافتراضي): لا يعتمد الوكيل المستندات ولا يلغيها أبداً؛ أدوات الاعتماد والإلغاء مخفية، والطلبات القديمة تُرفض عند التنفيذ.
-"On (default): every write from MCP waits for a human decision (card button or an explicit word in chat). Off: the requester's own requests execute immediately under their ERPNext permissions, and are still recorded as AI Approval Requests.",مفعّل (الافتراضي): كل كتابة عبر MCP تنتظر قراراً بشرياً (زر البطاقة أو كلمة صريحة في المحادثة). متوقف: تُنفَّذ طلبات صاحبها فوراً بصلاحياته في ERPNext، وتبقى مسجّلة كطلبات موافقة.
 One DocType per line whose amounts are masked like Salary Slip (per-person pay).,نوع مستند في كل سطر تُخفى مبالغه كما في قسيمة الراتب (أجر كل شخص).
-One Frappe role per line. The authenticated user must have at least one listed role.,دور في كل سطر. يجب أن يملك المستخدم دوراً واحداً على الأقل من القائمة.
 "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",اسم حقل (أو جزء منه) في كل سطر، يُخفى في كل نتيجة أداة قبل وصولها إلى النموذج، إضافةً إلى القائمة المدمجة (أرقام الآيبان، الحسابات البنكية، الهويات، الجوازات، الرواتب).
+One role per line. A user needs one of these roles to connect.,دور في كل سطر. يحتاج المستخدم أحد هذه الأدوار ليتصل.
+Only for tools that connect from a web page. One address per line.,فقط للأدوات التي تتصل من صفحة ويب. عنوان في كل سطر.
 Open ChatGPT,فتح ChatGPT
 Open Claude settings,فتح إعدادات Claude
 Open my user page,فتح صفحتي
-"Optional browser origins, one per line. Server-to-server clients normally send no Origin header.",عناوين مواقع اختيارية مسموح لها بالاتصال من المتصفح، عنوان في كل سطر. الاتصال بين الخوادم لا يحتاج هذا الحقل عادةً.
-Optional company context applied to MCP calls.,سياق شركة اختياري يُطبَّق على استدعاءات MCP.
 Other tools,أدوات أخرى
 Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.,تجاوز نافذة السياق ودعم الصور لكل نموذج. يُطبَّق أول صف يطابق نمطه اسم النموذج؛ والنماذج بلا صف مطابق تستخدم التقديرات المدمجة.
 Own Key,مفتاح خاص
 "Own Key mode with third-party providers: questions, tool results and attachments are sent to the selected provider (e.g. DeepSeek, Gemini).",وضع المفتاح الخاص مع مزوّدين خارجيين: الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek وGemini).
 "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",في وضع المفتاح الخاص، نوع في كل سطر (Anthropic، OpenAI، OpenAI Compatible، Ollama، Gemini OCR). فارغ = الكل.
 "Paste the link, click <b>Add</b>, then <b>Connect</b>.",الصق الرابط، واضغط <b>إضافة (Add)</b> ثم <b>اتصال (Connect)</b>.
-Per authenticated user. Applies across web workers.,لكل مستخدم، على مستوى الخادم كله.
-Policies,السياسات
-Privacy,الخصوصية
+Privacy & Data,الخصوصية والبيانات
+Provider,المزوّد
 Provider Mode,وضع المزوّد
 Provider Type,نوع المزوّد
-Read + approval-gated action requests,القراءة + طلبات إجراءات بموافقة
-Read only,قراءة فقط
-Ready,جاهز
+Providers,المزوّدون
 Ready to connect,جاهز للربط
 Request Timeout (seconds),مهلة الطلب (بالثواني)
+Requests per Minute,الطلبات في الدقيقة
+Require Approval,اشتراط الموافقة
 Require Four-Eyes Approval,اشتراط اعتماد شخص ثانٍ
 "Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider.",مطلوب لمزوّدات Gemini OCR وDeepSeek والمتوافقة مع OpenAI وOllama. بيانات العمل في الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى ذلك المزوّد.
 Restart Cursor; it opens the sign-in page.,أعد تشغيل Cursor، وستُفتح صفحة تسجيل الدخول.
 Restart opencode; it opens the sign-in page.,أعد تشغيل opencode، وستُفتح صفحة تسجيل الدخول.
+Rules applied to every request from external tools. Default: ERP Analyst.,القواعد المطبّقة على كل طلب من الأدوات الخارجية. الافتراضي: ERP Analyst.
 Setup incomplete,الإعداد غير مكتمل
+"Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",إظهار أزرار الموافقة والتعديل والإلغاء في بطاقات الموافقة، في الأدوات التي تعرضها (مثل ChatGPT).
 Sign in and click <b>Allow</b>.,سجّل دخولك واضغط <b>السماح</b>.
 "Sign in and click <b>Allow</b>. To approve requests later, reply <b>approve</b> in the chat.",سجّل دخولك واضغط <b>السماح</b>. وللموافقة على الطلبات لاحقاً اكتب <b>موافق</b> في المحادثة.
-Sign-in for AI tools,تسجيل الدخول لأدوات الذكاء الاصطناعي
-Site readiness,جاهزية الموقع
+Sign-in for AI tools is off,تسجيل الدخول لأدوات الذكاء الاصطناعي متوقف
+Skills & Plugins,المهارات والإضافات
 Skills & Plugins Access,صلاحيات المهارات والإضافات
 Store Full Tool Results,حفظ نتائج الأدوات كاملة
 Strict Tool Calling,استدعاء أدوات صارم
@@ -123,16 +124,16 @@ Testing…,جارٍ الاختبار…
 The server did not respond as expected (status {0}). Check the items above or ask your system administrator.,لم يستجب الخادم كما يجب (الرمز {0}). راجع البنود أعلاه أو تواصل مع مسؤول النظام.
 The server responds and asks AI tools to sign in. You can connect.,الخادم يستجيب ويطلب من أدوات الذكاء الاصطناعي تسجيل الدخول. يمكنك الربط الآن.
 Thinking Mode,وضع التفكير
+Tool Results,نتائج الأدوات
+Turn on,تشغيل
 Unknown setup step: {0},خطوة إعداد غير معروفة: {0}
 User,المستخدم
 User {0} not found.,المستخدم {0} غير موجود.
-Users,المستخدمون
 Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.,المستخدمون بهذا الدور يمكنهم اعتماد إجراءات الذكاء الاصطناعي إضافةً إلى مديري النظام. اتركه فارغاً ليقتصر الاعتماد على مديري النظام.
 "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",عند التفعيل يستطيع مديرو النظام قراءة محادثات المستخدمين الآخرين مع الوكيل، وتُسجَّل كل قراءة في سجل الوصول. عند الإيقاف يرى كل مستخدم محادثاته فقط.
 "When enabled, the user who requested an action cannot approve it themselves.",عند التفعيل لا يستطيع صاحب الطلب اعتماد طلبه بنفسه.
-Your access,صلاحيتك
-"Your account has an MCP role, so you can connect.",حسابك يملك صلاحية الربط، فيمكنك الاتصال.
+Your account has no access role,حسابك لا يملك صلاحية الربط
 high,مرتفع
 low,منخفض
 medium,متوسط
-{0} users can connect. Their ERP permissions stay the same.,{0} مستخدم يمكنهم الربط، وتبقى صلاحياتهم في النظام كما هي.
+{0} users have access.,{0} مستخدم لديهم صلاحية الربط.

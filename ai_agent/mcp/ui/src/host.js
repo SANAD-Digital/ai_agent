@@ -24,7 +24,7 @@
       var id = nextId++;
       pending[id] = { resolve: resolve, reject: reject };
       post({ jsonrpc: "2.0", id: id, method: method, params: params || {} });
-      setTimeout(function () { if (pending[id]) { delete pending[id]; reject(new Error("انتهت مهلة الطلب")); } }, 60000);
+      setTimeout(function () { if (pending[id]) { delete pending[id]; reject(new Error(T("The request timed out"))); } }, 60000);
     });
   }
   function notify(method, params) { post({ jsonrpc: "2.0", method: method, params: params || {} }); }
@@ -34,7 +34,7 @@
     if (!m || m.jsonrpc !== "2.0") return;
     if (m.id != null && !m.method && pending[m.id]) {
       var p = pending[m.id]; delete pending[m.id];
-      if (m.error) p.reject(new Error(m.error.message || "خطأ")); else p.resolve(m.result);
+      if (m.error) p.reject(new Error(m.error.message || T("Error"))); else p.resolve(m.result);
       return;
     }
     // Requests from the host must always get an answer: ping with a result, anything unknown with "method not found".
@@ -44,8 +44,8 @@
       return;
     }
     if (m.method === "ui/notifications/tool-result") { stack = []; trace("ui_tool_result_received", (presentationOf(m.params) || {}).type || "text"); show(m.params); }
-    else if (m.method === "ui/notifications/tool-input") { toolInput = m.params && m.params.arguments; if (!current) loading("جارٍ التحميل…"); }
-    else if (m.method === "ui/notifications/tool-cancelled") { stack = []; show({ isError: true, content: [{ type: "text", text: "أُلغي تنفيذ الأداة" + (m.params && m.params.reason ? ": " + m.params.reason : "") + "." }] }); }
+    else if (m.method === "ui/notifications/tool-input") { toolInput = m.params && m.params.arguments; if (!current) loading(T("Loading…")); }
+    else if (m.method === "ui/notifications/tool-cancelled") { stack = []; show({ isError: true, content: [{ type: "text", text: m.params && m.params.reason ? T("The tool run was cancelled: {0}.", [m.params.reason]) : T("The tool run was cancelled.") }] }); }
     else if (m.method === "ui/notifications/host-context-changed") applyContext(m.params);
     else if (m.method === "ui/resource-teardown" && m.id != null) post({ jsonrpc: "2.0", id: m.id, result: {} });
   });
@@ -106,7 +106,7 @@
       if (hostCaps.serverTools) return request("tools/call", { name: name, arguments: args || {} });
       var v = vendor();
       if (v && typeof v.callTool === "function") return Promise.resolve(v.callTool(name, args || {}));
-      return Promise.reject(new Error("هذا التطبيق المضيف لا يسمح بتنفيذ الأدوات من البطاقة."));
+      return Promise.reject(new Error(T("This host app does not allow running tools from the card.")));
     },
     openLink: function (url) {
       if (!url) return;
@@ -124,10 +124,10 @@
       Host.copy(text);
     },
     copy: function (text) {
-      var done = function () { flash("تم النسخ"); };
+      var done = function () { flash(T("Copied")); };
       function fallback() {
         var ta = h("textarea", { style: "position:fixed;opacity:0" }); ta.value = text; document.body.appendChild(ta); ta.select();
-        try { document.execCommand("copy"); done(); } catch (e) { flash("تعذّر النسخ"); } ta.remove();
+        try { document.execCommand("copy"); done(); } catch (e) { flash(T("Could not copy")); } ta.remove();
       }
       try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
     },

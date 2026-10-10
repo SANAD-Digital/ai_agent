@@ -467,45 +467,46 @@ def sync_skills():
 
 # Plugins the app ships. Their text is app-managed (refreshed on migrate); an
 # admin may disable one, and may add own plugins (is_standard = 0) that stay untouched.
+# Title and description are English and shown translated (context "AI Chat").
 STANDARD_PLUGINS = [
     {
         "plugin_name": "excel", "title": "Excel", "output": "Excel", "icon": "file-spreadsheet", "tool": "export.excel",
-        "description": "يعطيك النتيجة ملف Excel جاهزاً للتحميل",
+        "description": "Get the result as an Excel file ready to download",
         "instructions": "Get the rows the request needs (data.query, reports.run or metrics.query), then call export.excel once. Pass `artifact` when the result has artifact.artifact_name, otherwise pass the same `query`; send inline `rows` only for a few computed lines. Columns in a sensible order with the user's language labels. Reply with one or two sentences about what the file holds.",
     },
     {
-        "plugin_name": "pdf", "title": "تقرير PDF", "output": "PDF", "icon": "file-text", "tool": "export.pdf",
-        "description": "تقرير PDF بعنوان وملخص وجدول",
+        "plugin_name": "pdf", "title": "PDF Report", "output": "PDF", "icon": "file-text", "tool": "export.pdf",
+        "description": "A PDF report with a title, a summary and a table",
         "instructions": "Get the rows the request needs, then call export.pdf once with a clear `title`, a `summary` of 2-5 short findings (one per line, numbers included) and the table via `artifact` or `query`. Keep only the columns a reader needs (at most 8). Reply briefly; the user downloads the file.",
     },
     {
-        "plugin_name": "image", "title": "صورة", "output": "Image", "icon": "image", "tool": "export.image",
-        "description": "صورة PNG لرسم بياني أو جدول قصير، للمشاركة",
+        "plugin_name": "image", "title": "Image", "output": "Image", "icon": "image", "tool": "export.image",
+        "description": "A PNG image of a chart or a short table, to share",
         "instructions": "Prefer a chart: compute the aggregated values (at most ~15 labels) and call export.image with `chart` {type, labels, datasets}. For a short list (≤30 rows) pass the table via `artifact`/`query`/`rows` instead. Reply briefly.",
     },
     {
-        "plugin_name": "chart", "title": "رسم بياني", "output": "Chart", "icon": "bar-chart-2", "tool": "artifacts.create_chart",
-        "description": "رسم بياني تفاعلي داخل المحادثة",
+        "plugin_name": "chart", "title": "Chart", "output": "Chart", "icon": "bar-chart-2", "tool": "artifacts.create_chart",
+        "description": "An interactive chart inside the conversation",
         "instructions": "Aggregate the data first (group by the dimension the user asked about, at most ~20 labels), then call artifacts.create_chart with an Arabic title. bar for comparisons, line for time series, pie/donut for shares. Add one or two sentences on what the chart shows.",
     },
     {
-        "plugin_name": "print", "title": "طباعة مستند", "output": "PDF", "icon": "printer", "tool": "export.print",
-        "description": "المستند PDF بقالب الطباعة الرسمي: فاتورة، أمر، سند",
+        "plugin_name": "print", "title": "Print a Document", "output": "PDF", "icon": "printer", "tool": "export.print",
+        "description": "The document as a PDF in its official print format: invoice, order, voucher",
         "instructions": "Find the exact document the user means (data.query on its DocType with the customer/date/number they gave; ask only if several match), then call export.print once with doctype and name. Use the default print format unless the user named one. Reply with one line naming the document.",
     },
     {
-        "plugin_name": "statement", "title": "كشف حساب", "output": "PDF", "icon": "file-text", "tool": "export.statement",
-        "description": "كشف حساب عميل أو مورد PDF: الافتتاحي والحركات والختامي",
+        "plugin_name": "statement", "title": "Account Statement", "output": "PDF", "icon": "file-text", "tool": "export.statement",
+        "description": "A customer or supplier statement as a PDF: opening, transactions and closing balance",
         "instructions": "Call export.statement directly with party_type, party exactly as the user wrote it (ID or name; the tool resolves it), the period the user asked for (default: last 12 months to today) and language = the language the user writes in. If it returns candidates, ask the user which one in one line. Reply with the closing balance in one sentence (له/عليه) and nothing else.",
     },
     {
-        "plugin_name": "email", "title": "إرسال بريد", "output": "Other", "icon": "mail", "tool": "messaging.request_email",
-        "description": "يرسل النتيجة أو الملف بالبريد بعد موافقتك",
+        "plugin_name": "email", "title": "Send by Email", "output": "Other", "icon": "mail", "tool": "messaging.request_email",
+        "description": "Emails the result or the file after you approve",
         "instructions": "Prepare what to send first (e.g. export.statement, export.print or export.excel) unless a file from this conversation already fits. Find the recipient's email: use the address the user gave, otherwise the party's Contact (data.query on Contact Email / the party's email_id); never guess an address. Then call messaging.request_email once with recipients, a short subject, a short polite message in the user's language and the file_url values as attachments. The email goes out only after the user approves the card.",
     },
     {
         "plugin_name": "csv", "title": "CSV", "output": "CSV", "icon": "file", "tool": "export.csv",
-        "description": "ملف CSV للبيانات الخام",
+        "description": "A CSV file of the raw data",
         "instructions": "Get the rows, then call export.csv once with `artifact` or `query` (inline `rows` only for a few lines). Reply briefly.",
     },
 ]

@@ -6,6 +6,16 @@
   var stack = [];
   var current = null;
 
+  /* ---------- wording ----------
+     English source text, shown in the viewer's language: AI_I18N is filled by the server when it
+     builds this document (protocol.build_main_view). Missing entries fall back to English. */
+  var I18N = (typeof AI_I18N !== "undefined" && AI_I18N) || {};
+  function T(text, args) {
+    var s = I18N[text] || text;
+    if (args) s = s.replace(/\{(\d+)\}/g, function (m, i) { return args[i] === undefined ? m : args[i]; });
+    return s;
+  }
+
   /* ---------- DOM helper ---------- */
   function h(tag, attrs) {
     var el = document.createElement(tag);

@@ -23,6 +23,8 @@
 // MCP Apps standard only (spec 2026-01-26): ui/initialize -> ui/notifications/initialized, then host notifications.
 (function () {
   var $ = function (id) { return document.getElementById(id); };
+  // Self-contained (no server strings): Arabic when the host locale is right-to-left, English otherwise.
+  var L = function (en, ar) { return document.documentElement.getAttribute("dir") === "rtl" ? ar : en; };
   var pending = {}, nextId = 1, seen = { input: "—", result: "—", theme: "—", locale: "—", host: "—", timeZone: "—", platform: "—" };
   function post(msg) { window.parent.postMessage(msg, "*"); }
   function request(method, params) {
@@ -56,7 +58,7 @@
     if (m.method === "ui/notifications/tool-input") { seen.input = JSON.stringify(m.params && m.params.arguments || {}); draw(); }
     else if (m.method === "ui/notifications/tool-result") {
       var sc = m.params && m.params.structuredContent;
-      $("count").textContent = sc && sc.companies != null ? "عدد الشركات: " + sc.companies : ((m.params.content || [{}])[0].text || "");
+      $("count").textContent = sc && sc.companies != null ? L("Companies: ", "عدد الشركات: ") + sc.companies : ((m.params.content || [{}])[0].text || "");
       seen.result = sc ? Object.keys(sc).join(", ") : "text only"; draw();
       trace("ui_tool_result_received", "probe"); trace("ui_render_completed", "probe"); flush();
     }
@@ -65,7 +67,7 @@
     else if (m.method === "ping" && m.id != null) post({ jsonrpc: "2.0", id: m.id, result: {} });
     else if (m.method && m.id != null) post({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "Method not found: " + m.method } });
   });
-  $("status").textContent = "جارٍ الاتصال بالمضيف…";
+  $("status").textContent = L("Connecting to the host…", "جارٍ الاتصال بالمضيف…");
   trace("ui_handshake_started");
   var ready = false;
   // Repeated until the host answers: a host that starts listening late must not leave the view unopened.
@@ -75,12 +77,12 @@
       ready = true;
       caps = (res && res.hostCapabilities) || {};
       seen.host = res && res.hostInfo ? res.hostInfo.name + " " + (res.hostInfo.version || "") : "?";
-      $("status").textContent = "MCP App connected successfully";
+      $("status").textContent = L("MCP App connected successfully", "تم الاتصال بتطبيق MCP بنجاح");
       post({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} });
       context(res && res.hostContext);
       trace("ui_handshake_completed", seen.host);
       flush();
-    }).catch(function (e) { if (!ready) $("status").textContent = "فشل الاتصال: " + e.message; });
+    }).catch(function (e) { if (!ready) $("status").textContent = L("Connection failed: ", "فشل الاتصال: ") + e.message; });
     setTimeout(function () { if (!ready && attempt < 12) handshake(attempt + 1); }, attempt < 4 ? 500 : 1500);
   })(0);
 })();

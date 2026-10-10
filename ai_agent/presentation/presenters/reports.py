@@ -5,7 +5,8 @@ import frappe
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import insights as findings
 from ai_agent.presentation import schema
-from ai_agent.presentation.labels import DOCTYPE_LABELS, FIELD_LABELS, label_for, translate
+from ai_agent.presentation.i18n import t
+from ai_agent.presentation.labels import FIELD_LABELS, doctype_label, label_for, translate
 from ai_agent.presentation.presenters.lists import CURRENCY_KEYS, _default_currency
 from ai_agent.presentation.registry import register
 from ai_agent.presentation.urls import doc_href
@@ -16,12 +17,12 @@ FIELDTYPE = {
 }
 SPECIAL_ACCOUNTS = {"'opening'": "opening", "'total'": "total", "'closing (opening + total)'": "closing"}
 LATE_BUCKETS = ("range3", "range4", "range5", "61-90", "91-120", "120-above")
-REPORT_TITLES = {
-    "general ledger": "دفتر الأستاذ", "accounts receivable": "أعمار الذمم المدينة", "accounts payable": "أعمار الذمم الدائنة",
-    "accounts receivable summary": "ملخص الذمم المدينة", "accounts payable summary": "ملخص الذمم الدائنة",
-    "stock balance": "أرصدة المخزون", "stock ledger": "سجل المخزون", "trial balance": "ميزان المراجعة",
-    "balance sheet": "الميزانية العمومية", "profit and loss statement": "قائمة الدخل", "sales register": "سجل المبيعات",
-    "purchase register": "سجل المشتريات", "customer ledger summary": "كشف حساب العملاء",
+REPORT_TITLES = {   # English titles, translated where shown
+    "general ledger": "General Ledger", "accounts receivable": "Receivables Aging", "accounts payable": "Payables Aging",
+    "accounts receivable summary": "Receivables Summary", "accounts payable summary": "Payables Summary",
+    "stock balance": "Stock Balances", "stock ledger": "Stock Ledger", "trial balance": "Trial Balance",
+    "balance sheet": "Balance Sheet", "profit and loss statement": "Income Statement", "sales register": "Sales Register",
+    "purchase register": "Purchase Register", "customer ledger summary": "Customer Statements",
 }
 AGING_BUCKETS = ("range1", "range2", "range3", "range4", "range5", "0-30", "31-60", "61-90", "91-120", "120-above", "current")
 
@@ -118,7 +119,7 @@ def present_report(tool, arguments, result, ctx):
         if not actions and r.get("account") and not kind and variant not in ("statement", "gl"):
             ledger = findings.ledger_drill(result.get("filters"), account=r.get("account"))
             if ledger:
-                actions = [schema.action("ledger", "قيود الأستاذ", kind="drill", style="primary", tool="reports__run", arguments=ledger)]
+                actions = [schema.action("ledger", t("Ledger entries"), kind="drill", style="primary", tool="reports__run", arguments=ledger)]
         row = schema.make_row(cells, id=str(vn or r.get("account") or "") or None, href=doc_href(vt, vn) if vt and vn else None,
                               actions=actions, kind=kind if kind in ("opening", "closing") else None,
                               level=frappe.utils.cint(r.get("indent")) if r.get("indent") else 0)
@@ -127,7 +128,7 @@ def present_report(tool, arguments, result, ctx):
                 if c["key"] in LATE_BUCKETS and (fmt.to_number(r.get(c["key"])) or 0) > 0:
                     cells[c["key"]]["tone"] = "danger" if c["key"] in LATE_BUCKETS[-3:] or c["key"] in ("91-120", "120-above") else "warning"
         if "voucher_type" in cells and r.get("voucher_type"):
-            cells["voucher_type"]["d"] = DOCTYPE_LABELS.get(r["voucher_type"], r["voucher_type"])   # the business name, not the DocType
+            cells["voucher_type"]["d"] = doctype_label(r["voucher_type"])   # the business name, not the DocType
         if kind in ("opening", "closing"):
             for key, cell in cells.items():
                 if cell["d"] in ("—", "0 YER", "0") and key != "balance":
@@ -139,19 +140,19 @@ def present_report(tool, arguments, result, ctx):
         if kind:
             # The label goes in the account column, or the first column when the report has none.
             target = "account" if "account" in row["cells"] else columns[0]["key"]
-            row["cells"][target]["d"] = {"opening": "الرصيد الافتتاحي", "closing": "الرصيد الختامي"}[kind]
+            row["cells"][target]["d"] = t({"opening": "Opening balance", "closing": "Closing balance"}[kind])
 
     sums = {c["key"]: sum(fmt.to_number(r.get(c["key"])) or 0 for r in rows) for c in columns if c.get("total")}
-    totals = {"label": "الإجمالي", "cells": {k: {"v": v, "d": fmt.money(v, currency)} for k, v in sums.items()}} if sums and not mixed else None
+    totals = {"label": t("Total"), "cells": {k: {"v": v, "d": fmt.money(v, currency)} for k, v in sums.items()}} if sums and not mixed else None
     kpis = []
     labels = {c["key"]: c["label"] for c in columns}
     statement = variant in ("statement", "gl") and "debit" in sums and "credit" in sums
     for key in ("debit", "credit", "outstanding", "total"):
         if key in sums:
             if statement and key == "debit":
-                kpis.append(schema.kpi(key, "إجمالي المدين", sums[key], currency=currency, icon="coins", accent="purple"))
+                kpis.append(schema.kpi(key, t("Total debit"), sums[key], currency=currency, icon="coins", accent="purple"))
             elif statement and key == "credit":
-                kpis.append(schema.kpi(key, "إجمالي الدائن", sums[key], currency=currency, icon="banknote", tone="success"))
+                kpis.append(schema.kpi(key, t("Total credit"), sums[key], currency=currency, icon="banknote", tone="success"))
             else:
                 kpis.append(schema.kpi(key, labels[key], sums[key], currency=currency))
     warnings, actions, insights = [], [], []
@@ -159,19 +160,22 @@ def present_report(tool, arguments, result, ctx):
     party = party[0] if isinstance(party, list) and party else party
     overdue = _overdue(result.get("filters") or {}, party, ctx) if variant == "statement" and party else None
     if overdue:
-        kpis.append(schema.kpi("overdue", "المتأخر", overdue["amount"], currency=overdue["currency"] or currency, icon="clockAlert", tone="danger",
-                               hint=f"{fmt.number(overdue['count'])} فواتير" if overdue["count"] > 1 else "فاتورة واحدة"))
-        warnings.append(schema.warning("critical", f"تنبيه: يوجد {fmt.number(overdue['count'])} {'فواتير متأخرة' if overdue['count'] > 1 else 'فاتورة متأخرة'} بقيمة {fmt.money(overdue['amount'], overdue['currency'] or currency)}.", "overdue"))
-        actions.append(schema.action("overdue", "عرض الفواتير المتأخرة", kind="drill", style="soft", icon="receipt", tool="data__query", arguments=overdue["query"]))
+        overdue_money = fmt.money(overdue["amount"], overdue["currency"] or currency)
+        several = overdue["count"] > 1
+        kpis.append(schema.kpi("overdue", t("Overdue amount"), overdue["amount"], currency=overdue["currency"] or currency, icon="clockAlert", tone="danger",
+                               hint=t("Invoices: {0}", fmt.number(overdue["count"])) if several else t("One invoice")))
+        warnings.append(schema.warning("critical", t("Alert: {0} overdue invoices totaling {1}.", fmt.number(overdue["count"]), overdue_money) if several
+                                       else t("Alert: one overdue invoice of {0}.", overdue_money), "overdue"))
+        actions.append(schema.action("overdue", t("Show overdue invoices"), kind="drill", style="soft", icon="receipt", tool="data__query", arguments=overdue["query"]))
     if statement:
         closing = special.get("closing", {})
         balance = closing.get("balance") if closing.get("balance") is not None else sums["debit"] - sums["credit"]
-        kpis.append(schema.kpi("balance", "الرصيد الحالي" if closing else "الرصيد", balance, currency=currency, icon="wallet",
+        kpis.append(schema.kpi("balance", t("Current balance") if closing else t("Balance"), balance, currency=currency, icon="wallet",
                                tone="info"))
         if party and _can("Payment Entry", "create"):
-            actions.append(schema.action("pay", "إنشاء دفعة", kind="link", style="soft", icon="card",
+            actions.append(schema.action("pay", t("Create payment"), kind="link", style="soft", icon="card",
                                          href=frappe.utils.get_url(f"/app/payment-entry/new?party_type={'Supplier' if (result.get('filters') or {}).get('party_type') == 'Supplier' else 'Customer'}&party={frappe.utils.quote(str(party))}")))
-        actions.append(schema.action("export", "تصدير", kind="export", style="", icon="download"))
+        actions.append(schema.action("export", t("Export"), kind="export", style="", icon="download"))
     name_lower = str(result.get("report") or "").lower()
     if not mixed:
         if "trial balance" in name_lower:
@@ -179,43 +183,43 @@ def present_report(tool, arguments, result, ctx):
         elif variant == "aging":
             insights += findings.opposite_party_balances(rows, result.get("filters"), currency, payable="payable" in name_lower)
         elif variant in ("statement", "gl"):
-            insights += findings.dominant_voucher(rows, currency, label=str(party) if party else "الحساب")
+            insights += findings.dominant_voucher(rows, currency, label=str(party) if party else None)
     if mixed:
-        warnings.append(schema.warning("info", "التقرير بعملات متعددة: لم تُجمع الإجماليات عبر العملات.", "mixed_currency"))
+        warnings.append(schema.warning("info", t("This report has several currencies, so totals are not added across currencies."), "mixed_currency"))
     reported = result.get("row_count", len(rows_all))
     total_rows = max(len(rows), reported - (len(rows_all) - len(rows))) if reported else len(rows)
     if result.get("is_truncated") or total_rows > len(rows):
-        warnings.append(schema.warning("info", f"عرض {fmt.number(len(rows))} من {fmt.number(total_rows)} صف.", "truncated"))
-    report_name = result.get("report") or "تقرير"
-    title = REPORT_TITLES.get(str(report_name).lower(), report_name)
+        warnings.append(schema.warning("info", t("Showing {0} of {1} rows.", fmt.number(len(rows)), fmt.number(total_rows)), "truncated"))
+    report_name = result.get("report") or t("Report")
+    title = t(REPORT_TITLES[str(report_name).lower()]) if str(report_name).lower() in REPORT_TITLES else translate(report_name) or report_name
     subtitle = None
     if variant == "statement" and party:
-        title = f"كشف حساب — {party}"
-        subtitle = f"حتى {fmt.date((result.get('filters') or {}).get('to_date') or frappe.utils.nowdate())}"
+        title = t("Statement of account — {0}", party)
+        subtitle = t("As of {0}", fmt.date((result.get("filters") or {}).get("to_date") or frappe.utils.nowdate()))
     date_col = next((c["key"] for c in columns if c["type"] == "date"), None)
     voucher_col = "voucher_type" in {c["key"] for c in columns}
-    tabs = TABS if variant in ("statement", "gl") and voucher_col else []
+    tabs = [dict(tab, label=t(tab["label"])) for tab in TABS] if variant in ("statement", "gl") and voucher_col else []
     presentation = schema.table(
         title, columns, out_rows, variant=variant, subtitle=subtitle, summary={"records": total_rows}, kpis=kpis[:4], totals=totals,
         warnings=warnings, currency=currency, sort=None, group_by=group_by, actions=actions, insights=insights,
         icon="user" if variant == "statement" else "file", tabs=tabs,
         filters=[{"key": date_col, "label": next(c["label"] for c in columns if c["key"] == date_col), "type": "date_range"}] if date_col else [],
-        empty={"title": "لا توجد بيانات لهذه الفلاتر", "hint": "غيّر الفترة أو الشركة."},
-        paging={"total": total_rows, "shown": len(rows), "offset": 0, "noun": "قيد" if statement else "صف"},
+        empty={"title": t("No data for these filters"), "hint": t("Change the period or the company.")},
+        paging={"total": total_rows, "shown": len(rows), "offset": 0, "noun": t("entries") if statement else t("rows")},
         developer={"report": report_name, "filters": result.get("filters")})
-    text = f"{title}: {fmt.number(total_rows)} صف" + "".join(f"، {k['label']} {k['d']}" for k in kpis[:4])
+    text = t("{0}: {1} rows", title, fmt.number(total_rows)) + "".join(f"{fmt.comma()}{k['label']} {k['d']}" for k in kpis[:4])
     if insights:
-        text += " ملاحظات: " + " | ".join(schema.insight_text(i) for i in insights)
+        text += " " + t("Notes:") + " " + " | ".join(schema.insight_text(i) for i in insights)
     return schema.envelope(tool=tool, data={"report": report_name, "row_count": total_rows, "summary": result.get("summary"), "filters": result.get("filters")},
                            summary={"text": text, "records": total_rows, **{k["key"]: k["v"] for k in kpis}},
                            presentation=presentation, warnings=warnings)
 
 
 TABS = [
-    {"key": "all", "label": "الكل"},
-    {"key": "invoices", "label": "الفواتير", "col": "voucher_type", "in": ["Sales Invoice", "Purchase Invoice"]},
-    {"key": "payments", "label": "المدفوعات", "col": "voucher_type", "in": ["Payment Entry"]},
-    {"key": "entries", "label": "القيود", "col": "voucher_type", "in": ["Journal Entry"]},
+    {"key": "all", "label": "All"},             # English labels, translated in present_report
+    {"key": "invoices", "label": "Invoices", "col": "voucher_type", "in": ["Sales Invoice", "Purchase Invoice"]},
+    {"key": "payments", "label": "Payments", "col": "voucher_type", "in": ["Payment Entry"]},
+    {"key": "entries", "label": "Journal entries", "col": "voucher_type", "in": ["Journal Entry"]},
 ]
 
 
@@ -229,10 +233,10 @@ def _can(doctype, ptype):
 def _row_actions(voucher_type, voucher_no):
     if not (voucher_type and voucher_no):
         return None
-    return [schema.action("open", "فتح", kind="drill", style="primary", overflow=True, tool="data__get_document",
+    return [schema.action("open", t("View"), kind="drill", style="primary", overflow=True, tool="data__get_document",
                           arguments={"doctype": voucher_type, "name": voucher_no}),
-            schema.action("erp", "فتح في ERP", kind="link", href=doc_href(voucher_type, voucher_no), overflow=True),
-            schema.action("copy", "نسخ الرقم", kind="copy", arguments={"text": str(voucher_no)}, overflow=True)]
+            schema.action("erp", t("Open in ERP"), kind="link", href=doc_href(voucher_type, voucher_no), overflow=True),
+            schema.action("copy", t("Copy number"), kind="copy", arguments={"text": str(voucher_no)}, overflow=True)]
 
 
 def _overdue(filters, party, ctx):

@@ -3,32 +3,36 @@
 import re
 
 RULES = [
-    # (pattern, kind, title, reason template, suggestion, retry)
-    (r"No (read|create|write|submit|cancel|delete) permission on (?:DocType )?'?([^'.]+)'?", "permission", "لا تملك الصلاحية اللازمة",
-     "حسابك لا يملك صلاحية {verb} على «{target}».", "اطلب من مدير النظام منحك هذه الصلاحية ثم أعد المحاولة.", False),
-    (r"fiscal year", "validation", "السنة المالية غير محددة",
-     "تعذّر تنفيذ التقرير لأن السنة المالية أو الفترة غير محددة.", "حدّد السنة المالية أو تاريخي البداية والنهاية ثم أعد المحاولة.", True),
-    (r"not (found or not )?accessible|does not exist|not found", "not_found", "المستند غير متاح",
-     "المستند المطلوب غير موجود، أو لا تملك صلاحية عرضه.", "تحقق من رقم المستند أو ابحث عنه بالاسم.", False),
-    (r"missing required argument\(s\): (.+?)\.?$|([a-z_, ]+) (?:is|are) required", "validation", "بيانات ناقصة",
-     "الطلب ينقصه: {target}.", "أكمل البيانات الناقصة ثم أعد المحاولة.", True),
-    (r"high cost|requires additional filters|add more filters", "validation", "النتيجة أكبر من اللازم",
-     "الاستعلام واسع جدًا ولا يمكن تنفيذه كما هو.", "حدّد فترة زمنية أو شركة أو طرفًا لتضييق النتيجة.", True),
-    (r"call limit", "limit", "بلغت الحد المسموح", "تم بلوغ الحد الأقصى لعدد مرات استخدام هذه الأداة في هذه المهمة.", "ابدأ طلبًا جديدًا.", False),
-    (r"rate limit", "limit", "طلبات كثيرة في وقت قصير", "تجاوزت عدد الطلبات المسموح في الدقيقة.", "انتظر دقيقة ثم أعد المحاولة.", True),
-    (r"system configuration; it cannot be created or changed", "policy", "إعداد نظام لا يُعدَّل من المساعد",
-     "«{target}» من إعدادات النظام، وتعديله متاح من ERPNext فقط.", "افتح الإعداد في ERPNext أو اطلب ذلك من مدير النظام.", False),
-    (r"not allowed by this agent|is not available|requires approval", "policy", "الإجراء غير متاح",
-     "هذا الإجراء غير مفعّل في إعدادات المساعد الحالية.", "اطلب من مدير النظام تفعيله إن كان مطلوبًا.", False),
-    (r"Tool execution failed|Internal server error", "failure", "حدث خطأ غير متوقع",
-     "تعذّر إكمال العملية بسبب خطأ داخلي، وقد سُجّل لدى مدير النظام.", "أعد المحاولة، وإن تكرر الخطأ فأبلغ مدير النظام.", True),
+    # (pattern, kind, title, reason template, suggestion, retry). English sources, translated in friendly();
+    # the reason template takes {0} = target, {1} = permission (only the permission rule uses it).
+    (r"No (read|create|write|submit|cancel|delete) permission on (?:DocType )?'?([^'.]+)'?", "permission", "You do not have the required permission",
+     "Your account does not have {1} to “{0}”.", "Ask your system manager to grant this permission, then try again.", False),
+    (r"fiscal year", "validation", "Fiscal year not set",
+     "The report could not run because the fiscal year or period is not set.", "Choose a fiscal year or a start and end date, then try again.", True),
+    (r"not (found or not )?accessible|does not exist|not found", "not_found", "Document not available",
+     "The requested document does not exist, or you do not have permission to view it.", "Check the document number, or search for it by name.", False),
+    (r"missing required argument\(s\): (.+?)\.?$|([a-z_, ]+) (?:is|are) required", "validation", "Missing information",
+     "The request is missing: {0}.", "Fill in the missing information, then try again.", True),
+    (r"high cost|requires additional filters|add more filters", "validation", "Too many results",
+     "The query is too broad to run as it is.", "Narrow it down by period, company or party.", True),
+    (r"call limit", "limit", "Limit reached", "This tool has been used the maximum number of times for this task.", "Start a new request.", False),
+    (r"rate limit", "limit", "Too many requests", "You have exceeded the number of requests allowed per minute.", "Wait a minute, then try again.", True),
+    (r"system configuration; it cannot be created or changed", "policy", "System setting the assistant cannot change",
+     "“{0}” is a system setting and can only be changed in ERPNext.", "Open the setting in ERPNext, or ask your system manager.", False),
+    (r"not allowed by this agent|is not available|requires approval", "policy", "Action not available",
+     "This action is not enabled in the assistant's current settings.", "Ask your system manager to enable it if you need it.", False),
+    (r"Tool execution failed|Internal server error", "failure", "An unexpected error occurred",
+     "The operation could not be completed because of an internal error, which has been logged for the system manager.",
+     "Try again, and if the error persists, tell your system manager.", True),
 ]
-VERBS = {"read": "القراءة", "create": "الإنشاء", "write": "التعديل", "submit": "الاعتماد", "cancel": "الإلغاء", "delete": "الحذف"}
+VERBS = {"read": "read access", "create": "create access", "write": "edit access", "submit": "submit access",
+         "cancel": "cancel access", "delete": "delete access"}
 ARABIC = re.compile(r"[\u0600-\u06FF]")
 
 
 def friendly(message, tool=None):
     """{kind, title, reason, suggestion, retry, raw} for any error text."""
+    from ai_agent.presentation.i18n import t
     from ai_agent.presentation.labels import doctype_label
 
     raw = str(message or "").strip()
@@ -38,15 +42,16 @@ def friendly(message, tool=None):
             continue
         groups = [g for g in match.groups() if g]
         target = groups[-1].strip() if groups else ""
-        verb = VERBS.get(groups[0].lower(), "") if kind == "permission" and groups else ""
+        verb = t(VERBS[groups[0].lower()]) if kind == "permission" and groups and groups[0].lower() in VERBS else ""
         if kind in ("permission", "policy") and target:
             target = doctype_label(target) if target[:1].isupper() else target
-        if kind == "policy" and "{target}" in reason and not target:
+        if kind == "policy" and "{0}" in reason and not target:
             target = raw.split(" is system configuration")[0].strip()
-        return {"kind": kind, "title": title, "reason": reason.format(target=target or "—", verb=verb), "suggestion": suggestion, "retry": retry, "raw": raw}
+        return {"kind": kind, "title": t(title), "reason": t(reason, target or "—", verb), "suggestion": t(suggestion), "retry": retry, "raw": raw}
     if ARABIC.search(raw):      # already written for the user
-        return {"kind": "failure", "title": "تعذّر تنفيذ الطلب", "reason": raw, "suggestion": None, "retry": False, "raw": raw}
-    return {"kind": "failure", "title": "تعذّر تنفيذ الطلب", "reason": "لم تكتمل العملية.", "suggestion": "أعد المحاولة، وإن تكرر الخطأ فأبلغ مدير النظام.",
+        return {"kind": "failure", "title": t("The request could not be completed"), "reason": raw, "suggestion": None, "retry": False, "raw": raw}
+    return {"kind": "failure", "title": t("The request could not be completed"), "reason": t("The operation did not finish."),
+            "suggestion": t("Try again, and if the error persists, tell your system manager."),
             "retry": True, "raw": raw}
 
 

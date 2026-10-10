@@ -8,6 +8,7 @@ import json
 
 
 from ai_agent.mcp.approvals import ApprovalUiError, _secret
+from ai_agent.presentation.i18n import t
 
 MAX_PAGE = 200
 PAGEABLE_TOOLS = {"data.query"}
@@ -29,9 +30,9 @@ def read(token, user):
             raise ValueError
         data = json.loads(base64.urlsafe_b64decode(body.encode()))
     except Exception:
-        raise ApprovalUiError("رمز الصفحة غير صالح.")
+        raise ApprovalUiError(t("This page token is not valid."))
     if data.get("u") != user or data.get("t") not in PAGEABLE_TOOLS:
-        raise ApprovalUiError("رمز الصفحة غير صالح.")
+        raise ApprovalUiError(t("This page token is not valid."))
     return data["t"], data["a"]
 
 

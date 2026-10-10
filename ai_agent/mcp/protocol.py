@@ -47,14 +47,28 @@ def _read(*parts):
         return handle.read()
 
 
-def build_main_view():
+def build_main_view(lang=None):
     """Assemble the source modules into the one self-contained HTML document MCP Apps hosts render.
 
     The sources stay small and reviewable; the resource stays a single document with no external files,
-    so it works under a CSP that allows no network origins."""
-    shell = _read(UI_SRC, "shell.html")
-    script = "\n".join(_read(UI_SRC, name) for name in UI_SCRIPTS)
+    so it works under a CSP that allows no network origins. It is built in the viewer's language: the
+    document's lang/dir and the view's own strings (AI_I18N, read by T() in core.js). The URI carries a
+    hash of the document, so each language gets its own URI."""
+    from ai_agent.presentation.i18n import view_strings
+    from ai_agent.presentation.labels import label_language
+
+    lang = lang or label_language()
+    shell = _localize_shell(_read(UI_SRC, "shell.html"), lang)
+    strings = json.dumps(view_strings(lang), ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
+    script = f"var AI_I18N = {strings};\n" + "\n".join(_read(UI_SRC, name) for name in UI_SCRIPTS)
     return shell.replace("/*STYLES*/", _read(UI_SRC, "styles.css")).replace("/*SCRIPT*/", script)
+
+
+def _localize_shell(html, lang):
+    from ai_agent.presentation.i18n import is_rtl, t
+
+    html = html.replace('<html lang="ar" dir="rtl">', f'<html lang="{lang}" dir="{"rtl" if is_rtl(lang) else "ltr"}">', 1)
+    return html.replace('aria-label="نتيجة"', f'aria-label="{t("Result")}"', 1)
 
 
 def read_minimal_view():

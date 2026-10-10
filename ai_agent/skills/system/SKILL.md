@@ -1,6 +1,6 @@
 ---
 name: system
-title: النظام والإعداد
+title: System and Setup
 description: Load for system-level questions and as the fallback when no domain skill (sales, purchasing, inventory, accounting, documents) covers the data: is ERPNext set up / ready for an area, what is missing in company/accounts/stock/selling/buying settings, data quality audits (duplicates, missing fields, negative stock, future dates, orphan links), finding unknown DocTypes, fields, links or workflows, and finding, describing and running any standard or custom report.
 tools: setup.check, knowledge.search, schema.search_doctypes, schema.describe_doctype, schema.describe_links, schema.describe_workflow, skills.read_reference, reports.search, reports.describe, reports.run, data.query, data.count, artifacts.create_table
 ---

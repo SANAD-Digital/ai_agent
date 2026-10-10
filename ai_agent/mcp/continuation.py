@@ -12,6 +12,8 @@ import re
 
 import frappe
 
+from ai_agent.presentation.i18n import t
+
 # Only requests that themselves go through the approval / permission path can be chained.
 ALLOWED_TOOLS = {"actions__request_create_draft", "actions__request_bulk_create"}
 MARK = "ai-agent-continuation"
@@ -44,7 +46,7 @@ def store(approval_name, user, then):
     data = json.dumps(then, ensure_ascii=False).replace("-->", "--\\u003e")
     frappe.get_doc({
         "doctype": "Comment", "comment_type": "Info", "reference_doctype": "AI Approval Request", "reference_name": approval_name,
-        "comment_email": user, "content": f"الهدف الأصلي بعد الموافقة: {then['goal']}\n<!--{MARK}:{data}-->",
+        "comment_email": user, "content": t("Original goal after approval: {0}", then["goal"]) + f"\n<!--{MARK}:{data}-->",
     }).insert(ignore_permissions=True)
 
 
@@ -70,7 +72,7 @@ def take(approval_name):
         return None
     marked = dict(data, consumed=True)
     frappe.db.set_value("Comment", name, "content",
-                        f"الهدف الأصلي بعد الموافقة: {data['goal']} (نُفّذ)\n<!--{MARK}:{json.dumps(marked, ensure_ascii=False).replace('-->', '--\\u003e')}-->",
+                        t("Original goal after approval: {0} (done)", data["goal"]) + f"\n<!--{MARK}:{json.dumps(marked, ensure_ascii=False).replace('-->', '--\\u003e')}-->",
                         update_modified=False)
     frappe.db.commit()
     return data

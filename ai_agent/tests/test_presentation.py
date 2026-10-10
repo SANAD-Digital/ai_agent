@@ -6,15 +6,16 @@ from frappe.tests import IntegrationTestCase
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import present, schema
 from ai_agent.presentation import text as presentation_text
-from ai_agent.presentation.labels import field_tier, status_display
+from ai_agent.presentation.i18n import t
+from ai_agent.presentation.labels import field_tier, label_for, plural_label, status_display
 
 
 class TestFormatters(IntegrationTestCase):
 	def test_money_and_nulls(self):
 		self.assertEqual(fmt.money(150000, "YER"), "150,000 YER")
 		self.assertEqual(fmt.money(1234.5, "USD"), "1,234.50 USD")
-		self.assertEqual(fmt.money(None, "YER"), "غير مسجل")
-		self.assertEqual(fmt.money(0, "YER", zero_as_unset=True), "غير مسجل")
+		self.assertEqual(fmt.money(None, "YER"), t("Not recorded"))
+		self.assertEqual(fmt.money(0, "YER", zero_as_unset=True), t("Not recorded"))
 		self.assertEqual(fmt.money(0, "YER"), "0 YER")
 
 	def test_no_technical_null_text(self):
@@ -25,18 +26,18 @@ class TestFormatters(IntegrationTestCase):
 		self.assertEqual(fmt.percent(0.134), "13.4%")
 		self.assertEqual([fmt.percent(v, 0) for v in (0.9, 0.1, 1, 0.505)], ["90%", "10%", "100%", "50%"])
 		self.assertEqual([fmt.percent(v) for v in (0.9, 0.1, 1)], ["90%", "10%", "100%"])
-		self.assertEqual(fmt.date("2026-09-29"), "29 سبتمبر 2026")
-		self.assertEqual(fmt.boolean(1), "نعم")
-		self.assertEqual(fmt.boolean(0), "لا")
+		self.assertEqual(fmt.date("2026-09-29"), f"29 {t('September')} 2026")
+		self.assertEqual(fmt.boolean(1), t("Yes"))
+		self.assertEqual(fmt.boolean(0), t("No"))
 
 	def test_compact(self):
 		self.assertEqual(fmt.compact(1_400_000), "1.4M")
 		self.assertEqual(fmt.compact(320_000), "320K")
 
 	def test_status_registry(self):
-		self.assertEqual(status_display("Partly Paid"), ("مدفوعة جزئيًا", "warning"))
-		self.assertEqual(status_display("Overdue"), ("متأخرة", "danger"))
-		self.assertEqual(status_display("Cancelled")[0], "ملغاة")
+		self.assertEqual(status_display("Partly Paid")[1], "warning")
+		self.assertEqual(status_display("Overdue")[1], "danger")
+		self.assertTrue(status_display("Cancelled")[0])
 
 
 class TestFieldOrder(IntegrationTestCase):
@@ -52,7 +53,7 @@ class TestFieldOrder(IntegrationTestCase):
 		col = schema.column("grand_total", type="currency", priority="primary")
 		for key in ("key", "label", "type", "priority", "align", "sortable", "filterable"):
 			self.assertIn(key, col)
-		self.assertEqual(col["label"], "الإجمالي")
+		self.assertEqual(col["label"], label_for("grand_total"))
 		self.assertEqual(col["align"], "end")
 
 
@@ -75,19 +76,19 @@ class TestListPresenter(IntegrationTestCase):
 		self.assertLess(keys.index("grand_total"), keys.index("status"))
 		row = p["rows"][0]["cells"]
 		self.assertEqual(row["grand_total"]["d"], "150,000 YER")
-		self.assertEqual(row["status"]["d"], "مدفوعة")
+		self.assertEqual(row["status"]["d"], status_display("Paid")[0])
 		self.assertEqual(row["status"]["tone"], "success")
-		self.assertEqual(row["posting_date"]["d"], "29 سبتمبر 2026")
+		self.assertEqual(row["posting_date"]["d"], fmt.date("2026-09-29"))
 		self.assertIn("owner", p["developer"]["hidden_fields"])
 
 	def test_company_capital_unrecorded_is_not_zero(self):
 		rows = [{"name": "SND", "default_currency": "YER", "capital": 0}, {"name": "ACME", "default_currency": "USD", "capital": None}]
 		p = self._present("Company", rows)["presentation"]
-		self.assertEqual(p["title"], "الشركات")
+		self.assertEqual(p["title"], plural_label("Company"))
 		self.assertEqual([c["key"] for c in p["columns"]][:4], ["_index", "name", "default_currency", "capital"])
 		self.assertEqual(p["icon"], "building")
-		self.assertEqual(p["search_placeholder"], "بحث في الشركات")
-		self.assertEqual({r["cells"]["capital"]["d"] for r in p["rows"]}, {"غير مسجل"})
+		self.assertEqual(p["search_placeholder"], t("Search companies"))
+		self.assertEqual({r["cells"]["capital"]["d"] for r in p["rows"]}, {t("Not recorded")})
 
 	def test_mixed_currency_is_not_summed(self):
 		rows = [{"name": "A", "grand_total": 100, "currency": "YER"}, {"name": "B", "grand_total": 5, "currency": "USD"}]
@@ -109,7 +110,7 @@ class TestListPresenter(IntegrationTestCase):
 
 	def test_empty_state_is_specific(self):
 		p = self._present("Sales Invoice", [])["presentation"]
-		self.assertIn("فواتير البيع", p["empty"]["title"])
+		self.assertEqual(p["empty"]["title"], t("No matching {0}", plural_label("Sales Invoice", "Records")))
 
 	def test_lite_copy_carries_no_rows_or_action_arguments(self):
 		p = self._present("Sales Invoice", [{"name": "A", "grand_total": 1}])["presentation"]
@@ -128,9 +129,9 @@ class TestListPresenter(IntegrationTestCase):
 	def test_text_fallback_is_ordered_markdown(self):
 		env = self._present("Company", [{"name": "SND", "default_currency": "YER", "capital": None}])
 		text = presentation_text.render(env["presentation"], env["summary"]["text"])
-		self.assertIn("**الشركات**", text)
-		self.assertIn("| # | اسم الشركة | العملة | رأس المال |", text)
-		self.assertIn("غير مسجل", text)
+		self.assertIn(f"**{plural_label('Company')}**", text)
+		self.assertIn(f"| # | {t('Company name')} | {t('Currency')} | {label_for('capital')} |", text)
+		self.assertIn(t("Not recorded"), text)
 		self.assertNotIn("None", text)
 
 	def test_filter_bar_definitions_come_from_the_server(self):
@@ -192,5 +193,5 @@ class TestReportPresenter(IntegrationTestCase):
 		self.assertEqual(kinds[0], "opening")
 		self.assertEqual(kinds[-1], "closing")
 		self.assertEqual(len(p["rows"]), 4)
-		self.assertEqual(p["rows"][0]["cells"]["account"]["d"], "الرصيد الافتتاحي")
+		self.assertEqual(p["rows"][0]["cells"]["account"]["d"], t("Opening balance"))
 		self.assertEqual(next(k for k in p["kpis"] if k["key"] == "balance")["v"], 60)

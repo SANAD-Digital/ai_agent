@@ -7,6 +7,7 @@ from frappe.tests import IntegrationTestCase
 from ai_agent.mcp import approvals, hosts, paging
 from ai_agent.mcp.protocol import dispatch, list_ui_resources, read_ui_resource
 from ai_agent.mcp.service import MCPService
+from ai_agent.presentation.i18n import t
 from ai_agent.presentation.registry import registered_tools
 
 
@@ -239,7 +240,7 @@ class TestMinimalSlice(IntegrationTestCase):
 			result = self._rpc(svc, "tools/call", {"name": "app__probe", "arguments": {}})
 			self.assertFalse(result["isError"])
 			self.assertIsInstance(result["structuredContent"]["companies"], int)
-			self.assertEqual(result["content"][0]["text"], f"عدد الشركات: {result['structuredContent']['companies']}")
+			self.assertEqual(result["content"][0]["text"], t("Companies: {0}", result["structuredContent"]["companies"]))
 			self.assertNotIn("_meta", {k: v for k, v in result.items() if k == "_meta" and "ai_agent/presentation" in v})
 
 

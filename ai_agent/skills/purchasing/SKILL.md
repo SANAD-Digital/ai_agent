@@ -1,6 +1,6 @@
 ---
 name: purchasing
-title: المشتريات
+title: Purchasing
 description: Load for any buying, supplier or payables question: purchase totals and trends, period comparison, purchase returns, top suppliers/items, open purchase orders and pending receipts, material requests to order, received-not-billed, supplier activity and delays, payments to suppliers, supplier balances, what we owe, payables aging and due dates.
 tools: metrics.query, data.query, data.get_document, reports.run, reports.describe, erp.invoice_payments, erp.party_details, artifacts.create_table, artifacts.create_chart
 ---

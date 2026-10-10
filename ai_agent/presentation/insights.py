@@ -5,9 +5,10 @@ import frappe
 
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
+from ai_agent.presentation.i18n import t
 
 NORMAL_SIDE = {"Asset": "debit", "Expense": "debit", "Liability": "credit", "Equity": "credit", "Income": "credit"}
-ROOT_AR = {"Asset": "أصول", "Expense": "مصروفات", "Liability": "التزامات", "Equity": "حقوق ملكية", "Income": "إيرادات"}
+ROOT_NAMES = {"Asset": "asset", "Expense": "expense", "Liability": "liability", "Equity": "equity", "Income": "income"}  # English, t() at use
 MAX_PER_KIND = 4
 DOMINANT_SHARE = 0.5
 
@@ -59,12 +60,14 @@ def abnormal_balances(rows, filters, currency):
         amount = abs(debit - credit)
         drill = ledger_drill(filters, account=account)
         out.append((amount, schema.insight(
-            f"رصيد غير معتاد: {row.get('account_name') or account}",
-            f"حساب من نوع {ROOT_AR.get(root, root)} رصيده الختامي {'مدين' if side == 'debit' else 'دائن'} بمبلغ {fmt.money(amount, currency)}، وطبيعته أن يكون {'مدينًا' if normal == 'debit' else 'دائنًا'}.",
-            cause="قيد عكسي لم يُسوَّ، أو دفعة أو مرتجع سُجّل على هذا الحساب بدل حسابه الصحيح.",
-            impact="يظهر الحساب في القوائم المالية بإشارة معاكسة، وقد يشوّه إجمالي مجموعته.",
-            action="راجع قيود الحساب في الفترة وحدّد القيد المسبِّب.", level="warning",
-            drill={"label": "قيود الأستاذ", "tool": "reports__run", "arguments": drill} if drill else None)))
+            t("Unusual balance: {0}", row.get("account_name") or account),
+            t("A {0} account has a closing debit balance of {1}, though it normally carries a credit balance." if side == "debit"
+              else "A {0} account has a closing credit balance of {1}, though it normally carries a debit balance.",
+              t(ROOT_NAMES[root]), fmt.money(amount, currency)),
+            cause=t("A reversing entry that was never settled, or a payment or return posted to this account instead of the right one."),
+            impact=t("The account shows with the opposite sign in the financial statements and may distort its group total."),
+            action=t("Review the account's entries for the period and find the one causing it."), level="warning",
+            drill={"label": t("Ledger entries"), "tool": "reports__run", "arguments": drill} if drill else None)))
     return [item for _, item in sorted(out, key=lambda pair: -pair[0])[:MAX_PER_KIND]]
 
 
@@ -82,20 +85,23 @@ def opposite_party_balances(rows, filters, currency, payable=False):
     total = sum(a for a, *_ in out)
     parties = sorted({p for _, p, *_ in out})
     top = sorted(out, key=lambda x: -x[0])[:6]
-    noun, side = ("موردين", "مدينة") if payable else ("عملاء", "دائنة")
+    title = "Debit balances for {0} suppliers" if payable else "Credit balances for {0} customers"
+    observation = ("Debit balances total {0}; the largest is {1} at {2}." if payable
+                   else "Credit balances total {0}; the largest is {1} at {2}.")
     return [schema.insight(
-        f"أرصدة {side} لدى {fmt.number(len(parties))} من ال{noun}",
-        f"إجمالي الأرصدة ال{side} {fmt.money(total, currency)}؛ أعلاها {top[0][2]} بمبلغ {fmt.money(top[0][0], currency)}.",
-        cause="دفعة مقدمة أو مرتجع لم يُخصَّص على فاتورة، أو دفعة مسجلة مرتين.",
-        impact="تُنقص إجمالي الذمم الظاهر، وقد تخفي مبالغ مستحقة فعلًا.",
-        action="خصّص الدفعات على فواتيرها أو سوِّ الرصيد بقيد.", level="warning",
+        t(title, fmt.number(len(parties))),
+        t(observation, fmt.money(total, currency), top[0][2], fmt.money(top[0][0], currency)),
+        cause=t("An advance or a return not allocated to an invoice, or a payment recorded twice."),
+        impact=t("It lowers the total shown as outstanding and may hide amounts that are really due."),
+        action=t("Allocate the payments to their invoices, or settle the balance with a journal entry."), level="warning",
         documents=[{"label": f"{name}: {fmt.money(amount, currency)}", "doctype": None, "name": voucher} for amount, _, name, voucher in top])]
 
 
-def dominant_voucher(rows, currency, label="الحساب"):
-    """A single document that makes up half or more of the period's movement."""
+def dominant_voucher(rows, currency, label=None):
+    """A single document that makes up half or more of the period's movement. `label`: whose movement (default: the account)."""
     out = []
-    for side, word in (("debit", "المدين"), ("credit", "الدائن")):
+    label = label or t("the account")
+    for side, title in (("debit", "One document makes up {0} of the debits"), ("credit", "One document makes up {0} of the credits")):
         values = [(fmt.to_number(r.get(side)) or 0, r) for r in rows if r.get("voucher_no")]
         total = sum(v for v, _ in values)
         if len(values) < 3 or not total:
@@ -105,11 +111,12 @@ def dominant_voucher(rows, currency, label="الحساب"):
         if share < DOMINANT_SHARE:
             continue
         out.append(schema.insight(
-            f"مستند واحد يمثل {fmt.percent(share, 0)} من {word}",
-            f"المستند {row['voucher_no']} بمبلغ {fmt.money(amount, currency)} من إجمالي {fmt.money(total, currency)} في حركة {label}.",
-            cause="عملية كبيرة منفردة، أو قيد تجميعي أو افتتاحي.",
-            impact="أي خطأ في هذا المستند يغيّر رصيد الفترة كله.",
-            action="تأكد من صحة المستند ومرفقاته واعتماده.", level="info",
+            t(title, fmt.percent(share, 0)),
+            t("Document {0} accounts for {1} of the {2} total movement on {3}.",
+              row["voucher_no"], fmt.money(amount, currency), fmt.money(total, currency), label),
+            cause=t("A single large transaction, or a summary or opening entry."),
+            impact=t("Any mistake in this document changes the whole period's balance."),
+            action=t("Check that the document, its attachments and its approval are correct."), level="info",
             documents=[{"label": str(row["voucher_no"]), "doctype": row.get("voucher_type"), "name": row["voucher_no"]}],
-            drill={"label": "فتح المستند", "tool": "data__get_document", "arguments": {"doctype": row.get("voucher_type"), "name": row["voucher_no"]}} if row.get("voucher_type") else None))
+            drill={"label": t("Open document"), "tool": "data__get_document", "arguments": {"doctype": row.get("voucher_type"), "name": row["voucher_no"]}} if row.get("voucher_type") else None))
     return out[:1]

@@ -14,7 +14,7 @@
     var hidden = allCols.filter(function (c) { return c.collapsed; });
     var dateFilter = (p.filters || []).filter(function (f) { return f.type === "date_range"; })[0] || null;
     var panelFilters = (p.filters || []).filter(function (f) { return f !== dateFilter; });
-    var noun = paging.noun || "نتيجة";
+    var noun = paging.noun || T("results");
 
     /* ----- client-side filtering and sorting over the loaded rows ----- */
     function activeFilters() { return Object.keys(state.filters).filter(function (k) { var v = state.filters[k]; return v && (typeof v === "string" || v.from || v.to); }); }
@@ -70,7 +70,7 @@
       var fl = serverFilters(); if (fl.length) args.filters = fl;
       callTool("view__page", args).then(function (res) {
         var np = presentationOf(res);
-        if (res.isError || !np) throw new Error(textOf(res) || "تعذر التحميل");
+        if (res.isError || !np) throw new Error(textOf(res) || T("Could not load"));
         p = np; paging = np.paging || {}; state.rows = np.rows || []; state.loading = false; state.page = 0; state.error = null; draw();
       }).catch(function (e) { state.loading = false; state.error = friendly(e); draw(); });
     }
@@ -95,8 +95,8 @@
       var pageRows = server ? rows : rows.slice(start, start + PAGE);
       var hasActions = pageRows.some(function (r) { return r.actions && r.actions.some(function (a) { return a.overflow; }); });
       var span = cols.length + (hidden.length ? 1 : 0) + (hasActions ? 1 : 0);
-      var table = h("table", { class: state.density === "compact" ? "compact" : "", role: "grid", "aria-label": p.title || "جدول", "aria-rowcount": rows.length + 1 },
-        h("thead", null, h("tr", null, hidden.length ? h("th", { scope: "col", class: "expander", "aria-label": "تفاصيل" }) : null, cols.map(Th), hasActions ? h("th", { scope: "col", "aria-label": "إجراءات" }, "إجراءات") : null)),
+      var table = h("table", { class: state.density === "compact" ? "compact" : "", role: "grid", "aria-label": p.title || T("Table"), "aria-rowcount": rows.length + 1 },
+        h("thead", null, h("tr", null, hidden.length ? h("th", { scope: "col", class: "expander", "aria-label": T("Details") }) : null, cols.map(Th), hasActions ? h("th", { scope: "col", "aria-label": T("Actions") }, T("Actions")) : null)),
         h("tbody", null, bodyRows(pageRows, hasActions, span, start)),
         p.totals ? h("tfoot", null, h("tr", null, hidden.length ? h("td") : null, cols.map(function (c, i) {
           var cell = p.totals.cells[c.key];
@@ -151,7 +151,7 @@
     function Toolbar() {
       var n = activeFilters().filter(function (k) { return !dateFilter || k !== dateFilter.key; }).length + (state.kpiFilter ? 1 : 0);
       var wantSearch = server || state.rows.length > 8 || !!state.query || !!(p.search_placeholder && !(p.tabs || []).length && p.variant !== "ranking" && !p.embedded);
-      var input = h("input", { type: "search", placeholder: p.search_placeholder || (server ? "بحث (Enter)" : "بحث"), "aria-label": "بحث في الجدول" });
+      var input = h("input", { type: "search", placeholder: p.search_placeholder || (server ? T("Search (Enter)") : T("Search")), "aria-label": T("Search the table") });
       input.value = state.query;
       input.addEventListener("input", function () {
         state.query = input.value; state.page = 0;
@@ -159,15 +159,15 @@
         var pos = input.selectionStart; draw(); var s = body.querySelector(".search input"); if (s) { s.focus(); try { s.setSelectionRange(pos, pos); } catch (e) {} }
       });
       input.addEventListener("keydown", function (e) { if (e.key === "Enter" && server) serverLoad({ search: input.value, offset: 0 }); });
-      var tabs = p.tabs && p.tabs.length ? h("div", { class: "tabs", role: "tablist", "aria-label": "التصنيف" }, p.tabs.map(function (t) {
+      var tabs = p.tabs && p.tabs.length ? h("div", { class: "tabs", role: "tablist", "aria-label": T("Category") }, p.tabs.map(function (t) {
         return h("button", { class: "tab", type: "button", role: "tab", "aria-selected": String(state.tab === t.key), onclick: function () { state.tab = t.key; refilter(); }, text: t.label });
       })) : null;
       // View options live in one menu so the toolbar stays as lean as the reference: search, tabs, dates, filters.
       var options = [
-        { label: state.density === "compact" ? "عرض مريح" : "عرض مضغوط", run: function () { state.density = state.density === "compact" ? "comfortable" : "compact"; Host.saveState(stateKey + ":density", state.density); draw(); } },
-        { label: "تصدير CSV", run: function () { downloadCsv((p.title || "export") + ".csv", toCsv(p, visibleRows())); } }];
-      if (Host.has("fullscreen")) options.unshift({ label: state.fullscreen ? "تصغير" : "ملء الشاشة", run: function () { state.fullscreen = !state.fullscreen; Host.fullscreen(state.fullscreen); draw(); } });
-      var filterBtn = panelFilters.length ? h("button", { class: "btn" + (n ? " on" : ""), type: "button", "aria-expanded": String(state.showFilters), onclick: function () { state.showFilters = !state.showFilters; draw(); } }, icon("filter", 16), n ? "الفلاتر " + n : "الفلاتر") : null;
+        { label: state.density === "compact" ? T("Comfortable view") : T("Compact view"), run: function () { state.density = state.density === "compact" ? "comfortable" : "compact"; Host.saveState(stateKey + ":density", state.density); draw(); } },
+        { label: T("Export CSV"), run: function () { downloadCsv((p.title || "export") + ".csv", toCsv(p, visibleRows())); } }];
+      if (Host.has("fullscreen")) options.unshift({ label: state.fullscreen ? T("Exit full screen") : T("Full screen"), run: function () { state.fullscreen = !state.fullscreen; Host.fullscreen(state.fullscreen); draw(); } });
+      var filterBtn = panelFilters.length ? h("button", { class: "btn" + (n ? " on" : ""), type: "button", "aria-expanded": String(state.showFilters), onclick: function () { state.showFilters = !state.showFilters; draw(); } }, icon("filter", 16), n ? T("Filters {0}", [n]) : T("Filters")) : null;
       var menu = p.rows && !p.embedded && (p.rows.length > 8 || server || p.tabs && p.tabs.length) ? Overflow(options, {}) : null;
       var hasA = !!(tabs || dateFilter), hasB = !!(wantSearch || filterBtn);
       var rowA = hasA ? h("div", { class: "ag-toolbar" }, tabs, h("span", { class: "spacer" }), dateFilter ? DateRange(dateFilter) : null, hasB ? null : menu) : null;
@@ -177,11 +177,11 @@
     }
     function DateRange(f) {
       var v = state.filters[f.key] || {};
-      var from = h("input", { type: "date", "aria-label": "من تاريخ" }), to = h("input", { type: "date", "aria-label": "إلى تاريخ" });
+      var from = h("input", { type: "date", "aria-label": T("From date") }), to = h("input", { type: "date", "aria-label": T("To date") });
       from.value = v.from || ""; to.value = v.to || "";
       var apply = function () { state.filters[f.key] = { from: from.value, to: to.value }; refilter(); };
       from.addEventListener("change", apply); to.addEventListener("change", apply);
-      return h("div", { class: "daterange", role: "group", "aria-label": "الفترة" }, h("span", { text: "من" }), from, h("span", { text: "إلى" }), to);
+      return h("div", { class: "daterange", role: "group", "aria-label": T("Period") }, h("span", { text: T("From") }), from, h("span", { text: T("To") }), to);
     }
     function FilterBar() {
       var active = activeFilters().filter(function (k) { return !dateFilter || k !== dateFilter.key; });
@@ -190,15 +190,15 @@
       active.forEach(function (key) {
         var f = panelFilters.filter(function (x) { return x.key === key; })[0] || { label: key }, v = state.filters[key];
         var text = typeof v === "string" ? optionLabel(f, v) : (v.from || "…") + " → " + (v.to || "…");
-        bar.appendChild(h("button", { class: "chip on", type: "button", "aria-label": "إزالة الفلتر " + f.label, onclick: function () { delete state.filters[key]; refilter(); }, text: f.label + ": " + text + " ×" }));
+        bar.appendChild(h("button", { class: "chip on", type: "button", "aria-label": T("Remove filter {0}", [f.label]), onclick: function () { delete state.filters[key]; refilter(); }, text: f.label + ": " + text + " ×" }));
       });
       if (state.kpiFilter) bar.appendChild(h("button", { class: "chip on", type: "button", onclick: function () { state.kpiFilter = null; refilter(); }, text: state.kpiLabel + " ×" }));
       if (state.showFilters) {
-        var panel = h("div", { class: "filterpanel", role: "group", "aria-label": "الفلاتر" });
+        var panel = h("div", { class: "filterpanel", role: "group", "aria-label": T("Filters") });
         panelFilters.forEach(function (f) { panel.appendChild(FilterControl(f)); });
         panel.appendChild(h("div", { class: "ag-actions" },
-          h("button", { class: "btn primary", type: "button", onclick: function () { state.showFilters = false; refilter(); }, text: "تطبيق" }),
-          h("button", { class: "btn", type: "button", onclick: function () { state.filters = {}; state.kpiFilter = null; state.showFilters = false; refilter(); }, text: "مسح الكل" })));
+          h("button", { class: "btn primary", type: "button", onclick: function () { state.showFilters = false; refilter(); }, text: T("Apply") }),
+          h("button", { class: "btn", type: "button", onclick: function () { state.filters = {}; state.kpiFilter = null; state.showFilters = false; refilter(); }, text: T("Clear all") })));
         bar.appendChild(panel);
       }
       return bar.childNodes.length ? bar : null;
@@ -211,17 +211,17 @@
         t.addEventListener("input", function () { state.filters[f.key] = t.value; });
         return h("label", { class: "fld" }, f.label, t);
       }
-      var sel = h("select", null, h("option", { value: "", text: "الكل" }), (f.options || []).map(function (o) { return h("option", { value: o.v, text: o.d }); }));
+      var sel = h("select", null, h("option", { value: "", text: T("All") }), (f.options || []).map(function (o) { return h("option", { value: o.v, text: o.d }); }));
       sel.value = v || "";
       sel.addEventListener("change", function () { if (sel.value) state.filters[f.key] = sel.value; else delete state.filters[f.key]; });
       return h("label", { class: "fld" }, f.label, sel);
     }
     function emptyAction() {
       if (activeFilters().length || state.kpiFilter || state.query || (state.tab && state.tab !== firstTab)) {
-        return { label: "مسح الفلاتر", run: function () { state.filters = {}; state.kpiFilter = null; state.query = ""; state.tab = firstTab; refilter(); } };
+        return { label: T("Clear filters"), run: function () { state.filters = {}; state.kpiFilter = null; state.query = ""; state.tab = firstTab; refilter(); } };
       }
       var e = p.empty || {};
-      if (e.followup && Host.has("message")) return { label: e.followup_label || "اسأل المساعد", run: function () { Host.followUp(e.followup); } };
+      if (e.followup && Host.has("message")) return { label: e.followup_label || T("Ask the assistant"), run: function () { Host.followUp(e.followup); } };
       return null;
     }
 
@@ -262,8 +262,8 @@
     function Tr(r, i, hasActions, position) {
       var key = r.id || i, open = !!state.open[key];
       var tr = h("tr", { tabindex: i === 0 ? "0" : "-1", class: r.kind ? "kind-" + r.kind : "", "aria-selected": String(r.id != null && state.selected === r.id) });
-      if (hidden.length) tr.appendChild(h("td", { class: "expander" }, h("button", { class: "btn ghost sm icon", type: "button", "aria-expanded": String(open), "aria-label": "تفاصيل الصف",
-        onclick: function (e) { e.stopPropagation(); state.open[key] = !open; draw(); } }, icon(open ? "down" : "left", 16))));
+      if (hidden.length) tr.appendChild(h("td", { class: "expander" }, h("button", { class: "btn ghost sm icon", type: "button", "aria-expanded": String(open), "aria-label": T("Row details"),
+        onclick: function (e) { e.stopPropagation(); state.open[key] = !open; draw(); } }, icon(open ? "down" : isRtl() ? "left" : "right", 16))));
       cols.forEach(function (c) { tr.appendChild(Td(c, r, position)); });
       if (hasActions) {
         var td = h("td", { class: "end", style: "white-space:nowrap" });
@@ -308,8 +308,8 @@
         h("div", { class: "ag-actions" },
           (r.actions || []).filter(function (a) { return !a.overflow; }).map(function (a) { return actionButton(a, {}); }),
           (r.actions || []).some(function (a) { return a.kind === "drill"; }) ? actionButton((r.actions || []).filter(function (a) { return a.kind === "drill"; })[0], {}) : null,
-          rest.length ? h("button", { class: "btn ghost sm", type: "button", "aria-expanded": "false", text: "عرض التفاصيل", onclick: function (e) {
-            var open = card.classList.toggle("open"); e.currentTarget.textContent = open ? "إخفاء التفاصيل" : "عرض التفاصيل"; e.currentTarget.setAttribute("aria-expanded", String(open)); } }) : null));
+          rest.length ? h("button", { class: "btn ghost sm", type: "button", "aria-expanded": "false", text: T("Show details"), onclick: function (e) {
+            var open = card.classList.toggle("open"); e.currentTarget.textContent = open ? T("Hide details") : T("Show details"); e.currentTarget.setAttribute("aria-expanded", String(open)); } }) : null));
       return card;
     }
 
@@ -318,21 +318,22 @@
       var nums = [], from = Math.max(1, current - 1), to = Math.min(total, from + 2);
       from = Math.max(1, to - 2);
       for (var i = from; i <= to; i++) nums.push(i);
-      return h("div", { class: "pages", role: "navigation", "aria-label": "الصفحات" },
-        h("button", { class: "pg", type: "button", disabled: current <= 1, onclick: function () { go(current - 1); }, text: "السابق" }),
+      return h("div", { class: "pages", role: "navigation", "aria-label": T("Pages") },
+        h("button", { class: "pg", type: "button", disabled: current <= 1, onclick: function () { go(current - 1); }, text: T("Previous") }),
         nums.map(function (n) { return h("button", { class: "pg", type: "button", "aria-current": n === current ? "page" : null, onclick: function () { go(n); }, text: String(n) }); }),
-        h("button", { class: "pg", type: "button", disabled: current >= total, onclick: function () { go(current + 1); }, text: "التالي" }));
+        h("button", { class: "pg", type: "button", disabled: current >= total, onclick: function () { go(current + 1); }, text: T("Next") }));
     }
     function Pager(count, start, pageCount) {
       var left, right = null;
       if (server) {
         var off = paging.offset || 0, size = paging.page_size || pageCount || 1, pages = Math.max(1, Math.ceil(paging.total / size));
-        left = "إظهار " + fmtN(off + 1) + " - " + fmtN(off + pageCount) + " من " + fmtN(paging.total) + " " + noun;
+        left = T("Showing {0} - {1} of {2} {3}", [fmtN(off + 1), fmtN(off + pageCount), fmtN(paging.total), noun]);
         right = pageButtons(Math.floor(off / size) + 1, pages, function (n) { serverLoad({ offset: (n - 1) * size }); });
       } else {
         var pagesN = Math.max(1, Math.ceil(count / PAGE));
-        left = count > PAGE ? "إظهار " + fmtN(start + 1) + " - " + fmtN(start + pageCount) + " من " + fmtN(count) + " " + noun
-          : "إظهار " + (count ? "1 - " + fmtN(count) : "0") + " من " + fmtN(Math.max(count, paging.total || 0)) + " " + noun;
+        left = count > PAGE ? T("Showing {0} - {1} of {2} {3}", [fmtN(start + 1), fmtN(start + pageCount), fmtN(count), noun])
+          : count ? T("Showing {0} - {1} of {2} {3}", ["1", fmtN(count), fmtN(Math.max(count, paging.total || 0)), noun])
+          : T("Showing {0} of {1} {2}", ["0", fmtN(paging.total || 0), noun]);
         if (count > PAGE) right = pageButtons(state.page + 1, pagesN, function (n) { state.page = n - 1; draw(); });
       }
       return h("div", { class: "pager" }, h("span", { class: "num", text: left }), right);

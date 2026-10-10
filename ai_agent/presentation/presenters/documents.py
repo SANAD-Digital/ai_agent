@@ -2,13 +2,14 @@
 
 The document is mapped before it is shown: fields are sorted into business sections, the most important ones first,
 amounts carry the currency ERPNext declares for them, equal or empty values are dropped, and everything secondary
-goes behind "تفاصيل إضافية". Child tables get business columns, never the row's technical id.
+goes behind "More details". Child tables get business columns, never the row's technical id.
 """
 
 import frappe
 
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import money, schema
+from ai_agent.presentation.i18n import t
 from ai_agent.presentation.labels import TECHNICAL, doctype_label, field_tier, label_for, status_display, translate
 from ai_agent.presentation.registry import register
 from ai_agent.presentation.urls import doc_href
@@ -20,29 +21,29 @@ TYPE_BY_FIELDTYPE = {
 SKIP_TYPES = {"Text Editor", "HTML Editor", "HTML", "Attach", "Attach Image", "Code", "JSON", "Button", "Signature", "Geolocation"}
 PARTY_NAME_OF = {"customer": "customer_name", "supplier": "supplier_name", "party": "party_name"}
 
-# Section -> ordered fields. A field appears in the first section that names it.
+# Section -> ordered fields. A field appears in the first section that names it. Titles are English, translated when shown.
 SECTIONS = [
-    ("basic", "المعلومات الأساسية", "file", [
+    ("basic", "Basic information", "file", [
         "company", "posting_date", "transaction_date", "due_date", "delivery_date", "schedule_date", "bill_no", "bill_date",
         "po_no", "po_date", "voucher_type", "payment_type", "item_name", "item_group", "stock_uom", "customer_type", "supplier_type"]),
-    ("party", "الطرف", "user", [
+    ("party", "Party", "user", [
         "customer", "supplier", "party_type", "party", "customer_group", "supplier_group", "territory", "tax_id",
         "contact_display", "contact_mobile", "contact_email"]),
-    ("amounts", "المبالغ", "coins", [
+    ("amounts", "Amounts", "coins", [
         "currency", "conversion_rate", "total", "net_total", "discount_amount", "total_taxes_and_charges", "grand_total", "rounded_total",
         "base_grand_total", "total_advance", "paid_amount", "received_amount", "base_paid_amount", "base_received_amount",
         "total_allocated_amount", "unallocated_amount", "outstanding_amount", "write_off_amount", "total_debit", "total_credit", "difference"]),
-    ("status", "الحالة", "checkCircle", ["status", "workflow_state", "is_return", "is_pos", "is_opening", "is_paid", "disabled", "is_frozen"]),
-    ("stock", "المخزون", "boxes", ["update_stock", "set_warehouse", "set_target_warehouse", "total_qty", "total_net_weight", "is_stock_item", "valuation_method"]),
-    ("payment", "الدفع", "card", [
+    ("status", "Status", "checkCircle", ["status", "workflow_state", "is_return", "is_pos", "is_opening", "is_paid", "disabled", "is_frozen"]),
+    ("stock", "Stock", "boxes", ["update_stock", "set_warehouse", "set_target_warehouse", "total_qty", "total_net_weight", "is_stock_item", "valuation_method"]),
+    ("payment", "Payment", "card", [
         "mode_of_payment", "payment_terms_template", "cash_bank_account", "paid_from", "paid_to", "reference_no", "reference_date"]),
-    ("accounting", "المحاسبة", "scale", [
+    ("accounting", "Accounting", "scale", [
         "debit_to", "credit_to", "against_income_account", "cost_center", "project", "party_account_currency",
         "selling_price_list", "buying_price_list"]),
-    ("taxes", "الضرائب", "percent", ["tax_category", "taxes_and_charges", "base_total_taxes_and_charges"]),
+    ("taxes", "Taxes", "percent", ["tax_category", "taxes_and_charges", "base_total_taxes_and_charges"]),
 ]
 SECTION_OF = {field: key for key, _, _, fields in SECTIONS for field in fields}
-# Shown even when 0 / "لا": the user must see that stock is, or is not, affected, and what is still owed.
+# Shown even when 0 / "No": the user must see that stock is, or is not, affected, and what is still owed.
 ALWAYS_SHOW = {"update_stock", "outstanding_amount"}
 # The same figure at different stages; when two are equal only the more final one is shown.
 AMOUNT_CHAIN = ["grand_total", "rounded_total", "net_total", "total"]
@@ -56,8 +57,8 @@ TABLE_COLUMNS = {
     "references": ["reference_doctype", "reference_name", "total_amount", "outstanding_amount", "allocated_amount"],
     "payment_schedule": ["due_date", "payment_term", "invoice_portion", "payment_amount", "outstanding"],
 }
-TABLE_TITLES = {"items": "الأصناف", "taxes": "الضرائب", "accounts": "القيود", "payments": "المدفوعات", "references": "المستندات المرتبطة",
-                "payment_schedule": "جدول السداد", "uoms": "وحدات القياس", "advances": "الدفعات المقدمة", "sales_team": "فريق المبيعات"}
+TABLE_TITLES = {"items": "Items", "taxes": "Taxes", "accounts": "Journal entries", "payments": "Payments", "references": "Linked documents",
+                "payment_schedule": "Payment schedule", "uoms": "Units of measure", "advances": "Advances", "sales_team": "Sales team"}
 TOTALLED = ("amount", "debit", "credit", "tax_amount", "allocated_amount", "net_amount", "payment_amount")
 MAX_DETAIL_COLUMNS = 10
 VISIBLE_COLUMNS = 6
@@ -161,7 +162,7 @@ def build_document(doctype, name, result):
         value, field = result[key], meta.get_field(key)
         if isinstance(value, list):
             if field and field.options and value and isinstance(value[0], dict):
-                table = child_table(field.options, key, value, doc, title=TABLE_TITLES.get(key) or label_for(key, doctype))
+                table = child_table(field.options, key, value, doc, title=t(TABLE_TITLES[key]) if key in TABLE_TITLES else label_for(key, doctype))
                 if table:
                     tables.append(table)
             continue
@@ -175,7 +176,7 @@ def build_document(doctype, name, result):
         if key in PARTY_NAME_OF and doc.get(PARTY_NAME_OF[key]):
             item["d"] = str(doc[PARTY_NAME_OF[key]])
             if str(value) != item["d"]:
-                more.append({"key": key + "_id", "label": f"{item['label']} (الرمز)", "type": "text", "v": value, "d": str(value)})
+                more.append({"key": key + "_id", "label": t("{0} (ID)", item["label"]), "type": "text", "v": value, "d": str(value)})
         if key in SECTION_OF and key not in demote:
             buckets[SECTION_OF[key]].append(item)
         else:
@@ -192,9 +193,9 @@ def build_document(doctype, name, result):
         if key == "status":
             fields = [f for f in fields if f["key"] != "status"]      # the status is the header badge
         if fields:
-            sections.append({"key": key, "title": title, "icon": icon, "fields": fields})
+            sections.append({"key": key, "title": t(title), "icon": icon, "fields": fields})
     if more:
-        sections.append({"key": "more", "title": "تفاصيل إضافية", "icon": "more", "collapsed": True, "fields": more[:MAX_MORE_FIELDS]})
+        sections.append({"key": "more", "title": t("More details"), "icon": "more", "collapsed": True, "fields": more[:MAX_MORE_FIELDS]})
 
     status = doc.get("status")
     if not status and meta.is_submittable:
@@ -206,20 +207,20 @@ def build_document(doctype, name, result):
     headline = next((k for k in ("grand_total", "paid_amount", "total_debit", "total") if fmt.to_number(doc.get(k))), None)
     kpis = []
     if headline:
-        kpis.append(schema.kpi(headline, "الإجمالي" if headline == "grand_total" else label_for(headline, doctype), doc[headline],
+        kpis.append(schema.kpi(headline, t("Total") if headline == "grand_total" else label_for(headline, doctype), doc[headline],
                                currency=money.field_currency(meta.get_field(headline), doc), icon="receipt", tone="info"))
         if money.is_multi_currency(doc) and fmt.to_number(doc.get("base_" + headline)):
-            kpis.append(schema.kpi("base_" + headline, "بعملة الشركة", doc["base_" + headline],
+            kpis.append(schema.kpi("base_" + headline, t("In company currency"), doc["base_" + headline],
                                    currency=money.company_currency(doc.get("company")), icon="coins", hint=rate))
         if fmt.to_number(doc.get("outstanding_amount")):
-            kpis.append(schema.kpi("outstanding_amount", "المستحق", doc["outstanding_amount"],
+            kpis.append(schema.kpi("outstanding_amount", t("Outstanding"), doc["outstanding_amount"],
                                    currency=money.field_currency(meta.get_field("outstanding_amount"), doc), icon="clockAlert", tone="warning"))
     presentation = {
         "type": "document", "title": f"{doctype_label(doctype)} {name}", "subtitle": party, "icon": "file",
         "status": {"d": status_display(status)[0], "tone": status_display(status)[1]} if status else None,
         "sections": sections, "tables": tables, "kpis": kpis, "warnings": [], "insights": [],
-        "actions": [schema.action("erp", "فتح في ERP", href=doc_href(doctype, name), style="primary", icon="external"),
-                    schema.action("copy", "نسخ الرقم", kind="copy", arguments={"text": str(name)}, overflow=True)],
+        "actions": [schema.action("erp", t("Open in ERP"), href=doc_href(doctype, name), style="primary", icon="external"),
+                    schema.action("copy", t("Copy number"), kind="copy", arguments={"text": str(name)}, overflow=True)],
         "developer": {"doctype": doctype, "name": name, "technical_fields": technical},
     }
     return presentation, party, doc
@@ -252,8 +253,8 @@ def child_table(child_doctype, parentfield, rows, parent, title=None):
     def twin_of(key):
         for suffix in ("_in_account_currency", "_in_transaction_currency"):
             if key.endswith(suffix) and key[: -len(suffix)] in keys:
-                return key[: -len(suffix)], " (عملة الحساب)" if "account" in suffix else " (عملة المعاملة)"
-        return None, ""
+                return key[: -len(suffix)], "{0} (account currency)" if "account" in suffix else "{0} (transaction currency)"
+        return None, None
 
     def repeats_twin(key):
         twin, _ = twin_of(key)
@@ -267,8 +268,8 @@ def child_table(child_doctype, parentfield, rows, parent, title=None):
     for position, key in enumerate(ordered):
         field = meta.get_field(key)
         kind = "currency" if key in currency_fields else _kind(field, key, next((r.get(key) for r in rows if not fmt.is_blank(r.get(key))), None), child_doctype)
-        twin, suffix = twin_of(key)
-        col = schema.column(key, label_for(twin, child_doctype) + suffix if twin else label_for(key, child_doctype), kind,
+        twin, template = twin_of(key)
+        col = schema.column(key, t(template, label_for(twin, child_doctype)) if twin else label_for(key, child_doctype), kind,
                             total=kind == "currency" and key in TOTALLED)
         col["priority"] = "primary" if position == 0 else "secondary" if position < 3 else "supporting"
         if position >= VISIBLE_COLUMNS or (preferred and key not in preferred):
@@ -294,11 +295,11 @@ def child_table(child_doctype, parentfield, rows, parent, title=None):
                 entry["currencies"].add(money.field_currency(field, row, parent))
         out.append(schema.make_row(cells, id=str(index)))
     # A total is printed only when every row is in the same currency.
-    footer = {k: {"v": t["sum"], "d": fmt.money(t["sum"], next(iter(t["currencies"])))} for k, t in totals.items() if len(t["currencies"]) == 1 and len(rows) > 1}
+    footer = {k: {"v": e["sum"], "d": fmt.money(e["sum"], next(iter(e["currencies"])))} for k, e in totals.items() if len(e["currencies"]) == 1 and len(rows) > 1}
     return schema.table(
         title or label_for(parentfield), columns, out, variant="data", kpis=[], actions=[],
-        totals={"label": "الإجمالي", "cells": footer} if footer else None,
-        paging={"total": len(out), "shown": len(out), "offset": 0, "noun": "سطر"}, density="compact", sort=None)
+        totals={"label": t("Total"), "cells": footer} if footer else None,
+        paging={"total": len(out), "shown": len(out), "offset": 0, "noun": t("lines")}, density="compact", sort=None)
 
 
 @register("data.get_document")
@@ -314,5 +315,5 @@ def present_document(tool, arguments, result, ctx):
     return schema.envelope(
         tool=tool, summary={"text": text},
         data={"doctype": doctype, "name": name, "status": doc.get("status"), "sections": [s["title"] for s in presentation["sections"]],
-              "tables": [t["title"] for t in presentation["tables"]]},
+              "tables": [tb["title"] for tb in presentation["tables"]]},
         presentation=presentation)

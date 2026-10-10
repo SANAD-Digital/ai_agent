@@ -20,7 +20,7 @@ class TestDump(IntegrationTestCase):
 	def test_dump(self):
 		pin = patch.object(approvals, "four_eyes_enabled", return_value=False)   # fixtures must not depend on the site's policy
 		pin.start(); self.addCleanup(pin.stop)
-		open(f"{OUT}/main.html", "w").write(build_main_view())
+		open(f"{OUT}/main.html", "w").write(build_main_view(lang="ar"))
 		svc = make_service(True)
 		spec = {"specification": {"doctype": "Sales Invoice", "limit": 25}}
 		with patch("ai_agent.presentation.presenters.lists._default_currency", return_value="YER"):

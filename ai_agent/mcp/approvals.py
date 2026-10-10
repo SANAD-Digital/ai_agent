@@ -17,7 +17,8 @@ from frappe.utils import cint
 from ai_agent.mcp import events
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
-from ai_agent.presentation.labels import doctype_label, field_tier, label_for
+from ai_agent.presentation.i18n import t
+from ai_agent.presentation.labels import doctype_label, field_tier, label_for, status_display
 from ai_agent.presentation.media import thumbnail_data_uri
 from ai_agent.presentation.urls import doc_href
 from ai_agent.runtime.approval_engine import ApprovalEngine
@@ -25,18 +26,19 @@ from ai_agent.runtime.exceptions import ApprovalAlreadyExecuted, ApprovalExpired
 from ai_agent.runtime.exceptions import PermissionDenied
 from ai_agent.runtime.permission_context import PermissionContext
 
-STEPS = (("prepare", "تجهيز"), ("validate", "تحقق"), ("preview", "مراجعة"),
-         ("approval", "موافقة"), ("execute", "تنفيذ"), ("verify", "تأكيد"))
-ACTION_LABELS = {"Create": "إنشاء", "Bulk Create": "إنشاء عدة مستندات", "Update": "تعديل", "Submit": "اعتماد",
-                 "Cancel": "إلغاء", "Workflow": "إجراء سير عمل"}
+# Labels below are English sources, translated with t() where they are shown.
+STEPS = (("prepare", "Prepare"), ("validate", "Validate"), ("preview", "Review"),
+         ("approval", "Approval"), ("execute", "Execute"), ("verify", "Confirm"))
+ACTION_LABELS = {"Create": "Create", "Bulk Create": "Create several documents", "Update": "Edit", "Submit": "Submit",
+                 "Cancel": "Cancel", "Workflow": "Workflow action"}
 EDITABLE_TOP = {
-    "company": ("الشركة", "link"), "posting_date": ("التاريخ", "date"), "due_date": ("الاستحقاق", "date"),
-    "transaction_date": ("التاريخ", "date"), "delivery_date": ("التسليم", "date"), "set_warehouse": ("المخزن", "link"),
-    "mode_of_payment": ("طريقة الدفع", "link"), "cost_center": ("مركز التكلفة", "link"), "remarks": ("البيان", "text"),
-    "project": ("المشروع", "link"), "branch": ("الفرع", "link"),
+    "company": ("Company", "link"), "posting_date": ("Date", "date"), "due_date": ("Due date", "date"),
+    "transaction_date": ("Date", "date"), "delivery_date": ("Delivery date", "date"), "set_warehouse": ("Warehouse", "link"),
+    "mode_of_payment": ("Mode of payment", "link"), "cost_center": ("Cost center", "link"), "remarks": ("Remarks", "text"),
+    "project": ("Project", "link"), "branch": ("Branch", "link"),
 }
-EDITABLE_ITEM = {"qty": ("الكمية", "number"), "rate": ("السعر", "number"), "warehouse": ("المخزن", "link"),
-                 "discount_percentage": ("الخصم %", "number")}
+EDITABLE_ITEM = {"qty": ("Quantity", "number"), "rate": ("Rate", "number"), "warehouse": ("Warehouse", "link"),
+                 "discount_percentage": ("Discount %", "number")}
 PREVIEW_PARTY = ("customer_name", "customer", "supplier_name", "supplier", "party", "party_name")
 
 
@@ -85,7 +87,7 @@ def issue_token(approval_name, payload_hash, user, action):
 def _check_token(approval, user, token, action):
     expected = issue_token(approval.name, approval.payload_hash, user, action)
     if not token or not hmac.compare_digest(expected, str(token)):
-        raise ApprovalUiError("رمز الموافقة غير صالح. اطلب من المساعد إعادة عرض بطاقة الموافقة.")
+        raise ApprovalUiError(t("This approval token is not valid. Ask the assistant to show the approval card again."))
 
 
 def _visible(approval, user):
@@ -96,10 +98,10 @@ def _visible(approval, user):
 
 def _load(approval_id, user):
     if not approval_id or not frappe.db.exists("AI Approval Request", approval_id):
-        raise ApprovalUiError("طلب الموافقة غير موجود.")
+        raise ApprovalUiError(t("Approval request not found."))
     approval = frappe.get_doc("AI Approval Request", approval_id)
     if not _visible(approval, user):
-        raise ApprovalUiError("طلب الموافقة غير موجود.")
+        raise ApprovalUiError(t("Approval request not found."))
     return approval
 
 
@@ -129,10 +131,14 @@ def _bulk_documents(payload):
     return out
 
 
-FEMININE = {"Sales Invoice", "Purchase Invoice", "Quotation"}
-PARTY_DOCTYPES = {"Sales Invoice": ("customer", "العميل"), "Sales Order": ("customer", "العميل"), "Quotation": ("party_name", "العميل"), "Delivery Note": ("customer", "العميل"),
-                  "Purchase Invoice": ("supplier", "المورد"), "Purchase Order": ("supplier", "المورد"), "Purchase Receipt": ("supplier", "المورد")}
-DEFINITE = {"Sales Invoice": "الفاتورة", "Purchase Invoice": "الفاتورة", "Delivery Note": "إذن التسليم", "Sales Order": "أمر البيع", "Purchase Order": "أمر الشراء"}
+PARTY_DOCTYPES = {"Sales Invoice": ("customer", "Customer"), "Sales Order": ("customer", "Customer"), "Quotation": ("party_name", "Customer"), "Delivery Note": ("customer", "Customer"),
+                  "Purchase Invoice": ("supplier", "Supplier"), "Purchase Order": ("supplier", "Supplier"), "Purchase Receipt": ("supplier", "Supplier")}
+# How a sentence names the document ("approve and create the invoice"); English sources, translated where used.
+DEFINITE = {"Sales Invoice": "the invoice", "Purchase Invoice": "the invoice", "Delivery Note": "the delivery note", "Sales Order": "the sales order", "Purchase Order": "the purchase order"}
+
+
+def _definite(doctype, type_label):
+    return t(DEFINITE[doctype]) if doctype in DEFINITE else type_label
 
 
 def _preview(action_type, doctype, payload):
@@ -167,7 +173,7 @@ def _preview(action_type, doctype, payload):
     if total in (None, "") and items:
         total = sum(fmt.to_number(i["amount"]) or 0 for i in items)
     if total not in (None, ""):
-        kpis.append(schema.kpi("grand_total", "الإجمالي", total, currency=currency, tone="info"))
+        kpis.append(schema.kpi("grand_total", t("Total"), total, currency=currency, tone="info"))
     fields.extend(_facts(doctype, source, items, currency, total))
     stock_warnings, blocked = _stock_check(doctype, items, source)
     warnings += stock_warnings
@@ -178,7 +184,7 @@ def _preview(action_type, doctype, payload):
 
 
 def _details(doctype, payload):
-    """Everything the request will write, as labelled values ("عرض التفاصيل"): what was asked for, nothing computed."""
+    """Everything the request will write, as labelled values (the "details" section): what was asked for, nothing computed."""
     from ai_agent.presentation.presenters.documents import build_document
 
     try:
@@ -230,30 +236,30 @@ def _facts(doctype, source, items, currency, total):
             out.append({"key": key, "label": label_for(key, doctype), "d": fmt.date(value) if "date" in key else str(value), "tier": field_tier(key)})
         return sorted(out, key=lambda f: f["tier"])
     party = source.get(f"{party_key}_name") or source.get("customer_name") or source.get("supplier_name") or source.get(party_key)
-    facts = [{"key": "party", "label": party_label, "d": str(party or "—"), "icon": "user", "link": True}]
+    facts = [{"key": "party", "label": t(party_label), "d": str(party or "—"), "icon": "user", "link": True}]
     if len(items) == 1:
         it = items[0]
         unit = f" {it['uom']}" if it.get("uom") else ""
         chip = None
         if it["stock"] is not None:
             if it["stock"]["ok"]:
-                chip = {"d": "متوفر في المخزن", "tone": "success"}
+                chip = {"d": t("In stock"), "tone": "success"}
             elif deducts_stock(doctype, source):
-                chip = {"d": "المتاح أقل من المطلوب", "tone": "danger"}
+                chip = {"d": t("Less available than requested"), "tone": "danger"}
             else:       # the document does not move stock: availability is a note, not a problem
-                chip = {"d": f"المتاح {fmt.number(it['stock']['available'])}", "tone": "neutral"}
-        facts += [{"key": "qty", "label": "الكمية", "d": f"{it['d']['qty']}{unit}", "icon": "hash"},
-                  {"key": "item", "label": "الصنف", "d": str(it["item"] or "—"), "icon": "package", "link": True, "chip": chip},
-                  {"key": "rate", "label": f"سعر {it['uom'] or 'الوحدة'}", "d": it["d"]["rate"], "icon": "coins"}]
+                chip = {"d": t("Available: {0}", fmt.number(it['stock']['available'])), "tone": "neutral"}
+        facts += [{"key": "qty", "label": t("Quantity"), "d": f"{it['d']['qty']}{unit}", "icon": "hash"},
+                  {"key": "item", "label": t("Item"), "d": str(it["item"] or "—"), "icon": "package", "link": True, "chip": chip},
+                  {"key": "rate", "label": t("Price per {0}", it["uom"]) if it["uom"] else t("Unit price"), "d": it["d"]["rate"], "icon": "coins"}]
     payment = source.get("mode_of_payment") or next((p.get("mode_of_payment") for p in (source.get("payments") or []) if isinstance(p, dict) and p.get("mode_of_payment")), None)
     if payment:
-        facts.append({"key": "payment", "label": "طريقة الدفع", "d": str(payment), "icon": "card"})
+        facts.append({"key": "payment", "label": t("Mode of payment"), "d": str(payment), "icon": "card"})
     if total not in (None, ""):
-        facts.append({"key": "total", "label": "الإجمالي", "d": fmt.money(total, currency), "icon": "receipt"})
+        facts.append({"key": "total", "label": t("Total"), "d": fmt.money(total, currency), "icon": "receipt"})
     if source.get("company"):
-        facts.append({"key": "company", "label": "الشركة", "d": str(source.get("company")), "icon": "building", "link": True})
+        facts.append({"key": "company", "label": t("Company"), "d": str(source.get("company")), "icon": "building", "link": True})
     if source.get("due_date") and doctype in ("Sales Invoice", "Purchase Invoice"):
-        facts.append({"key": "due", "label": "الاستحقاق", "d": fmt.date(source.get("due_date")), "icon": "calendar"})
+        facts.append({"key": "due", "label": t("Due date"), "d": fmt.date(source.get("due_date")), "icon": "calendar"})
     return facts
 
 
@@ -276,11 +282,11 @@ def _stock_check(doctype, items, source):
             continue
         unit = f" {it['uom']}" if it.get("uom") else ""
         if deducts:
-            warnings.append(schema.warning("critical", f"المخزون غير كافٍ للصنف {it['item']}: المتاح {fmt.number(stock['available'])}{unit} والمطلوب {fmt.number(it['qty'])}{unit}.", "insufficient_stock"))
+            warnings.append(schema.warning("critical", t("Not enough stock of {0}: {1} available, {2} requested.", it["item"], f"{fmt.number(stock['available'])}{unit}", f"{fmt.number(it['qty'])}{unit}"), "insufficient_stock"))
             blocked = blocked or it
         else:
-            warnings.append(schema.warning("info", f"للعلم: المتاح من {it['item']} في المخزن {fmt.number(stock['available'])}{unit} والمطلوب {fmt.number(it['qty'])}{unit}. "
-                                                   "هذه الفاتورة لا تخصم من المخزون، فلا يمنع ذلك إنشاءها.", "stock_below_requested"))
+            warnings.append(schema.warning("info", t("Note: {1} of {0} is in stock and {2} was requested. This invoice does not deduct stock, so it can still be created.",
+                                                     it["item"], f"{fmt.number(stock['available'])}{unit}", f"{fmt.number(it['qty'])}{unit}"), "stock_below_requested"))
     return warnings, blocked
 
 
@@ -290,31 +296,33 @@ def _impact(action_type, doctype, source, items, currency, total):
 
     financial, stock, steps = [], [], []
     if total not in (None, ""):
-        financial.append({"label": "إجمالي المستند", "d": fmt.money(total, currency)})
+        financial.append({"label": t("Document total"), "d": fmt.money(total, currency)})
         taxes = fmt.to_number(source.get("total_taxes_and_charges"))
         if taxes:
-            financial.append({"label": "منها ضرائب ورسوم", "d": fmt.money(taxes, currency)})
+            financial.append({"label": t("Of which taxes and charges"), "d": fmt.money(taxes, currency)})
         if money.is_multi_currency(source) and fmt.to_number(source.get("base_grand_total")):
-            financial.append({"label": "بعملة الشركة", "d": fmt.money(source.get("base_grand_total"), money.company_currency(source.get("company"))),
+            financial.append({"label": t("In company currency"), "d": fmt.money(source.get("base_grand_total"), money.company_currency(source.get("company"))),
                               "hint": money.exchange_rate_text(source)})
     if doctype in ("Sales Invoice", "Purchase Invoice", "Delivery Note", "Purchase Receipt", "Stock Entry") and items:
         if deducts_stock(doctype, source):
-            direction = "يُخصم من" if doctype in ("Sales Invoice", "Delivery Note") else "يُضاف إلى"
+            outgoing = doctype in ("Sales Invoice", "Delivery Note")
             for it in items[:5]:
                 unit = f" {it['uom']}" if it.get("uom") else ""
-                stock.append({"label": str(it["item"]), "d": f"{direction} {it.get('warehouse') or 'المخزن الافتراضي'}: {fmt.number(it['qty'])}{unit}"})
+                warehouse = it.get("warehouse") or t("the default warehouse")
+                moved = f"{fmt.number(it['qty'])}{unit}"
+                stock.append({"label": str(it["item"]), "d": t("Taken from {0}: {1}", warehouse, moved) if outgoing else t("Added to {0}: {1}", warehouse, moved)})
         else:
-            stock.append({"label": "المخزون", "d": "لا يتأثر: تحديث المخزون غير مفعّل في هذا المستند"})
+            stock.append({"label": t("Stock"), "d": t("Not affected: stock update is off for this document")})
     if action_type in ("Create", "Bulk Create"):
-        steps = ["يُنشأ المستند كمسودة ويأخذ رقمه من ERPNext.", "لا يُرحَّل إلى الحسابات ولا يتأثر أي رصيد قبل اعتماد المسودة.", "نتحقق من وجود المستند ونعرض رابطه."]
+        steps = [t("The document is created as a draft and gets its number from ERPNext."), t("Nothing is posted to the accounts and no balance changes until the draft is submitted."), t("We check that the document exists and show its link.")]
     elif action_type == "Submit":
-        steps = ["يُعتمد المستند ويُرحَّل إلى دفتر الأستاذ.", "لا يمكن تعديله بعد الاعتماد، بل إلغاؤه فقط.", "نتحقق من حالته بعد التنفيذ."]
+        steps = [t("The document is submitted and posted to the general ledger."), t("Once submitted it cannot be edited, only cancelled."), t("We check its status afterwards.")]
     elif action_type == "Cancel":
-        steps = ["يُلغى المستند وتُعكس قيوده.", "نتحقق من حالته بعد التنفيذ."]
+        steps = [t("The document is cancelled and its entries are reversed."), t("We check its status afterwards.")]
     elif action_type == "Update":
-        steps = ["تُحفظ التعديلات على المستند إن لم يتغير منذ تجهيز الطلب.", "نتحقق من المستند بعد التنفيذ."]
+        steps = [t("The changes are saved, provided the document has not changed since the request was prepared."), t("We check the document afterwards.")]
     elif action_type == "Workflow":
-        steps = ["يُنفَّذ إجراء سير العمل بصلاحياتك.", "نتحقق من الحالة الجديدة."]
+        steps = [t("The workflow action runs with your permissions."), t("We check the new status.")]
     return {"financial": financial, "stock": stock, "next": steps}
 
 
@@ -329,16 +337,16 @@ def _blocked(doctype, it, source):
                 alternatives.append({"warehouse": row.warehouse, "available": row.actual_qty, "d": f"{fmt.number(row.actual_qty)} {it.get('uom') or ''}".strip()})
     except Exception:
         alternatives = []
-    label = DEFINITE.get(doctype) or doctype_label(doctype)
-    return {"title": f"لا يمكن اعتماد {label}",
-            "message": "الكمية المطلوبة غير متوفرة في المخزن المحدد.", "item": it["item"], "item_code": it["item_code"], "warehouse": it["warehouse"],
+    label = _definite(doctype, doctype_label(doctype))
+    return {"title": t("Cannot approve {0}", label),
+            "message": t("The requested quantity is not available in the selected warehouse."), "item": it["item"], "item_code": it["item_code"], "warehouse": it["warehouse"],
             "image": thumbnail_data_uri(it.get("image")), "requested": fmt.to_number(it["qty"]), "available": it["stock"]["available"], "unit": it.get("uom"),
             "alternatives": alternatives}
 
 
 def _plain_error(exc):
     text = frappe.utils.strip_html(str(exc)).strip()
-    return text[:300] or "فشل التحقق من المستند."
+    return text[:300] or t("The document failed validation.")
 
 
 # ---------------------------------------------------------------- card
@@ -359,7 +367,7 @@ def _steps(state, valid=True):
             step_state = "error" if failed else "active"
         else:
             step_state = "todo"
-        out.append({"key": key, "label": label, "state": step_state})
+        out.append({"key": key, "label": t(label), "state": step_state})
     return out
 
 
@@ -378,15 +386,15 @@ def build_card(approval, user, *, state=None, result=None, error=None):
         error = stored.get("error")
     doctype = approval.doctype_name
     type_label = doctype_label(doctype) if doctype else ""
-    action_label = ACTION_LABELS.get(approval.action_type, approval.action_type)
+    action_label = t(ACTION_LABELS[approval.action_type]) if approval.action_type in ACTION_LABELS else approval.action_type
     preview = _preview(approval.action_type, doctype, payload) if state == "pending" else {
         "fields": [], "items": [], "kpis": [], "warnings": [], "valid": True, "photo": None, "blocked": None, "impact": {"financial": [], "stock": [], "next": []}, "details": []}
     preview.setdefault("impact", _impact(approval.action_type, doctype, {}, [], None, None))
     preview.setdefault("details", [])
     if approval.action_type == "Bulk Create":
-        preview["fields"].append({"key": "count", "label": "عدد المستندات", "d": fmt.number(len(payload.get("documents") or payload.get("items") or []))})
+        preview["fields"].append({"key": "count", "label": t("Number of documents"), "d": fmt.number(len(payload.get("documents") or payload.get("items") or []))})
     if approval.action_type in ("Update", "Submit", "Cancel", "Workflow") and approval.document_name:
-        preview["fields"].append({"key": "document", "label": "المستند", "d": f"{type_label} {approval.document_name}"})
+        preview["fields"].append({"key": "document", "label": t("Document"), "d": f"{type_label} {approval.document_name}"})
         if approval.action_type == "Update":
             for key, value in payload.items() if isinstance(payload, dict) else []:
                 if key not in ("doctype", "name") and not isinstance(value, (list, dict)):
@@ -399,7 +407,7 @@ def build_card(approval, user, *, state=None, result=None, error=None):
     # Four-eyes policy: the engine refuses to let a requester approve their own request, so do not offer a button that can only fail.
     own_request_blocked = bool(four_eyes_enabled() and approval.requested_by == user)
     if own_request_blocked and state == "pending":
-        preview["warnings"].append(schema.warning("info", "سياسة العينين مفعّلة: لا يمكنك اعتماد طلبك بنفسك. يعتمده مستخدم مخوَّل من ERP، ويمكنك تعديل الطلب أو إلغاؤه من هنا.", "four_eyes"))
+        preview["warnings"].append(schema.warning("info", t("The four-eyes policy is on: you cannot approve your own request. An authorised ERP user approves it; you can still edit or cancel it here."), "four_eyes"))
 
     def args(action):
         return {"approval_id": approval.name, "token": issue_token(approval.name, approval.payload_hash, user, action)}
@@ -409,14 +417,14 @@ def build_card(approval, user, *, state=None, result=None, error=None):
     documents = _bulk_documents(payload) if bulk and state == "pending" else None
     actions = []
     if can_act:
-        approve_label = f"موافقة وإنشاء {DEFINITE.get(doctype) or type_label}" if creating else ("موافقة وإنشاء المستندات" if bulk else "موافقة وتنفيذ")
-        cancel = schema.action("cancel", "إلغاء", kind="tool", style="danger", tool="approvals__decide", arguments={**args("reject"), "decision": "reject"}, confirm=True, icon="x")
-        edit = schema.action("edit", "تعديل الكمية" if blocked else "تعديل", kind="edit", style="soft", arguments=args("revise"), icon="edit") if creating else None
+        approve_label = t("Approve and create {0}", _definite(doctype, type_label)) if creating else (t("Approve and create the documents") if bulk else t("Approve and run"))
+        cancel = schema.action("cancel", t("Cancel"), kind="tool", style="danger", tool="approvals__decide", arguments={**args("reject"), "decision": "reject"}, confirm=True, icon="x")
+        edit = schema.action("edit", t("Edit quantity") if blocked else t("Edit"), kind="edit", style="soft", arguments=args("revise"), icon="edit") if creating else None
         if blocked:
             actions = [a for a in (
-                schema.action("view_stock", "عرض المخزون", kind="drill", style="primary", tool="erp__stock_balance",
+                schema.action("view_stock", t("View stock"), kind="drill", style="primary", tool="erp__stock_balance",
                               arguments={"item_code": blocked["item_code"], "warehouse": blocked["warehouse"]}, icon="box") if blocked.get("warehouse") else None,
-                schema.action("choose_warehouse", "اختيار مخزن آخر", kind="choose", style="secondary", icon="refresh") if creating else None,
+                schema.action("choose_warehouse", t("Choose another warehouse"), kind="choose", style="secondary", icon="refresh") if creating else None,
                 edit, cancel) if a]
         else:
             approve = None if own_request_blocked else schema.action("approve", approve_label, kind="tool", style="success", tool="approvals__decide",
@@ -425,20 +433,21 @@ def build_card(approval, user, *, state=None, result=None, error=None):
     doc_name = (result or {}).get("document_name")
     result_doctype = (result or {}).get("doctype") or doctype
     if state in ("executed", "verified") and doc_name:
-        actions = [schema.action("open", "فتح المستند", href=doc_href(result_doctype, doc_name), style="primary")]
+        actions = [schema.action("open", t("Open document"), href=doc_href(result_doctype, doc_name), style="primary")]
     warnings = preview["warnings"]
     if any(w["level"] == "critical" for w in warnings) and can_act and not blocked:
         actions = [a for a in actions if a["key"] != "approve"]
     if creating and state == "pending":
-        ready = "جاهزة للإنشاء" if doctype in FEMININE else "جاهز للإنشاء"
-        title, subtitle, status_label = f"{type_label} — {ready}", f"تم تجهيز {DEFINITE.get(doctype) or type_label} بناءً على طلبك. يرجى مراجعة التفاصيل والموافقة.", "تحتاج موافقة"
+        title, subtitle, status_label = (t("{0} — ready to create", type_label),
+                                         t("We prepared {0} from your request. Please review the details and approve.", _definite(doctype, type_label)), t("Needs approval"))
     elif documents:
         n = len(documents)
-        title, subtitle, status_label = f"إنشاء {n} مستندات — جاهزة للإنشاء" if n > 2 else f"إنشاء مستندين — جاهزان للإنشاء", (approval.action_summary or "يرجى مراجعة المستندات التالية والموافقة عليها دفعة واحدة."), "تحتاج موافقة"
+        title = t("{0} documents ready to create", fmt.number(n)) if n > 2 else t("Two documents ready to create")
+        subtitle, status_label = approval.action_summary or t("Please review the documents below and approve them all at once."), t("Needs approval")
     else:
-        title, subtitle, status_label = f"{action_label} {type_label}".strip(), f"طلب رقم {approval.name}", None
+        title, subtitle, status_label = f"{action_label} {type_label}".strip(), t("Request {0}", approval.name), None
         if stored.get("mode") == "direct":
-            subtitle = "نُفّذ مباشرة: الموافقة غير مطلوبة في الإعدادات الحالية"
+            subtitle = t("Run directly: approval is not required in the current settings")
     return {
         "type": "approval", "state": state, "approval_id": approval.name,
         "title": title, "subtitle": subtitle, "status_label": status_label,
@@ -455,7 +464,7 @@ def build_card(approval, user, *, state=None, result=None, error=None):
         "editable": _editable(payload, doctype) if can_act and creating else None,
         "result": {"document_name": doc_name, "doctype": result_doctype, "href": doc_href(result_doctype, doc_name),
                    "documents": (result or {}).get("documents")} if result else None,
-        "fallback": {"desk_url": desk, "text": f"للموافقة اكتب «موافق» في المحادثة، أو اعتمد الطلب {approval.name} من ERPNext: {desk}"},
+        "fallback": {"desk_url": desk, "text": t("To approve, reply \"approve\" in the chat, or approve request {0} in ERPNext: {1}", approval.name, desk)},
         "currency": preview.get("currency"),
         "developer": {"approval_id": approval.name, "action_type": approval.action_type, "doctype": doctype,
                       "payload_hash": approval.payload_hash, "run": approval.run, "requested_by": approval.requested_by},
@@ -468,7 +477,7 @@ def _next_steps(approval, steps):
     steps = list(steps)
     then = continuation.peek(approval.name) if approval.name else None
     if then:
-        steps.append(f"ثم نتابع تلقائيًا هدفك الأصلي: {then['goal']}.")
+        steps.append(t("Then we continue automatically with your original goal: {0}.", then["goal"]))
     return steps
 
 
@@ -476,25 +485,28 @@ def _editable(payload, doctype):
     fields = []
     for key, (label, kind) in EDITABLE_TOP.items():
         if key in payload:
-            fields.append({"key": key, "label": label, "type": kind, "value": payload.get(key)})
+            fields.append({"key": key, "label": t(label), "type": kind, "value": payload.get(key)})
     items = []
     for idx, row in enumerate(payload.get("items") or [], start=1):
         if isinstance(row, dict):
             items.append({"idx": idx, "label": row.get("item_name") or row.get("item_code"),
-                          "fields": [{"key": k, "label": lab, "type": t, "value": row.get(k)} for k, (lab, t) in EDITABLE_ITEM.items() if k in row]})
+                          "fields": [{"key": k, "label": t(lab), "type": kind, "value": row.get(k)} for k, (lab, kind) in EDITABLE_ITEM.items() if k in row]})
     return {"fields": fields, "items": items} if (fields or items) else None
+
+
+CARD_STATES = {"pending": "Waiting for your approval", "approved": "Approval recorded", "executed": "Done", "verified": "Done and verified",
+               "rejected": "Request rejected", "expired": "Request expired", "failed": "Execution failed"}
 
 
 def card_envelope(approval, user, *, tool="approvals", state=None, result=None, error=None):
     card = build_card(approval, user, state=state, result=result, error=error)
-    text = f"{card['title']} — {approval.name}: " + {
-        "pending": "بانتظار موافقتك", "approved": "تمت الموافقة", "executed": "نُفّذ", "verified": "نُفّذ وتم التحقق",
-        "rejected": "رُفض", "expired": "انتهت صلاحيته", "failed": "فشل التنفيذ"}[card["state"]]
-    if card["kpis"]:
-        text += "، " + "، ".join(f"{k['label']} {k['d']}" for k in card["kpis"][-1:])
+    state_text = t(CARD_STATES[card["state"]])
+    text = f"{card['title']} — {approval.name}: {state_text}"
+    for k in card["kpis"][-1:]:
+        text = t("{0}, {1}", text, f"{k['label']} {k['d']}")
     if card["state"] == "pending":
         # Text hosts (and the model) need to know the request can be decided right here in the chat.
-        text += f". للموافقة اكتب «موافق» وللإلغاء اكتب «إلغاء» (رقم الطلب {approval.name})"
+        text += t(". To approve reply \"approve\", to cancel reply \"cancel\" (request {0})", approval.name)
     return schema.envelope(
         tool=tool, data={"approval_id": approval.name, "status": approval.status, "action_type": approval.action_type,
                          "doctype": approval.doctype_name, "result": card["result"]},
@@ -515,7 +527,7 @@ def list_pending(user):
     rows = frappe.get_all("AI Approval Request", filters={"status": "Pending", "requested_by": user, "expires_at": [">", frappe.utils.now_datetime()]},
                           fields=["name", "action_type", "doctype_name", "action_summary", "creation"], order_by="creation desc", limit=10)
     if not rows:
-        return schema.envelope(tool="approvals.list_pending", data={"pending": []}, summary={"text": "لا توجد طلبات موافقة معلّقة.", "count": 0})
+        return schema.envelope(tool="approvals.list_pending", data={"pending": []}, summary={"text": t("No pending approval requests."), "count": 0})
     if len(rows) == 1:
         approval = frappe.get_doc("AI Approval Request", rows[0].name)
         envelope = card_envelope(approval, user, tool="approvals.list_pending")
@@ -523,10 +535,10 @@ def list_pending(user):
         return envelope
     from ai_agent.presentation.presenters import choice
 
-    options = [{"value": r.name, "label": (r.action_summary or f"{ACTION_LABELS.get(r.action_type, r.action_type)} {r.doctype_name or ''}").strip()[:140],
+    options = [{"value": r.name, "label": (r.action_summary or f"{t(ACTION_LABELS[r.action_type]) if r.action_type in ACTION_LABELS else r.action_type} {doctype_label(r.doctype_name) if r.doctype_name else ''}").strip()[:140],
                 "meta": r.name, "icon": "file"} for r in rows]
-    envelope = choice.build("أي طلب تقصد؟", options, subtitle="لديك أكثر من طلب موافقة معلّق. اختر الطلب الذي تريد البتّ فيه.", icon="file",
-                            reply_template="أقصد الطلب رقم {value}")
+    envelope = choice.build(t("Which request do you mean?"), options, subtitle=t("You have more than one pending approval request. Choose the one you want to decide on."), icon="file",
+                            reply_template=t("I mean request {value}"))
     envelope["data"]["pending"] = [r.name for r in rows]
     return envelope
 
@@ -539,14 +551,14 @@ def decide(user, approval_id, decision, token=None, reason=None):
     via = "app" if token else "chat"
     events.log("approval_decision_received", user=user, approval_id=approval_id, decision=decision, via=via)
     if decision not in ("approve", "reject"):
-        raise ApprovalUiError("قرار غير معروف: استخدم approve أو reject.")
+        raise ApprovalUiError(t("Unknown decision: use approve or reject."))
     if not approval_required():
-        raise ApprovalUiError("الموافقة غير مطلوبة في الإعدادات الحالية؛ تُنفَّذ الطلبات مباشرة.")
+        raise ApprovalUiError(t("Approval is not required in the current settings; requests run directly."))
     approval = _load(approval_id, user)
     events.log("approval_loaded", user=user, approval_id=approval.name, doctype=approval.doctype_name, status=approval.status)
     if token:
         if not app_approval_enabled():
-            raise ApprovalUiError("الموافقة من البطاقة غير مفعلة. اكتب موافقتك في المحادثة أو اعتمد الطلب من واجهة ERPNext.")
+            raise ApprovalUiError(t("Approving from the card is turned off. Approve in the chat or approve the request in ERPNext."))
         _check_token(approval, user, token, decision)
 
     # A repeated decision is answered with the recorded outcome, never executed again.
@@ -555,7 +567,7 @@ def decide(user, approval_id, decision, token=None, reason=None):
     if approval.status == "Rejected" and decision == "reject":
         return card_envelope(approval, user, tool="approvals.decide", state="rejected")
     if approval.status not in ("Pending", "Approved"):
-        raise ApprovalUiError(f"لا يمكن البتّ في هذا الطلب: حالته {_STATUS_AR.get(approval.status, approval.status)}.")
+        raise ApprovalUiError(t("This request can no longer be decided: its status is {0}.", status_display(approval.status)[0]))
 
     engine = ApprovalEngine(PermissionContext(user))
     try:
@@ -569,7 +581,7 @@ def decide(user, approval_id, decision, token=None, reason=None):
             except ApprovalAlreadyExecuted:
                 return _outcome(user, approval.name)     # a concurrent decision got there first
             except ApprovalExpired:
-                raise ApprovalUiError("انتهت صلاحية طلب الموافقة. اطلب من المساعد إعادة تجهيز العملية.")
+                raise ApprovalUiError(t("This approval request has expired. Ask the assistant to prepare it again."))
             events.log("approval_approved", user=user, approval_id=approval.name, doctype=approval.doctype_name, via=via)
         events.log("approval_execute_started", user=user, approval_id=approval.name, doctype=approval.doctype_name)
         try:
@@ -589,9 +601,6 @@ def decide(user, approval_id, decision, token=None, reason=None):
         return card_envelope(approval, user, tool="approvals.decide", state="verified" if verified else "executed", result=result)
     except PermissionDenied as exc:
         raise ApprovalUiError(str(exc))
-
-
-_STATUS_AR = {"Executed": "نُفّذ", "Rejected": "مرفوض", "Expired": "منتهي الصلاحية", "Failed": "فشل تنفيذه", "Approved": "معتمد", "Pending": "معلّق"}
 
 
 def _outcome(user, approval_name):
@@ -628,12 +637,12 @@ def revise(user, approval_id, token, changes):
     approval = _load(approval_id, user)
     _check_token(approval, user, token, "revise")
     if approval.status != "Pending" or approval.action_type != "Create":
-        raise ApprovalUiError("لا يمكن تعديل هذا الطلب.")
+        raise ApprovalUiError(t("This request cannot be edited."))
     payload = copy.deepcopy(json.loads(approval.payload_json))
     for key, value in ((changes or {}).get("fields") or {}).items():
         allowed_new = key == "set_warehouse" and frappe.get_meta(approval.doctype_name).has_field("set_warehouse")
         if key not in EDITABLE_TOP or (key not in payload and not allowed_new):
-            raise ApprovalUiError(f"الحقل غير قابل للتعديل: {key}")
+            raise ApprovalUiError(t("This field cannot be edited: {0}", key))
         payload[key] = value
         if key == "set_warehouse":
             for row in payload.get("items") or []:
@@ -643,10 +652,10 @@ def revise(user, approval_id, token, changes):
         try:
             row = payload["items"][int(idx) - 1]
         except (KeyError, IndexError, ValueError, TypeError):
-            raise ApprovalUiError("صف غير موجود.")
+            raise ApprovalUiError(t("Row not found."))
         for key, value in (edits or {}).items():
             if key not in EDITABLE_ITEM or key not in row:
-                raise ApprovalUiError(f"الحقل غير قابل للتعديل: {key}")
+                raise ApprovalUiError(t("This field cannot be edited: {0}", key))
             row[key] = fmt.to_number(value) if EDITABLE_ITEM[key][1] == "number" else value
     engine = ApprovalEngine(PermissionContext(user))
     try:

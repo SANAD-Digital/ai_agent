@@ -1,9 +1,18 @@
  with {0} attachments, مع المرفقات ({0})
 (attachments),(مرفقات)
+". To approve reply ""approve"", to cancel reply ""cancel"" (request {0})",. للموافقة اكتب «موافق» وللإلغاء اكتب «إلغاء» (رقم الطلب {0}),AI View
 "1 = helpful, -1 = not helpful",1 = مفيد، ‎-1 = غير مفيد,AI Chat Message
 1 tool,أداة واحدة,AI Chat
 2 tools,أداتان,AI Chat
+A CSV file of the raw data,ملف CSV بالبيانات الخام,AI Chat
+"A PDF report with a title, a summary and a table",تقرير PDF فيه عنوان وملخص وجدول,AI Chat
+"A PNG image of a chart or a short table, to share",صورة PNG لرسم بياني أو جدول قصير، للمشاركة,AI Chat
+"A customer or supplier statement as a PDF: opening, transactions and closing balance",كشف حساب عميل أو مورد بصيغة PDF: الرصيد الافتتاحي والحركات والرصيد الختامي,AI Chat
+"A reversing entry that was never settled, or a payment or return posted to this account instead of the right one.",قيد عكسي لم يُسوَّ، أو دفعة أو مرتجع سُجّل على هذا الحساب بدل حسابه الصحيح.,AI View
+"A single large transaction, or a summary or opening entry.",عملية كبيرة منفردة، أو قيد تجميعي أو افتتاحي.,AI View
 A subject and a message are required.,الموضوع ونص الرسالة مطلوبان.
+"A {0} account has a closing credit balance of {1}, though it normally carries a debit balance.",حساب من نوع {0} رصيده الختامي دائن بمبلغ {1}، مع أن طبيعته أن يكون مدينًا.,AI View
+"A {0} account has a closing debit balance of {1}, though it normally carries a credit balance.",حساب من نوع {0} رصيده الختامي مدين بمبلغ {1}، مع أن طبيعته أن يكون دائنًا.,AI View
 AI,المساعد الذكي
 AI Access Rule,قاعدة صلاحية
 AI Agent,وكيل ذكاء اصطناعي
@@ -49,21 +58,34 @@ AI memory is disabled.,ذاكرة المساعد متوقفة.
 API Key,مفتاح API,AI Provider
 API Key,مفتاح API,AI Settings
 API Key is required when Gemini OCR is enabled.,مفتاح API مطلوب عند تفعيل قراءة الصور عبر Gemini.
+Abbreviation,الاختصار,AI View
 About: {0} · {1},بخصوص: {0} · {1},AI Chat
 Access,الوصول,AI Chatbot Settings
 Access,الوصول,AI Settings
 Access Level,مستوى الوصول,AI Skill Tool
 Access Rules,قواعد الصلاحيات,AI Settings
+Account,الحساب,AI View
+Account Statement,كشف حساب,AI Chat
 Account Statement,كشف حساب,AI WhatsApp Request
+Accounting,المحاسبة,AI Chat
+Accounting,المحاسبة,AI View
 Action Summary,ملخص الإجراء,AI Approval Request
 Action Type,نوع الإجراء,AI Approval Request
+Action not available,الإجراء غير متاح,AI View
 Actions,الإجراءات,AI Agent
+Actions,إجراءات,AI View
 Actions & Approvals,الإجراءات والموافقات,AI Settings
 Active,نشطة,AI Chat Session
+Active,نشط,AI View
 Adaptive thinking,تفكير حسب الحاجة,AI Chat
 Add {0} to Allowed Roles first.,أضف {0} إلى الأدوار المسموحة أولاً.
 Added,مضاف,AI Provider
+Added to {0}: {1},يُضاف إلى {0}: {1},AI View
+Advance Payments,الدفعات المقدمة,AI View
 Advanced,متقدم,AI Settings
+Advances,الدفعات المقدمة,AI View
+After approval:,بعد الموافقة:,AI View
+Against,مقابل,AI View
 Agent,الوكيل,AI Chat
 Agent,الوكيل,AI Chat Session
 Agent,الوكيل,AI Memory
@@ -79,8 +101,13 @@ Agent is required when Scope is Agent.,الوكيل مطلوب عندما يكو
 Agent {0} is not available.,الوكيل {0} غير متاح.
 Agents,الوكلاء
 Aggregate,طريقة الحساب,AI Metric
+Alert: one overdue invoice of {0}.,تنبيه: توجد فاتورة متأخرة واحدة بقيمة {0}.,AI View
+Alert: {0} overdue invoices totaling {1}.,تنبيه: عدد الفواتير المتأخرة {0} بقيمة {1}.,AI View
 Alias,الاسم المختصر,AI Metric Composite Item
+All,الكل,AI View
 All Users,كل المستخدمين,AI Skill Grant
+"Allocate the payments to their invoices, or settle the balance with a journal entry.",خصّص الدفعات على فواتيرها أو سوِّ الرصيد بقيد.,AI View
+Allocated Amount,المبلغ المخصص,AI View
 Allow,مسموح,AI Access Rule
 Allow,مسموح,AI Settings
 Allow Action Requests,السماح بطلبات الإجراءات,AI Settings
@@ -96,24 +123,48 @@ Allowed Roles,الأدوار المسموحة,AI Chatbot Settings
 Allowed Roles,الأدوار المسموحة,AI Knowledge Document
 Allowed Roles,الأدوار المسموحة,AI Settings
 Allowed Web Origins,المواقع المسموح لها,AI Settings
+Alternative warehouses,المخازن البديلة,AI View
+Amount,المبلغ,AI View
+Amount (company currency),المبلغ (عملة الشركة),AI View
+Amount Received,المبلغ المستلم,AI View
+Amount in Words,المبلغ كتابة,AI View
+Amounts,المبالغ,AI View
+"An advance or a return not allocated to an invoice, or a payment recorded twice.",دفعة مقدمة أو مرتجع لم يُخصَّص على فاتورة، أو دفعة مسجلة مرتين.,AI View
+An interactive chart inside the conversation,رسم بياني تفاعلي داخل المحادثة,AI Chat
 An unexpected error occurred,حدث خطأ غير متوقع,AI Chat
+An unexpected error occurred,حدث خطأ غير متوقع,AI View
 Analysis,تحليل,AI Chat
 Anthropic uses the native Messages API (official SDK) with prompt caching; base_url may point to a proxy.,يستخدم Anthropic واجهة Messages الأصلية (المكتبة الرسمية) مع تخزين التعليمات مؤقتاً، ويمكن أن يشير الرابط الأساسي إلى وسيط (proxy).,AI Provider
+Any mistake in this document changes the whole period's balance.,أي خطأ في هذا المستند يغيّر رصيد الفترة كله.,AI View
 App File,ملف من التطبيق,AI Skill
+Apply,تطبيق,AI View
 Approval,موافقة,AI Message Block
 Approval,موافقة,AI Run Step
+Approval,موافقة,AI View
 Approval Buttons in Cards,أزرار الموافقة في البطاقات,AI Settings
 Approval ID,رقم طلب الموافقة,AI Approval Request
 Approval Requests,طلبات الموافقة
+Approval is not required in the current settings; requests run directly.,الموافقة غير مطلوبة في الإعدادات الحالية؛ تُنفَّذ الطلبات مباشرة.,AI View
+Approval recorded,تمت الموافقة,AI View
 Approval request,طلب موافقة,AI Chat
+Approval request not found.,طلب الموافقة غير موجود.,AI View
+Approval request status,حالة طلب موافقة,AI View
 Approvals,الموافقات,AI Settings
 Approve,موافقة,AI Chat
+Approve and create the documents,موافقة وإنشاء المستندات,AI View
+Approve and create {0},موافقة وإنشاء {0},AI View
+Approve and run,موافقة وتنفيذ,AI View
+Approve or reject a request,الموافقة على طلب أو رفضه,AI View
 Approved,تمت الموافقة,AI Approval Request
 Approved,تمت الموافقة,AI Chat
+Approved,تمت الموافقة,AI View
 Approved By,وافق عليه,AI Approval Request
 Approved Method,إجراء معتمد,AI Approval Request
 Approved action,إجراء معتمد,AI Chat
+Approved; execution is in progress.,تمت الموافقة، والتنفيذ جارٍ.,AI View
 Approver Role,دور المعتمِد,AI Settings
+Approving from the card is turned off. Approve in the chat or approve the request in ERPNext.,الموافقة من البطاقة غير مفعّلة. اكتب موافقتك في المحادثة أو اعتمد الطلب من واجهة ERPNext.,AI View
+April,أبريل,AI View
 Arabic Label,الاسم بالعربية,AI Metric
 Arabic Label,الاسم بالعربية,AI Metric Composite
 Arabic Label,الاسم بالعربية,AI Metric Dimension
@@ -126,8 +177,12 @@ Artifact,مُخرَج,AI Message Block
 Artifact,مُخرَج,AI Run Step
 Artifact Type,نوع المُخرَج,AI Artifact
 Artifacts,الجداول والرسوم المُنشأة
+As of {0},حتى {0},AI View
 "Ask about your data in the chat. Type <b>/</b> to pick a skill that takes you straight to an area, or a plugin that gives you a file (Excel, PDF, image or chart). Who can use what is set in the permissions table in the settings.",اسأل عن بياناتك في المحادثة. اكتب <b>/</b> لتختار مهارة تأخذك مباشرة إلى مجال معيّن، أو إضافة تعطيك ملفاً (Excel أو PDF أو صورة أو رسماً بيانياً). ويُحدَّد من يستخدم ماذا من جدول الصلاحيات في الإعدادات.
 "Ask about your data, run a report or prepare a document — {0} is ready.",اسأل عن بياناتك، أو شغّل تقريراً، أو جهّز مستنداً. {0} جاهز لمساعدتك.,AI Chat
+Ask the assistant,اسأل المساعد,AI View
+Ask your system manager to enable it if you need it.,اطلب من مدير النظام تفعيله إن كنت تحتاجه.,AI View
+"Ask your system manager to grant this permission, then try again.",اطلب من مدير النظام منحك هذه الصلاحية ثم أعد المحاولة.,AI View
 Asking the provider for its models…,جارٍ سؤال المزوّد عن نماذجه…,AI Provider
 Assigned Department,القسم المسؤول,AI WhatsApp Request
 Assistant,المساعد,AI Chat
@@ -135,19 +190,35 @@ Assumption,الافتراض المعتمد,AI Metric
 Assumption,الافتراض المعتمد,AI Metric Composite
 Attach a file,إرفاق ملف,AI Chat
 Attachment {0} was not found.,المرفق {0} غير موجود.
+August,أغسطس,AI View
 Authorized,مسموح,AI Tool Call
+Automatic follow-up failed: {0},تعذّرت المتابعة التلقائية: {0},AI View
 Available Models,النماذج المتاحة,AI Provider
+Available in the warehouse — requested {0} {1},المتاح في المخزن — الكمية المطلوبة {0} {1},AI View
+Available quantity,الكمية المتاحة,AI View
+Available: {0},المتاح: {0},AI View
+Available: {0} of the {1} requested.,المتاح {0} من {1} المطلوبة.,AI View
+Average invoice,متوسط الفاتورة,AI View
+Average {0},متوسط {0},AI View
+Awaiting Approval,بانتظار الموافقة,AI View
 Awaiting decision,بانتظار قرارك,AI Chat
+Back,رجوع,AI View
+Balance,الرصيد,AI View
 Balance,الرصيد,AI WhatsApp Request
+Balance Sheet,الميزانية العمومية,AI View
+Balance after movement,الرصيد بعد الحركة,AI View
 Base Filters,الفلاتر الأساسية,AI Metric
 Base Filters must be valid JSON.,يجب أن تكون الفلاتر الأساسية بصيغة JSON صحيحة.
 Base URL,الرابط الأساسي,AI Provider
 Base URL,الرابط الأساسي,AI Settings
 Base URL,الرابط الأساسي,Gemini OCR Settings
 Base URL is required for an OpenAI Compatible provider.,الرابط الأساسي مطلوب للمزوّد المتوافق مع OpenAI.
+Basic information,المعلومات الأساسية,AI View
 Behavior,السلوك,AI Skill
 Block Type,نوع الجزء,AI Message Block
+Branch,الفرع,AI View
 Bulk Create,إنشاء عدة مستندات,AI Approval Request
+Business Domain,النشاط,AI View
 By {0},بواسطة {0},AI Chat
 Cache Creation Input Tokens,وحدات محفوظة في الذاكرة المؤقتة,AI Chat Message
 Cache Creation Input Tokens,وحدات محفوظة في الذاكرة المؤقتة,AI Chat Session
@@ -162,13 +233,22 @@ Cache Write Tokens,وحدات محفوظة في الذاكرة المؤقتة,AI
 Call ID,معرّف الاستخدام,AI Tool Call
 Cancel,إلغاء,AI Approval Request
 Cancel,إلغاء,AI Chat
+Cancel,إلغاء,AI View
 Cancel Requested,طُلب الإيقاف,AI Run
 Cancelled,ملغى,AI Run
+Cancelled,ملغاة,AI View
 Cancelled,ملغى,AI WhatsApp Request
+Cannot approve {0},لا يمكن اعتماد {0},AI View
 Capabilities,القدرات
+Capital,رأس المال,AI View
 "Case-insensitive substring matched against the model name (e.g. gpt-5, claude, qwen3).",جزء من اسم النموذج يُطابَق دون تمييز الأحرف (مثل gpt-5 أو claude أو qwen3).,AI Model Capability
+Category,التصنيف,AI View
+Change,التغير,AI View
+Change the period or the company.,غيّر الفترة أو الشركة.,AI View
 Chart,رسم بياني,AI Artifact
+Chart,رسم بياني,AI Chat
 Chart,رسم بياني,AI Plugin
+Chart,الرسم,AI View
 Chart not found or not accessible.,الرسم البياني غير موجود أو ليست لديك صلاحية عليه.
 Chart view,رسم بياني
 Chat,محادثة,AI Chat Session
@@ -181,33 +261,58 @@ Chat session identity: the first run of this conversation chain. Set once at cre
 ChatGPT is not allowed to sign in,ChatGPT غير مسموح له بتسجيل الدخول,AI Settings
 ChatGPT is not allowed to sign in yet. Use Fix in the status above.,ChatGPT غير مسموح له بتسجيل الدخول بعد. استخدم زر السماح في حالة الربط أعلاه.,AI Settings
 Chatbot,نافذة الدعم,AI Chat Session
+Check setup,فحص الإعداد,AI View
+"Check that the document, its attachments and its approval are correct.",تأكد من صحة المستند ومرفقاته واعتماده.,AI View
+Check the MCP App connection,فحص اتصال واجهة MCP App,AI View
+"Check the document number, or search for it by name.",تحقق من رقم المستند أو ابحث عنه بالاسم.,AI View
+Choose a company,اختر الشركة,AI View
+"Choose a fiscal year or a start and end date, then try again.",حدّد السنة المالية أو تاريخَي البداية والنهاية ثم أعد المحاولة.,AI View
+Choose a warehouse,اختر المخزن,AI View
+Choose a warehouse that has the item,اختر مخزنًا يتوفر فيه الصنف,AI View
+Choose an option,اختر أحد الخيارات,AI View
+Choose another warehouse,اختيار مخزن آخر,AI View
+Choose from a list,اختيار من قائمة,AI View
+Choose the company to continue with.,اختر الشركة المناسبة للمتابعة.,AI View
+Choose the warehouse to continue with.,اختر المخزن المناسب للمتابعة.,AI View
 Chunk Index,رقم المقطع,AI Knowledge Chunk
 Chunks,عدد المقاطع,AI Knowledge Document
 Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set.,يُصنَّف كل سؤال أولاً ويُرسل للنموذج أدوات ذلك التصنيف فقط (8 كحد أقصى). الأسئلة غير المصنّفة تحصل على كل الأدوات.,AI Settings
 "Claude, ChatGPT and other tools can connect, each user with their own account and permissions.",يمكن لـ Claude وChatGPT وغيرهما الاتصال، كل مستخدم بحسابه وصلاحياته.,AI Settings
+Clear all,مسح الكل,AI View
+Clear filters,مسح الفلاتر,AI View
 "Click <b>Create app</b>, paste the link and choose <b>OAuth</b>.",اضغط <b>إنشاء تطبيق (Create app)</b>، والصق الرابط، واختر <b>تسجيل الدخول بالحساب (OAuth)</b>.,AI Settings
 "Click <b>Open Claude settings</b>, then <b>Add custom connector</b>.",اضغط <b>فتح إعدادات Claude</b>، ثم <b>إضافة موصل مخصص (Add custom connector)</b>.,AI Settings
 Click <b>Start</b> above the server name and sign in.,اضغط <b>Start</b> فوق اسم الخادم، ثم سجّل دخولك.,AI Settings
 Click to open memory,اضغط لفتح الذاكرة,AI Chat
 Close,إغلاق,AI Chat
+Closed,مغلقة,AI View
+Closing balance,الرصيد الختامي,AI View
 Cloud API (Gemini OCR),سحابية عبر Gemini,Gemini OCR Settings
 Collapse,تصغير,AI Chat
 Collapse sidebar,إخفاء القائمة الجانبية,AI Chat
+Comfortable view,عرض مريح,AI View
 Comma-separated top-level keys required when Response Format is JSON Object.,مفاتيح مفصولة بفواصل يجب أن يحتويها الرد عندما تكون صيغته كائن JSON.,AI Skill
 Compact Session,اختصار المحادثات الطويلة,AI Agent
+Compact view,عرض مضغوط,AI View
 Compaction Summary,ملخص المحادثة,AI Chat Session
+Companies,الشركات,AI View
+Companies: {0},عدد الشركات: {0},AI View
 Company,الشركة,AI Chat
 Company,الشركة,AI Chat Session
 Company,الشركة,AI Chatbot Settings
 Company,الشركة,AI Memory
 Company,الشركة,AI Run
 Company,الشركة,AI Skill Grant
+Company,الشركة,AI View
 Company,الشركة,AI WhatsApp Request
 Company,الشركة,AI WhatsApp Support Settings
 Company Field,حقل الشركة,AI Metric
+Company name,اسم الشركة,AI View
 Company used when a request does not name one.,الشركة المستخدمة عندما لا يحدد الطلب شركة.,AI Settings
+Compared with {0},مقارنة بـ {0},AI View
 Completed,اكتمل,AI Run
 Completed,اكتمل,AI Run Step
+Completed,مكتملة,AI View
 Completed,اكتمل,AI WhatsApp Request
 Completed At,وقت الانتهاء,AI Chat Message
 Completed At,وقت الانتهاء,AI Message Block
@@ -215,7 +320,9 @@ Completed At,وقت الانتهاء,AI Run
 Completed At,وقت الانتهاء,AI Run Step
 Completed At,وقت الانتهاء,AI Tool Call
 Composite Key,مفتاح المؤشر المركّب,AI Metric Composite
+Confirm,تأكيد,AI View
 Confirm rejection,تأكيد الرفض,AI Chat
+Confirm rejection,تأكيد الرفض,AI View
 Connect an AI Tool,ربط أداة ذكاء اصطناعي,AI Settings
 Connected Apps,التطبيقات المتصلة,AI Settings
 Connected to Gemini OCR. Test text extracted: {0},تم الاتصال بـ Gemini. النص المستخرج من الاختبار: {0}
@@ -239,6 +346,8 @@ Context Tokens,حجم المحادثة (وحدات نصية),AI Chat Message
 Context Window,حد السياق,AI Provider
 Context Window (tokens),حد السياق (وحدات نصية),AI Model Capability
 Context Window (tokens),حد السياق (وحدات نصية),AI Provider Model
+Continue,متابعة,AI View
+Contribution,المساهمة,AI View
 Conversation,المحادثة,AI Chatbot Settings
 Conversation,المحادثة,AI WhatsApp Support Settings
 "Conversation condensed: {0} → {1} tokens, {2} messages summarized",اختُصرت المحادثة من {0} إلى {1} وحدة نصية، ولُخّصت الرسائل الأقدم ({2}),AI Chat
@@ -246,35 +355,80 @@ Conversation title,عنوان المحادثة,AI Chat
 Conversations,المحادثات
 Conversations,المحادثات,AI Chat
 Conversations,المحادثات,AI Settings
+Conversion Factor,معامل التحويل,AI View
 Copied,تم النسخ,AI Chat
+Copied,تم النسخ,AI View
 Copy,نسخ,AI Chat
 Copy,نسخ,AI Settings
 Copy link,نسخ الرابط,AI Settings
+Copy number,نسخ الرقم,AI View
 Copy the command and run it in the terminal.,انسخ الأمر وشغّله في نافذة الأوامر (Terminal).,AI Settings
 Copy the settings into <b>.vscode/mcp.json</b>.,انسخ الإعدادات إلى الملف <b>.vscode/mcp.json</b>.,AI Settings
 Copy the settings into <b>opencode.json</b>.,انسخ الإعدادات إلى الملف <b>opencode.json</b>.,AI Settings
 Copy the settings into <b>~/.cursor/mcp.json</b>.,انسخ الإعدادات إلى الملف <b>~/.cursor/mcp.json</b>.,AI Settings
+Copy this reply and send it in the chat,انسخ هذا الرد وأرسله في المحادثة,AI View
+Cost Center,مركز التكلفة,AI View
+Cost center,مركز التكلفة,AI View
+Could not build the view.,تعذّر بناء العرض.,AI View
+Could not continue with the original goal ({0}): {1},تعذّرت متابعة الهدف الأصلي ({0}): {1},AI View
+Could not copy,تعذّر النسخ,AI View
 Could not fetch the models from the provider: {0},تعذّر جلب النماذج من المزوّد: {0}
+Could not load,تعذّر التحميل,AI View
 Could not reach the server.,تعذّر الوصول إلى الخادم.,AI Settings
+Could not show the result: {0},تعذّر عرض النتيجة: {0},AI View
+Could not show this page.,تعذّر عرض الصفحة.,AI View
+Count,العدد,AI View
+Count of {0},عدد {0},AI View
 Count records,عدّ السجلات,AI Chat
+Count records,عدّ السجلات,AI View
+Country,الدولة,AI View
 Create,إنشاء,AI Approval Request
 Create,إنشاء,AI Chat
+Create,إنشاء,AI View
 Create Support Issue,إنشاء تذكرة دعم,AI WhatsApp Support Settings
+Create a chart,إنشاء رسم بياني,AI View
 Create a quotation for a new customer,أنشئ عرض سعر لعميل جديد,AI Chat
+Create a table,إنشاء جدول,AI View
+Create document links,إنشاء روابط مستندات,AI View
 Create multiple,إنشاء عدة مستندات,AI Chat
+Create payment,إنشاء دفعة,AI View
+Create several documents,إنشاء عدة مستندات,AI View
 Create view,إنشاء جدول أو رسم,AI Chat
+"Create, change, submit or cancel documents, with your approval",إنشاء المستندات أو تعديلها أو اعتمادها أو إلغاؤها، بعد موافقتك,AI Chat
+Created By,المنشئ,AI View
+Created On,تاريخ الإنشاء,AI View
 Creativity,الإبداع,AI Chatbot Settings
+Credit,دائن,AI View
+Credit Note Issued,إشعار دائن,AI View
+Credit balances for {0} customers,أرصدة دائنة لدى {0} من العملاء,AI View
+Credit balances total {0}; the largest is {1} at {2}.,إجمالي الأرصدة الدائنة {0}؛ أعلاها {1} بمبلغ {2}.,AI View
+Currency,العملة,AI View
 Currency Note,ملاحظة العملة,AI Metric
 Current Step,الخطوة الحالية,AI Run
+Current balance,الرصيد الحالي,AI View
 Current context size out of the model's limit,حجم المحادثة الحالي من الحد الذي يستوعبه النموذج,AI Chat
+Customer,العميل,AI View
 Customer,العميل,AI WhatsApp Request
+Customer Group,مجموعة العملاء,AI View
 Customer Message,رسالة العميل,AI WhatsApp Request
 Customer Name,اسم العميل,AI WhatsApp Request
+Customer Statements,كشوف حسابات العملاء,AI View
+Customer count,عدد العملاء,AI View
+Customer performance analysis,تحليل أداء العملاء,AI View
+Customer ranking,ترتيب العملاء,AI View
+Customer/supplier details,تفاصيل عميل/مورد,AI View
+Customers,العملاء,AI View
 Data,البيانات,AI Chat
 Data Masking,إخفاء البيانات,AI Settings
 Data query,استعلام عن البيانات,AI Chat
 Database,قاعدة البيانات,AI Skill
+Date,التاريخ,AI View
 Date Field,حقل التاريخ,AI Metric
+Date of Establishment,تاريخ التأسيس,AI View
+Debit,مدين,AI View
+Debit balances for {0} suppliers,أرصدة مدينة لدى {0} من الموردين,AI View
+Debit balances total {0}; the largest is {1} at {2}.,إجمالي الأرصدة المدينة {0}؛ أعلاها {1} بمبلغ {2}.,AI View
+December,ديسمبر,AI View
 Decided At,وقت القرار,AI Approval Request
 Default,افتراضي,AI Provider Model
 Default Approval TTL (minutes),مدة صلاحية الموافقة الافتراضية (بالدقائق),AI Settings
@@ -287,40 +441,68 @@ Definition uses an assumed default that the business has not confirmed yet,يع�
 Delete,حذف,AI Chat
 Delete this conversation?,حذف هذه المحادثة؟,AI Chat
 Delete this memory?,حذف هذه المعلومة من الذاكرة؟,AI Chat
+Delivery Note,إذن تسليم,AI View
+Delivery date,تاريخ التسليم,AI View
 Denied,مرفوض,AI Tool Call
+Describe a document type,وصف بنية نوع مستند,AI View
+Describe a report,وصف تقرير,AI View
 Description,الوصف,AI Agent
 Description,الوصف,AI Metric
 Description,الوصف,AI Metric Composite
 Description,الوصف,AI Plugin
 Description,الوصف,AI Provider
 Description,الوصف,AI Skill
+Description,الوصف,AI View
 Desk,واجهة النظام,AI Chat Session
 Destructive,حذف أو إلغاء,AI Skill Tool
 Details,التفاصيل,AI Chat
+Details,تفاصيل,AI View
 "Device used by the AI support engine to reply to customers. If empty, the incoming message device or the default WhatsApp Device is used.",الجهاز الذي يرد منه المساعد على العملاء. إن تُرك فارغاً يُستخدم جهاز الرسالة الواردة أو الجهاز الافتراضي.,AI WhatsApp Support Settings
+Diagnose a document,تشخيص مستند,AI View
 Diagnose document,تشخيص مستند,AI Chat
 Dimension Key,مفتاح البُعد,AI Metric Dimension
 Dimensions,الأبعاد,AI Metric
 Disable Memory,إيقاف الذاكرة,AI Agent
+Disabled,معطّل,AI View
 Disconnect,فصل,AI Settings
 Disconnect {0}? Its users must sign in again.,فصل {0}؟ سيحتاج مستخدموه إلى تسجيل الدخول من جديد.,AI Settings
+Discount,الخصم,AI View
+Discount %,الخصم %,AI View
 DocType,نوع المستند,AI Approval Request
 Document,المستند,AI Knowledge Chunk
+Document,المستند,AI View
 Document Links,روابط مستندات,AI Artifact
 Document Name,رقم المستند,AI Approval Request
 Document attachments,مرفقات مستند,AI Chat
+Document not available,المستند غير متاح,AI View
 Document the user had open when asking (sent by the chatbot widget).,المستند الذي كان مفتوحاً عند السؤال (من نافذة الدعم).,AI Run
+Document total,إجمالي المستند,AI View
+Document type links,روابط نوع مستند,AI View
+Document type workflow,سير عمل نوع مستند,AI View
+Document {0} accounts for {1} of the {2} total movement on {3}.,المستند {0} بمبلغ {1} من إجمالي {2} في حركة {3}.,AI View
 Document: ,المستند: ,AI Chat
+Document: {0} — {1},المستند: {0} — {1},AI View
+Documents,المستندات,AI Chat
+Don't reject,تراجع,AI View
 Done,تم,AI Settings
+Done,نُفّذ,AI View
+Done and verified,نُفّذ وتم التحقق,AI View
 Download {0},تحميل {0},AI Chat
+Draft,مسودة,AI View
 Drop files here,أفلت الملفات هنا,AI Chat
 DuckDuckGo needs no key. Brave Search and Tavily need an API key; SearXNG needs your server address.,DuckDuckGo لا يحتاج مفتاحاً. Brave Search وTavily يحتاجان مفتاح API، وSearXNG يحتاج عنوان خادمك.,AI Settings
+Due Date,الاستحقاق,AI View
+Due date,تاريخ الاستحقاق,AI View
 Duration (ms),المدة (ملّي ثانية),AI Chat Message
 Duration (ms),المدة (ملّي ثانية),AI Message Block
 Duration (ms),المدة (ملّي ثانية),AI Run Step
 Duration (ms),المدة (ملّي ثانية),AI Tool Call
 ERP lookup,بيانات من النظام,AI Chat
 Edit,تعديل,AI Chat
+Edit,تعديل,AI View
+Edit a request before approval (from the card),تعديل طلب قبل الموافقة (من البطاقة),AI View
+Edit quantity,تعديل الكمية,AI View
+Emails the result or the file after you approve,يرسل النتيجة أو الملف بالبريد بعد موافقتك,AI Chat
 Embedding,تضمين,AI Provider Model
 Enable Memory,تفعيل الذاكرة,AI Settings
 Enable Problem Solving,تفعيل حل المشكلات,AI Chatbot Settings
@@ -336,6 +518,7 @@ Enabled,مفعّلة,AI Provider
 Enabled,مفعّلة,AI Settings
 Enabled,مفعّلة,AI Skill
 Enabled,مفعّلة,AI Skill Grant
+Enabled,مفعّل,AI View
 Enabled,مفعّلة,AI WhatsApp Support Settings
 Enabled,مفعّلة,Gemini OCR Settings
 English Label,الاسم بالإنجليزية,AI Metric
@@ -343,8 +526,10 @@ English Label,الاسم بالإنجليزية,AI Metric Composite
 Enter to send · Shift+Enter for a new line,Enter للإرسال · Shift+Enter لسطر جديد,AI Chat
 Entity Key,مفتاح الجهة,AI Memory
 Entity Type,نوع الجهة,AI Memory
+Entry,القيد,AI View
 Error,خطأ,AI Chat Message
 Error,خطأ,AI Run Step
+Error,خطأ,AI View
 Error Reply,رسالة الخطأ,AI Chatbot Settings
 Error Reply,رسالة الخطأ,AI WhatsApp Support Settings
 Error Summary,ملخص الخطأ,AI Run
@@ -356,23 +541,35 @@ Estimated Cost,التكلفة التقديرية,AI Run
 Every change waits for a person to approve it. Turn off only for trusted users.,كل تعديل ينتظر موافقة شخص. أوقفه فقط للمستخدمين الموثوقين.,AI Settings
 "Every skill or plugin is blocked until it is allowed here. A row with no role and no user applies to everyone. A user row overrides a role row; on a tie, deny wins. Automatic skills (always on) are not subject to this table.",كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. الصف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.,AI Settings
 "Exact model id sent to the API, e.g. gpt-4o, deepseek-chat, llama-3.3-70b",معرّف النموذج كما يُرسل للمزوّد، مثل gpt-4o أو deepseek-chat أو llama-3.3-70b,AI Provider Model
+Exchange Rate,سعر الصرف,AI View
+Exchange rate,سعر الصرف,AI View
+Execute,تنفيذ,AI View
 Executed,تم التنفيذ,AI Approval Request
 Executed,تم التنفيذ,AI Chat
 Executed,تم التنفيذ,AI Tool Call
+Executed,نُفّذ,AI View
 Executed At,وقت التنفيذ,AI Approval Request
+Executed and verified,نُفّذ وتم التحقق,AI View
+Executing,جارٍ التنفيذ,AI View
+Executing…,جارٍ التنفيذ…,AI View
 Execution Result,نتيجة التنفيذ,AI Approval Request
 Execution failed,تعذّر التنفيذ,AI Chat
+Execution failed,فشل التنفيذ,AI View
+Exit full screen,تصغير,AI View
 Expand,توسيع,AI Chat
 Expected Modified,تاريخ التعديل المتوقع,AI Approval Request
 Expense Voucher,سند مصروف,AI WhatsApp Request
 Expired,انتهت صلاحيته,AI Approval Request
 Expired,انتهت صلاحيته,AI Chat
+Expired,انتهت صلاحيته,AI View
 Expires At,تنتهي صلاحيته في,AI Approval Request
 Expires At,تنتهي صلاحيته في,AI Memory
 Expires {0},تنتهي صلاحيته {0},AI Chat
 Explain how profit margin is calculated in the reports,اشرح لي كيف يُحتسب هامش الربح في التقارير,AI Chat
 Explore structure,استكشاف بنية البيانات,AI Chat
+Export,تصدير,AI View
 Export CSV,تصدير CSV,AI Chat
+Export CSV,تصدير CSV,AI View
 Extended thinking for models that support it,تفكير أعمق للنماذج التي تدعمه,AI Agent
 External AI Tools,أدوات الذكاء الاصطناعي الخارجية,AI Settings
 External AI tools cannot connect to this site.,لا تستطيع أدوات الذكاء الاصطناعي الخارجية الاتصال بهذا الموقع.,AI Settings
@@ -387,11 +584,13 @@ Failed,فشل,AI Knowledge Document
 Failed,فشل,AI Run
 Failed,فشل,AI Run Step
 Failed,فشل,AI Tool Call
+Failed,فشلت,AI View
 Fallback,عند تعذّر الرد,AI Chatbot Settings
 Fallback,عند تعذّر الرد,AI WhatsApp Support Settings
 Fallback To Tesseract,الرجوع إلى Tesseract,Gemini OCR Settings
 Fallback Tools,الأدوات البديلة,AI Run
 "Falls back to the row marked Default in the table, then to AI Settings",إن تُرك فارغاً يُستخدم النموذج المحدد كافتراضي في الجدول، ثم قيمة إعدادات المساعد,AI Provider
+February,فبراير,AI View
 Feedback,تقييم الرد,AI Chat Message
 Fetch Models from Provider,جلب النماذج من المزوّد,AI Provider
 Field Path,مسار الحقل,AI Metric Dimension
@@ -401,20 +600,33 @@ Field {0} does not exist on {1}.,الحقل {0} غير موجود في {1}.
 File,الملف,AI Knowledge Document
 File {0} is already attached to another message.,الملف {0} مرفق برسالة أخرى.
 File {0} is not yours.,الملف {0} ليس من ملفاتك.
+"Fill in the missing information, then try again.",أكمل البيانات الناقصة ثم أعد المحاولة.,AI View
+Filters,الفلاتر,AI View
 Filters and Presentation,الفلاتر وطريقة العرض,AI Metric
+Filters {0},الفلاتر {0},AI View
 Final,الرد النهائي,AI Run Step
 Final Answer,الرد النهائي,AI Run
 Final Output Instruction,تعليمات الرد النهائي,AI Skill
 Finalization Max Tokens,أقصى طول للرد النهائي,AI Skill
 Finalization Timeout (Seconds),مهلة الرد النهائي (بالثواني),AI Skill
+Financial impact,الأثر المالي,AI View
+Find a report,بحث عن تقرير,AI View
+Find document types,بحث عن أنواع المستندات,AI View
 First Seen At,أول ظهور,AI WhatsApp Request
+Fiscal year,السنة المالية,AI View
+Fiscal year not set,السنة المالية غير محددة,AI View
 Fix all,إصلاح الكل,AI Settings
 "For child-table dimensions: the child field to aggregate instead of the metric value field, e.g. base_net_amount",لأبعاد الجداول الفرعية: الحقل الذي يُحسب بدل حقل قيمة المؤشر، مثل base_net_amount,AI Metric Dimension
 For example https://search.example.com,مثال: https://search.example.com,AI Settings
 For tools without sign-in: open your user page and click <b>Generate Keys</b> under API access.,للأدوات التي لا تدعم تسجيل الدخول: افتح صفحتك في النظام واضغط <b>توليد المفاتيح</b> في قسم تفاصيل وصول API.,AI Settings
 Formula,المعادلة,AI Metric Composite
+From,من,AI View
+From date,من تاريخ,AI View
 Full payload,البيانات الكاملة للطلب,AI Chat
+Full screen,ملء الشاشة,AI View
 Full view,عرض كامل,AI Chat
+GL Entries,قيود الأستاذ,AI View
+GL Entry,قيد أستاذ,AI View
 Gemini API Key,مفتاح Gemini,Gemini OCR Settings
 Gemini API Key is missing.,مفتاح Gemini غير موجود.
 Gemini OCR API Key is not configured.,مفتاح Gemini لقراءة الصور غير مُعدّ.
@@ -429,34 +641,51 @@ Gemini OCR test failed. Check the Error Log for details.,فشل اختبار ق�
 Gemini OCR test failed: {0},فشل اختبار Gemini: {0}
 General,عام,AI Agent
 General Chat,محادثة عامة,AI WhatsApp Request
+General Ledger,دفتر الأستاذ,AI View
+Get the result as an Excel file ready to download,يعطيك النتيجة ملف Excel جاهزاً للتحميل,AI Chat
 Give a user access,منح مستخدم صلاحية الربط,AI Settings
 Give access,منح الصلاحية,AI Settings
 Give me access,أعطني الصلاحية,AI Settings
+Grand Total,الإجمالي,AI View
+Grand Total (company currency),الإجمالي (عملة الشركة),AI View
 Grant Type,نوع الصلاحية,AI Skill Grant
 Heading,العنوان,AI Knowledge Chunk
 "Hello{0}, how can I help you today?",مرحباً{0}، كيف أساعدك اليوم؟,AI Chat
 Helpful,رد مفيد,AI Chat
 Hide archived,إخفاء المؤرشفة,AI Chat
+Hide details,إخفاء التفاصيل,AI View
+Hide: {0},إخفاء: {0},AI View
 High,عالية,AI Memory
 High,عالية,AI WhatsApp Request
 History Messages,عدد الرسائل السابقة,AI Chatbot Settings
 History Messages,عدد الرسائل السابقة,AI WhatsApp Support Settings
 I Accept Sending Data to Third-Party Providers,أوافق على إرسال البيانات إلى مزوّدين خارجيين,AI Settings
+I chose the company: {label},اخترت الشركة: {label},AI View
+I chose the warehouse: {label},اخترت المخزن: {label},AI View
+I chose: {label},اخترت: {label},AI View
+I mean request {value},أقصد الطلب رقم {value},AI View
 Icon,الأيقونة,AI Plugin
 Idempotency Key,مفتاح منع التكرار,AI Approval Request
 Idempotency Key,مفتاح منع التكرار,AI Run
 Identifier,المعرّف,AI Plugin
-Image,الصورة,AI Chat
-Image,الصورة,AI Plugin
-Image,الصورة,AI Provider Model
+Image,صورة,AI Chat
+Image,صورة,AI Plugin
+Image,صورة,AI Provider Model
 Image Reading (OCR),قراءة الصور (OCR)
 Image is larger than Gemini OCR inline limit.,الصورة أكبر من الحجم الذي يقبله Gemini.
 Images,الصور,AI Provider
+Impact,الأثر,AI View
 Impact Summary,الأثر المتوقع,AI Approval Request
 In ChatGPT open <b>Settings → Apps → Advanced settings</b> and turn on <b>Developer mode</b>.,في ChatGPT افتح <b>الإعدادات (Settings) ← التطبيقات (Apps) ← الإعدادات المتقدمة (Advanced settings)</b> وفعّل <b>وضع المطوّر (Developer mode)</b>.,AI Settings
 In Claude Code type <b>/mcp</b> and choose the server to sign in.,داخل Claude Code اكتب <b>/mcp</b> واختر الخادم لتسجيل الدخول.,AI Settings
 In Progress,قيد المعالجة,AI WhatsApp Request
+In Stock,المتوفر بالمخزن,AI View
+In company currency,بعملة الشركة,AI View
+In stock,متوفر في المخزن,AI View
 "In the tool, paste the link and add the header below with your key and secret.",في الأداة الصق الرابط، وأضف السطر التالي في إعدادات الترويسة (Headers) مع مفتاحك والمفتاح السري.,AI Settings
+Inactive,غير نشط,AI View
+Income Account,حساب الإيراد,AI View
+Income Statement,قائمة الدخل,AI View
 Index Error,خطأ الفهرسة,AI Knowledge Document
 Indexed,مفهرس,AI Knowledge Document
 Indexed On,تاريخ الفهرسة,AI Knowledge Document
@@ -474,36 +703,73 @@ Insert a document,إدراج مستند,AI Chat
 Instructions,التعليمات,AI Settings
 Instructions,التعليمات,AI Skill
 Instructions for the model,تعليمات للمساعد,AI Plugin
+Insufficient stock,مخزون غير كافٍ,AI View
 Intelligence,مستوى الذكاء,AI Chatbot Settings
+Inventory,المخزون,AI Chat
+Invoice,الفاتورة,AI View
+Invoice count,عدد الفواتير,AI View
+Invoice payments,مدفوعات الفاتورة,AI View
+Invoice total,إجمالي الفاتورة,AI View
+Invoices,الفواتير,AI View
+Invoices: {0},عدد الفواتير: {0},AI View
 Is Default,افتراضي,AI Agent
 Is Default,افتراضي,AI Provider
 Is Truncated,مقتطع,AI Artifact
 Issue,تذكرة الدعم,AI WhatsApp Request
+It lowers the total shown as outstanding and may hide amounts that are really due.,تُنقص إجمالي الذمم الظاهر، وقد تخفي مبالغ مستحقة فعلًا.,AI View
+Item,الصنف,AI View
+Item Group,مجموعة الأصناف,AI View
+Item Name,اسم الصنف,AI View
+Item details,تفاصيل صنف,AI View
+Item group,مجموعة الأصناف,AI View
 Items,المكوّنات,AI Metric Composite
+Items,الأصناف,AI View
+Items Total,مجموع الأصناف,AI View
 JSON Object,كائن JSON,AI Skill
 "JSON list of [field, operator, value] or {""field"": value}. Parent filters for child dimensions are applied automatically","قائمة JSON بصيغة [field, operator, value] أو {""field"": value}. فلاتر المستند الأصل تُطبَّق تلقائياً على أبعاد الجداول الفرعية",AI Metric
+January,يناير,AI View
+Journal Entries,قيود اليومية,AI View
+Journal Entry,قيد يومية,AI View
+Journal entries,القيود,AI View
+July,يوليو,AI View
+June,يونيو,AI View
 Just now,الآن,AI Chat
+Keep an eye on these customers' balances and credit limits.,تابع أرصدة هؤلاء العملاء وحدود ائتمانهم.,AI View
 Label,الاسم الظاهر,AI Provider Model
 Last 7 days,آخر 7 أيام,AI Chat
 Last Event Sequence,رقم آخر حدث,AI Chat Message
 Last Message At,آخر رسالة,AI WhatsApp Request
 Last Message On,وقت آخر رسالة,AI Chat Session
+Last Modified,آخر تعديل,AI View
 Last Run,آخر تشغيل,AI Chat Session
 Last Sequence,آخر رقم تسلسلي,AI Chat Session
 Last used {0},آخر استخدام {0},AI Settings
 Latest,الأحدث,AI Chat
 Leave 0 to keep the built-in estimate.,اتركه 0 لاستخدام التقدير المدمج.,AI Model Capability
 Leave empty to use AI Settings,اتركه فارغاً لاستخدام قيمة إعدادات المساعد,AI Provider
+Ledger entries,قيود الأستاذ,AI View
+Less available than requested,المتاح أقل من المطلوب,AI View
+Likely cause,السبب المحتمل,AI View
 Limit per user.,الحد لكل مستخدم.,AI Settings
+Limit reached,بلغت الحد المسموح,AI View
 Limits,الحدود,AI Agent
 Limits & Approvals,الحدود والموافقات,AI Settings
 Limits & Timeouts,الحدود والمهل,AI Settings
+Line Items,البنود,AI View
+Line {0},البند {0},AI View
+Linked documents,المستندات المرتبطة,AI View
 Links,الروابط,AI Message Block
+List attachments,عرض المرفقات,AI View
+List skills,عرض المهارات,AI View
+Load a skill,تحميل مهارة,AI View
 Load older,عرض الأقدم,AI Chat
 Load skill,استخدام مهارة,AI Chat
+Load the full view (from the card),تحميل العرض الكامل (من البطاقة),AI View
+Loading…,جارٍ التحميل…,AI View
 Local Engine (PaddleOCR / PyMuPDF),محلية على الخادم (PaddleOCR / PyMuPDF),Gemini OCR Settings
 Local OCR Engine (PaddleOCR) tested successfully. Text extracted: {0},نجح اختبار القراءة المحلية (PaddleOCR). النص المستخرج: {0}
 Local OCR Engine test failed: {0},فشل اختبار القراءة المحلية: {0}
+Losing one of them directly affects the period's revenue.,خسارة أحدهم تؤثر مباشرة على إيراد الفترة.,AI View
 Low,منخفضة,AI Memory
 Low,منخفضة,AI WhatsApp Request
 Managed,مُدار,AI Settings
@@ -512,6 +778,8 @@ Managed: only Anthropic (Claude) providers are used. Own Key: other providers ar
 Mapping,ربط,AI Memory
 Mapping JSON,بيانات الربط (JSON),AI Memory
 Mappings,ربط الحسابات,AI Chat
+March,مارس,AI View
+Material Request,طلب مواد,AI View
 Max Inline Image Bytes,أقصى حجم للصورة المُرسلة (بايت),Gemini OCR Settings
 Max Output,أقصى طول للرد,AI Provider
 Max Output Characters,أقصى عدد أحرف للنتيجة,Gemini OCR Settings
@@ -525,6 +793,8 @@ Maximum Steps,أقصى عدد للخطوات,AI Agent
 Maximum Steps,أقصى عدد للخطوات,AI Settings
 Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات,AI Agent
 Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات,AI Settings
+Maximum {0},أعلى {0},AI View
+May,مايو,AI View
 Medium,متوسطة,AI Memory
 Medium,متوسطة,AI WhatsApp Request
 Meeting Requested,طلب اجتماعاً,AI WhatsApp Request
@@ -543,10 +813,15 @@ Message Count,عدد الرسائل,AI Chat Session
 Message ID,معرّف الرسالة,AI WhatsApp Request
 Metric,مؤشر,AI Chat
 Metric,مؤشر,AI Metric Composite Item
+Metric,مؤشر,AI View
 Metric Key,مفتاح المؤشر,AI Metric
 Metric Resolver,دالة حساب المؤشر,AI Metric
 Metrics,المؤشرات
 Metrics,المؤشرات,AI Metric Composite
+Minimum {0},أدنى {0},AI View
+Missing information,بيانات ناقصة,AI View
+Mode of Payment,طريقة الدفع,AI View
+Mode of payment,طريقة الدفع,AI View
 Model,النموذج,AI Agent
 Model,النموذج,AI Chat
 Model,النموذج,AI Chat Message
@@ -569,76 +844,128 @@ Model {0} is not configured for provider {1}.,النموذج {0} غير مضاف
 Models,النماذج,AI Provider
 Models updated: {0},تم تحديث النماذج: {0},AI Provider
 Monitoring,المتابعة والسجلات
+More,المزيد,AI View
+More details,تفاصيل إضافية,AI View
 More than {0} recipients.,عدد المستلمين أكثر من {0}.
+Movement,الحركة,AI View
 Multiply results by this (-1 for returns stored as negatives),تُضرب النتيجة في هذه القيمة (‎-1 للمرتجعات المحفوظة بالسالب),AI Metric
 Name,الاسم,AI Plugin
 "Name the model uses, e.g. item, customer, payment_mode",الاسم الذي يستخدمه المساعد، مثل item أو customer أو payment_mode,AI Metric Dimension
 Name used in the formula; defaults to the metric key,الاسم المستخدم في المعادلة، والافتراضي مفتاح المؤشر,AI Metric Composite Item
 Naming Series,سلسلة الترقيم,AI WhatsApp Request
+"Narrow it down by period, company or party.",حدّد فترة زمنية أو شركة أو طرفًا لتضييق النتيجة.,AI View
+Needs approval,بحاجة إلى موافقة,AI View
+Net Amount,الصافي,AI View
+Net Total (before tax),الصافي قبل الضريبة,AI View
 New,جديد,AI Provider
 New Conversation,محادثة جديدة
 New Conversation,محادثة جديدة,AI Chat
+New company,شركة جديدة,AI View
+New customer,عميل جديد,AI View
+New invoice,فاتورة جديدة,AI View
+New item,صنف جديد,AI View
+New journal entry,قيد جديد,AI View
+New payment voucher,سند جديد,AI View
+New supplier,مورد جديد,AI View
+Next,التالي,AI View
+No,لا,AI View
 "No AI memory exists for the current user, agent, and company scope.",لا توجد معلومات محفوظة لهذا المستخدم والوكيل والشركة.
 No access to company {0},ليست لديك صلاحية على الشركة {0}
 No app is connected yet.,لا يوجد تطبيق متصل حتى الآن.,AI Settings
 No conversations yet,لا محادثات بعد,AI Chat
+No data for these filters,لا توجد بيانات لهذه الفلاتر,AI View
+No data for this period,لا توجد بيانات لهذه الفترة,AI View
 No enabled AI Agent is configured.,لا يوجد وكيل مفعّل.
 No enabled AI Provider is configured.,لا يوجد مزوّد ذكاء اصطناعي مفعّل.
 No matching results,لا نتائج مطابقة,AI Chat
+No matching {0},لا توجد {0} مطابقة,AI View
+No other warehouse has the requested quantity.,لا يوجد مخزن آخر تتوفر فيه الكمية المطلوبة.,AI View
 No outgoing email account is set up. Add an Email Account with sending enabled first.,لا يوجد حساب بريد صادر في النظام. أضِف حساب بريد (Email Account) مع تفعيل الإرسال أولاً.
 No output,لا توجد نتيجة,AI Chat
+No payment voucher is linked to it.,لم يُسجَّل أي سند دفع مرتبط بها.,AI View
+No payments on this invoice,لا توجد مدفوعات على هذه الفاتورة,AI View
+No pending approval requests.,لا توجد طلبات موافقة معلّقة.,AI View
 No previous conversations,لا محادثات سابقة,AI Chat
 No response.,لم يصل رد.,Gemini OCR Settings
 No results,لا نتائج,AI Chat
+No results,لا توجد نتائج,AI View
 No results for {0},لا نتائج لـ {0},AI Chat
+No results.,لا توجد نتائج.,AI View
+No sales in this period,لا توجد مبيعات في هذه الفترة,AI View
 No skills or plugins are allowed for you yet,لم يُسمح لك بأي مهارة أو إضافة بعد,AI Chat
+No stock available for this item in this warehouse.,لا يوجد رصيد متاح لهذا الصنف في المخزن.,AI View
 No technical support agent is set up.,لم يُحدَّد وكيل للدعم الفني.
 No thinking,دون تفكير,AI Chat
 Normalized lower-case text used for matching,نص موحّد الأحرف يُستخدم في البحث,AI Knowledge Chunk
+Not affected: stock update is off for this document,لا يتأثر: تحديث المخزون غير مفعّل في هذا المستند,AI View
 Not authorized to change this conversation.,ليست لديك صلاحية تعديل هذه المحادثة.
 Not authorized to change this message.,ليست لديك صلاحية تعديل هذه الرسالة.
 Not authorized to view this conversation.,ليست لديك صلاحية عرض هذه المحادثة.
+"Not enough stock of {0}: {1} available, {2} requested.",المخزون غير كافٍ للصنف {0}: المتاح {1} والمطلوب {2}.,AI View
 Not helpful,رد غير مفيد,AI Chat
+Not recorded,غير مسجل,AI View
+Not set,غير محدد,AI View
 Not your memory.,هذه المعلومة ليست من ذاكرتك.
 "Note: Own Key mode is on with third-party providers. Questions, tool results and attachments are sent to the chosen provider (such as DeepSeek or Gemini).",تنبيه: وضع المفتاح الخاص مفعّل مع مزوّدين خارجيين، فالأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek أو Gemini).
+"Note: {1} of {0} is in stock and {2} was requested. This invoice does not deduct stock, so it can still be created.",للعلم: المتاح من {0} في المخزن {1} والمطلوب {2}. هذه الفاتورة لا تخصم من المخزون، فلا يمنع ذلك إنشاءها.,AI View
+Notes:,ملاحظات:,AI View
+Nothing is posted to the accounts and no balance changes until the draft is submitted.,لا يُرحَّل شيء إلى الحسابات ولا يتغير أي رصيد قبل اعتماد المسودة.,AI View
 Nothing new worth saving,لا جديد يستحق الحفظ,AI Chat
 Nothing remembered yet — it is learned automatically after each conversation,لا توجد معلومات محفوظة بعد. يتعلّمها المساعد تلقائياً بعد كل محادثة,AI Chat
+"Nothing will be executed, and you can request the operation again later.",لن يُنفَّذ أي شيء، ويمكنك طلب العملية من جديد لاحقًا.,AI View
+November,نوفمبر,AI View
+Number of documents,عدد المستندات,AI View
 OCR Behavior,إعدادات القراءة,Gemini OCR Settings
 OCR Engine Mode,طريقة قراءة الصور,Gemini OCR Settings
 OCR Prompt,تعليمات القراءة,Gemini OCR Settings
 OCR is disabled. Enable it before testing.,قراءة الصور متوقفة. فعّلها قبل الاختبار.
 OCR stopped as requested.,أُوقفت قراءة الصور بناءً على طلبك.
 Object,بيانات منظمة,AI Chat
+October,أكتوبر,AI View
+Of the rows shown,من الصفوف المعروضة,AI View
+Of which taxes and charges,منها ضرائب ورسوم,AI View
 Off,متوقف,AI Settings
 Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.,متوقف (الافتراضي): لا يعتمد الوكيل المستندات ولا يلغيها أبداً؛ أدوات الاعتماد والإلغاء مخفية، والطلبات القديمة تُرفض عند التنفيذ.,AI Settings
 Older,أقدم,AI Chat
+"Once submitted it cannot be edited, only cancelled.",لا يمكن تعديله بعد الاعتماد، بل إلغاؤه فقط.,AI View
 One DocType per line whose amounts are masked like Salary Slip (per-person pay).,نوع مستند في كل سطر تُخفى مبالغه كما في قسيمة الراتب (أجر كل شخص).,AI Settings
+One document makes up {0} of the credits,مستند واحد يمثل {0} من الحركة الدائنة,AI View
+One document makes up {0} of the debits,مستند واحد يمثل {0} من الحركة المدينة,AI View
 "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",اسم حقل (أو جزء منه) في كل سطر، يُخفى في كل نتيجة أداة قبل وصولها إلى النموذج، إضافةً إلى القائمة المدمجة (أرقام الآيبان، الحسابات البنكية، الهويات، الجوازات، الرواتب).,AI Settings
 "One international WhatsApp number per line. When set, the AI agent ignores every other sender.",رقم واتساب دولي في كل سطر. عند تحديدها يتجاهل المساعد أي مرسل آخر.,AI WhatsApp Support Settings
+One invoice,فاتورة واحدة,AI View
 One line shown to the model in the metric catalog,سطر واحد يراه المساعد في قائمة المؤشرات,AI Metric
 One role per line. A user needs one of these roles to connect.,دور في كل سطر. يحتاج المستخدم أحد هذه الأدوار ليتصل.,AI Settings
 One role per line. Empty = every desk user can search this document,دور في كل سطر. الفارغ يعني أن كل مستخدمي النظام يستطيعون البحث فيه,AI Knowledge Document
-"One role per line. When empty, every logged-in user can use the chatbot.",دور في كل سطر. إن تُرك فارغاً يستطيع كل مستخدم مسجّل استخدام نافذة الدعم.,AI Chatbot Settings
 Only Chat models appear in the assistant's chat; the others are kept for features that use them. Empty: decided from the model name.,نماذج المحادثة فقط تظهر في محادثة المساعد، والأنواع الأخرى محفوظة للميزات التي تستخدمها. إذا تُرك فارغاً يُحدَّد من اسم النموذج.,AI Provider Model
 Only an assistant message can be regenerated.,يمكن إعادة كتابة ردود المساعد فقط.
 Only enable this if you want the slower local Tesseract OCR to run after Gemini returns no readable text.,فعّله فقط إن أردت تشغيل Tesseract المحلي (وهو أبطأ) عندما لا يعيد Gemini نصاً مقروءاً.,Gemini OCR Settings
 Only for thinking = on,فقط عند تفعيل التفكير,AI Agent
 Only for tools that connect from a web page. One address per line.,فقط للأدوات التي تتصل من صفحة ويب. عنوان في كل سطر.,AI Settings
 Only one model can be marked as default.,يمكن تحديد نموذج واحد فقط كافتراضي.
+Only the first {0} invoices were analyzed; narrow the period for a complete figure.,حُلِّلت أول {0} فاتورة فقط؛ ضيّق الفترة للحصول على رقم كامل.,AI View
 Only the last reply can be regenerated.,يمكن إعادة كتابة آخر رد فقط.
 Only your own message can be edited.,يمكنك تعديل رسائلك فقط.
+Open,مفتوحة,AI View
 Open,مفتوح,AI WhatsApp Request
 Open ChatGPT,فتح ChatGPT,AI Settings
 Open Claude settings,فتح إعدادات Claude,AI Settings
 Open a conversation first,افتح محادثة أولاً,AI Chat
+Open document,فتح المستند,AI View
+Open in ERP,فتح في ERP,AI View
 Open in the full chat,فتح في صفحة المحادثة الكاملة,AI Chat
 Open memory,فتح الذاكرة,AI Chat
 Open my user page,فتح صفحتي,AI Settings
+"Open the setting in ERPNext, or ask your system manager.",افتح الإعداد في ERPNext أو اطلب ذلك من مدير النظام.,AI View
 Open {0},فتح {0},AI Chat
+Opening Entry,قيد افتتاحي,AI View
+Opening balance,الرصيد الافتتاحي,AI View
 "Optional model override. When set, it overrides the agent model for the chatbot.",اختياري. إن حُدّد يُستخدم بدل نموذج الوكيل في نافذة الدعم.,AI Chatbot Settings
 "Optional, e.g. posting_time, used by yesterday_same_time comparisons",اختياري، مثل posting_time، ويُستخدم في المقارنة بنفس الوقت من الأمس,AI Metric
 "Optional, one role per line. Extra restriction on top of normal DocType permissions",اختياري، دور في كل سطر. قيد إضافي فوق صلاحيات المستندات المعتادة,AI Metric
 Options,خيارات,AI Chat
+Original goal after approval: {0},الهدف الأصلي بعد الموافقة: {0},AI View
+Original goal after approval: {0} (done),الهدف الأصلي بعد الموافقة: {0} (نُفّذ),AI View
 Other,أخرى,AI Plugin
 Other,أخرى,AI Provider Model
 Other,أخرى,AI WhatsApp Request
@@ -651,21 +978,50 @@ Output Tokens,الوحدات النصية المُستلمة,AI Message Block
 Output Tokens,الوحدات النصية المُستلمة,AI Run
 Output Tokens,الوحدات النصية المُستلمة,AI Run Step
 Output Type,نوع النتيجة,AI Plugin
+Outstanding,المستحق,AI View
+Overdue,متأخرة,AI View
+Overdue amount,المتأخر,AI View
 Own Key,مفتاح خاص,AI Settings
 "Own Key mode with third-party providers: questions, tool results and attachments are sent to the selected provider (e.g. DeepSeek, Gemini).",وضع المفتاح الخاص مع مزوّدين خارجيين: الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek وGemini).,AI Settings
 "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",في وضع المفتاح الخاص، نوع في كل سطر (Anthropic، OpenAI، OpenAI Compatible، Ollama، Gemini OCR). فارغ = الكل.,AI Settings
+PDF Report,تقرير PDF,AI Chat
 "PDF, Markdown (.md) or plain text (.txt) user guide",دليل استخدام بصيغة PDF أو Markdown (.md) أو نص (.txt),AI Knowledge Document
+POS,نقطة بيع,AI View
 Page,الصفحة,AI Knowledge Chunk
+"Page, sort or search a table (from the card)",صفحة/ترتيب/بحث في جدول (من البطاقة),AI View
+Pages,الصفحات,AI View
+Paid,مدفوعة,AI View
+Paid Amount,المدفوع,AI View
+Paid From,مدفوع من حساب,AI View
+Paid To,مدفوع إلى حساب,AI View
+Paid-up Capital,رأس المال المدفوع,AI View
 Parent Message,الرسالة السابقة,AI Chat Message
 Parent Run,التشغيل السابق,AI Run
+Partly Paid,مدفوعة جزئيًا,AI View
+Party,الطرف,AI View
 "Paste the link, click <b>Add</b>, then <b>Connect</b>.",الصق الرابط، واضغط <b>إضافة (Add)</b> ثم <b>اتصال (Connect)</b>.,AI Settings
+Payable Account,حساب الدائنين,AI View
+Payables Aging,أعمار الذمم الدائنة,AI View
+Payables Summary,ملخص الذمم الدائنة,AI View
 Payload Hash,بصمة البيانات,AI Approval Request
 Payload JSON,بيانات الطلب (JSON),AI Approval Request
+Payment,الدفع,AI View
+Payment Entries,سندات الدفع,AI View
+Payment Entry,سند دفع,AI View
+Payment Terms,شروط الدفع,AI View
+Payment Type,نوع السند,AI View
 Payment Voucher,سند صرف,AI WhatsApp Request
+Payment schedule,جدول السداد,AI View
+Payment voucher,السند,AI View
+Payments,المدفوعات,AI View
+Payments on invoice {0},مدفوعات الفاتورة {0},AI View
 Pending,بانتظار القرار,AI Approval Request
 Pending,بانتظار القرار,AI Knowledge Document
 Pending Confirmation,بانتظار التأكيد,AI Metric
 Pending Confirmation,بانتظار التأكيد,AI Metric Composite
+Pending approval requests,طلبات الموافقة المعلّقة,AI View
+Percentage,النسبة,AI View
+Period,الفترة,AI View
 Permission Decision,قرار الصلاحية,AI Tool Call
 Permission Snapshot Hash,بصمة الصلاحيات,AI Run
 Pick at least one model.,اختر نموذجاً واحداً على الأقل.,AI Provider
@@ -675,19 +1031,29 @@ Pinned,مثبّت,AI Chat Session
 Plan,خطة,AI Run Step
 Plan Summary,ملخص الخطة,AI Run
 Planning,يخطط,AI Run
+Please review the documents below and approve them all at once.,يرجى مراجعة المستندات التالية والموافقة عليها دفعة واحدة.,AI View
 Plugin: {0},الإضافة: {0},AI Chat
 Plugins,الإضافات
 Plugins,الإضافات,AI Chat
 Preference,تفضيل,AI Memory
 Preferences,تفضيلات,AI Chat
 Prepare,تجهيز,AI Skill Tool
+Prepare,تجهيز,AI View
 Prepare document,تجهيز مستند,AI Chat
 Preparing input…,جارٍ تجهيز المدخلات…,AI Chat
 Preview of the first {0},معاينة أول {0},AI Chat
+Previous,السابق,AI View
 Previous conversations,المحادثات السابقة,AI Chat
+Previous period,الفترة السابقة,AI View
+Previous step done: {0},اكتملت الخطوة السابقة: {0},AI View
+Price List,قائمة الأسعار,AI View
+Price per {0},سعر {0},AI View
+Print a Document,طباعة مستند,AI Chat
 Priority,الأولوية,AI WhatsApp Request
 Privacy & Data,الخصوصية والبيانات,AI Settings
 Product Inquiry,استفسار عن منتج,AI WhatsApp Request
+Project,المشروع,AI View
+Projected Qty,الكمية المتوقعة,AI View
 Prompt,السؤال,AI Run
 Provider,المزوّد,AI Chat Message
 Provider,المزوّد,AI Chat Session
@@ -699,15 +1065,32 @@ Provider Response ID,معرّف رد المزوّد,AI Run
 Provider Type,نوع المزوّد,AI Provider
 Provider Type,نوع المزوّد,AI Settings
 Providers,المزوّدون,AI Settings
+Purchase Invoice,فاتورة شراء,AI View
+Purchase Invoices,فواتير الشراء,AI View
+Purchase Order,أمر شراء,AI View
+Purchase Receipt,إيصال استلام,AI View
+Purchase Register,سجل المشتريات,AI View
+"Purchases, suppliers, purchase returns and payables",المشتريات والموردون ومرتجعات الشراء والذمم الدائنة,AI Chat
+Purchasing,المشتريات,AI Chat
+Qty,الكمية,AI View
+Qty in Stock UOM,الكمية بوحدة المخزون,AI View
+Quantity,الكمية,AI View
 Quantity,الكمية,AI WhatsApp Request
+Query a metric,استعلام مؤشر,AI View
+Query data,استعلام بيانات,AI View
 "Question class chosen by the router (metric, document_lookup, diagnose, guide, action, invoice, open_analysis).",نوع السؤال كما صنّفه النظام (metric أو document_lookup أو diagnose أو guide أو action أو invoice أو open_analysis).,AI Run
 Queued,في الانتظار,AI Run
 Quick Support Window,نافذة الدعم السريع
+Quotation,عرض سعر,AI View
 Quotation,عرض سعر,AI WhatsApp Request
+Rate,السعر,AI View
 Read,قراءة,AI Skill Tool
 Read Only,للقراءة فقط,AI Agent
 Read Only,للقراءة فقط,AI Skill
+Read a document,قراءة مستند,AI View
+Read a skill reference,قراءة مرجع مهارة,AI View
 Read attached file,قراءة ملف مرفق,AI Chat
+Read child table rows,قراءة صفوف جدول فرعي,AI View
 Read document,قراءة مستند,AI Chat
 Read document lines,قراءة بنود مستند,AI Chat
 Read only,قراءة فقط,AI Chat
@@ -715,24 +1098,48 @@ Ready to connect,جاهز للربط,AI Settings
 Reason for rejecting (optional),سبب الرفض (اختياري),AI Chat
 Reason: ,السبب: ,AI Chat
 Reasoning Effort,مستوى التفكير,AI Agent
+Receivable Account,حساب المدينين,AI View
+Receivables Aging,أعمار الذمم المدينة,AI View
+Receivables Summary,ملخص الذمم المدينة,AI View
 Received Log,سجل الاستلام,AI WhatsApp Request
+Record,السجل,AI View
+Records,السجلات,AI View
+Reference Date,تاريخ المرجع,AI View
+Reference Document,المستند المرجعي,AI View
+Reference No.,رقم المرجع,AI View
+Reference Type,نوع المرجع,AI View
 Regenerate,إعادة كتابة الرد,AI Chat
 Registered resolver computing the whole metric (for cases a single aggregate cannot express),دالة مسجّلة تحسب المؤشر كاملاً (للحالات التي لا يكفي فيها حساب واحد),AI Metric
 Registered resolver name for complex dimensions (see ai_agent/metrics/resolvers.py),اسم دالة مسجّلة للأبعاد المعقدة (انظر ai_agent/metrics/resolvers.py),AI Metric Dimension
 "Registered tool name, e.g. export.excel",اسم الأداة في قائمة الأدوات، مثل export.excel,AI Plugin
 Reject,رفض,AI Chat
+Reject,رفض,AI View
+Reject this request?,رفض هذا الطلب؟,AI View
 Rejected,مرفوض,AI Approval Request
 Rejected,مرفوض,AI Chat
+Rejected,مرفوض,AI View
+Remarks,البيان,AI View
 Remember this conversation now,تذكّر هذه المحادثة الآن,AI Chat
 Remove,إزالة,AI Chat
+Remove filter {0},إزالة الفلتر {0},AI View
 Remove models the provider no longer offers,احذف النماذج التي لم يعد المزوّد يقدّمها,AI Provider
 Rename,إعادة تسمية,AI Chat
 Reply To Group Chats,الرد في المجموعات,AI WhatsApp Support Settings
+Report,تقرير,AI View
 Request,الطلب,AI WhatsApp Request
 Request Timeout (seconds),مهلة الطلب (بالثواني),AI Provider
 Request Timeout (seconds),مهلة الطلب (بالثواني),AI Settings
 Request Timeout (seconds),مهلة الطلب (بالثواني),Gemini OCR Settings
 Request Type,نوع الطلب,AI WhatsApp Request
+Request a document edit (needs approval),طلب تعديل مستند (بموافقة),AI View
+Request a draft (needs approval),طلب إنشاء مسودة (بموافقة),AI View
+Request a draft from a document (needs approval),طلب إنشاء مسودة من مستند (بموافقة),AI View
+Request a workflow action (needs approval),طلب إجراء سير عمل (بموافقة),AI View
+Request expired,انتهت صلاحية الطلب,AI View
+Request rejected,رُفض الطلب,AI View
+Request several drafts (needs approval),طلب إنشاء عدة مسودات (بموافقة),AI View
+Request stages,مراحل الطلب,AI View
+Request {0},طلب رقم {0},AI View
 Requested,مطلوب,AI Tool Call
 Requested At,وقت الطلب,AI Approval Request
 Requested By,طلبه,AI Approval Request
@@ -744,22 +1151,32 @@ Require Four-Eyes Approval,اشتراط اعتماد شخص ثانٍ,AI Settings
 Required Output Keys,مفاتيح الرد المطلوبة,AI Skill
 "Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider.",مطلوب لمزوّدات Gemini OCR وDeepSeek والمتوافقة مع OpenAI وOllama. بيانات العمل في الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى ذلك المزوّد.,AI Settings
 Requires Approval,تحتاج موافقة,AI Skill Tool
+Reserved,المحجوز,AI View
 Resolver,دالة الحساب,AI Metric Dimension
 Response Format,صيغة الرد,AI Skill
 Restart Cursor; it opens the sign-in page.,أعد تشغيل Cursor، وستُفتح صفحة تسجيل الدخول.,AI Settings
 Restart opencode; it opens the sign-in page.,أعد تشغيل opencode، وستُفتح صفحة تسجيل الدخول.,AI Settings
 Restrict to Roles,قصره على أدوار معيّنة,AI Metric
+Result,النتيجة,AI View
 Result Hash,بصمة النتيجة,AI Tool Call
 Result Preview,معاينة النتيجة,AI Tool Call
 Resuming,يستأنف,AI Run
+Retry,إعادة المحاولة,AI View
+Return,مرتجع,AI View
 Returned with every value so the answer states what the number means,يُرفق مع كل قيمة ليوضّح الرد معنى الرقم,AI Metric
+"Revenue, expenses, profit, cash and bank balances, receivables and payables",الإيرادات والمصروفات والأرباح، وأرصدة النقدية والبنوك، والذمم المدينة والدائنة,AI Chat
+Review,مراجعة,AI View
+Review the account's entries for the period and find the one causing it.,راجع قيود الحساب في الفترة وحدّد القيد المسبِّب.,AI View
 Role,الدور,AI Access Rule
 Role,الدور,AI Chat Message
 Role,الدور,AI Skill Grant
 Root Run,أول تشغيل في المحادثة,AI Chat Session
 Root Run,أول تشغيل في المحادثة,AI Run
+Rounded Total,الإجمالي المقرّب,AI View
 Route,تصنيف السؤال,AI Run
 Row Count,عدد الصفوف,AI Artifact
+Row details,تفاصيل الصف,AI View
+Row not found.,الصف غير موجود.,AI View
 Row {0} is a duplicate.,الصف {0} مكرر.
 "Row {0}: choose a role or a user, not both.",الصف {0}: اختر دوراً أو مستخدماً، لا الاثنين معاً.
 Rules applied to every request from external tools. Default: ERP Analyst.,القواعد المطبّقة على كل طلب من الأدوات الخارجية. الافتراضي: ERP Analyst.,AI Settings
@@ -768,30 +1185,55 @@ Run,التشغيل,AI Run Step
 Run,التشغيل,AI Tool Call
 Run As User,يعمل بحساب المستخدم,AI WhatsApp Support Settings
 Run ID,رقم التشغيل,AI Run
+Run a report,تشغيل تقرير,AI View
+Run directly: approval is not required in the current settings,نُفّذ مباشرة: الموافقة غير مطلوبة في الإعدادات الحالية,AI View
 Run report,تشغيل تقرير,AI Chat
 Running,قيد التشغيل,AI Run
 Runs,سجل التشغيل
 Runtime Policy,سياسة التشغيل,AI Skill
+Sales,المبيعات,AI Chat
+Sales,المبيعات,AI View
+Sales Invoice,فاتورة بيع,AI View
+Sales Invoices,فواتير البيع,AI View
+Sales Order,أمر بيع,AI View
 Sales Order,أمر بيع,AI WhatsApp Request
+Sales Person,مندوب المبيعات,AI View
+Sales Register,سجل المبيعات,AI View
+Sales analysis,تحليل المبيعات,AI View
+Sales concentration,تركّز المبيعات,AI View
+Sales depend on a small number of customers.,المبيعات تعتمد على عدد قليل من العملاء.,AI View
+Sales team,فريق المبيعات,AI View
+Sales — {0},المبيعات — {0},AI View
+"Sales, customers, returns and receivables",المبيعات والعملاء والمرتجعات والذمم المدينة,AI Chat
 Save Selected,حفظ المختار,AI Provider
+Save and re-check,حفظ وإعادة التحقق,AI View
 Saved to memory: {0},حُفظ في الذاكرة: {0},AI Chat
 Saved {0},تم حفظ {0},AI Chat
 Scope,النطاق,AI Memory
 SearXNG URL,عنوان خادم SearXNG,AI Settings
 Search,بحث,AI Chat
+Search,بحث,AI View
+Search (Enter),بحث (Enter),AI View
 Search API Key,مفتاح محرك البحث,AI Settings
 Search Engine,محرك البحث,AI Settings
 Search Text,نص البحث,AI Knowledge Chunk
+Search companies,بحث في الشركات,AI View
 Search conversations,بحث في المحادثات,AI Chat
+Search memory,بحث في الذاكرة,AI View
 Search reports,البحث في التقارير,AI Chat
 Search the guide,البحث في الدليل,AI Chat
+Search the knowledge base,بحث في قاعدة المعرفة,AI View
+Search the table,بحث في الجدول,AI View
+Search {0},بحث في {0},AI View
 "Search {0} models… (e.g. claude, llama, free)",ابحث بين النماذج ({0})… مثل claude أو llama أو free,AI Provider
 Selected: {0},المختار: {0},AI Provider
 Send,إرسال,AI Chat
 Send (Enter),إرسال (Enter),AI Chat
+Send by Email,إرسال بالبريد,AI Chat
 Send email to {0}: “{1}”,إرسال بريد إلى {0}: «{1}»
 Sensitivity,درجة الحساسية,AI Memory
 Sent to the model when the user picks the plugin,تُرسل للمساعد عندما يختار المستخدم هذه الإضافة,AI Plugin
+September,سبتمبر,AI View
 Sequence,الترتيب,AI Artifact
 Sequence,الترتيب,AI Chat Message
 Sequence,الترتيب,AI Message Block
@@ -800,13 +1242,24 @@ Session,المحادثة,AI Chat Message
 Set automatically to Issue (ERPNext) or HD Ticket (Helpdesk) when one is installed.,يُضبط تلقائياً على Issue (من ERPNext) أو HD Ticket (من Helpdesk) عند تثبيت أحدهما.,AI WhatsApp Support Settings
 Settings & Permissions,الإعدادات والصلاحيات
 Setup check,فحص الإعداد,AI Chat
+Setup checks and any data the other skills do not cover,فحص الإعداد، وأي بيانات لا تغطيها المهارات الأخرى,AI Chat
 Setup incomplete,الإعداد غير مكتمل,AI Settings
+Share,النسبة,AI View
+Shares,الأسهم,AI View
 "Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",إظهار أزرار الموافقة والتعديل والإلغاء في بطاقات الموافقة، في الأدوات التي تعرضها (مثل ChatGPT).,AI Settings
 Show all ({0}),عرض الكل ({0}),AI Chat
 Show archived,عرض المؤرشفة,AI Chat
+Show details,عرض التفاصيل,AI View
 Show less,عرض أقل,AI Chat
+Show more: {0},عرض المزيد: {0},AI View
+Show overdue invoices,عرض الفواتير المتأخرة,AI View
+Show records,عرض السجلات,AI View
 Show result,عرض النتيجة,AI Chat
+Showing {0} - {1} of {2} {3},إظهار {0} - {1} من أصل {2} {3},AI View
 Showing {0} of {1} rows,يُعرض {0} من أصل {1},AI Chat
+Showing {0} of {1} rows.,عرض {0} من أصل {1} صف.,AI View
+Showing {0} of {1} {2},إظهار {0} من أصل {1} {2},AI View
+Showing {0} of {1}. Narrow the filters or go to the next page.,عرض {0} من أصل {1} — ضيّق الفلاتر أو انتقل إلى الصفحة التالية.,AI View
 Shown under the name in the / menu,يظهر تحت الاسم في قائمة /,AI Plugin
 Sign,الإشارة,AI Metric
 Sign in and click <b>Allow</b>.,سجّل دخولك واضغط <b>السماح</b>.,AI Settings
@@ -828,6 +1281,7 @@ Skills & Plugins,المهارات والإضافات,AI Settings
 Skills & Plugins Access,صلاحيات المهارات والإضافات,AI Settings
 "Skip long-term memory injection, episode storage, and memory.* tools for this agent. Required for shared-identity channels (e.g. WhatsApp support) where one user serves many customers.",لا يستخدم هذا الوكيل الذاكرة طويلة المدى ولا يحفظ فيها. ضروري للقنوات التي يخدم فيها حساب واحد عملاء كثيرين، مثل دعم الواتساب.,AI Agent
 Something went wrong,حدث خطأ,AI Chat
+Something went wrong,حدث خطأ,AI View
 Source,المصدر,AI Metric
 Source DocType,نوع المستند المصدر,AI Metric
 Source Payload,البيانات الأصلية,AI WhatsApp Request
@@ -836,12 +1290,14 @@ Source Type,نوع المصدر,AI Skill
 Speech,صوت,AI Provider Model
 Standard,من التطبيق,AI Plugin
 Start a conversation,ابدأ محادثة,AI Chat
+Start a new request.,ابدأ طلبًا جديدًا.,AI View
 Started,بدأ,AI Run Step
 Started At,وقت البدء,AI Chat Message
 Started At,وقت البدء,AI Message Block
 Started At,وقت البدء,AI Run
 Started At,وقت البدء,AI Run Step
 Started At,وقت البدء,AI Tool Call
+Statement of account — {0},كشف حساب — {0},AI View
 Status,الحالة,AI Approval Request
 Status,الحالة,AI Chat Message
 Status,الحالة,AI Chat Session
@@ -849,11 +1305,25 @@ Status,الحالة,AI Message Block
 Status,الحالة,AI Run
 Status,الحالة,AI Run Step
 Status,الحالة,AI Tool Call
+Status,الحالة,AI View
 Status,الحالة,AI WhatsApp Request
+Status: awaiting approval (request {0}).,الحالة: بانتظار الموافقة (رقم الطلب {0}).,AI View
 Step,الخطوة,AI Tool Call
 Step Type,نوع الخطوة,AI Run Step
 Steps,خطوات,AI Chat
 Steps,خطوات,AI Run
+Stock,المخزون,AI View
+Stock Balances,أرصدة المخزون,AI View
+Stock Entry,حركة مخزون,AI View
+Stock Ledger,سجل المخزون,AI View
+Stock Ledger Entry,حركة مخزون,AI View
+Stock Movements,حركات المخزون,AI View
+Stock Unit,وحدة المخزون,AI View
+Stock Value,قيمة المخزون,AI View
+Stock balance,رصيد المخزون,AI View
+Stock impact,الأثر على المخزون,AI View
+"Stock quantities and values, item movements and slow-moving items",كميات المخزون وقيمه، وحركة الأصناف، والأصناف بطيئة الحركة,AI Chat
+Stock value,قيمة المخزون,AI View
 Stop,إيقاف,AI Chat
 Stop (Esc),إيقاف (Esc),AI Chat
 Stop Reason,سبب التوقف,AI Chat Message
@@ -865,11 +1335,20 @@ Strict Tool Calling,التقيّد الصارم بتعريف الأدوات,AI S
 Subject,الموضوع,AI WhatsApp Request
 Submit,اعتماد,AI Approval Request
 Submit,اعتماد,AI Chat
+Submit,اعتماد,AI View
+Submitted,معتمدة,AI View
+Suggested action,الإجراء المقترح,AI View
+Suggested action:,الإجراء المقترح:,AI View
 Summarize this month's sales compared with last month,لخّص مبيعات هذا الشهر مقارنة بالشهر الماضي,AI Chat
 Summary,الملخص,AI Artifact
 Summary,الملخص,AI Memory
 Summary,الملخص,AI Run Step
 Summary Through Sequence,الملخص يغطي حتى الرسالة,AI Chat Session
+Supplier,المورد,AI View
+Supplier Group,مجموعة الموردين,AI View
+Supplier Invoice Date,تاريخ فاتورة المورد,AI View
+Supplier Invoice No.,رقم فاتورة المورد,AI View
+Suppliers,الموردون,AI View
 Support Issue DocType,نوع مستند تذكرة الدعم,AI WhatsApp Support Settings
 Support conversation,محادثة دعم
 Supports PDF Input,يقرأ ملفات PDF,AI Provider Model
@@ -881,11 +1360,24 @@ Surface,مكان المحادثة,AI Chat Session
 System Instructions,تعليمات النظام,AI Agent
 System Instructions,تعليمات النظام,AI Settings
 System Prompt,تعليمات النظام,AI Chatbot Settings
+System and Setup,النظام والإعداد,AI Chat
 System instructions for the chatbot agent.,تعليمات للوكيل الذي يجيب في نافذة الدعم.,AI Chatbot Settings
+System setting the assistant cannot change,إعداد نظام لا يعدّله المساعد,AI View
 Table,جدول,AI Artifact
+Table,جدول,AI View
+Taken from {0}: {1},يُخصم من {0}: {1},AI View
+Tax Account,حساب الضريبة,AI View
+Tax Amount,مبلغ الضريبة,AI View
+Tax Category,فئة الضريبة,AI View
+Tax ID,الرقم الضريبي,AI View
+Tax Template,قالب الضرائب,AI View
+Taxes,الضرائب,AI View
+Taxes and Charges,الضرائب والرسوم,AI View
 Technical Support,دعم فني,AI WhatsApp Request
 Technical details,تفاصيل تقنية,AI Chat
+Technical details,التفاصيل التقنية,AI View
 Technical support is not available for your account.,الدعم الفني غير متاح لحسابك.
+Territory,المنطقة,AI View
 Test Connection,اختبار الاتصال,Gemini OCR Settings
 Test connection,اختبار الاتصال,AI Settings
 Testing Gemini OCR...,جارٍ اختبار قراءة الصور عبر Gemini…,Gemini OCR Settings
@@ -899,34 +1391,63 @@ The AI service is busy or the usage limit was reached. Try again in a minute.,خ
 The AI service is having a problem right now. Try again shortly.,تواجه خدمة الذكاء الاصطناعي مشكلة حالياً. حاول بعد قليل.
 The AI service rejected the connection. Ask your administrator to check the provider's API key.,رفضت خدمة الذكاء الاصطناعي الاتصال. اطلب من مسؤول النظام التحقق من مفتاح المزوّد.
 The AI service took too long to answer. Try again.,تأخرت خدمة الذكاء الاصطناعي في الرد. حاول مرة أخرى.
+The account shows with the opposite sign in the financial statements and may distort its group total.,يظهر الحساب في القوائم المالية بإشارة معاكسة، وقد يشوّه إجمالي مجموعته.,AI View
 The agent answered with exploration tools (schema/data/reports) instead of metrics.query: a candidate for a new catalog metric.,أجاب الوكيل بأدوات الاستكشاف (البنية والبيانات والتقارير) بدل المؤشرات، فقد يستحق هذا السؤال مؤشراً جديداً.,AI Run
 The agent is fixed for this conversation,لا يمكن تغيير الوكيل في هذه المحادثة,AI Chat
 The assistant can search the internet and read public pages. Search words and page addresses are sent to the search engine.,يستطيع المساعد البحث في الإنترنت وقراءة الصفحات العامة. كلمات البحث وعناوين الصفحات تُرسل إلى محرك البحث.,AI Settings
 The assistant is not set up correctly for this request. Ask your administrator.,المساعد غير مُعدّ بشكل صحيح لهذا الطلب. تواصل مع مسؤول النظام.
 The assistant needs tools to read the system's data,يحتاج المساعد إلى الأدوات ليقرأ بيانات النظام,AI Provider
+The balance is negative. Review the stock movements.,الرصيد سالب — راجع حركات المخزون.,AI View
+"The changes are saved, provided the document has not changed since the request was prepared.",تُحفظ التعديلات على المستند ما لم يتغير منذ تجهيز الطلب.,AI View
 The chart could not be drawn,تعذّر عرض الرسم البياني,AI Chat
 "The chat could not load. Rebuild the assets, then refresh the page.",تعذّر تحميل المحادثة. أعد بناء ملفات الواجهة (bench build) ثم حدّث الصفحة.,AI Chat
 The chat session this run belongs to. Created automatically for the first run and inherited by follow-ups.,المحادثة التي ينتمي إليها هذا التشغيل. تُنشأ تلقائياً مع أول تشغيل.,AI Run
 The default provider must be enabled.,يجب أن يكون المزوّد الافتراضي مفعّلاً.
+"The document as a PDF in its official print format: invoice, order, voucher",المستند بصيغة PDF بقالب الطباعة الرسمي: فاتورة أو أمر أو سند,AI Chat
+The document failed validation.,فشل التحقق من المستند.,AI View
+The document is cancelled and its entries are reversed.,يُلغى المستند وتُعكس قيوده.,AI View
+The document is created as a draft and gets its number from ERPNext.,يُنشأ المستند كمسودة ويأخذ رقمه من ERPNext.,AI View
+The document is submitted and posted to the general ledger.,يُعتمد المستند ويُرحَّل إلى دفتر الأستاذ.,AI View
 The file could not be uploaded,تعذّر رفع الملف,AI Chat
 The file is larger than allowed,حجم الملف أكبر من المسموح,AI Chat
+The four-eyes policy is on: you cannot approve your own request. An authorised ERP user approves it; you can still edit or cancel it here.,سياسة العينين مفعّلة: لا يمكنك اعتماد طلبك بنفسك. يعتمده مستخدم مخوَّل في ERP، ويمكنك تعديل الطلب أو إلغاؤه من هنا.,AI View
 The intelligence level of the model reasoning.,مدى عمق تفكير النموذج.,AI Chatbot Settings
 The linked document was not found.,المستند المرتبط غير موجود.
 The message is still running.,الرد ما زال قيد الكتابة.
 The message is too long.,الرسالة طويلة جداً.
 The model returned an empty answer. Try again.,أعاد النموذج رداً فارغاً. حاول مرة أخرى.
+"The operation could not be completed because of an internal error, which has been logged for the system manager.",تعذّر إكمال العملية بسبب خطأ داخلي، وقد سُجّل لدى مدير النظام.,AI View
+The operation did not complete and nothing was saved.,لم تكتمل العملية ولم يُحفظ شيء.,AI View
+The operation did not finish.,لم تكتمل العملية.,AI View
+The operation was executed and the document was verified.,نُفّذت العملية وتأكدنا من وجود المستند.,AI View
+The operation was executed.,نُفّذت العملية.,AI View
 The provider returned no models for this account.,لم يعرض المزوّد أي نموذج لهذا الحساب.,AI Provider
+The query is too broad to run as it is.,الاستعلام واسع جدًا ولا يمكن تنفيذه كما هو.,AI View
 "The reply could not be completed. Try again, or choose another model.",تعذّر إكمال الرد. حاول مرة أخرى أو اختر نموذجاً آخر.
 The reply could not be generated,تعذّر توليد الرد,AI Chat
 The reply was interrupted. Try again.,انقطع الرد. حاول مرة أخرى.
+The report could not run because the fiscal year or period is not set.,تعذّر تشغيل التقرير لأن السنة المالية أو الفترة غير محددة.,AI View
+The request could not be completed,تعذّر تنفيذ الطلب,AI View
+The request expired before a decision was made. Request the operation again.,انتهت مهلة الطلب قبل البتّ فيه. اطلب العملية من جديد.,AI View
+The request is missing: {0}.,الطلب ينقصه: {0}.,AI View
 The request needed more steps than allowed. Try asking for a smaller part.,احتاج الطلب خطوات أكثر من المسموح. جرّب أن تطلب جزءاً أصغر.
+The request timed out,انتهت مهلة الطلب,AI View
+The request was rejected and nothing was executed.,رُفض الطلب ولم يُنفَّذ شيء.,AI View
+"The requested document does not exist, or you do not have permission to view it.",المستند المطلوب غير موجود، أو لا تملك صلاحية عرضه.,AI View
+The requested quantity is not available in the selected warehouse.,الكمية المطلوبة غير متوفرة في المخزن المحدد.,AI View
 The selected model cannot use the system's tools. Choose another model.,النموذج المختار لا يستطيع استخدام أدوات النظام. اختر نموذجاً آخر.
 The selected model does not work in chat. Choose another model.,النموذج المختار لا يعمل في المحادثة. اختر نموذجاً آخر.
 The selected model is not available. Choose another model and try again.,النموذج المختار غير متاح. اختر نموذجاً آخر وحاول مرة أخرى.
 The server did not respond as expected (status {0}). Check the items above or ask your system administrator.,لم يستجب الخادم كما يجب (الرمز {0}). راجع البنود أعلاه أو تواصل مع مسؤول النظام.,AI Settings
 "The server has {0}MB of free memory, less than the {1}MB local OCR needs. ",ذاكرة الخادم المتاحة ({0}MB) أقل من المطلوب لقراءة الصور محلياً ({1}MB). 
 The server responds and asks AI tools to sign in. You can connect.,الخادم يستجيب ويطلب من أدوات الذكاء الاصطناعي تسجيل الدخول. يمكنك الربط الآن.,AI Settings
+The tool run was cancelled.,أُلغي تنفيذ الأداة.,AI View
+The tool run was cancelled: {0}.,أُلغي تنفيذ الأداة: {0}.,AI View
+The top 3 customers make up {0} of the period's sales.,أعلى 3 عملاء يمثلون {0} من مبيعات الفترة.,AI View
 The view could not load,تعذّر تحميل العرض,AI Chat
+The workflow action runs with your permissions.,يُنفَّذ إجراء سير العمل بصلاحياتك.,AI View
+Then we continue automatically with your original goal: {0}.,ثم نتابع تلقائيًا هدفك الأصلي: {0}.,AI View
+There are no options to choose from.,لا توجد خيارات متاحة للاختيار.,AI View
 There is no valid recipient email address.,لا يوجد عنوان بريد صحيح للمستلم.
 These appear in the Agent Workspace model picker for this provider.,تظهر هذه النماذج في قائمة اختيار النموذج في المحادثة لهذا المزوّد.,AI Provider
 "These models are configured here but the provider no longer offers them, so they may stop working: {0}",هذه النماذج مضافة عندك، لكن المزوّد لم يعد يقدّمها، وقد تتوقف عن العمل: {0},AI Provider
@@ -937,13 +1458,27 @@ Thinking Budget Tokens,حد التفكير (وحدات نصية),AI Agent
 Thinking Mode,وضع التفكير,AI Settings
 Thinking…,يفكّر…,AI Chat
 This action is not available from the chat view.,هذا الإجراء غير متاح من نافذة المحادثة.
+This action is not enabled in the assistant's current settings.,هذا الإجراء غير مفعّل في إعدادات المساعد الحالية.,AI View
+This approval request has expired. Ask the assistant to prepare it again.,انتهت صلاحية طلب الموافقة. اطلب من المساعد إعادة تجهيز العملية.,AI View
+This approval token is not valid. Ask the assistant to show the approval card again.,رمز الموافقة غير صالح. اطلب من المساعد إعادة عرض بطاقة الموافقة.,AI View
 This conversation is too long for the model. Start a new conversation.,هذه المحادثة أطول مما يستوعبه النموذج. ابدأ محادثة جديدة.
+This field cannot be edited: {0},الحقل غير قابل للتعديل: {0},AI View
+This host app does not allow running tools from the card.,هذا التطبيق المضيف لا يسمح بتنفيذ الأدوات من البطاقة.,AI View
 This is not a support conversation.,هذه ليست محادثة دعم.
+This metric's definition is waiting for the accountant's confirmation.,تعريف هذا المؤشر بانتظار تأكيد المحاسب.,AI View
+This page token is not valid.,رمز الصفحة غير صالح.,AI View
 This plugin is not available to you.,الإضافة غير متاحة لك.
 "This provider is outside the managed (Anthropic) setup. It works only in Own Key mode with third-party consent in AI Settings, and data sent to it leaves to {0}.",هذا المزوّد خارج الإعداد المُدار (Anthropic). يعمل فقط في وضع المفتاح الخاص مع الموافقة على المزوّدين الخارجيين في إعدادات المساعد، والبيانات المرسلة إليه تذهب إلى {0}.,AI Provider
 "This provider will not appear in the chat yet: it has no models. Click “Fetch Models from Provider”, pick the models, then “Save Selected”.",لن يظهر هذا المزوّد في المحادثة بعد لأنه بلا نماذج. اضغط «جلب النماذج من المزوّد»، واختر النماذج، ثم «حفظ المختار».,AI Provider
+"This report has several currencies, so totals are not added across currencies.",التقرير بعملات متعددة، لذا لم تُجمع الإجماليات عبر العملات.,AI View
+This request can no longer be decided: its status is {0}.,لا يمكن البتّ في هذا الطلب، فحالته: {0}.,AI View
+This request cannot be edited.,لا يمكن تعديل هذا الطلب.,AI View
+"This table has several currencies ({0}), so totals are not added across currencies.",الجدول بعملات متعددة ({0})، لذا لم تُجمع الإجماليات عبر العملات.,AI View
+This tool has been used the maximum number of times for this task.,استُخدمت هذه الأداة الحد الأقصى من المرات المسموح بها في هذه المهمة.,AI View
+This view reference is not valid.,مرجع العرض غير صالح.,AI View
 Thought for {0},فكّر لمدة {0},AI Chat
 Thoughts,خطوات التفكير,AI Chat
+Time,الوقت,AI View
 Time Field,حقل الوقت,AI Metric
 Timed Out,انتهت المهلة,AI Run
 Timing,التوقيت,AI Chat Message
@@ -955,8 +1490,17 @@ Title,العنوان,AI Knowledge Document
 Title,العنوان,AI Run Step
 Title,العنوان,AI Skill
 Title is required.,العنوان مطلوب.
+To,إلى,AI View
+To Bill,للفوترة,AI View
+To Deliver,للتسليم,AI View
+To Deliver and Bill,للتسليم والفوترة,AI View
+"To approve, reply ""approve"" in the chat, or approve request {0} in ERPNext: {1}",للموافقة اكتب «موافق» في المحادثة، أو اعتمد الطلب {0} من ERPNext: {1},AI View
+"To approve, type “approve” in the chat; to reject, type “reject”.",للموافقة اكتب «موافق» في المحادثة، وللرفض اكتب «ارفض».,AI View
+To date,إلى تاريخ,AI View
 Today,اليوم,AI Chat
 Tokens the last model call held,حجم المحادثة في آخر طلب للنموذج,AI Chat Message
+Too many requests,طلبات كثيرة في وقت قصير,AI View
+Too many results,النتيجة أكبر من اللازم,AI View
 Tool,الأداة,AI Plugin
 Tool,الأداة,AI Run Step
 Tool / Skill Name,اسم الأداة أو المهارة,AI Message Block
@@ -972,26 +1516,56 @@ Tool failed,تعذّر تنفيذ الأداة,AI Chat
 Tool {0} is not registered.,الأداة {0} غير موجودة في قائمة الأدوات.
 Tools,الأدوات,AI Provider
 Tools,الأدوات,AI Skill
+Top 3 share,حصة أعلى 3,AI View
+Top {0} customers by sales,أعلى {0} من العملاء من حيث المبيعات,AI View
+Total,الإجمالي,AI View
+Total Credit,إجمالي الدائن,AI View
+Total Debit,إجمالي المدين,AI View
+Total Qty,إجمالي الكمية,AI View
+Total credit,إجمالي الدائن,AI View
+Total debit,إجمالي المدين,AI View
+Total invoiced,إجمالي الفواتير,AI View
+Total paid,إجمالي المدفوع,AI View
+Total payments,إجمالي المدفوعات,AI View
+Total sales,إجمالي المبيعات,AI View
+Total {0},إجمالي {0},AI View
+Trial Balance,ميزان المراجعة,AI View
 Trusted,موثوقة,AI Skill
 Try again,إعادة المحاولة,AI Chat
+Try again,أعد المحاولة,AI View
+"Try again, and if the error persists, tell your system manager.",أعد المحاولة، وإن تكرر الخطأ فأبلغ مدير النظام.,AI View
+Try another period or company.,جرّب فترة أخرى أو شركة أخرى.,AI View
+Try another period.,جرّب فترة أخرى.,AI View
+Try widening the filters or the date range.,جرّب توسيع الفلاتر أو المدة الزمنية.,AI View
 Turn on,تشغيل,AI Settings
+Two documents ready to create,مستندان جاهزان للإنشاء,AI View
 Type,النوع,AI Access Rule
 Type,النوع,AI Metric Composite
 Type,النوع,AI Provider
+Type,النوع,AI View
 Type a message or attach a file.,اكتب رسالة أو أرفق ملفاً.
 Type a message.,اكتب رسالة.
+Type the option number or name to continue.,اكتب رقم الخيار أو اسمه للمتابعة.,AI View
 Type to search,اكتب للبحث,AI Chat
 Type your message…,اكتب رسالتك…,AI Chat
 "Type your message… (/ for skills and plugins, @ for documents)",اكتب رسالتك… (/ للمهارات والإضافات، @ للمستندات),AI Chat
 Type your question… (/ for skills and plugins),اكتب سؤالك… (/ للمهارات والإضافات),AI Chat
 "Typed after / in the chat, e.g. excel",يُكتب بعد / في المحادثة، مثل excel,AI Plugin
 Unarchive,إلغاء الأرشفة,AI Chat
+Unit,الوحدة,AI View
+Unit price,سعر الوحدة,AI View
+Units of measure,وحدات القياس,AI View
+Unknown decision: use approve or reject.,قرار غير معروف: استخدم approve أو reject.,AI View
 Unknown dimension resolver {0}.,دالة حساب البُعد {0} غير معروفة.
 Unknown metric resolver {0}.,دالة حساب المؤشر {0} غير معروفة.
 Unknown setup step: {0},خطوة إعداد غير معروفة: {0}
+Unknown source.,مصدر غير معروف.,AI View
+Unpaid,غير مدفوعة,AI View
 Unpin,إلغاء التثبيت,AI Chat
 Untitled conversation,محادثة بلا عنوان,AI Chat
+Unusual balance: {0},رصيد غير معتاد: {0},AI View
 Update,تعديل,AI Approval Request
+Update Stock,تحديث المخزون,AI View
 Upload cancelled,أُلغي رفع الملف,AI Chat
 Uploading files…,جارٍ رفع الملفات…,AI Chat
 Urgent,عاجلة,AI WhatsApp Request
@@ -1001,6 +1575,7 @@ Usage,الاستخدام,AI Chat Session
 Usage,الاستخدام,AI Message Block
 Usage Count,عدد مرات الاستخدام,AI Memory
 "Use the agent with ERP tools/skills to solve problems. When disabled, the chatbot answers directly with the model using chat history only.",يستخدم الوكيل أدوات النظام ومهاراته لحل المشكلات. عند الإيقاف يجيب مباشرة من المحادثة فقط.,AI Chatbot Settings
+Use this warehouse,استخدام هذا المخزن,AI View
 Used Fallback (not in metric catalog),استخدم طريقة بديلة (المؤشر غير موجود),AI Run
 Used when a run or agent does not pick a provider. Only one provider can be default.,يُستخدم عندما لا يحدد الوكيل أو الطلب مزوّداً. يمكن أن يكون مزوّد واحد فقط هو الافتراضي.,AI Provider
 Used when the user does not pick a model.,يُستخدم عندما لا يختار المستخدم نموذجاً.,AI Provider
@@ -1019,20 +1594,39 @@ User {0} not found.,المستخدم {0} غير موجود.
 Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.,المستخدمون بهذا الدور يمكنهم اعتماد إجراءات الذكاء الاصطناعي إضافةً إلى مديري النظام. اتركه فارغاً ليقتصر الاعتماد على مديري النظام.,AI Settings
 Valid From,صالحة من,AI Skill Grant
 Valid Until,صالحة حتى,AI Skill Grant
+Validate,تحقق,AI View
 Validate document,التحقق من مستند,AI Chat
+Validate document data,التحقق من بيانات مستند,AI View
+Valuation Rate,سعر التقييم,AI View
+Valuation rate,سعر التقييم,AI View
+Value,القيمة,AI View
 Value Field,حقل القيمة,AI Metric
 Value Field (child),حقل القيمة (في الجدول الفرعي),AI Metric Dimension
+Verifying…,جارٍ التحقق…,AI View
 Version,الإصدار,AI Skill
 Video,فيديو,AI Provider Model
 View,عرض,AI Chat
+View,عرض,AI View
+View diagnostics (from the card),تشخيص الواجهة (من البطاقة),AI View
+View stock,عرض المخزون,AI View
 Vision,يقرأ الصور,AI Provider Model
+"Wait a minute, then try again.",انتظر دقيقة ثم أعد المحاولة.,AI View
 "Wait for the current reply to finish, or stop it first.",انتظر انتهاء الرد الحالي أو أوقفه أولاً.
 Waiting,بانتظار,AI Run Step
 Waiting Approval,بانتظار الموافقة,AI Run
 Waiting Customer,بانتظار العميل,AI WhatsApp Request
+Waiting for your approval,بانتظار موافقتك,AI View
 Waiting for your decision on the approval request,بانتظار قرارك على طلب الموافقة,AI Chat
+Warehouse,المخزن,AI View
+Warehouses,المخازن,AI View
+We check its status afterwards.,نتحقق من حالته بعد التنفيذ.,AI View
+We check that the document exists and show its link.,نتحقق من وجود المستند ونعرض رابطه.,AI View
+We check the document afterwards.,نتحقق من المستند بعد التنفيذ.,AI View
+We check the new status.,نتحقق من الحالة الجديدة.,AI View
+We prepared {0} from your request. Please review the details and approve.,تم تجهيز {0} بناءً على طلبك. يرجى مراجعة التفاصيل والموافقة.,AI View
 Web Browsing,تصفّح الإنترنت,AI Settings
 Welcome Message,رسالة الترحيب,AI Chatbot Settings
+What happens after approval,ماذا سيحدث بعد الموافقة,AI View
 "What the memory is about: Supplier, Cash Supplier, Customer, Account, Item, ...",ما تخصّه المعلومة: مورد، أو مورد نقدي، أو عميل، أو حساب، أو صنف…,AI Memory
 WhatsApp,واتساب,AI Chat Session
 WhatsApp,واتساب,AI WhatsApp Request
@@ -1040,40 +1634,62 @@ WhatsApp Log,سجل الواتساب,AI WhatsApp Request
 WhatsApp Number,رقم الواتساب,AI WhatsApp Request
 WhatsApp Reply Device,جهاز الرد على الواتساب,AI WhatsApp Support Settings
 WhatsApp Support,دعم واتساب
+"When empty, every logged-in user can use the chatbot.",إن تُرك فارغاً يستطيع كل مستخدم مسجّل استخدام نافذة الدعم.,AI Chatbot Settings
 "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",عند التفعيل يستطيع مديرو النظام قراءة محادثات المستخدمين الآخرين مع الوكيل، وتُسجَّل كل قراءة في سجل الوصول. عند الإيقاف يرى كل مستخدم محادثاته فقط.,AI Settings
 "When enabled, the user who requested an action cannot approve it themselves.",عند التفعيل لا يستطيع صاحب الطلب اعتماد طلبه بنفسه.,AI Settings
 Which invoices are more than 30 days overdue?,ما الفواتير المتأخرة السداد لأكثر من 30 يوماً؟,AI Chat
+Which request do you mean?,أي طلب تقصد؟,AI View
 Widget Title,عنوان النافذة,AI Chatbot Settings
 Worked for {0},عمل لمدة {0},AI Chat
 Workflow,إجراء سير عمل,AI Approval Request
 Workflow,إجراء سير عمل,AI Chat
+Workflow State,حالة سير العمل,AI View
+Workflow action,إجراء سير عمل,AI View
 Working…,يعمل…,AI Chat
 Write,تعديل,AI Skill Tool
+Yes,نعم,AI View
 Yesterday,أمس,AI Chat
 You can attach up to {0} files.,الحد الأقصى للمرفقات {0}.
 You cannot attach file {0}.,لا يمكنك إرفاق الملف {0}.
 You do not have access to the linked document.,ليست لديك صلاحية على المستند المرتبط.
 You do not have permission to send email.,ليست لديك صلاحية إرسال البريد.
+You do not have the required permission,لا تملك الصلاحية اللازمة,AI View
+You don't have permission for this action,لا تملك صلاحية لهذا الإجراء,AI View
+You have exceeded the number of requests allowed per minute.,تجاوزت عدد الطلبات المسموح به في الدقيقة.,AI View
+You have more than one pending approval request. Choose the one you want to decide on.,لديك أكثر من طلب موافقة معلّق. اختر الطلب الذي تريد البتّ فيه.,AI View
+Your account does not have {1} to “{0}”.,حسابك لا يملك {1} على «{0}».,AI View
 Your account has no access role,حسابك لا يملك صلاحية الربط,AI Settings
+Your choice was sent.,تم إرسال اختيارك.,AI View
 adaptive,حسب الحاجة,AI Agent
 approval,موافقة,AI Message Block
 artifact,مُخرَج,AI Message Block
+asset,أصول,AI View
 assistant,المساعد,AI Chat Message
 avg,متوسط,AI Metric
 awaiting_approval,بانتظار الموافقة,AI Chat Message
 balance,رصيد,AI Metric
 balance = cumulative up to the period end (no start date),الرصيد = المجموع التراكمي حتى نهاية الفترة (دون تاريخ بداية),AI Metric
 bundle,مجموعة,AI Metric Composite
+cancel access,صلاحية الإلغاء,AI View
 cancelled,أُوقف,AI Chat Message
+change {0},التغير {0},AI View
+companies,شركة,AI View
 completed,مكتمل,AI Chat Message
 completed,مكتمل,AI Message Block
 count,عدد,AI Metric
+create access,صلاحية الإنشاء,AI View
+customers,عميل,AI View
 decision must be approve or reject,يجب أن يكون القرار موافقة أو رفضاً
+delete access,صلاحية الحذف,AI View
 denied,مرفوض,AI Message Block
 document,مستند,AI Message Block
 e.g. https://api.deepseek.com/v1 or http://localhost:11434/v1 (leave empty for OpenAI),مثل https://api.deepseek.com/v1 أو http://localhost:11434/v1 (اتركه فارغاً لـ OpenAI),AI Provider
 e.g. posting_date. Empty for point-in-time metrics like stock balance,مثل posting_date. اتركه فارغاً للمؤشرات اللحظية مثل رصيد المخزون,AI Metric
+edit access,صلاحية التعديل,AI View
+entries,قيد,AI View
+equity,حقوق ملكية,AI View
 error,خطأ,AI Message Block
+expense,مصروفات,AI View
 failed,فشل,AI Chat Message
 failed,فشل,AI Message Block
 formula,معادلة,AI Metric Composite
@@ -1083,6 +1699,11 @@ high,مرتفع,AI Chatbot Settings
 high,مرتفع,AI Provider
 high,مرتفع,AI Settings
 image,صورة,AI Message Block
+income,إيرادات,AI View
+invoices,فاتورة,AI View
+items,صنف,AI View
+liability,التزامات,AI View
+lines,سطر,AI View
 low,منخفض,AI Agent
 low,منخفض,AI Chatbot Settings
 low,منخفض,AI Provider
@@ -1092,30 +1713,60 @@ medium,متوسط,AI Chatbot Settings
 medium,متوسط,AI Provider
 medium,متوسط,AI Settings
 memory,ذاكرة,AI Message Block
+movements,حركة,AI View
 off,متوقف,AI Agent
 on,مفعّل,AI Agent
+payment vouchers,سند,AI View
 pending,بانتظار,AI Chat Message
+read access,صلاحية القراءة,AI View
+records,سجل,AI View
+results,نتيجة,AI View
+rows,صف,AI View
 skill,مهارة,AI Message Block
 status,حالة,AI Message Block
 streaming,يكتب الآن,AI Chat Message
 streaming,يكتب الآن,AI Message Block
+submit access,صلاحية الاعتماد,AI View
 sum,مجموع,AI Metric
+suppliers,مورد,AI View
 text,نص,AI Message Block
+the account,الحساب,AI View
+the default warehouse,المخزن الافتراضي,AI View
+the delivery note,إذن التسليم,AI View
+the invoice,الفاتورة,AI View
+the purchase order,أمر الشراء,AI View
+the sales order,أمر البيع,AI View
 thinking,تفكير,AI Message Block
 tool_result,نتيجة أداة,AI Message Block
 tool_use,استخدام أداة,AI Message Block
 user,المستخدم,AI Chat Message
+{0} (ID),{0} (الرمز),AI View
+{0} (account currency),{0} (عملة الحساب),AI View
+{0} (company currency),{0} (عملة الشركة),AI View
+{0} (transaction currency),{0} (عملة المعاملة),AI View
+{0} ({1}): {2} across {3} {4},{0} ({1}): {2} عبر {3} {4},AI View
+{0} Then we continued with the original goal ({1}): {2},{0} ثم تابعنا الهدف الأصلي ({1}): {2},AI View
+{0} documents ready to create,{0} من المستندات جاهزة للإنشاء,AI View
+"{0} in {1}: {2} units, value {3}",{0} في {1}: الكمية {2}، والقيمة {3},AI View
 {0} is an embedding model and cannot be used for chat. Use “Fetch Models from Provider” to pick chat models.,{0} نموذج تضمين (embedding) ولا يصلح للمحادثة. استخدم «جلب النماذج من المزوّد» لاختيار نماذج المحادثة.
 {0} is not configured. Run migrate or open the settings once.,{0} غير مُعدّ. شغّل migrate أو افتح الإعدادات مرة واحدة.
 {0} lines,الأسطر: {0},AI Chat
 {0} models,نماذج {0},AI Provider
+"{0} payments on {1}, outstanding {2}",عدد الدفعات على {1}: {0}، والمستحق {2},AI View
+{0} records,عدد السجلات: {0},AI View
 {0} rows,الصفوف: {0},AI Chat
+{0} rows — {1},عدد الصفوف {0} — {1},AI View
 {0} tokens,{0} وحدة نصية,AI Chat
 {0} tools,{0} أدوات,3-10
 {0} tools,{0} أداة,AI Chat
 {0} users have access.,{0} مستخدم لديهم صلاحية الربط.,AI Settings
+{0} — ready to create,{0} — التجهيز مكتمل,AI View
+"{0}: sales {1}, {2} invoices, {3} customers",{0}: المبيعات {1}، عدد الفواتير {2}، عدد العملاء {3},AI View
+{0}: {1} data points,{0}: عدد النقاط {1},AI View
+{0}: {1} rows,{0}: عدد الصفوف {1},AI View
 {0}d ago,قبل {0} يوم,AI Chat
 {0}h ago,قبل {0} س,AI Chat
 {0}m ago,قبل {0} د,AI Chat
 {0}m {1}s,{0} د {1} ث,AI Chat
 {0}s,{0} ث,AI Chat
+“{0}” is a system setting and can only be changed in ERPNext.,«{0}» من إعدادات النظام، ولا يُعدَّل إلا من ERPNext.,AI View

@@ -2,6 +2,7 @@
 
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
+from ai_agent.presentation.i18n import t
 from ai_agent.presentation.labels import label_for
 from ai_agent.presentation.presenters.lists import _default_currency
 from ai_agent.presentation.registry import register
@@ -43,13 +44,13 @@ def present_metric(tool, arguments, result, ctx):
     delta = _percent_ratio((compare or {}).get("change"))
     warnings = [schema.warning("info", n, "note") for n in (result.get("notes") or [])]
     if result.get("pending_confirmation"):
-        warnings.append(schema.warning("warning", "تعريف هذا المؤشر بانتظار تأكيد المحاسب.", "pending_metric"))
+        warnings.append(schema.warning("warning", t("This metric's definition is waiting for the accountant's confirmation."), "pending_metric"))
     kpis = [schema.kpi("total", label, total, type=kind, currency=currency, delta=delta,
-                       hint=(f"مقارنة بـ {compare['range']}" if compare else None))]
+                       hint=(t("Compared with {0}", compare["range"]) if compare else None))]
     if compare:
-        kpis.append(schema.kpi("previous", "الفترة السابقة", compare.get("total"), type=kind, currency=currency))
+        kpis.append(schema.kpi("previous", t("Previous period"), compare.get("total"), type=kind, currency=currency))
 
-    title = label or "مؤشر"
+    title = label or t("Metric")
     if not dims:
         presentation = {"type": "cards", "title": title, "subtitle": period, "kpis": kpis, "warnings": warnings,
                         "actions": [], "insights": [], "developer": {"source": result.get("source"), "assumption": result.get("assumption")}}
@@ -61,8 +62,8 @@ def present_metric(tool, arguments, result, ctx):
                schema.column(dim, label_for(dim), priority="primary"),
                schema.column("value", title, kind, priority="secondary", total=True)]
     if compare:
-        columns += [schema.column("previous", "السابق", kind), schema.column("change", "التغير", "percentage")]
-    columns.append(schema.column("_share", "النسبة", "percentage"))
+        columns += [schema.column("previous", t("Previous"), kind), schema.column("change", t("Change"), "percentage")]
+    columns.append(schema.column("_share", t("Share"), "percentage"))
     columns[2]["bar"] = True
     is_time = dim in PERIOD_DIMENSIONS
     ordered = list(rows)
@@ -82,7 +83,7 @@ def present_metric(tool, arguments, result, ctx):
         out_rows.append(schema.make_row(cells, id=str(r.get(dim))))
     if len(out_rows) >= 3 and not is_time:
         top3 = sum(fmt.to_number(r.get("value")) or 0 for r in sorted(rows, key=lambda r: -(fmt.to_number(r.get("value")) or 0))[:3])
-        kpis.append(schema.kpi("top3", "حصة أعلى 3", top3 / grand if grand else 0, type="percentage"))
+        kpis.append(schema.kpi("top3", t("Top 3 share"), top3 / grand if grand else 0, type="percentage"))
     chart = None
     if len(rows) >= 2:
         chart_kind = "line" if is_time else "bar"
@@ -90,13 +91,14 @@ def present_metric(tool, arguments, result, ctx):
     presentation = schema.table(
         title, columns, out_rows, variant="comparison" if compare else "ranking",
         subtitle=period, summary={"records": len(rows)}, kpis=kpis, chart=chart, warnings=warnings, currency=currency,
-        totals={"label": "الإجمالي", "cells": {"value": {"v": total, "d": fmt.money(total, currency) if kind == "currency" else fmt.number(total)}}},
+        totals={"label": t("Total"), "cells": {"value": {"v": total, "d": fmt.money(total, currency) if kind == "currency" else fmt.number(total)}}},
         sort={"key": dim, "dir": "asc"} if is_time else {"key": "value", "dir": "desc"},
-        empty={"title": "لا توجد بيانات لهذه الفترة", "hint": "جرّب فترة أخرى."},
+        empty={"title": t("No data for this period"), "hint": t("Try another period.")},
         paging={"total": len(rows), "shown": len(rows), "offset": 0}, developer={"source": result.get("source"), "assumption": result.get("assumption")})
-    text = f"{title} ({period}): {fmt.money(total, currency) if kind == 'currency' else fmt.number(total)} عبر {len(rows)} {label_for(dim)}"
+    text = t("{0} ({1}): {2} across {3} {4}", title, period, fmt.money(total, currency) if kind == "currency" else fmt.number(total),
+             len(rows), label_for(dim))
     if delta is not None:
-        text += f"، التغير {fmt.percent(delta)}"
+        text += fmt.comma() + t("change {0}", fmt.percent(delta))
     return schema.envelope(tool=tool, data=result, summary={"text": text, "total": total, "records": len(rows)},
                            presentation=presentation, warnings=warnings)
 
@@ -108,10 +110,10 @@ def _composite(tool, result, label, period, currency):
         kpis.append(schema.kpi("value", label, result["value"], currency=currency, delta=_percent_ratio(result.get("change"))))
     for p in parts:
         kpis.append(schema.kpi(p.get("metric"), p.get("label"), p.get("value"), currency=currency, delta=_percent_ratio(p.get("change"))))
-    warnings = [schema.warning("warning", "تعريف هذا المؤشر بانتظار تأكيد المحاسب.", "pending_metric")] if result.get("pending_confirmation") else []
+    warnings = [schema.warning("warning", t("This metric's definition is waiting for the accountant's confirmation."), "pending_metric")] if result.get("pending_confirmation") else []
     presentation = {"type": "cards", "title": label, "subtitle": period, "kpis": kpis, "warnings": warnings,
                     "actions": [], "insights": [], "developer": {"assumption": result.get("assumption")}}
-    text = f"{label} ({period}): " + "، ".join(f"{k['label']} {k['d']}" for k in kpis)
+    text = f"{label} ({period}): " + fmt.comma().join(f"{k['label']} {k['d']}" for k in kpis)
     return schema.envelope(tool=tool, data=result, summary={"text": text}, presentation=presentation, warnings=warnings)
 
 
@@ -126,9 +128,9 @@ def present_artifact_chart(tool, arguments, result, ctx):
     spec, error = _normalize_chart_spec(arguments.get("chart_spec"))
     if error:
         return None
-    title = arguments.get("title") or "رسم بياني"
+    title = arguments.get("title") or t("Chart")
     labels, datasets = spec["labels"], spec["datasets"]
-    columns = [schema.column("label", "البند", priority="primary")]
+    columns = [schema.column("label", t("Category"), priority="primary")]
     columns += [schema.column(f"s{i}", d["name"] or title, "number", priority="secondary", total=True)
                 for i, d in enumerate(datasets)]
     rows = []
@@ -142,4 +144,4 @@ def present_artifact_chart(tool, arguments, result, ctx):
     presentation = schema.table(title, columns, rows, variant="ranking", chart=chart,
                                 paging={"total": len(rows), "shown": len(rows), "offset": 0})
     return schema.envelope(tool=tool, data={"artifact": result.get("artifact_name"), "chart_url": result.get("chart_url")},
-                           summary={"text": f"{title}: {len(labels)} بند"}, presentation=presentation)
+                           summary={"text": t("{0}: {1} data points", title, len(labels))}, presentation=presentation)

@@ -7,6 +7,7 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.mcp.service import MCPService
+from ai_agent.presentation.labels import plural_label
 from ai_agent.runtime.permission_context import PermissionContext
 
 
@@ -47,7 +48,7 @@ class TestCompanyView(IntegrationTestCase):
 		self.assertFalse(result["isError"])
 		full = result["_meta"]["ai_agent/presentation"]
 		lite = result["structuredContent"]["presentation"]
-		self.assertEqual(full["title"], "الشركات")
+		self.assertEqual(full["title"], plural_label("Company"))
 		self.assertEqual([c["key"] for c in full["columns"]][:3], ["_index", "name", "default_currency"])
 		for hidden in ("owner", "creation", "docstatus"):
 			self.assertNotIn(hidden, [c["key"] for c in full["columns"]])
@@ -56,12 +57,13 @@ class TestCompanyView(IntegrationTestCase):
 		self.assertNotIn("full", lite)
 		self.assertEqual(set(result["structuredContent"]) & {"data", "summary", "presentation", "actions", "warnings", "meta"},
 			{"data", "summary", "presentation", "actions", "warnings", "meta"})
-		self.assertIn("| اسم الشركة |", result["content"][0]["text"])
+		name_label = next(c["label"] for c in full["columns"] if c["key"] == "name")
+		self.assertIn(f"| {name_label} |", result["content"][0]["text"])
 
 	def test_host_without_apps_keeps_everything_in_text_and_structured(self):
 		result = run_tool(make_service(False), "data__query", self.QUERY)
 		self.assertNotIn("_meta", result)
-		self.assertIn("الشركات", result["content"][0]["text"])
+		self.assertIn(plural_label("Company"), result["content"][0]["text"])
 		self.assertTrue(result["structuredContent"]["summary"]["text"])
 
 	def test_count_is_plain_text_without_widget(self):

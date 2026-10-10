@@ -2,6 +2,7 @@
 
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
+from ai_agent.presentation.i18n import t
 
 LEVEL_MARK = {"info": "ℹ️", "warning": "⚠️", "critical": "⛔"}
 
@@ -40,15 +41,15 @@ def render(presentation, summary_text=None, *, max_rows=15):
         rows = presentation.get("rows") or []
         if not rows:
             empty = presentation.get("empty") or {}
-            out.append(empty.get("title") or "لا توجد نتائج.")
+            out.append(empty.get("title") or t("No results."))
         else:
             out += [""] + _table(presentation["columns"], rows, max_rows)
             totals = presentation.get("totals")
             if totals:
-                out.append("**" + totals["label"] + "**: " + "، ".join(
+                out.append("**" + totals["label"] + "**: " + fmt.comma().join(
                     f"{next((c['label'] for c in presentation['columns'] if c['key'] == k), k)} {v['d']}" for k, v in totals["cells"].items()))
             if len(rows) > max_rows:
-                out.append(f"عرض {fmt.number(max_rows)} من {fmt.number(len(rows))} صف.")
+                out.append(t("Showing {0} of {1} rows.", fmt.number(max_rows), fmt.number(len(rows))))
     elif kind == "error":
         out.append(presentation.get("reason") or "")
         if presentation.get("suggestion"):
@@ -64,25 +65,26 @@ def render(presentation, summary_text=None, *, max_rows=15):
     elif kind == "choice":
         for i, o in enumerate(presentation.get("options") or [], start=1):
             out.append(f"{i}. {o['label']}" + (f" ({o['meta']})" if o.get("meta") else ""))
-        out.append("اكتب رقم الخيار أو اسمه للمتابعة.")
+        out.append(t("Type the option number or name to continue."))
     elif kind == "approval":
         blocked = presentation.get("blocked")
         if blocked:
-            out.append(f"⛔ {blocked['title']}: {blocked['message']} المتاح {fmt.number(blocked['available'])} من {fmt.number(blocked['requested'])} المطلوبة.")
+            out.append(f"⛔ {blocked['title']}: {blocked['message']} "
+                       + t("Available: {0} of the {1} requested.", fmt.number(blocked["available"]), fmt.number(blocked["requested"])))
         for f in presentation.get("fields") or []:
             out.append(f"- {f['label']}: {f['d']}")
         for f in (presentation.get("impact_financial") or []) + (presentation.get("impact_stock") or []):
             out.append(f"- {f['label']}: {f['d']}")
         if presentation.get("next_steps"):
-            out.append("بعد الموافقة: " + " ".join(presentation["next_steps"]))
+            out.append(t("After approval:") + " " + " ".join(presentation["next_steps"]))
         for d in presentation.get("documents") or []:
-            out.append(f"- {d['type_label']}: {d['title']}" + (" (" + "، ".join(f"{x['label']}: {x['d']}" for x in d["fields"][:4]) + ")" if d["fields"] else ""))
+            out.append(f"- {d['type_label']}: {d['title']}" + (" (" + fmt.comma().join(f"{x['label']}: {x['d']}" for x in d["fields"][:4]) + ")" if d["fields"] else ""))
         for it in presentation.get("items") or []:
             out.append(f"- {it['item']} × {it['d']['qty']} @ {it['d']['rate']} = {it['d']['amount']}")
         if presentation.get("result") and presentation["result"].get("document_name"):
-            out.append(f"المستند: {presentation['result']['document_name']} — {presentation['result']['href']}")
+            out.append(t("Document: {0} — {1}", presentation["result"]["document_name"], presentation["result"]["href"]))
         elif presentation.get("state") == "pending":
-            out.append(f"الحالة: بانتظار الموافقة (رقم الطلب {presentation['approval_id']}).")
+            out.append(t("Status: awaiting approval (request {0}).", presentation["approval_id"]))
             out.append(presentation["fallback"]["text"])
     for w in presentation.get("warnings") or []:
         out.append(f"{LEVEL_MARK.get(w['level'], '')} {w['text']}")

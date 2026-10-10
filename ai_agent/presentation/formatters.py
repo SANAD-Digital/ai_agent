@@ -3,14 +3,17 @@
 import datetime
 import decimal
 
-MONTHS_AR = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+from ai_agent.presentation.i18n import t
+
+# English sources; translated where they are shown (t()), never at import time.
+MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
 ]
 
-NULL_MONEY = "غير مسجل"
+NULL_MONEY = "Not recorded"
 NULL_TEXT = "—"
-NULL_UNSET = "غير محدد"
+NULL_UNSET = "Not set"
 
 
 def is_blank(value):
@@ -56,7 +59,7 @@ def compact(value):
 def money(value, currency=None, *, zero_as_unset=False, digits=None):
     n = to_number(value)
     if n is None or (zero_as_unset and n == 0):
-        return NULL_MONEY
+        return t(NULL_MONEY)
     text = number(n, digits)
     return f"{text} {currency}" if currency else text
 
@@ -101,7 +104,7 @@ def date(value):
     d = as_date(value)
     if not d:
         return NULL_TEXT if is_blank(value) else str(value)
-    return f"{d.day} {MONTHS_AR[d.month - 1]} {d.year}"
+    return f"{d.day} {t(MONTHS[d.month - 1])} {d.year}"
 
 
 def datetime_text(value):
@@ -115,7 +118,15 @@ def datetime_text(value):
 def boolean(value):
     if is_blank(value):
         return NULL_TEXT
-    return "نعم" if str(value).lower() in ("1", "true", "yes") or value is True or value == 1 else "لا"
+    return t("Yes") if str(value).lower() in ("1", "true", "yes") or value is True or value == 1 else t("No")
+
+
+def comma():
+    """The list separator of the viewer's language: "، " in Arabic, ", " otherwise."""
+    from ai_agent.presentation.i18n import is_rtl
+    from ai_agent.presentation.labels import label_language
+
+    return "، " if is_rtl(label_language()) else ", "
 
 
 def text(value, empty=NULL_TEXT):

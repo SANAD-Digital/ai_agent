@@ -7,7 +7,10 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.mcp import approvals
+from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import present
+from ai_agent.presentation.i18n import t
+from ai_agent.presentation.labels import doctype_label, label_for, status_display
 from ai_agent.presentation.presenters import lists
 from ai_agent.tests.test_mcp_service_views import make_service, run_tool
 
@@ -18,8 +21,8 @@ class TestCompanies(IntegrationTestCase):
 			env = present("data.query", {"specification": {"doctype": "Company"}}, {"rows": [{"name": "A", "default_currency": "YER"}, {"name": "B", "default_currency": "USD"}], "row_count": 2}, None)
 		p = env["presentation"]
 		self.assertEqual([c["key"] for c in p["columns"]][:2], ["_index", "name"])
-		self.assertEqual({r["cells"]["capital"]["d"] for r in p["rows"]}, {"غير مسجل"})
-		self.assertEqual(p["paging"]["noun"], "شركات")
+		self.assertEqual({r["cells"]["capital"]["d"] for r in p["rows"]}, {t("Not recorded")})
+		self.assertEqual(p["paging"]["noun"], t("companies"))
 		self.assertTrue(all(a["overflow"] for r in p["rows"] for a in r["actions"]))
 		self.assertFalse(any("mixed_currency" == w["code"] for w in p["warnings"]), "no amounts are shown, so no cross-currency notice")
 
@@ -47,17 +50,18 @@ class TestStatement(IntegrationTestCase):
 
 	def test_tabs_dates_and_kpis_follow_the_reference(self):
 		p = self._p({"count": 3, "amount": 210000, "currency": "YER", "query": {"specification": {"doctype": "Sales Invoice"}}})
-		self.assertEqual([t["label"] for t in p["tabs"]], ["الكل", "الفواتير", "المدفوعات", "القيود"])
+		self.assertEqual([tab["label"] for tab in p["tabs"]], [t("All"), t("Invoices"), t("Payments"), t("Journal entries")])
 		self.assertEqual(p["tabs"][1]["in"], ["Sales Invoice", "Purchase Invoice"])
 		self.assertEqual([k["key"] for k in p["kpis"]], ["debit", "credit", "overdue", "balance"])
 		self.assertEqual(p["kpis"][2]["tone"], "danger")
 		self.assertEqual(p["filters"][0]["type"], "date_range")
-		self.assertTrue(any(w["level"] == "critical" and "3 فواتير" in w["text"] for w in p["warnings"]))
+		overdue_text = t("Alert: {0} overdue invoices totaling {1}.", "3", fmt.money(210000, "YER"))
+		self.assertTrue(any(w["level"] == "critical" and w["text"] == overdue_text for w in p["warnings"]))
 		self.assertEqual([a["key"] for a in p["actions"]], ["overdue", "pay", "export"])
 		vt = next(c for c in p["columns"] if c["key"] == "voucher_type")
 		self.assertTrue(vt["hidden"])
-		self.assertEqual(p["rows"][0]["cells"]["voucher_type"]["d"], "فاتورة بيع")
-		self.assertEqual(p["rows"][1]["cells"]["voucher_type"]["d"], "سند دفع")
+		self.assertEqual(p["rows"][0]["cells"]["voucher_type"]["d"], doctype_label("Sales Invoice"))
+		self.assertEqual(p["rows"][1]["cells"]["voucher_type"]["d"], doctype_label("Payment Entry"))
 
 	def test_no_overdue_means_no_overdue_kpi_or_warning(self):
 		p = self._p(None)
@@ -73,16 +77,16 @@ class TestSalesAnalysis(IntegrationTestCase):
 	def test_presenter_builds_kpis_chart_ranking_and_insight(self):
 		env = present("analysis.sales", {}, self.RESULT, None)
 		p = env["presentation"]
-		self.assertEqual([k["label"] for k in p["kpis"]], ["إجمالي المبيعات", "عدد العملاء", "عدد الفواتير", "متوسط الفاتورة"])
+		self.assertEqual([k["label"] for k in p["kpis"]], [t("Total sales"), t("Customer count"), t("Invoice count"), t("Average invoice")])
 		self.assertEqual(p["kpis"][0]["d"], "4.8M YER")
 		self.assertEqual(p["kpis"][0]["exact"], "4,800,000 YER")
 		self.assertEqual(p["chart"]["kind"], "bar")
 		self.assertEqual(len(p["chart"]["labels"]), 5)
 		finding = p["insights"][0]
-		self.assertEqual(finding["observation"], "أعلى 3 عملاء يمثلون 51% من مبيعات الفترة.")
+		self.assertEqual(finding["observation"], t("The top 3 customers make up {0} of the period's sales.", "51%"))
 		for part in ("title", "cause", "impact", "action", "level"):
 			self.assertTrue(finding.get(part), part)
-		self.assertIn("سبتمبر 2026", p["title"])
+		self.assertIn(f"{t('September')} 2026", p["title"])
 		self.assertEqual(p["rows"][0]["cells"]["share"]["d"], "25%")
 
 	def test_tool_is_registered_and_reads_with_the_callers_permissions(self):
@@ -120,7 +124,8 @@ class TestStockBlockedApproval(IntegrationTestCase):
 		self.assertIsNotNone(blocked)
 		warnings, blocked = approvals._stock_check("Sales Invoice", [self._item(60)], {"update_stock": 0})
 		self.assertEqual(warnings[0]["level"], "info", "an invoice that does not move stock is never blocked by stock")
-		self.assertIn("لا تخصم من المخزون", warnings[0]["text"])
+		self.assertEqual(warnings[0]["text"], t("Note: {1} of {0} is in stock and {2} was requested. This invoice does not deduct stock, so it can still be created.",
+			"عصير", "60 كرتون", "100 كرتون"))
 		self.assertIsNone(blocked)
 		self.assertEqual(approvals._stock_check("Purchase Invoice", [self._item(0)], {"update_stock": 1}), ([], None), "incoming stock has no shortage")
 		self.assertEqual(approvals._stock_check("Sales Invoice", [self._item(240)], {"update_stock": 1}), ([], None))
@@ -131,7 +136,7 @@ class TestStockBlockedApproval(IntegrationTestCase):
 		warns, blocked = approvals._stock_check("Sales Invoice", items, {"update_stock": 1})
 		with patch("frappe.has_permission", return_value=False):
 			blk = approvals._blocked("Sales Invoice", blocked, {})
-		self.assertEqual(blk["title"], "لا يمكن اعتماد الفاتورة")
+		self.assertEqual(blk["title"], t("Cannot approve {0}", t("the invoice")))
 		preview = {"fields": [], "items": items, "kpis": [], "warnings": warns, "valid": True, "photo": None, "blocked": blk}
 		apr = frappe._dict(name="APR-B", action_type="Create", doctype_name="Sales Invoice", document_name=None, status="Pending", payload_hash="h", action_summary="x",
 			payload_json=json.dumps({"doctype": "Sales Invoice", "items": [{"item_code": "J", "qty": 100}]}), impact_summary="", expires_at=None, run=None, requested_by="Administrator")
@@ -149,9 +154,9 @@ class TestStockBlockedApproval(IntegrationTestCase):
 			payload_json=json.dumps({"doctype": "Sales Invoice", "items": [{"item_code": "J", "qty": 100}]}), impact_summary="", expires_at=None, run=None, requested_by="Administrator")
 		with patch.object(approvals, "_preview", return_value=preview), patch.object(approvals, "app_approval_enabled", return_value=True):
 			card = approvals.build_card(apr, "Administrator")
-		self.assertEqual(card["title"], "فاتورة بيع — جاهزة للإنشاء")
-		self.assertEqual(card["status_label"], "تحتاج موافقة")
-		self.assertEqual({a["key"]: a["label"] for a in card["actions"]}["approve"], "موافقة وإنشاء الفاتورة")
+		self.assertEqual(card["title"], t("{0} — ready to create", doctype_label("Sales Invoice")))
+		self.assertEqual(card["status_label"], t("Needs approval"))
+		self.assertEqual({a["key"]: a["label"] for a in card["actions"]}["approve"], t("Approve and create {0}", t("the invoice")))
 		frappe.flags.mcp_ui_supported = None
 
 	def test_revising_the_warehouse_moves_every_line(self):
@@ -183,7 +188,7 @@ class TestChoice(IntegrationTestCase):
 		self.assertFalse(result["isError"])
 		p = result["_meta"]["ai_agent/presentation"]
 		self.assertEqual(p["type"], "choice")
-		self.assertEqual(p["reply_template"], "اخترت الشركة: {label}")
+		self.assertEqual(p["reply_template"], t("I chose the company: {label}"))
 		self.assertTrue(p["options"])
 		self.assertIn("1. ", result["content"][0]["text"])           # numbered list works in text-only hosts
 		self.assertNotIn("_meta", make_service(False).call_tool("app__choose", {"source": "companies"}))
@@ -206,7 +211,7 @@ class TestBulkApproval(IntegrationTestCase):
 	def test_documents_are_readable_blocks_without_technical_fields(self):
 		docs = approvals._bulk_documents(self.PAYLOAD)
 		self.assertEqual([d["title"] for d in docs], ["حمود صالح", "عصير سنتوب"])
-		self.assertEqual([d["type_label"] for d in docs], ["عميل", "صنف"])
+		self.assertEqual([d["type_label"] for d in docs], [doctype_label("Customer"), doctype_label("Item")])
 		self.assertEqual([d["icon"] for d in docs], ["user", "package"])
 		self.assertNotIn("owner", json.dumps(docs, ensure_ascii=False))
 
@@ -217,17 +222,17 @@ class TestBulkApproval(IntegrationTestCase):
 			expires_at=None, requested_by="Administrator")
 		with patch.object(approvals, "app_approval_enabled", return_value=True), patch.object(approvals, "four_eyes_enabled", return_value=False):
 			card = approvals.build_card(apr, "Administrator")
-		self.assertEqual(card["title"], "إنشاء مستندين — جاهزان للإنشاء")
+		self.assertEqual(card["title"], t("Two documents ready to create"))
 		self.assertEqual(card["subtitle"], "إنشاء العميل والصنف تمهيدًا لفاتورة")
 		self.assertEqual(len(card["documents"]), 2)
-		self.assertEqual({a["key"]: a["label"] for a in card["actions"]}["approve"], "موافقة وإنشاء المستندات")
+		self.assertEqual({a["key"]: a["label"] for a in card["actions"]}["approve"], t("Approve and create the documents"))
 		self.assertNotIn("edit", [a["key"] for a in card["actions"]])    # a bulk request is approved or cancelled as a whole
 		self.assertIsNone(card["impact"])
 		from ai_agent.presentation import text as presentation_text
 
 		text = presentation_text.render(card)
-		self.assertIn("عميل: حمود صالح", text)
-		self.assertIn("صنف: عصير سنتوب", text)
+		self.assertIn(f"{doctype_label('Customer')}: حمود صالح", text)
+		self.assertIn(f"{doctype_label('Item')}: عصير سنتوب", text)
 		frappe.flags.mcp_ui_supported = None
 
 
@@ -279,22 +284,23 @@ class TestDocumentView(IntegrationTestCase):
 	def test_sections_are_business_sections_and_noise_is_hidden(self):
 		p = self._build(self.INVOICE)
 		titles = [s["title"] for s in p["sections"]]
-		self.assertEqual(titles[:3], ["المعلومات الأساسية", "الطرف", "المبالغ"])
+		self.assertEqual(titles[:3], [t("Basic information"), t("Party"), t("Amounts")])
 		fields = self._fields(p)
-		self.assertEqual(fields["update_stock"]["d"], "لا", "whether stock moves is always stated")
+		self.assertEqual(fields["update_stock"]["d"], t("No"), "whether stock moves is always stated")
 		for noise in ("set_posting_time", "is_return", "owner", "docstatus"):
 			self.assertNotIn(noise, fields)
-		self.assertEqual(p["status"], {"d": "غير مدفوعة", "tone": "warning"})
-		self.assertIn("owner", [t["label"] for t in p["developer"]["technical_fields"]])
+		self.assertEqual(p["status"], {"d": status_display("Unpaid")[0], "tone": "warning"})
+		self.assertIn("owner", [f["label"] for f in p["developer"]["technical_fields"]])
 
 	def test_item_table_has_business_columns_and_distinct_quantity_labels(self):
 		table = self._build(self.INVOICE)["tables"][0]
-		self.assertEqual(table["title"], "الأصناف")
+		self.assertEqual(table["title"], t("Items"))
 		visible = [c["key"] for c in table["columns"] if not c.get("collapsed")]
 		self.assertEqual(visible, ["_index", "item_name", "item_code", "qty", "uom", "rate", "amount"])
 		labels = {c["key"]: c["label"] for c in table["columns"]}
 		self.assertNotIn("name", labels)
-		self.assertEqual((labels["qty"], labels["stock_qty"], labels["uom"], labels["stock_uom"]), ("الكمية", "الكمية بوحدة المخزون", "الوحدة", "وحدة المخزون"))
+		self.assertEqual((labels["qty"], labels["stock_qty"], labels["uom"], labels["stock_uom"]),
+			tuple(label_for(k, "Sales Invoice Item") for k in ("qty", "stock_qty", "uom", "stock_uom")))
 		self.assertEqual(len(set(labels.values())), len(labels))
 
 	def test_percent_fields_are_not_multiplied(self):
@@ -329,7 +335,7 @@ class TestErrorsForPeople(IntegrationTestCase):
 		result = svc._error("No read permission on 'Sales Invoice'", "data.query")
 		self.assertTrue(result["isError"])
 		self.assertEqual(result["_meta"]["ai_agent/presentation"]["type"], "error")
-		self.assertIn("لا تملك الصلاحية", result["content"][0]["text"])
+		self.assertIn(t("You do not have the required permission"), result["content"][0]["text"])
 		self.assertEqual(result["structuredContent"]["error"], "No read permission on 'Sales Invoice'")   # the model can still correct itself
 
 

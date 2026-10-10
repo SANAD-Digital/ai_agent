@@ -12,6 +12,7 @@ from ai_agent.mcp import approvals, continuation, diagnostics, events, hosts, pa
 from ai_agent.mcp.protocol import MCPProtocolError, tool_result
 from ai_agent.presentation import errors as friendly_errors
 from ai_agent.presentation import present, schema, text as presentation_text
+from ai_agent.presentation.i18n import t
 from ai_agent.presentation.registry import registered_tools
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
 from ai_agent.runtime.permission_context import PermissionContext
@@ -23,54 +24,60 @@ from ai_agent.runtime.tool_registry import ToolRegistry
 ACTION_PREFIX = "actions.request_"
 SAFE_SIDE_EFFECTS = {"read_only", "prepare_only"}
 
-# Human-readable titles for MCP clients that show them instead of tool names.
+# Human-readable titles for MCP clients that show them instead of tool names (English; translated by _title()).
 TOOL_TITLES = {
-    "actions.request_bulk_create": "طلب إنشاء عدة مسودات (بموافقة)",
-    "actions.request_create_draft": "طلب إنشاء مسودة (بموافقة)",
-    "actions.request_mapped_draft": "طلب إنشاء مسودة من مستند (بموافقة)",
-    "actions.request_update": "طلب تعديل مستند (بموافقة)",
-    "actions.request_workflow_action": "طلب إجراء سير عمل (بموافقة)",
-    "actions.validate_document": "التحقق من بيانات مستند",
-    "artifacts.create_chart": "إنشاء رسم بياني",
-    "artifacts.create_document_links": "إنشاء روابط مستندات",
-    "artifacts.create_table": "إنشاء جدول",
-    "attachments.list": "عرض المرفقات",
-    "data.count": "عدّ السجلات",
-    "data.get_child_records": "قراءة صفوف جدول فرعي",
-    "data.get_document": "قراءة مستند",
-    "data.query": "استعلام بيانات",
-    "diagnose.document": "تشخيص مستند",
-    "erp.exchange_rate": "سعر الصرف",
-    "erp.fiscal_year": "السنة المالية",
-    "erp.invoice_payments": "مدفوعات الفاتورة",
-    "erp.item_details": "تفاصيل صنف",
-    "erp.party_details": "تفاصيل عميل/مورد",
-    "erp.stock_balance": "رصيد المخزون",
-    "knowledge.search": "بحث في قاعدة المعرفة",
-    "memory.search": "بحث في الذاكرة",
-    "metrics.query": "استعلام مؤشر",
-    "reports.describe": "وصف تقرير",
-    "reports.run": "تشغيل تقرير",
-    "reports.search": "بحث عن تقرير",
-    "schema.describe_doctype": "وصف بنية نوع مستند",
-    "schema.describe_links": "روابط نوع مستند",
-    "schema.describe_workflow": "سير عمل نوع مستند",
-    "schema.search_doctypes": "بحث عن أنواع المستندات",
-    "setup.check": "فحص الإعداد",
-    "skills.list": "عرض المهارات",
-    "skills.load": "تحميل مهارة",
-    "skills.read_reference": "قراءة مرجع مهارة",
-    "approvals__status": "حالة طلب موافقة",
-    "approvals__decide": "الموافقة على طلب أو رفضه",
-    "approvals__revise": "تعديل طلب قبل الموافقة (من البطاقة)",
-    "view__page": "صفحة/ترتيب/بحث في جدول (من البطاقة)",
-    "view__event": "تشخيص الواجهة (من البطاقة)",
-    "view__load": "تحميل العرض الكامل (من البطاقة)",
-    "approvals__list_pending": "طلبات الموافقة المعلّقة",
-    "app__probe": "فحص اتصال واجهة MCP App",
-    "app__choose": "اختيار من قائمة",
-    "analysis.sales": "تحليل المبيعات",
+    "actions.request_bulk_create": "Request several drafts (needs approval)",
+    "actions.request_create_draft": "Request a draft (needs approval)",
+    "actions.request_mapped_draft": "Request a draft from a document (needs approval)",
+    "actions.request_update": "Request a document edit (needs approval)",
+    "actions.request_workflow_action": "Request a workflow action (needs approval)",
+    "actions.validate_document": "Validate document data",
+    "artifacts.create_chart": "Create a chart",
+    "artifacts.create_document_links": "Create document links",
+    "artifacts.create_table": "Create a table",
+    "attachments.list": "List attachments",
+    "data.count": "Count records",
+    "data.get_child_records": "Read child table rows",
+    "data.get_document": "Read a document",
+    "data.query": "Query data",
+    "diagnose.document": "Diagnose a document",
+    "erp.exchange_rate": "Exchange rate",
+    "erp.fiscal_year": "Fiscal year",
+    "erp.invoice_payments": "Invoice payments",
+    "erp.item_details": "Item details",
+    "erp.party_details": "Customer/supplier details",
+    "erp.stock_balance": "Stock balance",
+    "knowledge.search": "Search the knowledge base",
+    "memory.search": "Search memory",
+    "metrics.query": "Query a metric",
+    "reports.describe": "Describe a report",
+    "reports.run": "Run a report",
+    "reports.search": "Find a report",
+    "schema.describe_doctype": "Describe a document type",
+    "schema.describe_links": "Document type links",
+    "schema.describe_workflow": "Document type workflow",
+    "schema.search_doctypes": "Find document types",
+    "setup.check": "Check setup",
+    "skills.list": "List skills",
+    "skills.load": "Load a skill",
+    "skills.read_reference": "Read a skill reference",
+    "approvals__status": "Approval request status",
+    "approvals__decide": "Approve or reject a request",
+    "approvals__revise": "Edit a request before approval (from the card)",
+    "view__page": "Page, sort or search a table (from the card)",
+    "view__event": "View diagnostics (from the card)",
+    "view__load": "Load the full view (from the card)",
+    "approvals__list_pending": "Pending approval requests",
+    "app__probe": "Check the MCP App connection",
+    "app__choose": "Choose from a list",
+    "analysis.sales": "Sales analysis",
 }
+
+
+def _title(name):
+    """A tool's title in the viewer's language (MCP hosts show it to people)."""
+    return t(TOOL_TITLES[name]) if name in TOOL_TITLES else name
+
 
 THEN_SCHEMA = {
     "type": "object",
@@ -242,7 +249,7 @@ class MCPService:
             if not self._is_exposed(registered):
                 continue
             name = registered["name"]
-            title = TOOL_TITLES.get(name, name)
+            title = _title(name)
             tool = {
                 "name": self._external_name(name),
                 "title": title,
@@ -255,7 +262,7 @@ class MCPService:
                 tool["_meta"] = meta
             tools.append(tool)
         tools += self._synthetic_tools()
-        events.log("tool_registered", user=self.user, count=len(tools), with_ui=sum(1 for t in tools if "_meta" in t and t["_meta"].get("ui", {}).get("resourceUri")))
+        events.log("tool_registered", user=self.user, count=len(tools), with_ui=sum(1 for tl in tools if "_meta" in tl and tl["_meta"].get("ui", {}).get("resourceUri")))
         return sorted(tools, key=lambda tool: tool["name"])
 
     def _tool_meta(self, internal_name):
@@ -278,9 +285,9 @@ class MCPService:
             if text_only and spec["app_only"]:
                 continue   # only a rendered view can call these
             tool = {
-                "name": name, "title": TOOL_TITLES[name], "description": spec["description"],
+                "name": name, "title": _title(name), "description": spec["description"],
                 "inputSchema": {"type": "object", "properties": spec["properties"], "required": spec["required"], "additionalProperties": False},
-                "annotations": {"title": TOOL_TITLES[name], "readOnlyHint": spec["read_only"], "destructiveHint": bool(spec.get("destructive")),
+                "annotations": {"title": _title(name), "readOnlyHint": spec["read_only"], "destructiveHint": bool(spec.get("destructive")),
                                 "idempotentHint": spec["read_only"], "openWorldHint": False},
             }
             if not text_only:
@@ -464,7 +471,7 @@ class MCPService:
         tool, args = payload["t"], payload.get("a") or {}
         registered = self.registry.get_tool(tool)
         if not registered or not self._is_exposed(registered) or (registered.get("side_effect") or "read_only") not in SAFE_SIDE_EFFECTS:
-            raise approvals.ApprovalUiError("مرجع العرض غير صالح.")
+            raise approvals.ApprovalUiError(t("This view reference is not valid."))
         run = self._create_run(tool, args)
         ctx = PermissionContext(self.user, self.agent.name, self.company)
         result = ToolGateway(ctx, self.registry).authorize_and_execute(tool, dict(args), run_name=run.name, agent_doc=self.agent)
@@ -477,7 +484,7 @@ class MCPService:
         self._finish_run(run.name, "Completed", result)
         envelope = present(tool, args, result, ctx)
         if not envelope:
-            raise approvals.ApprovalUiError("تعذر بناء العرض.")
+            raise approvals.ApprovalUiError(t("Could not build the view."))
         return envelope, tool, args
 
     def _call_synthetic(self, name, arguments):
@@ -530,14 +537,14 @@ class MCPService:
         source = arguments.get("source")
         if source:
             if source not in choice.SOURCES:
-                raise approvals.ApprovalUiError("مصدر غير معروف.")
+                raise approvals.ApprovalUiError(t("Unknown source."))
             spec, options = choice.options_from_source(source, self.user)
             title, subtitle, icon, reply = spec["title"], spec["subtitle"], spec["icon"], spec["reply"]
         else:
             options = choice.clean_options(arguments.get("options"))
-            title, subtitle, icon, reply = "اختر أحد الخيارات", None, "check", "اخترت: {label}"
+            title, subtitle, icon, reply = t("Choose an option"), None, "check", t("I chose: {label}")
         if not options:
-            raise approvals.ApprovalUiError("لا توجد خيارات متاحة للاختيار.")
+            raise approvals.ApprovalUiError(t("There are no options to choose from."))
         return choice.build(arguments.get("title") or title, options, subtitle=arguments.get("subtitle") or subtitle, icon=icon,
                             reply_template=arguments.get("reply_template") or reply)
 
@@ -578,27 +585,27 @@ class MCPService:
             next_result = self.call_tool(then["tool"], dict(args))
         except continuation.ContinuationError as exc:
             events.log("continuation_failed", user=self.user, approval_id=approval_id, error=str(exc)[:200])
-            envelope["warnings"].append({"level": "warning", "text": f"تعذّر متابعة الهدف الأصلي ({then['goal']}): {exc}", "code": "continuation"})
-            envelope["summary"]["text"] += f" تعذّرت المتابعة التلقائية: {exc}"
+            envelope["warnings"].append({"level": "warning", "text": t("Could not continue with the original goal ({0}): {1}", then["goal"], exc), "code": "continuation"})
+            envelope["summary"]["text"] += " " + t("Automatic follow-up failed: {0}", exc)
             return envelope
         nxt = next_result.get("structuredContent") or {}
         next_text = (nxt.get("summary") or {}).get("text") or "".join(c.get("text", "") for c in next_result.get("content") or [] if c.get("type") == "text")
         if next_result.get("isError"):
             events.log("continuation_failed", user=self.user, approval_id=approval_id, error=str(next_text)[:200])
-            envelope["warnings"].append({"level": "warning", "text": f"تعذّر متابعة الهدف الأصلي ({then['goal']}): {next_text}", "code": "continuation"})
-            envelope["summary"]["text"] += f" تعذّرت المتابعة التلقائية: {next_text}"
+            envelope["warnings"].append({"level": "warning", "text": t("Could not continue with the original goal ({0}): {1}", then["goal"], next_text), "code": "continuation"})
+            envelope["summary"]["text"] += " " + t("Automatic follow-up failed: {0}", next_text)
             return envelope
         events.log("continuation_completed", user=self.user, approval_id=approval_id, next_approval=(nxt.get("data") or {}).get("approval_id"))
         # The next step's card replaces the finished one; the finished step is summarised in a line above it.
         done_text = envelope["summary"]["text"]
         merged = next_result.get("_meta", {}).get("ai_agent/presentation") or nxt.get("presentation")
         out = {**nxt}
-        out["summary"] = {**(nxt.get("summary") or {}), "text": f"{done_text} ثم تابعنا الهدف الأصلي ({then['goal']}): {(nxt.get('summary') or {}).get('text', '')}"}
+        out["summary"] = {**(nxt.get("summary") or {}), "text": t("{0} Then we continued with the original goal ({1}): {2}", done_text, then["goal"], (nxt.get("summary") or {}).get("text", ""))}
         out["data"] = {**(nxt.get("data") or {}), "previous_step": envelope.get("data")}
         out["meta"] = {**(nxt.get("meta") or {}), "continued_from": approval_id, "goal": then["goal"]}
         out["presentation"] = merged
         if merged and isinstance(merged, dict):
-            merged.setdefault("insights", []).insert(0, f"اكتملت الخطوة السابقة: {done_text}")
+            merged.setdefault("insights", []).insert(0, t("Previous step done: {0}", done_text))
         out["warnings"] = list(nxt.get("warnings") or [])
         out["actions"] = list(nxt.get("actions") or [])
         return out
@@ -607,7 +614,7 @@ class MCPService:
         """Smallest possible tool result: structuredContent + a plain sentence that stands alone without any UI."""
         count = len(frappe.get_list("Company", pluck="name", user=self.user, limit_page_length=0))
         return {
-            "content": [{"type": "text", "text": f"عدد الشركات: {count}"}],
+            "content": [{"type": "text", "text": t("Companies: {0}", count)}],
             "structuredContent": {"companies": count, "user": self.user},
             "isError": False,
         }
@@ -629,7 +636,7 @@ class MCPService:
         self._finish_run(run.name, "Completed", result)
         envelope = present(tool, args, result, ctx)
         if not envelope:
-            raise approvals.ApprovalUiError("تعذر عرض الصفحة.")
+            raise approvals.ApprovalUiError(t("Could not show this page."))
         envelope["meta"]["paged"] = True
         return envelope, tool, args
 

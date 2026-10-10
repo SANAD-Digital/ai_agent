@@ -22,7 +22,7 @@ class TestDump(IntegrationTestCase):
 	def test_dump(self):
 		pin = patch.object(approvals, "four_eyes_enabled", return_value=False)   # fixtures must not depend on the site's policy
 		pin.start(); self.addCleanup(pin.stop)
-		open(f"{OUT}/main.html", "w").write(build_main_view())
+		open(f"{OUT}/main.html", "w").write(build_main_view(lang="ar"))
 		svc = make_service(True)
 		# 1. companies (real data, real enrichment)
 		dump("s1_companies", run_tool(svc, "data__query", {"specification": {"doctype": "Company", "fields": ["name", "default_currency", "creation", "owner"], "limit": 20}}))

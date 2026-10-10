@@ -18,8 +18,11 @@
   function friendly(e) {
     var m = String((e && e.message) || e || "");
     try { var j = JSON.parse(m); if (j.error) return j.error; } catch (x) {}
-    return m || "حدث خطأ";
+    return m || T("Something went wrong");
   }
+  /* Reading direction of the view (the server builds it rtl for Arabic, ltr otherwise; the host may change it).
+     Direction-dependent icons (back, forward, a closed disclosure) follow it. */
+  function isRtl() { return document.documentElement.getAttribute("dir") === "rtl"; }
   function cellText(c) { return c && c.d != null ? String(c.d) : "—"; }
   function badge(c) { return h("span", { class: "badge " + (c.tone || "neutral"), text: cellText(c) }); }
   function fmtN(n) { return Number(n).toLocaleString("en-US"); }
@@ -66,7 +69,7 @@
     if (!list || !list.length) return null;
     return h("div", { class: "ag-notes" }, list.map(function (it) {
       if (typeof it === "string") return h("div", { class: "note insight", role: "status" }, icon("bulb", 16), h("span", null, rich(it)));
-      var rows = [["السبب المحتمل", it.cause], ["الأثر", it.impact], ["الإجراء المقترح", it.action]].filter(function (r) { return r[1]; });
+      var rows = [[T("Likely cause"), it.cause], [T("Impact"), it.impact], [T("Suggested action"), it.action]].filter(function (r) { return r[1]; });
       return h("article", { class: "finding " + (it.level || "info") },
         h("div", { class: "finding-head" }, icon(it.level === "info" ? "bulb" : "alert", 18), h("b", { text: it.title })),
         h("p", null, rich(it.observation)),
@@ -75,7 +78,7 @@
           return d.doctype && d.name ? h("button", { class: "chip", type: "button", onclick: function () { drill("data__get_document", { doctype: d.doctype, name: d.name }); } }, rich(d.label))
             : h("span", { class: "chip static" }, rich(d.label));
         })) : null,
-        it.drill && it.drill.arguments ? h("div", { class: "ag-actions" }, h("button", { class: "btn soft sm", type: "button", onclick: function () { drill(it.drill.tool, it.drill.arguments); } }, icon("search", 15), it.drill.label || "عرض التفاصيل")) : null);
+        it.drill && it.drill.arguments ? h("div", { class: "ag-actions" }, h("button", { class: "btn soft sm", type: "button", onclick: function () { drill(it.drill.tool, it.drill.arguments); } }, icon("search", 15), it.drill.label || T("Show details"))) : null);
     }));
   }
   function Kpis(list, onFilter) {
@@ -88,14 +91,14 @@
         h("div", { class: "v" }, value, k.delta ? h("span", { class: "delta num " + k.delta.tone, text: (k.delta.dir === "up" ? "▲ " : k.delta.dir === "down" ? "▼ " : "") + k.delta.d }) : null),
         k.hint ? h("div", { class: "h" }, rich(k.hint)) : null];
       var cls = "kpi " + (k.accent || k.tone || "neutral");
-      if (k.filter && onFilter) return h("button", { class: cls, role: "listitem", type: "button", title: "عرض السجلات", onclick: function () { onFilter(k); } }, inner);
+      if (k.filter && onFilter) return h("button", { class: cls, role: "listitem", type: "button", title: T("Show records"), onclick: function () { onFilter(k); } }, inner);
       return h("div", { class: cls, role: "listitem" }, inner);
     }));
   }
   /* Empty and error are different states: empty is a valid answer, error is a failed call. */
   function EmptyState(empty, action) {
     return h("div", { class: "empty", role: "status" },
-      h("b", { text: (empty && empty.title) || "لا توجد نتائج" }),
+      h("b", { text: (empty && empty.title) || T("No results") }),
       h("div", { text: (empty && empty.hint) || "" }),
       action ? h("div", { class: "ag-actions", style: "justify-content:center;margin-top:12px" }, h("button", { class: "btn sm", type: "button", onclick: action.run, text: action.label })) : null);
   }
@@ -104,27 +107,27 @@
      (presentation type "error"); a bare message is used for failures inside the view itself. */
   function ErrorState(message, retry, view) {
     var text = friendly({ message: message });
-    var v = view || { title: /permission|not accessible|صلاحية|غير مسموح/i.test(text) ? "لا تملك صلاحية لهذا الإجراء" : "تعذّر تنفيذ الطلب", reason: text, suggestion: null,
+    var v = view || { title: /permission|not accessible|صلاحية|غير مسموح/i.test(text) ? T("You don't have permission for this action") : T("The request could not be completed"), reason: text, suggestion: null,
                       retry: !/permission|not accessible|صلاحية|غير مسموح/i.test(text), kind: "failure" };
     var again = retry && v.retry !== false ? retry : null;
-    if (!again && v.retry && Host.has("message")) again = function () { Host.followUp("أعد المحاولة"); };
+    if (!again && v.retry && Host.has("message")) again = function () { Host.followUp(T("Try again")); };
     return h("div", { class: "errorbox kind-" + (v.kind || "failure"), role: "alert" },
       h("div", { class: "errorbox-head" }, icon(v.kind === "permission" ? "circleAlert" : "alert", 16), h("b", { text: v.title })),
       h("div", null, rich(v.reason)),
       v.suggestion ? h("div", { class: "errorbox-next" }, rich(v.suggestion)) : null,
-      again ? h("div", { class: "ag-actions", style: "margin-top:8px" }, h("button", { class: "btn sm", type: "button", onclick: again }, icon("refresh", 15), "إعادة المحاولة")) : null);
+      again ? h("div", { class: "ag-actions", style: "margin-top:8px" }, h("button", { class: "btn sm", type: "button", onclick: again }, icon("refresh", 15), T("Retry"))) : null);
   }
   /* A titled block inside a card; `collapsed` sections open on demand ("عرض المزيد"). */
   function Section(title, glyph, content, collapsed) {
     if (!collapsed) return h("section", { class: "ag-block" + (content && content.childNodes && content.childNodes.length > 3 || (content && content.tagName !== "DL") ? " wide" : "") },
       h("h2", { class: "ag-block-title" }, glyph ? icon(glyph, 16) : null, title), content);
     var body = h("div", { class: "ag-block-body", hidden: true }, content);
-    var btn = h("button", { class: "ag-more", type: "button", "aria-expanded": "false" }, icon("down", 15), "عرض المزيد: " + title);
+    var btn = h("button", { class: "ag-more", type: "button", "aria-expanded": "false" }, icon("down", 15), T("Show more: {0}", [title]));
     btn.addEventListener("click", function () {
       var open = body.hasAttribute("hidden");
       if (open) body.removeAttribute("hidden"); else body.setAttribute("hidden", "");
       btn.setAttribute("aria-expanded", String(open));
-      btn.lastChild.textContent = (open ? "إخفاء: " : "عرض المزيد: ") + title;
+      btn.lastChild.textContent = T(open ? "Hide: {0}" : "Show more: {0}", [title]);
       setTimeout(reportSize, 0);
     });
     return h("section", { class: "ag-block" }, btn, body);
@@ -137,7 +140,7 @@
   }
   function Developer(obj) {
     if (!obj || !Object.keys(obj).length) return null;
-    return h("details", { class: "dev" }, h("summary", { text: "التفاصيل التقنية" }), h("pre", { text: JSON.stringify(obj, null, 2) }));
+    return h("details", { class: "dev" }, h("summary", { text: T("Technical details") }), h("pre", { text: JSON.stringify(obj, null, 2) }));
   }
 
   /* ---------- actions ---------- */
@@ -153,7 +156,7 @@
   }
   function Overflow(items, ctx) {
     var wrap = h("span", { class: "menu" });
-    var btn = h("button", { class: "btn ghost sm icon", type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "المزيد" }, icon("more", 16));
+    var btn = h("button", { class: "btn ghost sm icon", type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": T("More") }, icon("more", 16));
     var pop = null;
     function close() { if (pop) { pop.remove(); pop = null; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", outside, true); } }
     function outside(e) { if (!wrap.contains(e.target)) close(); }
@@ -183,7 +186,7 @@
 
   /* ---------- header: icon + title on the start side, primary actions on the end ---------- */
   function HeadBlock(p, opts, headerActions) {
-    var backBtn = opts && opts.back ? h("button", { class: "ag-back", type: "button", onclick: back }, icon("right", 16), "رجوع") : null;
+    var backBtn = opts && opts.back ? h("button", { class: "ag-back", type: "button", onclick: back }, icon(isRtl() ? "right" : "left", 16), T("Back")) : null;
     var hasHead = p.title || p.subtitle || (headerActions && headerActions.length) || p.status;
     return h("div", null, backBtn, hasHead ? h("div", { class: "ag-head" },
       h("div", { class: "ag-title" }, p.icon ? h("span", { class: "ag-ico" }, icon(p.icon, 17)) : null,

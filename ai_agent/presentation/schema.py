@@ -181,7 +181,7 @@ def infer_column(key, values, doctype=None):
     if DATE_FIELDS.search(key) and (not non_blank or all(fmt.as_date(v) for v in non_blank[:5])):
         return column(key, doctype=doctype, type="date")
     if not non_blank and looks_like_money(key):
-        return column(key, doctype=doctype, type="currency")  # never recorded: shown as "غير مسجل", not 0
+        return column(key, doctype=doctype, type="currency")  # never recorded: shown as "Not recorded", not 0
     numeric = non_blank and all(fmt.to_number(v) is not None for v in non_blank[:20])
     if numeric and looks_like_money(key):
         return column(key, doctype=doctype, type="currency", total=True)
@@ -253,4 +253,8 @@ def insight(title, observation, *, cause=None, impact=None, action=None, documen
 
 
 def insight_text(item):
-    return item if isinstance(item, str) else f"{item['title']}: {item['observation']}" + (f" الإجراء المقترح: {item['action']}" if item.get("action") else "")
+    if isinstance(item, str):
+        return item
+    from ai_agent.presentation.i18n import t
+
+    return f"{item['title']}: {item['observation']}" + (f" {t('Suggested action:')} {item['action']}" if item.get("action") else "")

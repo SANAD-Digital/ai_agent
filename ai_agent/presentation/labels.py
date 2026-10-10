@@ -1,4 +1,4 @@
-"""Business vocabulary: Arabic labels, status badges and field priority tiers.
+"""Business vocabulary: field labels, status badges and field priority tiers (English, shown translated).
 
 Everything here is server-defined so the same field always reads and ranks the
 same way, whatever the LLM or the DocType field order happens to be.
@@ -10,183 +10,184 @@ import re
 TIER_TECHNICAL = 4
 
 FIELD_LABELS = {
-    "name": "المستند",
-    "customer": "العميل",
-    "customer_name": "العميل",
-    "supplier": "المورد",
-    "supplier_name": "المورد",
-    "party": "الطرف",
-    "party_name": "الطرف",
-    "company": "الشركة",
-    "company_name": "الشركة",
-    "default_currency": "العملة",
-    "currency": "العملة",
-    "account_currency": "العملة",
-    "grand_total": "الإجمالي",
-    "base_grand_total": "الإجمالي (عملة الشركة)",
-    "rounded_total": "الإجمالي المقرّب",
-    "total": "مجموع الأصناف",
-    "net_total": "الصافي قبل الضريبة",
-    "outstanding_amount": "المستحق",
-    "total_advance": "الدفعات المقدمة",
-    "discount_amount": "الخصم",
-    "conversion_rate": "سعر الصرف",
-    "stock_qty": "الكمية بوحدة المخزون",
-    "uom": "الوحدة",
-    "stock_uom": "وحدة المخزون",
-    "conversion_factor": "معامل التحويل",
-    "total_qty": "إجمالي الكمية",
-    "update_stock": "تحديث المخزون",
-    "set_warehouse": "المخزن",
-    "debit_to": "حساب المدينين",
-    "credit_to": "حساب الدائنين",
-    "total_debit": "إجمالي المدين",
-    "total_credit": "إجمالي الدائن",
-    "received_amount": "المبلغ المستلم",
-    "paid_from": "مدفوع من حساب",
-    "paid_to": "مدفوع إلى حساب",
-    "payment_type": "نوع السند",
-    "reference_no": "رقم المرجع",
-    "reference_date": "تاريخ المرجع",
-    "tax_amount": "مبلغ الضريبة",
-    "account_head": "حساب الضريبة",
-    "description": "الوصف",
-    "allocated_amount": "المبلغ المخصص",
-    "reference_name": "المستند المرجعي",
-    "reference_doctype": "نوع المرجع",
-    "base_amount": "المبلغ (عملة الشركة)",
-    "net_amount": "الصافي",
-    "is_return": "مرتجع",
-    "is_pos": "نقطة بيع",
-    "is_opening": "قيد افتتاحي",
-    "tax_id": "الرقم الضريبي",
-    "payment_terms_template": "شروط الدفع",
-    "taxes_and_charges": "قالب الضرائب",
-    "tax_category": "فئة الضريبة",
-    "total_taxes_and_charges": "الضرائب والرسوم",
-    "selling_price_list": "قائمة الأسعار",
-    "buying_price_list": "قائمة الأسعار",
-    "against_income_account": "حساب الإيراد",
-    "bill_no": "رقم فاتورة المورد",
-    "bill_date": "تاريخ فاتورة المورد",
-    "workflow_state": "حالة سير العمل",
-    "item_group": "مجموعة الأصناف",
-    "actual_qty": "المتوفر بالمخزن",
-    "paid_amount": "المدفوع",
-    "amount": "المبلغ",
-    "rate": "السعر",
-    "qty": "الكمية",
-    "projected_qty": "الكمية المتوقعة",
-    "reserved_qty": "المحجوز",
-    "stock_value": "قيمة المخزون",
-    "valuation_rate": "سعر التقييم",
-    "item_code": "الصنف",
-    "item_name": "اسم الصنف",
-    "warehouse": "المخزن",
-    "posting_date": "التاريخ",
-    "transaction_date": "التاريخ",
-    "due_date": "الاستحقاق",
-    "status": "الحالة",
-    "debit": "مدين",
-    "credit": "دائن",
-    "balance": "الرصيد",
-    "account": "الحساب",
-    "voucher_type": "النوع",
-    "voucher_no": "المستند",
-    "remarks": "البيان",
-    "against": "مقابل",
-    "cost_center": "مركز التكلفة",
-    "branch": "الفرع",
-    "project": "المشروع",
-    "territory": "المنطقة",
-    "customer_group": "مجموعة العملاء",
-    "supplier_group": "مجموعة الموردين",
-    "sales_person": "مندوب المبيعات",
-    "mode_of_payment": "طريقة الدفع",
-    "total_number_of_shares": "الأسهم",
-    "country": "الدولة",
-    "abbr": "الاختصار",
-    "domain": "النشاط",
-    "date_of_establishment": "تاريخ التأسيس",
-    "capital": "رأس المال",
-    "paid_up_capital": "رأس المال المدفوع",
-    "value": "القيمة",
-    "total_sales": "المبيعات",
-    "previous": "السابق",
-    "change": "التغير",
-    "percentage": "النسبة",
-    "share": "النسبة",
-    "count": "العدد",
-    "invoices": "الفواتير",
-    "in_words": "المبلغ كتابة",
-    "posting_time": "الوقت",
-    "creation": "تاريخ الإنشاء",
-    "modified": "آخر تعديل",
-    "owner": "المنشئ",
+    "name": "Document",
+    "customer": "Customer",
+    "customer_name": "Customer",
+    "supplier": "Supplier",
+    "supplier_name": "Supplier",
+    "party": "Party",
+    "party_name": "Party",
+    "company": "Company",
+    "company_name": "Company",
+    "default_currency": "Currency",
+    "currency": "Currency",
+    "account_currency": "Currency",
+    "grand_total": "Grand Total",
+    "base_grand_total": "Grand Total (company currency)",
+    "rounded_total": "Rounded Total",
+    "total": "Items Total",
+    "net_total": "Net Total (before tax)",
+    "outstanding_amount": "Outstanding",
+    "total_advance": "Advance Payments",
+    "discount_amount": "Discount",
+    "conversion_rate": "Exchange Rate",
+    "stock_qty": "Qty in Stock UOM",
+    "uom": "Unit",
+    "stock_uom": "Stock Unit",
+    "conversion_factor": "Conversion Factor",
+    "total_qty": "Total Qty",
+    "update_stock": "Update Stock",
+    "set_warehouse": "Warehouse",
+    "debit_to": "Receivable Account",
+    "credit_to": "Payable Account",
+    "total_debit": "Total Debit",
+    "total_credit": "Total Credit",
+    "received_amount": "Amount Received",
+    "paid_from": "Paid From",
+    "paid_to": "Paid To",
+    "payment_type": "Payment Type",
+    "reference_no": "Reference No.",
+    "reference_date": "Reference Date",
+    "tax_amount": "Tax Amount",
+    "account_head": "Tax Account",
+    "description": "Description",
+    "allocated_amount": "Allocated Amount",
+    "reference_name": "Reference Document",
+    "reference_doctype": "Reference Type",
+    "base_amount": "Amount (company currency)",
+    "net_amount": "Net Amount",
+    "is_return": "Return",
+    "is_pos": "POS",
+    "is_opening": "Opening Entry",
+    "tax_id": "Tax ID",
+    "payment_terms_template": "Payment Terms",
+    "taxes_and_charges": "Tax Template",
+    "tax_category": "Tax Category",
+    "total_taxes_and_charges": "Taxes and Charges",
+    "selling_price_list": "Price List",
+    "buying_price_list": "Price List",
+    "against_income_account": "Income Account",
+    "bill_no": "Supplier Invoice No.",
+    "bill_date": "Supplier Invoice Date",
+    "workflow_state": "Workflow State",
+    "item_group": "Item Group",
+    "actual_qty": "In Stock",
+    "paid_amount": "Paid Amount",
+    "amount": "Amount",
+    "rate": "Rate",
+    "qty": "Qty",
+    "projected_qty": "Projected Qty",
+    "reserved_qty": "Reserved",
+    "stock_value": "Stock Value",
+    "valuation_rate": "Valuation Rate",
+    "item_code": "Item",
+    "item_name": "Item Name",
+    "warehouse": "Warehouse",
+    "posting_date": "Date",
+    "transaction_date": "Date",
+    "due_date": "Due Date",
+    "status": "Status",
+    "debit": "Debit",
+    "credit": "Credit",
+    "balance": "Balance",
+    "account": "Account",
+    "voucher_type": "Type",
+    "voucher_no": "Document",
+    "remarks": "Remarks",
+    "against": "Against",
+    "cost_center": "Cost Center",
+    "branch": "Branch",
+    "project": "Project",
+    "territory": "Territory",
+    "customer_group": "Customer Group",
+    "supplier_group": "Supplier Group",
+    "sales_person": "Sales Person",
+    "mode_of_payment": "Mode of Payment",
+    "total_number_of_shares": "Shares",
+    "country": "Country",
+    "abbr": "Abbreviation",
+    "domain": "Business Domain",
+    "date_of_establishment": "Date of Establishment",
+    "capital": "Capital",
+    "paid_up_capital": "Paid-up Capital",
+    "value": "Value",
+    "total_sales": "Sales",
+    "previous": "Previous",
+    "change": "Change",
+    "percentage": "Percentage",
+    "share": "Share",
+    "count": "Count",
+    "invoices": "Invoices",
+    "in_words": "Amount in Words",
+    "posting_time": "Time",
+    "creation": "Created On",
+    "modified": "Last Modified",
+    "owner": "Created By",
 }
 
+# DocTypes with a business name of their own in the views (translated with the AI View context).
 DOCTYPE_LABELS = {
-    "Sales Invoice": "فاتورة بيع",
-    "Purchase Invoice": "فاتورة شراء",
-    "Payment Entry": "سند دفع",
-    "Journal Entry": "قيد يومية",
-    "Sales Order": "أمر بيع",
-    "Purchase Order": "أمر شراء",
-    "Delivery Note": "إذن تسليم",
-    "Purchase Receipt": "إيصال استلام",
-    "Stock Entry": "حركة مخزون",
-    "Quotation": "عرض سعر",
-    "Customer": "عميل",
-    "Supplier": "مورد",
-    "Item": "صنف",
-    "Company": "شركة",
-    "Warehouse": "مخزن",
-    "GL Entry": "قيد أستاذ",
-    "Stock Ledger Entry": "حركة مخزون",
-    "Material Request": "طلب مواد",
+    "Sales Invoice",
+    "Purchase Invoice",
+    "Payment Entry",
+    "Journal Entry",
+    "Sales Order",
+    "Purchase Order",
+    "Delivery Note",
+    "Purchase Receipt",
+    "Stock Entry",
+    "Quotation",
+    "Customer",
+    "Supplier",
+    "Item",
+    "Company",
+    "Warehouse",
+    "GL Entry",
+    "Stock Ledger Entry",
+    "Material Request",
 }
 
 DOCTYPE_PLURALS = {
-    "Sales Invoice": "فواتير البيع",
-    "Purchase Invoice": "فواتير الشراء",
-    "Payment Entry": "سندات الدفع",
-    "Journal Entry": "قيود اليومية",
-    "Customer": "العملاء",
-    "Supplier": "الموردون",
-    "Item": "الأصناف",
-    "Company": "الشركات",
-    "Warehouse": "المخازن",
-    "GL Entry": "قيود الأستاذ",
-    "Stock Ledger Entry": "حركات المخزون",
+    "Sales Invoice": "Sales Invoices",
+    "Purchase Invoice": "Purchase Invoices",
+    "Payment Entry": "Payment Entries",
+    "Journal Entry": "Journal Entries",
+    "Customer": "Customers",
+    "Supplier": "Suppliers",
+    "Item": "Items",
+    "Company": "Companies",
+    "Warehouse": "Warehouses",
+    "GL Entry": "GL Entries",
+    "Stock Ledger Entry": "Stock Movements",
 }
 
 # (label, tone). Tones are semantic only: success warning danger info neutral.
 STATUS = {
-    "draft": ("مسودة", "neutral"),
-    "submitted": ("معتمدة", "info"),
-    "paid": ("مدفوعة", "success"),
-    "partly paid": ("مدفوعة جزئيًا", "warning"),
-    "unpaid": ("غير مدفوعة", "warning"),
-    "overdue": ("متأخرة", "danger"),
-    "cancelled": ("ملغاة", "neutral"),
-    "return": ("مرتجع", "neutral"),
-    "credit note issued": ("إشعار دائن", "neutral"),
-    "completed": ("مكتملة", "success"),
-    "to deliver and bill": ("للتسليم والفوترة", "info"),
-    "to bill": ("للفوترة", "info"),
-    "to deliver": ("للتسليم", "info"),
-    "closed": ("مغلقة", "neutral"),
-    "open": ("مفتوحة", "info"),
-    "pending": ("بانتظار الموافقة", "warning"),
-    "approved": ("تمت الموافقة", "success"),
-    "rejected": ("مرفوضة", "danger"),
-    "executed": ("تم التنفيذ", "success"),
-    "expired": ("منتهية", "neutral"),
-    "failed": ("فشلت", "danger"),
-    "enabled": ("مفعّل", "success"),
-    "disabled": ("معطّل", "neutral"),
-    "active": ("نشط", "success"),
-    "inactive": ("غير نشط", "neutral"),
+    "draft": ("Draft", "neutral"),
+    "submitted": ("Submitted", "info"),
+    "paid": ("Paid", "success"),
+    "partly paid": ("Partly Paid", "warning"),
+    "unpaid": ("Unpaid", "warning"),
+    "overdue": ("Overdue", "danger"),
+    "cancelled": ("Cancelled", "neutral"),
+    "return": ("Return", "neutral"),
+    "credit note issued": ("Credit Note Issued", "neutral"),
+    "completed": ("Completed", "success"),
+    "to deliver and bill": ("To Deliver and Bill", "info"),
+    "to bill": ("To Bill", "info"),
+    "to deliver": ("To Deliver", "info"),
+    "closed": ("Closed", "neutral"),
+    "open": ("Open", "info"),
+    "pending": ("Awaiting Approval", "warning"),
+    "approved": ("Approved", "success"),
+    "rejected": ("Rejected", "danger"),
+    "executed": ("Executed", "success"),
+    "expired": ("Expired", "neutral"),
+    "failed": ("Failed", "danger"),
+    "enabled": ("Enabled", "success"),
+    "disabled": ("Disabled", "neutral"),
+    "active": ("Active", "success"),
+    "inactive": ("Inactive", "neutral"),
 }
 
 MONEY_HINTS = (
@@ -255,9 +256,13 @@ def label_language():
         import frappe
 
         user = frappe.session.user
-        cache = frappe.local.__dict__.setdefault("_ai_label_lang", {})
+        # Request-scoped: frappe.local attributes live for one request on one site. (The instance
+        # __dict__ of frappe.local outlives requests and is shared by every site in the worker.)
+        cache = getattr(frappe.local, "ai_label_lang", None)
+        if cache is None:
+            cache = frappe.local.ai_label_lang = {}
         if user not in cache:
-            cache[user] = frappe.db.get_value("User", user, "language") or "ar"
+            cache[user] = frappe.db.get_value("User", user, "language") or frappe.local.lang or "ar"
         return cache[user]
     except Exception:
         return "ar"
@@ -273,11 +278,14 @@ def translate(text):
 
 
 def label_for(fieldname, doctype=None):
-    if label_language() == "ar" and fieldname in FIELD_LABELS:
-        return FIELD_LABELS[fieldname]
+    """The business label of a field in the viewer's language."""
+    from ai_agent.presentation.i18n import t
+
+    if fieldname in FIELD_LABELS:
+        return t(FIELD_LABELS[fieldname])
     base = str(fieldname or "")
-    if base.startswith("base_") and base[5:] in FIELD_LABELS and label_language() == "ar":
-        return f"{FIELD_LABELS[base[5:]]} (عملة الشركة)"
+    if base.startswith("base_") and base[5:] in FIELD_LABELS:
+        return t("{0} (company currency)", t(FIELD_LABELS[base[5:]]))
     if doctype:
         try:
             import frappe
@@ -291,15 +299,28 @@ def label_for(fieldname, doctype=None):
 
 
 def doctype_label(doctype):
-    if label_language() == "ar" and doctype in DOCTYPE_LABELS:
-        return DOCTYPE_LABELS[doctype]
+    from ai_agent.presentation.i18n import t
+
+    if doctype in DOCTYPE_LABELS:
+        return t(doctype)
     return translate(doctype) if doctype else ""
 
 
+def plural_label(doctype, default=None):
+    """The plural business name of a DocType (e.g. "Sales Invoices"), or `default` (English) translated."""
+    from ai_agent.presentation.i18n import t
+
+    if doctype in DOCTYPE_PLURALS:
+        return t(DOCTYPE_PLURALS[doctype])
+    return t(default) if default else None
+
+
 def status_display(value):
+    from ai_agent.presentation.i18n import t
+
     text = str(value or "").strip()
     label, tone = STATUS.get(text.lower(), (text, "neutral"))
-    return label, tone
+    return (t(label) if text.lower() in STATUS else label), tone
 
 
 def looks_like_money(fieldname):

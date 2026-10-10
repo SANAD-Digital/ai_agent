@@ -1,6 +1,6 @@
 ---
 name: inventory
-title: المخزون
+title: Inventory
 description: Load for any stock question: current quantity or value by item/warehouse/group, stock on a past date, item movement history, consumption, slow-moving or dead stock, stock ageing, items below re-order level, negative stock, warehouses, and diagnosis of why stock did not move for a document or why an item does not appear in item search.
 tools: metrics.query, data.query, reports.run, reports.describe, erp.stock_balance, erp.item_details, diagnose.document, knowledge.search, artifacts.create_table, artifacts.create_chart
 ---

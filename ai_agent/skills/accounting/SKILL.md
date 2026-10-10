@@ -1,6 +1,6 @@
 ---
 name: accounting
-title: المحاسبة
+title: Accounting
 description: Load for any accounting or profitability question: revenue, expenses, net profit, gross profit and margin by item/customer/branch, cash and bank balances, account balances and movements, general ledger, trial balance, profit and loss, balance sheet, cash flow, journal entries, party ledger/statement, and diagnosis of why a GL entry is missing or why an invoice does not show in a customer or supplier statement.
 tools: metrics.query, data.query, reports.run, reports.describe, erp.fiscal_year, erp.invoice_payments, diagnose.document, setup.check, knowledge.search, artifacts.create_table, artifacts.create_chart
 ---

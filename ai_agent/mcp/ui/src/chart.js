@@ -5,11 +5,11 @@
   var SERIES_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
 
   function Chart(chart) {
-    var box = h("div", { class: "chartbox chartcard" }, h("h2", { text: chart.title || "الرسم" }));
+    var box = h("div", { class: "chartbox chartcard" }, h("h2", { text: chart.title || T("Chart") }));
     var series = chart.series || [], labels = chart.labels || [], n = labels.length;
     if (!n || !series.length) return null;
     var avail = root.clientWidth || 640, W = Math.max(300, Math.min(760, Math.floor(avail / (avail >= 820 ? 2 : 1)) - 48)), H = 210, pad = { l: 44, r: 8, t: 14, b: 26 };
-    var svg = ns("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": (chart.title || "رسم") + ": " + n + " نقطة" });
+    var svg = ns("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": T("{0}: {1} data points", [chart.title || T("Chart"), n]) });
     var tip = h("div", { class: "charttip", role: "status", "aria-live": "polite" });
     var plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
     var rtl = document.documentElement.getAttribute("dir") === "rtl";

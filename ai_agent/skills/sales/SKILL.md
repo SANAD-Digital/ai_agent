@@ -1,6 +1,6 @@
 ---
 name: sales
-title: المبيعات
+title: Sales
 description: Load for any selling, customer or receivables question: sales totals and trends, period comparison, returns, top customers/items/item groups, sales by branch/cost center/territory/sales person/POS/payment mode, open sales orders, unbilled deliveries, quotations, customer activity and dormant customers, collections, customer balances, outstanding and aging.
 tools: metrics.query, analysis.sales, data.query, data.get_document, reports.run, reports.describe, erp.invoice_payments, erp.party_details, artifacts.create_table, artifacts.create_chart
 ---

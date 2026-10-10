@@ -15,7 +15,7 @@ def dump(name, result):
 class TestDump(IntegrationTestCase):
 	def test_dump(self):
 		pin = patch.object(approvals, "four_eyes_enabled", return_value=False); pin.start(); self.addCleanup(pin.stop)
-		open(f"{OUT}/main.html", "w").write(build_main_view())
+		open(f"{OUT}/main.html", "w").write(build_main_view(lang="ar"))
 		svc = make_service(True)
 		frappe.flags.mcp_ui_supported = True
 		# document: foreign-currency invoice

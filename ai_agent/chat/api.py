@@ -702,16 +702,39 @@ def list_skills(agent=None, company=None):
     agent = agent or _default_agent()
     skills = SkillRegistry().list_effective_skills(frappe.session.user, agent, company or None) or []
     return {
-        "skills": [{"name": s.get("name"), "title": s.get("title") or s.get("name"), "description": s.get("description") or ""} for s in skills if not s.get("allow_implicit_invocation")],
+        "skills": [
+            {"name": s.get("name"), "title": _chat_text(s.get("title") or s.get("name")), "description": _chat_text(SKILL_SUMMARIES.get(s.get("name"), ""))}
+            for s in skills if not s.get("allow_implicit_invocation")
+        ],
         "plugins": list_plugins(),
     }
+
+
+# What each app skill covers, for people choosing it in the / menu (the skill's own description
+# is written for the model). English, shown translated.
+SKILL_SUMMARIES = {
+    "accounting": "Revenue, expenses, profit, cash and bank balances, receivables and payables",
+    "documents": "Create, change, submit or cancel documents, with your approval",
+    "inventory": "Stock quantities and values, item movements and slow-moving items",
+    "purchasing": "Purchases, suppliers, purchase returns and payables",
+    "sales": "Sales, customers, returns and receivables",
+    "system": "Setup checks and any data the other skills do not cover",
+}
+
+
+def _chat_text(text):
+    """App-shipped names and descriptions are English; shown in the user's language (context "AI Chat")."""
+    return _(text, context="AI Chat") if text else text
 
 
 def list_plugins():
     """The plugins this user may pick from the / menu."""
     from ai_agent.runtime import access
 
-    return [{"name": p.name, "title": p.title or p.name, "description": p.description or "", "icon": p.icon or "", "output": p.output or ""} for p in access.allowed_plugins()]
+    return [
+        {"name": p.name, "title": _chat_text(p.title or p.name), "description": _chat_text(p.description or ""), "icon": p.icon or "", "output": p.output or ""}
+        for p in access.allowed_plugins()
+    ]
 
 
 @frappe.whitelist()

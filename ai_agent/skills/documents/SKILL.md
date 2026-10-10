@@ -1,6 +1,6 @@
 ---
 name: documents
-title: المستندات
+title: Documents
 description: Load whenever the user wants to create, change, submit, cancel or move a document through workflow: new invoices, orders, quotations, payments, journal entries, items, customers or suppliers; drafts from a file or image; converting a Sales Order to an invoice or delivery note, a Material Request to a purchase order, a Purchase Invoice to a receipt; bulk creation of missing master data; multi-step chains like customer then invoice then payment.
 tools: actions.prepare_document, actions.validate_document, actions.request_create_draft, actions.request_bulk_create, actions.request_mapped_draft, actions.request_update, actions.request_submit, actions.request_cancel, actions.request_workflow_action, erp.item_details, erp.party_details, erp.fiscal_year, erp.exchange_rate, erp.stock_balance, erp.invoice_payments, data.query, data.get_document, schema.describe_doctype, schema.describe_workflow, files.read, artifacts.create_document_links
 ---

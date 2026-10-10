@@ -11,67 +11,69 @@ import frappe
 
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
-from ai_agent.presentation.labels import DOCTYPE_PLURALS, humanize, label_for, status_display
+from ai_agent.presentation.i18n import t
+from ai_agent.presentation.labels import humanize, label_for, plural_label, status_display
 from ai_agent.presentation.registry import register
 from ai_agent.presentation.urls import doc_href, slug
 
 CURRENCY_KEYS = ("currency", "default_currency", "account_currency", "transaction_currency", "party_account_currency")
 UNSET_WHEN_ZERO = {"capital", "paid_up_capital", "total_number_of_shares"}
 AGG_PREFIX = re.compile(r"^(sum|count|avg|min|max|total)_(.+)$")
-AGG_WORD = {"sum": "إجمالي", "count": "عدد", "avg": "متوسط", "min": "أدنى", "max": "أعلى", "total": "إجمالي"}
+AGG_WORD = {"sum": "Total {0}", "count": "Count of {0}", "avg": "Average {0}", "min": "Minimum {0}", "max": "Maximum {0}", "total": "Total {0}"}
 
-INVOICE_KPIS = (("grand_total", "إجمالي الفواتير"), ("outstanding_amount", "المستحق"))
+# Wording in VIEWS / INVOICE_KPIS / EXTRA_LABELS is English and translated where it is shown (t()).
+INVOICE_KPIS = (("grand_total", "Total invoiced"), ("outstanding_amount", "Outstanding"))
 
 VIEWS = {
     "Company": {
-        "variant": "data", "name_label": "اسم الشركة", "order": ["name", "default_currency", "capital", "country"],
-        "sort": ("name", "asc"), "icon": "building", "noun": "شركات", "index": True, "new_label": "شركة جديدة",
-        "search": "بحث في الشركات", "enrich": "company_capital",
+        "variant": "data", "name_label": "Company name", "order": ["name", "default_currency", "capital", "country"],
+        "sort": ("name", "asc"), "icon": "building", "noun": "companies", "index": True, "new_label": "New company",
+        "search": "Search companies", "enrich": "company_capital",
     },
     "Sales Invoice": {
-        "icon": "receipt", "noun": "فاتورة", "new_label": "فاتورة جديدة", 
-        "variant": "data", "name_label": "الفاتورة",
+        "icon": "receipt", "noun": "invoices", "new_label": "New invoice",
+        "variant": "data", "name_label": "Invoice",
         "order": ["name", "customer_name", "customer", "posting_date", "due_date", "grand_total", "outstanding_amount", "status"],
         "sort": ("posting_date", "desc"), "kpis": INVOICE_KPIS, "party": "customer",
     },
     "Purchase Invoice": {
-        "icon": "receipt", "noun": "فاتورة", "new_label": "فاتورة جديدة", 
-        "variant": "data", "name_label": "الفاتورة",
+        "icon": "receipt", "noun": "invoices", "new_label": "New invoice",
+        "variant": "data", "name_label": "Invoice",
         "order": ["name", "supplier_name", "supplier", "posting_date", "due_date", "grand_total", "outstanding_amount", "status"],
         "sort": ("posting_date", "desc"), "kpis": INVOICE_KPIS, "party": "supplier",
     },
     "Payment Entry": {
-        "icon": "wallet", "noun": "سند", "new_label": "سند جديد", 
-        "variant": "data", "name_label": "السند",
+        "icon": "wallet", "noun": "payment vouchers", "new_label": "New payment voucher",
+        "variant": "data", "name_label": "Payment voucher",
         "order": ["name", "party_name", "party", "posting_date", "mode_of_payment", "paid_amount", "status"],
-        "sort": ("posting_date", "desc"), "kpis": (("paid_amount", "إجمالي المدفوعات"),),
+        "sort": ("posting_date", "desc"), "kpis": (("paid_amount", "Total payments"),),
     },
     "Journal Entry": {
-        "icon": "file", "noun": "قيد", "new_label": "قيد جديد", 
-        "variant": "gl", "name_label": "القيد",
+        "icon": "file", "noun": "entries", "new_label": "New journal entry",
+        "variant": "gl", "name_label": "Entry",
         "order": ["name", "posting_date", "voucher_type", "remarks", "total_debit", "total_credit"],
         "sort": ("posting_date", "desc"),
     },
     "GL Entry": {
-        "icon": "file", "noun": "قيد", 
-        "variant": "gl", "name_label": "القيد",
+        "icon": "file", "noun": "entries",
+        "variant": "gl", "name_label": "Entry",
         "order": ["posting_date", "voucher_no", "voucher_type", "account", "remarks", "debit", "credit", "balance"],
-        "sort": ("posting_date", "desc"), "kpis": (("debit", "إجمالي المدين"), ("credit", "إجمالي الدائن")),
+        "sort": ("posting_date", "desc"), "kpis": (("debit", "Total debit"), ("credit", "Total credit")),
     },
     "Customer": {
-        "icon": "users", "noun": "عميل", "new_label": "عميل جديد", "variant": "data", "name_label": "العميل", "order": ["name", "customer_name", "customer_group", "territory", "outstanding_amount", "disabled"], "sort": ("name", "asc")},
+        "icon": "users", "noun": "customers", "new_label": "New customer", "variant": "data", "name_label": "Customer", "order": ["name", "customer_name", "customer_group", "territory", "outstanding_amount", "disabled"], "sort": ("name", "asc")},
     "Supplier": {
-        "icon": "users", "noun": "مورد", "new_label": "مورد جديد", "variant": "data", "name_label": "المورد", "order": ["name", "supplier_name", "supplier_group", "outstanding_amount", "disabled"], "sort": ("name", "asc")},
+        "icon": "users", "noun": "suppliers", "new_label": "New supplier", "variant": "data", "name_label": "Supplier", "order": ["name", "supplier_name", "supplier_group", "outstanding_amount", "disabled"], "sort": ("name", "asc")},
     "Item": {
-        "icon": "package", "noun": "صنف", "new_label": "صنف جديد", "variant": "data", "name_label": "الصنف", "order": ["name", "item_name", "item_group", "stock_uom", "disabled"], "sort": ("name", "asc")},
+        "icon": "package", "noun": "items", "new_label": "New item", "variant": "data", "name_label": "Item", "order": ["name", "item_name", "item_group", "stock_uom", "disabled"], "sort": ("name", "asc")},
     "Bin": {
-        "icon": "boxes", "noun": "سجل", "variant": "stock", "name_label": "السجل", "order": ["item_code", "warehouse", "actual_qty", "reserved_qty", "projected_qty", "valuation_rate", "stock_value"], "sort": ("actual_qty", "asc")},
+        "icon": "boxes", "noun": "records", "variant": "stock", "name_label": "Record", "order": ["item_code", "warehouse", "actual_qty", "reserved_qty", "projected_qty", "valuation_rate", "stock_value"], "sort": ("actual_qty", "asc")},
     "Stock Ledger Entry": {
-        "icon": "boxes", "noun": "حركة", "variant": "stock", "name_label": "الحركة", "order": ["posting_date", "item_code", "warehouse", "actual_qty", "qty_after_transaction", "voucher_no"], "sort": ("posting_date", "desc")},
+        "icon": "boxes", "noun": "movements", "variant": "stock", "name_label": "Movement", "order": ["posting_date", "item_code", "warehouse", "actual_qty", "qty_after_transaction", "voucher_no"], "sort": ("posting_date", "desc")},
 }
 EXTRA_LABELS = {
-    "total_debit": "مدين", "total_credit": "دائن", "disabled": "معطّل", "item_group": "مجموعة الأصناف",
-    "stock_uom": "الوحدة", "qty_after_transaction": "الرصيد بعد الحركة",
+    "total_debit": "Debit", "total_credit": "Credit", "disabled": "Disabled", "item_group": "Item group",
+    "stock_uom": "Unit", "qty_after_transaction": "Balance after movement",
 }
 
 
@@ -82,11 +84,11 @@ def _spec(arguments):
 
 def _alias_label(key, doctype):
     if key in EXTRA_LABELS:
-        return EXTRA_LABELS[key]
+        return t(EXTRA_LABELS[key])
     match = AGG_PREFIX.match(key)
     if match and match.group(1) in AGG_WORD:
         base = label_for(match.group(2), doctype)
-        return base if match.group(1) == "total" else f"{AGG_WORD[match.group(1)]} {base}"
+        return base if match.group(1) == "total" else t(AGG_WORD[match.group(1)], base)
     return label_for(key, doctype)
 
 
@@ -171,10 +173,10 @@ def build_rows_view(rows, *, doctype=None, spec=None, title=None, total_count=No
         col = schema.infer_column(key, [r.get(key) for r in rows], doctype)
         if key in UNSET_WHEN_ZERO and col["type"] == "text":
             col["type"], col["align"] = ("number" if key == "total_number_of_shares" else "currency"), "end"
-        col["label"] = view.get("name_label") if key == "name" and view.get("name_label") else _alias_label(key, doctype)
+        col["label"] = t(view["name_label"]) if key == "name" and view.get("name_label") else _alias_label(key, doctype)
         if key in (currency_key,):
             col["type"] = "badge"
-            col["label"] = "العملة"
+            col["label"] = t("Currency")
         if col["type"] == "currency":
             col["currency_key"] = currency_key if mixed_currency else None
         if mixed_currency and col.get("total"):
@@ -214,10 +216,10 @@ def build_rows_view(rows, *, doctype=None, spec=None, title=None, total_count=No
         actions = []
         if name and link_doctype:
             actions = [
-                schema.action("open", "فتح", kind="drill", style="primary", overflow=True,
+                schema.action("open", t("View"), kind="drill", style="primary", overflow=True,
                               tool="data__get_document", arguments={"doctype": link_doctype, "name": name}),
-                schema.action("erp", "فتح في ERP", kind="link", href=doc_href(link_doctype, name), overflow=True),
-                schema.action("copy", "نسخ الرقم", kind="copy", arguments={"text": str(name)}, overflow=True),
+                schema.action("erp", t("Open in ERP"), kind="link", href=doc_href(link_doctype, name), overflow=True),
+                schema.action("copy", t("Copy number"), kind="copy", arguments={"text": str(name)}, overflow=True),
             ]
         out_rows.append(schema.make_row(
             cells, id=str(name) if name else None,
@@ -231,21 +233,21 @@ def build_rows_view(rows, *, doctype=None, spec=None, title=None, total_count=No
     totals, kpis, warnings = None, [], []
     money_cols = [c for c in columns if c["type"] == "currency"]
     if mixed_currency and any(any(r.get(c["key"]) not in (None, "") for r in rows) for c in money_cols):
-        warnings.append(schema.warning("info", f"الجدول بعملات متعددة ({'، '.join(currencies)}): لم تُجمع الإجماليات عبر العملات.", "mixed_currency"))
+        warnings.append(schema.warning("info", t("This table has several currencies ({0}), so totals are not added across currencies.", fmt.comma().join(currencies)), "mixed_currency"))
     elif out_rows and money_cols:
         sums = {c["key"]: sum(fmt.to_number(r.get(c["key"])) or 0 for r in rows) for c in money_cols if c.get("total")}
         if sums and not ranking and shown == total:
-            totals = {"label": "الإجمالي", "cells": {k: {"v": v, "d": fmt.money(v, uniform_currency)} for k, v in sums.items()}}
+            totals = {"label": t("Total"), "cells": {k: {"v": v, "d": fmt.money(v, uniform_currency)} for k, v in sums.items()}}
         for key, label in view.get("kpis", ()):
             if key in sums:
-                kpis.append(schema.kpi(key, label, sums[key], currency=uniform_currency,
-                                       hint=None if shown == total else "من الصفوف المعروضة",
+                kpis.append(schema.kpi(key, t(label), sums[key], currency=uniform_currency,
+                                       hint=None if shown == total else t("Of the rows shown"),
                                        filter={"col": key, "gt": 0} if key == "outstanding_amount" else None,
                                        tone="warning" if key == "outstanding_amount" and sums[key] > 0 else "neutral"))
     if total > shown:
-        warnings.append(schema.warning("info", f"عرض {fmt.number(shown)} من {fmt.number(total)} — ضيّق الفلاتر أو انتقل للصفحة التالية.", "truncated"))
+        warnings.append(schema.warning("info", t("Showing {0} of {1}. Narrow the filters or go to the next page.", fmt.number(shown), fmt.number(total)), "truncated"))
 
-    label = DOCTYPE_PLURALS.get(doctype) or (title or humanize(doctype))
+    label = plural_label(doctype) or (title or humanize(doctype))
     summary = {"records": total, "shown": shown}
     if kpis and kpis[0]["key"]:
         summary[kpis[0]["key"]] = kpis[0]["v"]
@@ -253,15 +255,15 @@ def build_rows_view(rows, *, doctype=None, spec=None, title=None, total_count=No
     presentation = schema.table(
         title or label, columns, out_rows,
         variant="ranking" if ranking else view.get("variant", "data"),
-        subtitle=f"{fmt.number(total)} {view.get('noun', 'سجل')}" if total and not view.get("noun") else None,
+        subtitle=t("{0} records", fmt.number(total)) if total and not view.get("noun") else None,
         summary=summary, kpis=kpis, totals=totals, warnings=warnings, sort=sort,
         empty=_empty(doctype),
-        paging={"total": total, "total_records": total, "shown": shown, "offset": int(spec.get("offset") or 0), "noun": view.get("noun", "نتيجة")},
+        paging={"total": total, "total_records": total, "shown": shown, "offset": int(spec.get("offset") or 0), "noun": t(view.get("noun") or "results")},
         developer=developer, currency=uniform_currency,
         density="compact",
         filters=_filters(columns, rows, doctype),
         icon=view.get("icon"),
-        search_placeholder=view.get("search") or (f"بحث في {label}" if doctype else None),
+        search_placeholder=t(view["search"]) if view.get("search") else (t("Search {0}", label) if doctype else None),
         actions=_header_actions(doctype, view),
     )
     return presentation, rows, uniform_currency
@@ -311,7 +313,7 @@ def _header_actions(doctype, view):
             return []
     except Exception:
         return []
-    return [schema.action("new", label, kind="link", style="primary", icon="plus", href=frappe.utils.get_url(f"/app/{slug(doctype)}/new"), placement="header")]
+    return [schema.action("new", t(label), kind="link", style="primary", icon="plus", href=frappe.utils.get_url(f"/app/{slug(doctype)}/new"), placement="header")]
 
 
 def _safe_spec(spec):
@@ -319,8 +321,8 @@ def _safe_spec(spec):
 
 
 def _empty(doctype):
-    plural = DOCTYPE_PLURALS.get(doctype) or "السجلات"
-    return {"title": f"لا توجد {plural} مطابقة", "hint": "جرّب توسيع الفلاتر أو المدة الزمنية."}
+    plural = plural_label(doctype, "Records")
+    return {"title": t("No matching {0}", plural), "hint": t("Try widening the filters or the date range.")}
 
 
 def _is_ranking(columns, rows, spec):
@@ -339,7 +341,7 @@ def _add_ranking(columns, rows):
         value = fmt.to_number(r.get(value_col["key"])) or 0
         r["_share"] = (value / total) if total else 0
     rank_col = schema.column("_rank", "#", "number", sortable=False, width="44px")
-    share_col = schema.column("_share", "النسبة", "percentage")
+    share_col = schema.column("_share", t("Share"), "percentage")
     value_col["bar"] = True
     return [rank_col] + columns + [share_col], ranked
 
@@ -358,10 +360,10 @@ def present_query(tool, arguments, result, ctx):
     paging.update({"page_size": page_size, "page": (paging["offset"] // page_size) + 1,
                    "total_pages": max(1, -(-total // page_size))})
     presentation["paging"]["pageable"] = bool(doctype and not spec.get("group_by"))
-    text = f"{fmt.number(total)} {DOCTYPE_PLURALS.get(doctype, 'سجل')}"
+    text = f"{fmt.number(total)} {plural_label(doctype, 'records')}"
     kpis = presentation["kpis"]
     if kpis:
-        text += "، " + "، ".join(f"{k['label']}: {k['d']}" for k in kpis)
+        text += fmt.comma() + fmt.comma().join(f"{k['label']}: {k['d']}" for k in kpis)
     for w in presentation["warnings"]:
         text += f" ({w['text']})"
     summary = {"text": text, "records": total, "shown": len(rows),
@@ -380,5 +382,5 @@ def present_artifact_table(tool, arguments, result, ctx):
     rows = arguments.get("rows") or []
     presentation, _, _ = build_rows_view(rows, title=arguments.get("title"), total_count=len(rows))
     return schema.envelope(tool=tool, data={"artifact": result.get("artifact_name"), "row_count": len(rows)},
-                           summary={"text": f"{fmt.number(len(rows))} صف — {arguments.get('title') or 'جدول'}"},
+                           summary={"text": t("{0} rows — {1}", fmt.number(len(rows)), arguments.get("title") or t("Table"))},
                            presentation=presentation, warnings=presentation["warnings"])

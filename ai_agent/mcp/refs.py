@@ -12,6 +12,7 @@ import hmac
 import json
 
 from ai_agent.mcp.approvals import ApprovalUiError, _secret
+from ai_agent.presentation.i18n import t
 
 KINDS = {"approval", "tool"}
 
@@ -28,7 +29,7 @@ def read(token, user):
             raise ValueError
         data = json.loads(base64.urlsafe_b64decode(body.encode()))
     except Exception:
-        raise ApprovalUiError("مرجع العرض غير صالح.")
+        raise ApprovalUiError(t("This view reference is not valid."))
     if data.get("u") != user or data.get("k") not in KINDS:
-        raise ApprovalUiError("مرجع العرض غير صالح.")
+        raise ApprovalUiError(t("This view reference is not valid."))
     return data["k"], data["p"]

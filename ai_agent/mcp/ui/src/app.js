@@ -8,7 +8,7 @@
     error: function (p, opts) { return ErrorView(p, opts); }
   };
   function build(result, opts) {
-    var backBtn = opts.back ? h("button", { class: "ag-back", type: "button", onclick: back }, icon("right", 16), "رجوع") : null;
+    var backBtn = opts.back ? h("button", { class: "ag-back", type: "button", onclick: back }, icon(isRtl() ? "right" : "left", 16), T("Back")) : null;
     var p = presentationOf(result);
     if (result && result.isError) return h("div", { class: "ag-stack" }, backBtn, Card(ErrorState(textOf(result), result.__retry || null, p && p.type === "error" ? p : null)));
     if (!p) return h("div", null, backBtn, h("pre", { class: "ag-card", style: "margin:0;padding:12px var(--pad);white-space:pre-wrap;font:inherit", text: textOf(result) }));
@@ -25,7 +25,7 @@
       root.appendChild(build(result, { back: stack.length > 0 }));
     } catch (e) {
       trace("ui_render_failed", kind + ": " + (e && e.message));
-      root.appendChild(Card(ErrorState("تعذّر عرض النتيجة: " + (e && e.message), null)));
+      root.appendChild(Card(ErrorState(T("Could not show the result: {0}", [e && e.message]), null)));
       setTimeout(reportSize, 0);
       return;
     }
@@ -45,7 +45,7 @@
       setTimeout(reportSize, 0);
     }
     if (!Host.has("serverTools")) return fallback("host does not proxy tools and sent no _meta");
-    loading(lean.title || "جارٍ التحميل…");
+    loading(lean.title || T("Loading…"));
     trace("ui_render_started", kind + " (loading full view)");
     callTool("view__load", { ref: lean.ref }).then(function (res) {
       var p = res && res.structuredContent && res.structuredContent.presentation;

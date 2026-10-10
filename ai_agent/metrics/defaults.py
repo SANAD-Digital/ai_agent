@@ -185,9 +185,12 @@ def ensure_default_metrics():
 	"""Insert missing default metrics; never overwrite an existing definition."""
 	if not frappe.db.exists("DocType", "AI Metric"):
 		return
+	# On a site without ERPNext the source DocTypes (Sales Invoice, GL Entry…) do not
+	# exist: those metrics, and composites built on them, are skipped until they do.
 	for definition in default_metrics():
-		if not frappe.db.exists("AI Metric", definition["metric_key"]):
+		if not frappe.db.exists("AI Metric", definition["metric_key"]) and frappe.db.exists("DocType", definition["source_doctype"]):
 			frappe.get_doc(definition).insert(ignore_permissions=True)
 	for definition in default_composites():
-		if not frappe.db.exists("AI Metric Composite", definition["composite_key"]):
+		parts = [item["metric"] for item in definition.get("items") or []]
+		if not frappe.db.exists("AI Metric Composite", definition["composite_key"]) and all(frappe.db.exists("AI Metric", m) for m in parts):
 			frappe.get_doc(definition).insert(ignore_permissions=True)

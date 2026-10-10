@@ -17,6 +17,9 @@ def after_migrate():
 def ensure_standard_configuration():
     """Install or refresh app-managed defaults without storing secrets."""
     ensure_mcp_role()
+    # Before anything that syncs skills (agents, WhatsApp, chatbot): a skill row
+    # naming a tool missing from AI Skill Tool's options is rejected.
+    sync_tool_name_options()
     create_default_settings()
     create_default_gemini_ocr_settings()
     ensure_default_provider()
@@ -27,7 +30,6 @@ def ensure_standard_configuration():
     ensure_workspace_sidebar()
     ensure_workspace_sidebar_doc()
     ensure_desktop_icon()
-    sync_tool_name_options()
     sync_skills()
     ensure_standard_plugins()
     create_default_skill_grants()
@@ -271,6 +273,9 @@ def create_default_settings():
 
     settings = frappe.get_doc("AI Settings", "AI Settings")
     defaults = {
+        # mandatory legacy fields: a settings row left by an earlier install may have them empty
+        "provider_type": "OpenAI",
+        "default_model": "gpt-4o",
         "request_timeout": 120,
         "maximum_run_seconds": 300,
         "maximum_steps": 12,

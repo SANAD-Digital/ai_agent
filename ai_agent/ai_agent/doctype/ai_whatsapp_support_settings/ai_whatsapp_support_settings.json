@@ -47,7 +47,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "Administrator",
    "fieldname": "support_user",
    "fieldtype": "Link",
    "label": "Run As User",
@@ -84,12 +83,12 @@
    "label": "Create Support Issue"
   },
   {
-   "default": "Issue",
    "fieldname": "issue_doctype",
    "fieldtype": "Link",
    "label": "Support Issue DocType",
    "options": "DocType",
-   "depends_on": "eval:doc.create_issue"
+   "depends_on": "eval:doc.create_issue",
+   "description": "Set automatically to Issue (ERPNext) or HD Ticket (Helpdesk) when one is installed."
   },
   {
    "default": "6",
@@ -112,7 +111,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-28 00:00:00.000000",
+ "modified": "2026-10-10 09:10:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI WhatsApp Support Settings",

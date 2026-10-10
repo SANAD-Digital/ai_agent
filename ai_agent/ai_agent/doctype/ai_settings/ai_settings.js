@@ -106,9 +106,9 @@ function render_mcp_guide(frm) {
 			title: __("Troubleshooting"),
 			body: `<table class="table table-bordered mcp-table"><thead><tr><th>${__("Problem")}</th><th>${__("Cause and fix")}</th></tr></thead><tbody>${[
 				[__("The sign-in page does not appear"), __("Make sure <a href=\"/app/oauth-settings\">OAuth Settings</a> has Show Auth Server Metadata, Show Protected Resource Metadata and Enable Dynamic Client Registration turned on.")],
-				['"The authenticated user is not allowed to use MCP"', __("Give the user one of the roles in <b>Allowed MCP Roles</b> (<b>AI MCP User</b> by default).")],
-				['"MCP server is disabled"', __("Turn on <b>Enable MCP Server</b> on this page and save.")],
-				['"MCP request rate limit exceeded"', __("Raise <b>MCP Requests per Minute</b>; the limit is per user per minute.")],
+				[__("User not allowed: {0}", ['<code dir="ltr">The authenticated user is not allowed to use MCP</code>']), __("Give the user one of the roles in <b>Allowed MCP Roles</b> (<b>AI MCP User</b> by default).")],
+				[__("Server disabled: {0}", ['<code dir="ltr">MCP server is disabled</code>']), __("Turn on <b>Enable MCP Server</b> on this page and save.")],
+				[__("Rate limit reached: {0}", ['<code dir="ltr">MCP request rate limit exceeded</code>']), __("Raise <b>MCP Requests per Minute</b>; the limit is per user per minute.")],
 				[__("New tools do not appear after a system update"), __("Disconnect the connector in the tool and connect it again so it fetches the tool list again.")],
 				[__("It cannot create documents"), __("Turn on <b>Enable MCP Action Requests</b> and choose an agent that allows actions. Every change waits for your approval.")],
 			].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join("")}</tbody></table>`,

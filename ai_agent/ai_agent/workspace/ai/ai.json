@@ -1,7 +1,7 @@
 {
  "app": "ai_agent",
  "charts": [],
- "content": "[{\"id\":\"ai-head\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>المساعد الذكي</b></span>\",\"col\":12}},{\"id\":\"ai-intro\",\"type\":\"paragraph\",\"data\":{\"text\":\"اسأل عن بياناتك في المحادثة، واختر بـ <b>/</b> مهارة تختصر الطريق إلى المجال أو إضافة تعطيك ملفاً (Excel، PDF، صورة، رسم). من يرى ماذا يُحدَّد في جدول الصلاحيات داخل الإعدادات.\",\"col\":12}},{\"id\":\"ai-sc-0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"المحادثة\",\"col\":3}},{\"id\":\"ai-sc-1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"طلبات الموافقة\",\"col\":3}},{\"id\":\"ai-sc-2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"المهارات\",\"col\":3}},{\"id\":\"ai-sc-3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"الإضافات\",\"col\":3}},{\"id\":\"ai-sc-4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"الصلاحيات\",\"col\":3}},{\"id\":\"ai-spacer\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"ai-card-0\",\"type\":\"card\",\"data\":{\"card_name\":\"الاستخدام\",\"col\":6}},{\"id\":\"ai-card-1\",\"type\":\"card\",\"data\":{\"card_name\":\"القدرات\",\"col\":6}},{\"id\":\"ai-card-2\",\"type\":\"card\",\"data\":{\"card_name\":\"المراقبة\",\"col\":6}},{\"id\":\"ai-card-3\",\"type\":\"card\",\"data\":{\"card_name\":\"الإعدادات\",\"col\":6}}]",
+ "content": "[{\"id\": \"ai-head\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>AI Assistant</b></span>\", \"col\": 12}}, {\"id\": \"ai-intro\", \"type\": \"paragraph\", \"data\": {\"text\": \"Ask about your data in the chat. Type <b>/</b> to pick a skill that takes you straight to an area, or a plugin that gives you a file (Excel, PDF, image or chart). Who can use what is set in the permissions table in the settings.\", \"col\": 12}}, {\"id\": \"ai-sc-0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Chat\", \"col\": 3}}, {\"id\": \"ai-sc-1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Approval Requests\", \"col\": 3}}, {\"id\": \"ai-sc-2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Skills\", \"col\": 3}}, {\"id\": \"ai-sc-3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Plugins\", \"col\": 3}}, {\"id\": \"ai-sc-4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Permissions\", \"col\": 3}}, {\"id\": \"ai-spacer\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"ai-card-0\", \"type\": \"card\", \"data\": {\"card_name\": \"Usage\", \"col\": 6}}, {\"id\": \"ai-card-1\", \"type\": \"card\", \"data\": {\"card_name\": \"Capabilities\", \"col\": 6}}, {\"id\": \"ai-card-2\", \"type\": \"card\", \"data\": {\"card_name\": \"Monitoring\", \"col\": 6}}, {\"id\": \"ai-card-3\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 6}}]",
  "creation": "2026-07-14 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -16,7 +16,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "الاستخدام",
+   "label": "Usage",
    "link_count": 4,
    "onboard": 0,
    "type": "Card Break"
@@ -24,7 +24,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "المحادثة",
+   "label": "AI Chat",
    "link_count": 0,
    "link_to": "agent-workspace",
    "link_type": "Page",
@@ -34,7 +34,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "طلبات الموافقة",
+   "label": "Approval Requests",
    "link_count": 0,
    "link_to": "AI Approval Request",
    "link_type": "DocType",
@@ -44,7 +44,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "المحادثات",
+   "label": "Conversations",
    "link_count": 0,
    "link_to": "AI Chat Session",
    "link_type": "DocType",
@@ -54,7 +54,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "الذاكرة",
+   "label": "Memory",
    "link_count": 0,
    "link_to": "AI Memory",
    "link_type": "DocType",
@@ -64,7 +64,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "القدرات",
+   "label": "Capabilities",
    "link_count": 5,
    "onboard": 0,
    "type": "Card Break"
@@ -72,7 +72,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "الوكلاء",
+   "label": "Agents",
    "link_count": 0,
    "link_to": "AI Agent",
    "link_type": "DocType",
@@ -82,7 +82,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "المهارات",
+   "label": "Skills",
    "link_count": 0,
    "link_to": "AI Skill",
    "link_type": "DocType",
@@ -92,7 +92,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "الإضافات",
+   "label": "Plugins",
    "link_count": 0,
    "link_to": "AI Plugin",
    "link_type": "DocType",
@@ -102,7 +102,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "منح المهارات للوكلاء",
+   "label": "Skill Grants",
    "link_count": 0,
    "link_to": "AI Skill Grant",
    "link_type": "DocType",
@@ -112,7 +112,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "المؤشرات",
+   "label": "Metrics",
    "link_count": 0,
    "link_to": "AI Metric",
    "link_type": "DocType",
@@ -122,7 +122,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "المراقبة",
+   "label": "Monitoring",
    "link_count": 3,
    "onboard": 0,
    "type": "Card Break"
@@ -130,7 +130,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "التشغيلات",
+   "label": "Runs",
    "link_count": 0,
    "link_to": "AI Run",
    "link_type": "DocType",
@@ -140,7 +140,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "استدعاءات الأدوات",
+   "label": "Tool Calls",
    "link_count": 0,
    "link_to": "AI Tool Call",
    "link_type": "DocType",
@@ -150,7 +150,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "المخرجات",
+   "label": "Artifacts",
    "link_count": 0,
    "link_to": "AI Artifact",
    "link_type": "DocType",
@@ -160,7 +160,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "الإعدادات",
+   "label": "Settings",
    "link_count": 5,
    "onboard": 0,
    "type": "Card Break"
@@ -168,7 +168,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "إعدادات الذكاء الاصطناعي والصلاحيات",
+   "label": "AI Settings & Permissions",
    "link_count": 0,
    "link_to": "AI Settings",
    "link_type": "DocType",
@@ -178,7 +178,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "مزوّدو النماذج",
+   "label": "Model Providers",
    "link_count": 0,
    "link_to": "AI Provider",
    "link_type": "DocType",
@@ -188,7 +188,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "فقاعة الدعم",
+   "label": "Quick Support Window",
    "link_count": 0,
    "link_to": "AI Chatbot Settings",
    "link_type": "DocType",
@@ -198,7 +198,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "دعم واتساب",
+   "label": "WhatsApp Support",
    "link_count": 0,
    "link_to": "AI WhatsApp Support Settings",
    "link_type": "DocType",
@@ -208,7 +208,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "قراءة الصور (OCR)",
+   "label": "Image Reading (OCR)",
    "link_count": 0,
    "link_to": "Gemini OCR Settings",
    "link_type": "DocType",
@@ -235,7 +235,7 @@
   {
    "color": "Orange",
    "doc_view": "",
-   "label": "المحادثة",
+   "label": "AI Chat",
    "link_to": "agent-workspace",
    "type": "Page"
   },
@@ -243,7 +243,7 @@
    "color": "Yellow",
    "doc_view": "",
    "format": "{} معلّقة",
-   "label": "طلبات الموافقة",
+   "label": "Approval Requests",
    "link_to": "AI Approval Request",
    "stats_filter": "{\"status\":\"Pending\"}",
    "type": "DocType"
@@ -251,21 +251,21 @@
   {
    "color": "Purple",
    "doc_view": "",
-   "label": "المهارات",
+   "label": "Skills",
    "link_to": "AI Skill",
    "type": "DocType"
   },
   {
    "color": "Blue",
    "doc_view": "",
-   "label": "الإضافات",
+   "label": "Plugins",
    "link_to": "AI Plugin",
    "type": "DocType"
   },
   {
    "color": "Grey",
    "doc_view": "",
-   "label": "الصلاحيات",
+   "label": "Permissions",
    "link_to": "AI Settings",
    "type": "DocType"
   }

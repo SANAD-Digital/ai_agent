@@ -17,7 +17,7 @@ class AIProvider(Document):
 		# an embedding model fails every chat request (400 from the provider)
 		bad = [name for name in [row.model_name for row in self.models or []] + [self.default_model or ""] if "embed" in (name or "").lower()]
 		if bad:
-			frappe.throw(_("هذا نموذج تضمين (embedding) ولا يصلح للمحادثة: {0}. استخدم «جلب النماذج من المزوّد» لاختيار نماذج المحادثة.").format(", ".join(sorted(set(bad)))))
+			frappe.throw(_("{0} is an embedding model and cannot be used for chat. Use “Fetch Models from Provider” to pick chat models.").format(", ".join(sorted(set(bad)))))
 
 	def on_update(self):
 		if self.is_default:
@@ -90,7 +90,7 @@ def fetch_models(provider):
 		message = str(exc)
 		if config.get("api_key"):
 			message = message.replace(config["api_key"], "***")
-		frappe.throw(_("تعذّر جلب النماذج من المزوّد: {0}").format(message[:300]))
+		frappe.throw(_("Could not fetch the models from the provider: {0}").format(message[:300]))
 	existing = {row.model_name for row in doc.models or []}
 	for m in models:
 		m["exists"] = m["model_name"] in existing

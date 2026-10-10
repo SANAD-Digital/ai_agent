@@ -18,7 +18,7 @@
    "fieldname": "reference_doctype",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "النوع",
+   "label": "Type",
    "options": "AI Skill\nAI Plugin",
    "reqd": 1
   },
@@ -27,7 +27,7 @@
    "fieldname": "reference_name",
    "fieldtype": "Dynamic Link",
    "in_list_view": 1,
-   "label": "المهارة / الإضافة",
+   "label": "Skill / Plugin",
    "options": "reference_doctype",
    "reqd": 1
   },
@@ -36,7 +36,7 @@
    "fieldname": "role",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "الدور",
+   "label": "Role",
    "options": "Role"
   },
   {
@@ -44,7 +44,7 @@
    "fieldname": "user",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "المستخدم",
+   "label": "User",
    "options": "User"
   },
   {
@@ -53,12 +53,12 @@
    "fieldname": "allow",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "سماح"
+   "label": "Allow"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-10-08 22:00:00.000000",
+ "modified": "2026-10-11 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Access Rule",

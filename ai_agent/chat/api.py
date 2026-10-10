@@ -45,7 +45,7 @@ def session_dict(doc, preview=None, context_tokens=None):
     model = get("model") or ""
     return {
         "name": doc.name,
-        "title": get("title") or _("محادثة جديدة"),
+        "title": get("title") or _("New Conversation"),
         "agent": get("agent"),
         "company": get("company"),
         "provider": get("provider"),
@@ -301,7 +301,7 @@ def create_session(agent=None, company=None, provider=None, model=None, title=No
     provider, model = _resolve_provider_model(provider, model, agent)
     doc = frappe.get_doc({
         "doctype": "AI Chat Session",
-        "title": (title or "").strip()[:80] or _("محادثة جديدة"),
+        "title": (title or "").strip()[:80] or _("New Conversation"),
         "user": frappe.session.user,
         "agent": agent,
         "company": company or None,
@@ -454,11 +454,11 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
     text = (text or "").strip()
     files = _parse_list(files)
     if not text and not files:
-        frappe.throw(_("اكتب رسالة أو أرفق ملفاً."))
+        frappe.throw(_("Type a message or attach a file."))
     if len(text) > MAX_TEXT:
-        frappe.throw(_("الرسالة طويلة جداً."))
+        frappe.throw(_("The message is too long."))
     if len(files) > MAX_FILES:
-        frappe.throw(_("يمكن إرفاق {0} ملفات كحد أقصى.").format(MAX_FILES))
+        frappe.throw(_("You can attach up to {0} files.").format(MAX_FILES))
     user = frappe.session.user
 
     if session:
@@ -473,7 +473,7 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
             p, m = _resolve_provider_model(provider or sdoc.provider, model or sdoc.model, agent or sdoc.agent)
             if p != sdoc.provider or m != sdoc.model:
                 changes.update({"provider": p, "model": m})
-        if sdoc.title in (None, "", _("محادثة جديدة")) and text and cint(sdoc.message_count) == 0:
+        if sdoc.title in (None, "", _("New Conversation")) and text and cint(sdoc.message_count) == 0:
             changes["title"] = " ".join(text.split())[:80]
         if changes:
             sdoc.db_set(changes, update_modified=False)
@@ -484,7 +484,7 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
 
     _assert_agent(sdoc.agent)
     if frappe.db.exists("AI Chat Message", {"session": sdoc.name, "status": ("in", ("pending", "streaming"))}):
-        frappe.throw(_("انتظر انتهاء الرد الحالي أو أوقفه أولاً."))
+        frappe.throw(_("Wait for the current reply to finish, or stop it first."))
 
     seq = cint(sdoc.last_seq)
     user_msg = frappe.get_doc({
@@ -507,7 +507,7 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
         "agent": sdoc.agent,
         "user": user,
         "company": sdoc.company,
-        "prompt": text or _("(مرفقات)"),
+        "prompt": text or _("(attachments)"),
         "status": "Queued",
         "session": sdoc.name,
         "chat_session": sdoc.name,
@@ -554,7 +554,7 @@ def _run_options(skill=None, plugin=None, thinking=None):
         from ai_agent.runtime import access
 
         if not access.is_allowed(access.PLUGIN, plugin):
-            frappe.throw(_("الإضافة غير متاحة لك."), frappe.PermissionError)
+            frappe.throw(_("This plugin is not available to you."), frappe.PermissionError)
         parts.append(f"plugin:{plugin}")
     if thinking in ("off", "adaptive", "on"):
         parts.append(f"thinking:{thinking}")
@@ -638,7 +638,7 @@ def edit_message(message, text):
         frappe.throw(_("Only your own message can be edited."))
     text = (text or "").strip()
     if not text:
-        frappe.throw(_("اكتب رسالة."))
+        frappe.throw(_("Type a message."))
     later = frappe.get_all("AI Chat Message", filters={"session": doc.session, "seq": (">", doc.seq)}, fields=["name", "status", "role"], order_by="seq asc")
     for m in later:
         if m.status in ("pending", "streaming"):

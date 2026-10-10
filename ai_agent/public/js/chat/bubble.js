@@ -53,8 +53,8 @@
         if (ui) return ui;
         boot = boot || {};
         const fab = document.getElementById("ai-chat-bubble-fab");
-        const agentName = (boot.agent && (boot.agent.agent_name || boot.agent.name)) || __("المساعد");
-        const title = boot.title || __("المساعد");
+        const agentName = (boot.agent && (boot.agent.agent_name || boot.agent.name)) || __("Assistant");
+        const title = boot.title || __("Assistant");
 
         let mine = boot.session || null; // the bubble's own session
         let loadedFor = null;            // session whose messages we put in the store
@@ -77,10 +77,10 @@
             });
             return b;
         };
-        const btnNew = iconBtn("plus", __("محادثة جديدة"), newChat);
-        const btnHistory = iconBtn("clock", __("المحادثات السابقة"), toggleHistory);
-        const btnWorkspace = iconBtn("external", __("فتح في مساحة العمل"), openInWorkspace);
-        const btnClose = iconBtn("x", __("إغلاق"), close);
+        const btnNew = iconBtn("plus", __("New Conversation"), newChat);
+        const btnHistory = iconBtn("clock", __("Previous conversations"), toggleHistory);
+        const btnWorkspace = iconBtn("external", __("Open in the full chat"), openInWorkspace);
+        const btnClose = iconBtn("x", __("Close"), close);
         btnHistory.setAttribute("aria-haspopup", "true");
 
         const header = h(
@@ -89,7 +89,7 @@
             h("div.ac-support-titles", h("div.ac-support-title", { text: title }), h("div.ac-support-sub", { text: agentName })),
             h("div.ac-support-actions", btnNew, btnHistory, btnWorkspace, btnClose)
         );
-        const history = h("div.ac-support-history", { role: "dialog", aria: { label: __("المحادثات السابقة") } });
+        const history = h("div.ac-support-history", { role: "dialog", aria: { label: __("Previous conversations") } });
         history.hidden = true;
 
         const list = AIChat.messageList.create({
@@ -108,7 +108,7 @@
             listSkills: () => frappe.xcall(SUPPORT + "list_skills"),
             state: AIChat.composer.newState(),
             boot: {},
-            placeholder: __("اكتب سؤالك… (/ للمهارات والإضافات)"),
+            placeholder: __("Type your question… (/ for skills and plugins)"),
             warning: boot.third_party_warning || "",
             send,
             onStop: stop,
@@ -144,7 +144,7 @@
                     });
                     return b;
                 });
-            const hello = boot.welcome_message || __("مرحباً{0}، كيف أساعدك اليوم؟", [boot.user && boot.user.full_name ? " " + boot.user.full_name : ""]);
+            const hello = boot.welcome_message || __("Hello{0}, how can I help you today?", [boot.user && boot.user.full_name ? " " + boot.user.full_name : ""]);
             return h(
                 "div.ac-support-welcome",
                 h("div.ac-msg-head", h("span.ac-avatar", icon("sparkles")), h("span.ac-msg-author", { text: agentName })),
@@ -162,7 +162,7 @@
                     doctype: doc.doctype,
                     name: doc.name,
                     sticky: true,
-                    label: __("حول: {0} · {1}", [__(doc.doctype), doc.name]),
+                    label: __("About: {0} · {1}", [__(doc.doctype), doc.name]),
                 });
             } else {
                 composer.setContext(null);
@@ -317,7 +317,7 @@
             history.hidden = false;
             btnHistory.classList.add("is-active");
             AIChat.clear(history);
-            history.appendChild(h("div.ac-popover-title", { text: __("المحادثات السابقة") }));
+            history.appendChild(h("div.ac-popover-title", { text: __("Previous conversations") }));
             const body = h("div.ac-support-history-list", h("div.ac-popover-empty", icon("loader", "ac-spin")));
             history.appendChild(body);
             frappe
@@ -332,17 +332,17 @@
         function paintHistory(body, sessions) {
             AIChat.clear(body);
             if (!sessions.length) {
-                body.appendChild(h("div.ac-popover-empty", { text: __("لا محادثات سابقة") }));
+                body.appendChild(h("div.ac-popover-empty", { text: __("No previous conversations") }));
                 return;
             }
             sessions.forEach((s) => {
                 const main = h(
                     "button.ac-session-main",
                     { type: "button" },
-                    h("span.ac-session-line", h("span.ac-session-title", { text: s.title || __("محادثة بلا عنوان") }), h("span.ac-session-time", { text: relTime(s.last_message_on) })),
+                    h("span.ac-session-line", h("span.ac-session-title", { text: s.title || __("Untitled conversation") }), h("span.ac-session-time", { text: relTime(s.last_message_on) })),
                     s.preview ? h("span.ac-session-preview", { text: s.preview }) : null
                 );
-                const del = h("button.ac-icon-btn.ac-session-menu-btn", { type: "button", title: __("حذف"), aria: { label: __("حذف") } }, icon("trash"));
+                const del = h("button.ac-icon-btn.ac-session-menu-btn", { type: "button", title: __("Delete"), aria: { label: __("Delete") } }, icon("trash"));
                 const row = h("div.ac-session", { class: mine && mine.name === s.name ? "is-current" : null, dataset: { name: s.name } }, main, del);
                 main.addEventListener("click", () => openSession(s));
                 del.addEventListener("click", (e) => {
@@ -355,9 +355,9 @@
 
         function confirmDelete(body, row, s) {
             if (row.querySelector(".ac-confirm")) return;
-            const yes = h("button.ac-btn.ac-btn-danger.ac-btn-xs", { type: "button", text: __("حذف") });
-            const no = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button", text: __("إلغاء") });
-            const box = h("div.ac-confirm", h("span", { text: __("حذف المحادثة؟") }), yes, no);
+            const yes = h("button.ac-btn.ac-btn-danger.ac-btn-xs", { type: "button", text: __("Delete") });
+            const no = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button", text: __("Cancel") });
+            const box = h("div.ac-confirm", h("span", { text: __("Delete this conversation?") }), yes, no);
             row.appendChild(box);
             row.classList.add("is-confirming");
             no.addEventListener("click", (e) => {

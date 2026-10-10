@@ -33,27 +33,27 @@
 
     const GROUP_ORDER = ["pinned", "today", "yesterday", "week", "older"];
     const GROUP_LABEL = {
-        pinned: () => __("مثبّت"),
-        today: () => __("اليوم"),
-        yesterday: () => __("أمس"),
-        week: () => __("آخر 7 أيام"),
-        older: () => __("أقدم"),
+        pinned: () => __("Pinned"),
+        today: () => __("Today"),
+        yesterday: () => __("Yesterday"),
+        week: () => __("Last 7 days"),
+        older: () => __("Older"),
     };
 
     function create(ctx) {
         const api = ctx.api || AIChat.api;
         const list = h("div.ac-sessions", { role: "list" });
-        const search = h("input.ac-search-input", { type: "search", placeholder: __("بحث في المحادثات"), aria: { label: __("بحث") } });
-        const btnNew = h("button.ac-btn.ac-btn-new", { type: "button" }, icon("plus"), h("span", { text: __("محادثة جديدة") }));
-        const btnCollapse = h("button.ac-icon-btn.ac-sidebar-collapse", { type: "button", title: __("طيّ الشريط"), aria: { label: __("طيّ الشريط") } }, icon("panel"));
-        const btnArchived = h("button.ac-sidebar-foot-btn", { type: "button" }, icon("archive"), h("span", { text: __("عرض المؤرشفة") }));
-        const btnMemory = h("button.ac-sidebar-foot-btn.ac-sidebar-memory", { type: "button", title: __("الذاكرة (Ctrl+M)") }, icon("brain"), h("span", { text: __("الذاكرة") }));
-        const empty = h("div.ac-sidebar-empty", { text: __("لا محادثات بعد") });
+        const search = h("input.ac-search-input", { type: "search", placeholder: __("Search conversations"), aria: { label: __("Search") } });
+        const btnNew = h("button.ac-btn.ac-btn-new", { type: "button" }, icon("plus"), h("span", { text: __("New Conversation") }));
+        const btnCollapse = h("button.ac-icon-btn.ac-sidebar-collapse", { type: "button", title: __("Collapse sidebar"), aria: { label: __("Collapse sidebar") } }, icon("panel"));
+        const btnArchived = h("button.ac-sidebar-foot-btn", { type: "button" }, icon("archive"), h("span", { text: __("Show archived") }));
+        const btnMemory = h("button.ac-sidebar-foot-btn.ac-sidebar-memory", { type: "button", title: __("Memory (Ctrl+M)") }, icon("brain"), h("span", { text: __("Memory") }));
+        const empty = h("div.ac-sidebar-empty", { text: __("No conversations yet") });
 
         const el = h(
             "aside.ac-sidebar",
-            { aria: { label: __("المحادثات") } },
-            h("div.ac-sidebar-head", h("div.ac-brand", icon("sparkles"), h("span", { text: __("المساعد") })), btnCollapse),
+            { aria: { label: __("Conversations") } },
+            h("div.ac-sidebar-head", h("div.ac-brand", icon("sparkles"), h("span", { text: __("Assistant") })), btnCollapse),
             h("div.ac-sidebar-new", btnNew),
             h("div.ac-search", icon("search"), search),
             list,
@@ -79,7 +79,7 @@
         backdrop.addEventListener("click", () => setOpen(false));
         btnArchived.addEventListener("click", () => {
             includeArchived = !includeArchived;
-            btnArchived.lastChild.textContent = includeArchived ? __("إخفاء المؤرشفة") : __("عرض المؤرشفة");
+            btnArchived.lastChild.textContent = includeArchived ? __("Hide archived") : __("Show archived");
             btnArchived.classList.toggle("is-active", includeArchived);
             fetch();
         });
@@ -122,10 +122,10 @@
 
         function row(session) {
             const current = store.state.current && store.state.current.name === session.name;
-            const title = h("span.ac-session-title", { text: session.title || __("محادثة بلا عنوان") });
+            const title = h("span.ac-session-title", { text: session.title || __("Untitled conversation") });
             const preview = h("span.ac-session-preview", { text: session.preview || session.agent || "" });
             const time = h("span.ac-session-time", { text: relTime(session.last_message_on) });
-            const btnMenu = h("button.ac-icon-btn.ac-session-menu-btn", { type: "button", title: __("خيارات"), aria: { label: __("خيارات"), haspopup: "menu" } }, icon("more"));
+            const btnMenu = h("button.ac-icon-btn.ac-session-menu-btn", { type: "button", title: __("Options"), aria: { label: __("Options"), haspopup: "menu" } }, icon("more"));
             const main = h("button.ac-session-main", { type: "button" }, h("span.ac-session-line", title, time), preview);
             const node = h(
                 "div.ac-session",
@@ -158,10 +158,10 @@
             if (openMenu && openMenu.parentNode === node) return closeMenu();
             closeMenu();
             const items = [
-                ["edit", __("إعادة تسمية"), () => startRename(node, session)],
-                ["pin", session.pinned ? __("إلغاء التثبيت") : __("تثبيت"), () => pin(session)],
-                ["archive", session.status === "Archived" ? __("إلغاء الأرشفة") : __("أرشفة"), () => archive(session)],
-                ["trash", __("حذف"), () => showConfirm(node, session), "is-danger"],
+                ["edit", __("Rename"), () => startRename(node, session)],
+                ["pin", session.pinned ? __("Unpin") : __("Pin"), () => pin(session)],
+                ["archive", session.status === "Archived" ? __("Unarchive") : __("Archive"), () => archive(session)],
+                ["trash", __("Delete"), () => showConfirm(node, session), "is-danger"],
             ];
             const menu = h(
                 "div.ac-menu",
@@ -183,7 +183,7 @@
         function startRename(node, session, silent) {
             editing = session.name;
             const main = node.querySelector(".ac-session-main");
-            const input = h("input.ac-rename-input", { type: "text", value: session.title || "", aria: { label: __("عنوان المحادثة") } });
+            const input = h("input.ac-rename-input", { type: "text", value: session.title || "", aria: { label: __("Conversation title") } });
             const form = h("div.ac-rename", input);
             main.hidden = true;
             node.insertBefore(form, main);
@@ -217,9 +217,9 @@
 
         function showConfirm(node, session, silent) {
             confirming = session.name;
-            const yes = h("button.ac-btn.ac-btn-danger.ac-btn-xs", { type: "button", text: __("حذف") });
-            const no = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button", text: __("إلغاء") });
-            const box = h("div.ac-confirm", h("span", { text: __("حذف المحادثة؟") }), yes, no);
+            const yes = h("button.ac-btn.ac-btn-danger.ac-btn-xs", { type: "button", text: __("Delete") });
+            const no = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button", text: __("Cancel") });
+            const box = h("div.ac-confirm", h("span", { text: __("Delete this conversation?") }), yes, no);
             node.appendChild(box);
             node.classList.add("is-confirming");
             const done = () => {
@@ -272,7 +272,7 @@
             const sessions = store.state.sessions.filter((s) => includeArchived || s.status !== "Archived");
             if (!sessions.length) {
                 list.appendChild(empty);
-                empty.textContent = query ? __("لا نتائج") : __("لا محادثات بعد");
+                empty.textContent = query ? __("No results") : __("No conversations yet");
                 return;
             }
             const groups = new Map();

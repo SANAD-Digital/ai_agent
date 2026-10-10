@@ -309,7 +309,7 @@ def _wait_for_available_memory() -> None:
         if time.monotonic() >= deadline:
             raise LocalOCRExecutionError(
                 _(
-                    "الذاكرة المتاحة على الخادم ({0}MB) أقل من الحد المطلوب لتشغيل OCR المحلي ({1}MB). "
+                    "The server has {0}MB of free memory, less than the {1}MB local OCR needs. "
                     "تم إيقاف قراءة الصفحة حتى لا يتأثر الموقع؛ أعد المحاولة لاحقًا أو أخفض ai_agent_ocr_min_available_mb."
                 ).format(available, required)
             )
@@ -361,7 +361,7 @@ def _run_ocr_subprocess(
             except subprocess.TimeoutExpired:
                 if cancel_check and cancel_check():
                     _stop_process_tree(process)
-                    raise LocalOCRExecutionError(_("تم إيقاف OCR بناءً على طلب الإلغاء."))
+                    raise LocalOCRExecutionError(_("OCR stopped as requested."))
                 if timeout and (time.monotonic() - started) > timeout:
                     _stop_process_tree(process)
                     raise LocalOCRExecutionError(

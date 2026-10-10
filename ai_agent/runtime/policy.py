@@ -137,8 +137,7 @@ def assert_provider_allowed(provider_type):
 def third_party_warning():
 	"""UI warning text when data leaves to a non-Anthropic provider, else ""."""
 	if provider_mode() == "Own Key" and cint(_settings().get("allow_third_party_providers")):
-		return (
-			"تنبيه: وضع المفتاح الخاص مفعّل مع مزودين خارجيين. البيانات في الأسئلة ونتائج الأدوات "
-			"والمرفقات تُرسل إلى المزود المختار (مثل DeepSeek أو Gemini)."
+		return frappe._(
+			"Note: Own Key mode is on with third-party providers. Questions, tool results and attachments are sent to the chosen provider (such as DeepSeek or Gemini)."
 		)
 	return ""

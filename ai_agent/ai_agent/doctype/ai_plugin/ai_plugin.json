@@ -20,10 +20,10 @@
  ],
  "fields": [
   {
-   "description": "يُكتب بعد / في الشات، مثل excel",
+   "description": "Typed after / in the chat, e.g. excel",
    "fieldname": "plugin_name",
    "fieldtype": "Data",
-   "label": "المعرّف",
+   "label": "Identifier",
    "reqd": 1,
    "unique": 1
   },
@@ -31,7 +31,7 @@
    "fieldname": "title",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "الاسم",
+   "label": "Name",
    "reqd": 1
   },
   {
@@ -39,13 +39,13 @@
    "fieldname": "enabled",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "مفعّلة"
+   "label": "Enabled"
   },
   {
-   "description": "يديرها التطبيق ويحدّثها مع كل ترقية",
+   "description": "Managed by the app and refreshed on every upgrade",
    "fieldname": "is_standard",
    "fieldtype": "Check",
-   "label": "قياسية",
+   "label": "Standard",
    "read_only": 1
   },
   {
@@ -56,40 +56,40 @@
    "fieldname": "output",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "المُخرَج",
+   "label": "Output Type",
    "options": "Excel\nPDF\nImage\nChart\nCSV\nOther"
   },
   {
-   "description": "اسم الأداة في سجل الأدوات، مثل export.excel",
+   "description": "Registered tool name, e.g. export.excel",
    "fieldname": "tool",
    "fieldtype": "Data",
-   "label": "الأداة",
+   "label": "Tool",
    "reqd": 1
   },
   {
    "fieldname": "icon",
    "fieldtype": "Data",
-   "label": "الأيقونة"
+   "label": "Icon"
   },
   {
    "fieldname": "section_text",
    "fieldtype": "Section Break"
   },
   {
-   "description": "يظهر تحت الاسم في قائمة /",
+   "description": "Shown under the name in the / menu",
    "fieldname": "description",
    "fieldtype": "Small Text",
-   "label": "الوصف"
+   "label": "Description"
   },
   {
-   "description": "تُرسل للنموذج حين يختار المستخدم الإضافة",
+   "description": "Sent to the model when the user picks the plugin",
    "fieldname": "instructions",
    "fieldtype": "Long Text",
-   "label": "تعليمات للنموذج"
+   "label": "Instructions for the model"
   }
  ],
  "links": [],
- "modified": "2026-10-08 22:00:00.000000",
+ "modified": "2026-10-11 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Plugin",

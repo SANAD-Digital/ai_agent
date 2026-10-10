@@ -30,7 +30,7 @@ SUGGESTIONS_AR = [
 
 def _assert_access():
     if not bot_settings.is_enabled() or not bot_settings.can_access():
-        frappe.throw(_("الدعم الفني غير متاح لحسابك."), frappe.PermissionError)
+        frappe.throw(_("Technical support is not available for your account."), frappe.PermissionError)
 
 
 def _agent():
@@ -38,7 +38,7 @@ def _agent():
     if not frappe.db.get_value("AI Agent", name, "enabled"):
         name = frappe.db.get_value("AI Agent", {"is_default": 1, "enabled": 1}, "name") or frappe.db.get_value("AI Agent", {"enabled": 1}, "name")
     if not name:
-        frappe.throw(_("لم يُضبط وكيل للدعم الفني."))
+        frappe.throw(_("No technical support agent is set up."))
     return name
 
 
@@ -88,12 +88,12 @@ def send_message(text=None, session=None, files=None, skill=None, plugin=None, c
     _assert_access()
     if session:
         if frappe.db.get_value("AI Chat Session", session, "surface") != SURFACE:
-            frappe.throw(_("هذه ليست محادثة دعم."), frappe.PermissionError)
+            frappe.throw(_("This is not a support conversation."), frappe.PermissionError)
     else:
         agent = _agent()
         provider, model = api._resolve_provider_model(None, bot_settings.model(), agent)
         company = bot_settings.company()
-        title = " ".join((text or "").split())[:80] or _("محادثة دعم")
+        title = " ".join((text or "").split())[:80] or _("Support conversation")
         doc = frappe.get_doc({
             "doctype": "AI Chat Session",
             "title": title,

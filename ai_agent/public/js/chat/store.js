@@ -503,7 +503,7 @@
                     kind: "status",
                     status: "completed",
                     _local: true,
-                    text: AIChat.__("تم ضغط السياق: {0} ← {1} رمز، حُذفت {2} رسالة", [
+                    text: AIChat.__("Conversation condensed: {0} → {1} tokens, {2} messages summarized", [
                         AIChat.fmtTokens(ev.before_tokens),
                         AIChat.fmtTokens(ev.after_tokens),
                         ev.dropped_messages || 0,
@@ -528,7 +528,7 @@
 
             case "message.failed":
                 msg.status = "failed";
-                msg.error = ev.error || AIChat.__("فشل توليد الرد");
+                msg.error = ev.error || AIChat.__("The reply could not be generated");
                 msg.error_detail = ev.detail || null;
                 msg.error_kind = ev.kind || null;
                 msg.completed_at = msg.completed_at || nowTs();

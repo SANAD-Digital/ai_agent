@@ -20,14 +20,14 @@
 
     const TYPE_ORDER = ["Preference", "Context", "Mapping"];
     const TYPE_LABEL = {
-        Preference: () => __("تفضيلات"),
-        Context: () => __("سياق"),
-        Mapping: () => __("تعيينات"),
+        Preference: () => __("Preferences"),
+        Context: () => __("Context"),
+        Mapping: () => __("Mappings"),
     };
     const SCOPE_LABEL = {
-        User: () => __("مستخدم"),
-        Agent: () => __("وكيل"),
-        Company: () => __("شركة"),
+        User: () => __("User"),
+        Agent: () => __("Agent"),
+        Company: () => __("Company"),
     };
 
     function create(ctx) {
@@ -35,12 +35,12 @@
         const list = h("div.ac-sheet-body");
         const status = h("div.ac-sheet-status");
         status.hidden = true;
-        const btnClose = h("button.ac-icon-btn", { type: "button", title: __("إغلاق"), aria: { label: __("إغلاق") } }, icon("x"));
-        const btnRemember = h("button.ac-btn.ac-btn-primary.ac-btn-remember", { type: "button" }, icon("sparkles"), h("span", { text: __("تذكّر هذه المحادثة الآن") }));
+        const btnClose = h("button.ac-icon-btn", { type: "button", title: __("Close"), aria: { label: __("Close") } }, icon("x"));
+        const btnRemember = h("button.ac-btn.ac-btn-primary.ac-btn-remember", { type: "button" }, icon("sparkles"), h("span", { text: __("Remember this conversation now") }));
         const el = h(
             "aside.ac-sheet",
-            { role: "dialog", aria: { label: __("الذاكرة"), modal: "false" } },
-            h("div.ac-sheet-head", h("div.ac-sheet-title", icon("brain"), h("span", { text: __("الذاكرة") })), btnClose),
+            { role: "dialog", aria: { label: __("Memory"), modal: "false" } },
+            h("div.ac-sheet-head", h("div.ac-sheet-title", icon("brain"), h("span", { text: __("Memory") })), btnClose),
             h("div.ac-sheet-actions", btnRemember, status),
             list
         );
@@ -67,7 +67,7 @@
 
         function paintRememberState() {
             btnRemember.disabled = busy || !store.state.current || !enabled;
-            btnRemember.title = store.state.current ? "" : __("افتح محادثة أولاً");
+            btnRemember.title = store.state.current ? "" : __("Open a conversation first");
         }
 
         function showStatus(text, kind) {
@@ -83,14 +83,14 @@
             paintRememberState();
             const label = btnRemember.lastChild;
             const old = label.textContent;
-            label.textContent = __("جارٍ الاستخلاص…");
+            label.textContent = __("Extracting…");
             btnRemember.classList.add("is-busy");
             btnRemember.firstChild.replaceWith(icon("loader", "ac-spin"));
             showStatus("");
             api.remember_now({ session: s.name })
                 .then((r) => {
                     const n = (r && r.stored) || 0;
-                    showStatus(n ? __("تم حفظ {0}", [n]) : __("لا جديد يستحق الحفظ"), n ? "success" : "info");
+                    showStatus(n ? __("Saved {0}", [n]) : __("Nothing new worth saving"), n ? "success" : "info");
                     return refresh();
                 })
                 .catch((e) => showStatus(AIChat.errorMessage(e), "error"))
@@ -125,7 +125,7 @@
         }
 
         function row(m) {
-            const btnDel = h("button.ac-icon-btn.ac-memory-delete", { type: "button", title: __("حذف"), aria: { label: __("حذف") } }, icon("trash"));
+            const btnDel = h("button.ac-icon-btn.ac-memory-delete", { type: "button", title: __("Delete"), aria: { label: __("Delete") } }, icon("trash"));
             const meta = [m.agent, m.entity, m.scope && SCOPE_LABEL[m.scope] ? SCOPE_LABEL[m.scope]() : m.scope, relTime(m.modified)].filter(Boolean);
             const node = h(
                 "div.ac-memory",
@@ -141,9 +141,9 @@
         function confirmDelete(node, m) {
             if (node.querySelector(".ac-confirm")) return;
             confirming = m.name;
-            const yes = h("button.ac-btn.ac-btn-danger.ac-btn-xs", { type: "button", text: __("حذف") });
-            const no = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button", text: __("إلغاء") });
-            const box = h("div.ac-confirm", h("span", { text: __("حذف هذه الذاكرة؟") }), yes, no);
+            const yes = h("button.ac-btn.ac-btn-danger.ac-btn-xs", { type: "button", text: __("Delete") });
+            const no = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button", text: __("Cancel") });
+            const box = h("div.ac-confirm", h("span", { text: __("Delete this memory?") }), yes, no);
             node.appendChild(box);
             node.classList.add("is-confirming");
             const done = () => {
@@ -170,10 +170,10 @@
         function paint() {
             AIChat.clear(list);
             if (!enabled) {
-                list.appendChild(h("div.ac-sheet-note", icon("info"), h("span", { text: __("الذاكرة معطّلة في الإعدادات؛ لن تُستخلص حقائق جديدة.") })));
+                list.appendChild(h("div.ac-sheet-note", icon("info"), h("span", { text: __("Memory is turned off in the settings; nothing new will be remembered.") })));
             }
             if (!memories.length) {
-                list.appendChild(h("div.ac-sheet-empty", h("div.ac-empty-mark", icon("brain")), h("p", { text: __("لا ذاكرة بعد — تُستخلص تلقائياً بعد كل محادثة") })));
+                list.appendChild(h("div.ac-sheet-empty", h("div.ac-empty-mark", icon("brain")), h("p", { text: __("Nothing remembered yet — it is learned automatically after each conversation") })));
                 return;
             }
             const groups = new Map();

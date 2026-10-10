@@ -32,7 +32,7 @@
 
         const inner = h("div.ac-messages-inner");
         const messagesEl = h("div.ac-messages", { role: "log", aria: { live: "polite" } }, inner);
-        const pill = h("button.ac-scroll-pill", { type: "button" }, icon("arrow-down"), h("span", { text: __("الأحدث") }));
+        const pill = h("button.ac-scroll-pill", { type: "button" }, icon("arrow-down"), h("span", { text: __("Latest") }));
         pill.hidden = true;
         const el = h("div.ac-messages-wrap", messagesEl, pill);
 
@@ -93,7 +93,7 @@
                 earlierBtn = null;
             }
             if (!store.state.hasMore || !store.state.current) return;
-            earlierBtn = h("button.ac-btn.ac-btn-ghost.ac-earlier", { type: "button" }, icon("arrow-down", "ac-rotate"), h("span", { text: __("تحميل الأقدم") }));
+            earlierBtn = h("button.ac-btn.ac-btn-ghost.ac-earlier", { type: "button" }, icon("arrow-down", "ac-rotate"), h("span", { text: __("Load older") }));
             earlierBtn.addEventListener("click", loadEarlier);
             inner.insertBefore(earlierBtn, inner.firstChild);
         }

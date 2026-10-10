@@ -90,7 +90,7 @@
         const frame = document.createElement("iframe");
         frame.className = "ac-view-frame";
         frame.setAttribute("sandbox", "allow-scripts allow-popups allow-downloads allow-popups-to-escape-sandbox");
-        frame.setAttribute("title", AIChat.__("عرض النتيجة"));
+        frame.setAttribute("title", AIChat.__("Show result"));
         frame.setAttribute("loading", "lazy");
         frame.setAttribute("scrolling", "no");
         frame.style.height = "120px";
@@ -112,7 +112,7 @@
             frame.style.height = (clipped ? COMPACT_HEIGHT : Math.min(MAX_HEIGHT, wanted)) + "px";
             wrap.classList.toggle("is-clipped", clipped);
             more.hidden = !tall;
-            more.textContent = expanded ? AIChat.__("عرض أقل") : AIChat.__("عرض كامل");
+            more.textContent = expanded ? AIChat.__("Show less") : AIChat.__("Full view");
             more.setAttribute("aria-expanded", String(expanded));
         }
         more.addEventListener("click", () => {
@@ -230,7 +230,7 @@
                 frame.addEventListener("load", register);
             })
             .catch(() => {
-                wrap.replaceChildren(AIChat.h("div.ac-muted.ac-small", { text: AIChat.__("تعذّر تحميل العرض") }));
+                wrap.replaceChildren(AIChat.h("div.ac-muted.ac-small", { text: AIChat.__("The view could not load") }));
             });
 
         // theme follows Desk

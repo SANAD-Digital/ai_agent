@@ -38,9 +38,9 @@
         editor.hidden = true;
 
         const actions = h("div.ac-msg-actions");
-        actions.appendChild(iconBtn("copy", __("نسخ"), () => copyText(current.text).then(() => toast(__("تم النسخ")))));
+        actions.appendChild(iconBtn("copy", __("Copy"), () => copyText(current.text).then(() => toast(__("Copied")))));
         if (ctx.onEdit) {
-            actions.appendChild(iconBtn("edit", __("تعديل"), () => openEditor()));
+            actions.appendChild(iconBtn("edit", __("Edit"), () => openEditor()));
         }
 
         const root = h("article.ac-msg.ac-msg-user", { dataset: { name: msg.name } }, h("div.ac-msg-body", bubble, editor, actions));
@@ -50,8 +50,8 @@
             AIChat.clear(editor);
             const ta = h("textarea.ac-textarea", { rows: 3 });
             ta.value = current.text || "";
-            const save = h("button.ac-btn.ac-btn-primary", { type: "button", text: __("إرسال") });
-            const cancel = h("button.ac-btn.ac-btn-ghost", { type: "button", text: __("إلغاء") });
+            const save = h("button.ac-btn.ac-btn-primary", { type: "button", text: __("Send") });
+            const cancel = h("button.ac-btn.ac-btn-ghost", { type: "button", text: __("Cancel") });
             const close = () => {
                 editor.hidden = true;
                 bubble.hidden = false;
@@ -120,27 +120,27 @@
 
     function renderAssistant(msg, ctx) {
         const blocksEl = h("div.ac-blocks");
-        const workingLabel = h("span", { text: __("يعمل…") });
+        const workingLabel = h("span", { text: __("Working…") });
         const timerEl = h("span.ac-working-timer");
         const working = h("div.ac-working", h("span.ac-pulse"), workingLabel, timerEl);
         const errorText = h("span.ac-error-text");
-        const errorRetry = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("refresh"), h("span", { text: __("إعادة المحاولة") }));
+        const errorRetry = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("refresh"), h("span", { text: __("Try again") }));
         // Technical detail (provider message, codes) only reaches System Managers; folded by default.
         const errorDetailText = h("pre.ac-error-detail-text");
-        const errorDetail = h("details.ac-error-detail", h("summary", { text: __("تفاصيل تقنية") }), errorDetailText);
+        const errorDetail = h("details.ac-error-detail", h("summary", { text: __("Technical details") }), errorDetailText);
         const errorBox = h("div.ac-block.ac-error.ac-msg-error", icon("alert"), h("div.ac-error-main", errorText, errorDetail), errorRetry);
-        const cancelledNote = h("div.ac-status-line", { text: __("أُوقف التوليد") });
-        const awaitingNote = h("div.ac-status-line.ac-awaiting", icon("shield"), h("span", { text: __("بانتظار قرارك على طلب الاعتماد") }));
+        const cancelledNote = h("div.ac-status-line", { text: __("Stopped") });
+        const awaitingNote = h("div.ac-status-line.ac-awaiting", icon("shield"), h("span", { text: __("Waiting for your decision on the approval request") }));
 
         const meta = h("span.ac-msg-meta");
-        const btnCopy = iconBtn("copy", __("نسخ"), () => copyText(current.text || "").then(() => toast(__("تم النسخ"))));
-        const btnRetry = iconBtn("refresh", __("إعادة التوليد"), () => ctx.onRetry && ctx.onRetry(current));
-        const btnUp = iconBtn("thumbs-up", __("رد مفيد"), () => feedback(1));
-        const btnDown = iconBtn("thumbs-down", __("رد غير مفيد"), () => feedback(-1));
+        const btnCopy = iconBtn("copy", __("Copy"), () => copyText(current.text || "").then(() => toast(__("Copied"))));
+        const btnRetry = iconBtn("refresh", __("Regenerate"), () => ctx.onRetry && ctx.onRetry(current));
+        const btnUp = iconBtn("thumbs-up", __("Helpful"), () => feedback(1));
+        const btnDown = iconBtn("thumbs-down", __("Not helpful"), () => feedback(-1));
         const footer = h("div.ac-msg-footer", h("div.ac-msg-actions", btnCopy, btnRetry, btnUp, btnDown), meta);
 
         const avatar = h("span.ac-avatar", icon("sparkles"));
-        const nameEl = h("span.ac-msg-author", { text: ctx.agentName || __("المساعد") });
+        const nameEl = h("span.ac-msg-author", { text: ctx.agentName || __("Assistant") });
         const root = h(
             "article.ac-msg.ac-msg-assistant",
             { dataset: { name: msg.name } },
@@ -193,9 +193,10 @@
         const groups = new Map(); // seq of the run's first block → group
 
         function toolCount(n) {
-            if (n === 1) return __("أداة واحدة");
-            if (n === 2) return __("أداتان");
-            return n <= 10 ? __("{0} أدوات", [n]) : __("{0} أداة", [n]);
+            if (n === 1) return __("1 tool");
+            if (n === 2) return __("2 tools");
+            // Arabic counts 3-10 and 11+ differently; the context picks the form.
+            return n <= 10 ? __("{0} tools", [n], "3-10") : __("{0} tools", [n]);
         }
 
         function createGroup() {
@@ -222,14 +223,14 @@
             if (live) {
                 const last = g.members[g.members.length - 1];
                 if (last && last.kind === "tool_use" && !results.has(last.id)) g.label.textContent = AIChat.toolLabel(last.name || "") + "…";
-                else g.label.textContent = __("يفكّر…");
+                else g.label.textContent = __("Thinking…");
             } else {
                 const first = AIChat.parseTs(g.members[0] && g.members[0].started_at);
                 const ends = g.members.map((b) => AIChat.parseTs(b.completed_at)).filter(Boolean);
                 let ms = first && ends.length ? Math.max(...ends) - first : 0;
                 if (!ms) ms = g.members.reduce((t, b) => t + (b.duration_ms || 0), 0);
                 const thought = g.members.some((b) => b.kind === "thinking");
-                g.label.textContent = ms ? (thought ? __("فكّر لمدة {0}", [fmtDuration(ms)]) : __("عمل لمدة {0}", [fmtDuration(ms)])) : thought ? __("أفكار") : __("خطوات");
+                g.label.textContent = ms ? (thought ? __("Thought for {0}", [fmtDuration(ms)]) : __("Worked for {0}", [fmtDuration(ms)])) : thought ? __("Thoughts") : __("Steps");
             }
             g.metaEl.textContent = tools ? " · " + toolCount(tools) : "";
         }
@@ -326,7 +327,7 @@
             const awaiting = m.status === "awaiting_approval";
             const done = !live && !awaiting;
             working.hidden = !live;
-            workingLabel.textContent = m.status === "pending" ? __("يعمل…") : __("يعمل…");
+            workingLabel.textContent = m.status === "pending" ? __("Working…") : __("Working…");
             setTimer(live);
             root.classList.toggle("is-live", live);
             root.classList.toggle("is-awaiting", awaiting);
@@ -334,7 +335,7 @@
 
             const failed = m.status === "failed";
             errorBox.hidden = !failed;
-            if (failed) errorText.textContent = m.error || __("فشل توليد الرد");
+            if (failed) errorText.textContent = m.error || __("The reply could not be generated");
             errorDetail.hidden = !(failed && m.error_detail);
             errorDetailText.textContent = (failed && m.error_detail) || "";
             errorRetry.hidden = !ctx.onRetry;
@@ -346,7 +347,7 @@
                 if (m.model) parts.push(m.model);
                 const u = m.usage || {};
                 const tok = (u.input_tokens || 0) + (u.output_tokens || 0);
-                if (tok) parts.push(__("{0} رمز", [fmtTokens(tok)]));
+                if (tok) parts.push(__("{0} tokens", [fmtTokens(tok)]));
                 if (m.duration_ms) parts.push(fmtDuration(m.duration_ms));
                 if (m.completed_at) parts.push(AIChat.fmtTime(m.completed_at));
                 AIChat.clear(meta);

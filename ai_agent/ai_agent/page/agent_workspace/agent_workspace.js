@@ -30,7 +30,7 @@ frappe.pages["agent-workspace"].on_page_load = async function (wrapper) {
 
     frappe.ui.make_app_page({
         parent: wrapper,
-        title: __("مساعد الذكاء الاصطناعي"),
+        title: __("AI Assistant", null, "AI Chat"),
         single_column: true,
     });
     $(wrapper).addClass("ai-chat-page");
@@ -53,7 +53,7 @@ frappe.pages["agent-workspace"].on_page_load = async function (wrapper) {
 
     if (!window.AIChat || typeof window.AIChat.mount !== "function") {
         page.main.html(
-            `<div class="ac-boot-error">${__("تعذّر تحميل واجهة المحادثة. أعد بناء الأصول ثم حدّث الصفحة.")}</div>`
+            `<div class="ac-boot-error">${__("The chat could not load. Rebuild the assets, then refresh the page.", null, "AI Chat")}</div>`
         );
         return;
     }

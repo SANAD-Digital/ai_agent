@@ -31,7 +31,7 @@
     function createContextMeter() {
         const bar = h("span.ac-meter-bar", h("span.ac-meter-fill"));
         const label = h("span.ac-meter-label");
-        const el = h("span.ac-meter", { title: __("حجم السياق الحالي من نافذة النموذج") }, bar, label);
+        const el = h("span.ac-meter", { title: __("Current context size out of the model's limit") }, bar, label);
         function update(session) {
             const used = session ? Number(session.context_tokens) || 0 : 0;
             const window_ = session ? Number(session.context_window) || 0 : 0;
@@ -73,7 +73,7 @@
             active = list.length ? 0 : -1;
             AIChat.clear(el);
             if (opts.title) el.appendChild(h("div.ac-popover-title", { text: opts.title }));
-            if (!list.length) el.appendChild(h("div.ac-popover-empty", { text: opts.empty || __("لا نتائج") }));
+            if (!list.length) el.appendChild(h("div.ac-popover-empty", { text: opts.empty || __("No results") }));
             let section = null;
             list.forEach((item, i) => {
                 if (item.section && item.section !== section) {
@@ -141,16 +141,16 @@
         const getBoot = () => ctx.boot || store.state.boot || {};
         const skillCache = new Map();
 
-        const ta = h("textarea.ac-input", { rows: 1, dir: AIChat.isRtl() ? "rtl" : "ltr", placeholder: ctx.placeholder || (palette ? __("اكتب رسالتك… (/ للمهارات والإضافات، @ للمستندات)") : __("اكتب رسالتك…")), aria: { label: __("رسالة") } });
+        const ta = h("textarea.ac-input", { rows: 1, dir: AIChat.isRtl() ? "rtl" : "ltr", placeholder: ctx.placeholder || (palette ? __("Type your message… (/ for skills and plugins, @ for documents)") : __("Type your message…")), aria: { label: __("Message") } });
         const chips = h("div.ac-composer-chips");
         chips.hidden = true;
         const fileInput = h("input.ac-visually-hidden", { type: "file", multiple: true, tabindex: -1, aria: { hidden: "true" } });
 
-        const btnAttach = toolBtn("paperclip", __("إرفاق ملف"), () => fileInput.click());
-        const btnAgent = toolBtn("bot", __("الوكيل"), () => toggleAgentPicker(), true);
-        const btnModel = toolBtn("zap", __("النموذج"), () => toggleModelPicker(), true);
-        const btnThinking = toolBtn("brain", __("التفكير"), () => cycleThinking(), true);
-        const btnSend = h("button.ac-send", { type: "button", aria: { label: __("إرسال") } }, icon("send"));
+        const btnAttach = toolBtn("paperclip", __("Attach a file"), () => fileInput.click());
+        const btnAgent = toolBtn("bot", __("Agent"), () => toggleAgentPicker(), true);
+        const btnModel = toolBtn("zap", __("Model"), () => toggleModelPicker(), true);
+        const btnThinking = toolBtn("brain", __("Thinking"), () => cycleThinking(), true);
+        const btnSend = h("button.ac-send", { type: "button", aria: { label: __("Send") } }, icon("send"));
         const hint = h("div.ac-composer-hint");
         const warning = h("div.ac-composer-warning");
         warning.hidden = true;
@@ -158,14 +158,14 @@
         const info = h("span.ac-composer-info", { tabindex: 0, role: "note" }, icon("info"));
         info.hidden = true;
         const errorText = h("span");
-        const errorRetry = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button" }, icon("refresh"), h("span", { text: __("إعادة المحاولة") }));
+        const errorRetry = h("button.ac-btn.ac-btn-ghost.ac-btn-xs", { type: "button" }, icon("refresh"), h("span", { text: __("Try again") }));
         const errorLine = h("div.ac-composer-error", { role: "alert" }, icon("alert"), errorText, errorRetry);
         errorLine.hidden = true;
 
         const tools = h("div.ac-composer-tools", btnAttach, pickers ? [btnAgent, btnModel, btnThinking] : null, compact ? info : null);
         const bar = h("div.ac-composer-bar", tools, h("div.ac-composer-right", btnSend));
         const box = h("div.ac-composer-box", chips, ta, bar);
-        const dropHint = h("div.ac-drop-hint", icon("paperclip"), h("span", { text: __("أفلت الملفات هنا") }));
+        const dropHint = h("div.ac-drop-hint", icon("paperclip"), h("span", { text: __("Drop files here") }));
         const el = h("div.ac-composer", { class: compact ? "is-compact" : null }, box, dropHint, errorLine, compact ? null : hint, compact ? null : warning, fileInput);
         const popover = createPopover(el);
 
@@ -214,14 +214,14 @@
 
         function paintPickers() {
             const a = agentOf(c.agent);
-            btnAgent.lastChild.textContent = a ? a.agent_name || a.name : __("الوكيل");
+            btnAgent.lastChild.textContent = a ? a.agent_name || a.name : __("Agent");
             btnAgent.disabled = !!session; // the session owns its agent
-            btnAgent.title = session ? __("الوكيل ثابت لهذه المحادثة") : __("الوكيل");
+            btnAgent.title = session ? __("The agent is fixed for this conversation") : __("Agent");
             const m = modelOf(c.provider, c.model);
-            btnModel.lastChild.textContent = m ? m.label || m.model_name : c.model || __("النموذج");
+            btnModel.lastChild.textContent = m ? m.label || m.model_name : c.model || __("Model");
             const supports = !!(m && m.supports_thinking);
             btnThinking.hidden = !supports;
-            const labels = { off: __("بلا تفكير"), adaptive: __("تفكير تكيّفي"), on: __("تفكير") };
+            const labels = { off: __("No thinking"), adaptive: __("Adaptive thinking"), on: __("Thinking") };
             btnThinking.lastChild.textContent = labels[c.thinking] || c.thinking;
             btnThinking.dataset.state = c.thinking;
             const notice = ctx.warning !== undefined ? ctx.warning : getBoot().settings && getBoot().settings.third_party_warning;
@@ -236,7 +236,7 @@
             AIChat.clear(chips);
             if (c.skill) {
                 chips.appendChild(
-                    chip("sparkles", __("المهارة: {0}", [c.skill.title || c.skill.name]), () => {
+                    chip("sparkles", __("Skill: {0}", [c.skill.title || c.skill.name]), () => {
                         c.skill = null;
                         paintChips();
                     })
@@ -244,7 +244,7 @@
             }
             if (c.plugin) {
                 chips.appendChild(
-                    chip(pluginIcon(c.plugin), __("الإضافة: {0}", [c.plugin.title || c.plugin.name]), () => {
+                    chip(pluginIcon(c.plugin), __("Plugin: {0}", [c.plugin.title || c.plugin.name]), () => {
                         c.plugin = null;
                         paintChips();
                     })
@@ -280,7 +280,7 @@
         }
 
         function chip(ic, label, onRemove, meta) {
-            const x = h("button.ac-chip-remove", { type: "button", aria: { label: __("إزالة") } }, icon("x"));
+            const x = h("button.ac-chip-remove", { type: "button", aria: { label: __("Remove") } }, icon("x"));
             x.addEventListener("click", (e) => {
                 e.stopPropagation();
                 onRemove();
@@ -301,10 +301,10 @@
             AIChat.clear(btnSend);
             btnSend.appendChild(icon(stop ? "stop" : "send"));
             btnSend.classList.toggle("is-stop", stop);
-            btnSend.setAttribute("aria-label", stop ? __("إيقاف") : __("إرسال"));
-            btnSend.title = stop ? __("إيقاف (Esc)") : __("إرسال (Enter)");
+            btnSend.setAttribute("aria-label", stop ? __("Stop") : __("Send"));
+            btnSend.title = stop ? __("Stop (Esc)") : __("Send (Enter)");
             btnSend.disabled = stop ? false : !canSend();
-            hint.textContent = uploading() ? __("جارٍ رفع الملفات…") : stop ? __("Esc للإيقاف") : __("Enter للإرسال · Shift+Enter لسطر جديد");
+            hint.textContent = uploading() ? __("Uploading files…") : stop ? __("Esc to stop") : __("Enter to send · Shift+Enter for a new line");
         }
 
         /**
@@ -394,14 +394,14 @@
             if (popover.isOpen() && popover.kind() === "agent") return popover.close();
             const list = (getBoot().agents || []).map((a) => ({
                 label: a.agent_name || a.name,
-                sub: [a.description, a.read_only ? __("قراءة فقط") : null].filter(Boolean).join(" · "),
+                sub: [a.description, a.read_only ? __("Read only") : null].filter(Boolean).join(" · "),
                 icon: "bot",
                 selected: a.name === c.agent,
                 value: a.name,
             }));
             popover.open(list, {
                 kind: "agent",
-                title: __("الوكيل"),
+                title: __("Agent"),
                 onPick: (item) => {
                     c.agent = item.value;
                     skillCacheClear();
@@ -418,7 +418,7 @@
                 (p.models || []).forEach((m) => {
                     list.push({
                         label: m.label || m.model_name,
-                        sub: [p.label || p.name, m.supports_thinking ? __("يدعم التفكير") : null].filter(Boolean).join(" · "),
+                        sub: [p.label || p.name, m.supports_thinking ? __("Supports thinking") : null].filter(Boolean).join(" · "),
                         icon: "zap",
                         selected: p.name === c.provider && m.model_name === c.model,
                         value: { provider: p.name, model: m.model_name },
@@ -427,7 +427,7 @@
             });
             popover.open(list, {
                 kind: "model",
-                title: __("النموذج"),
+                title: __("Model"),
                 onPick: (item) => {
                     c.provider = item.value.provider;
                     c.model = item.value.model;
@@ -487,8 +487,8 @@
                     const list = ((r && r.results) || []).map((d) => ({ label: d.title || d.name, sub: d.doctype + " · " + d.name, icon: "file", value: d }));
                     popover.open(list, {
                         kind: "doc",
-                        title: __("إدراج مستند"),
-                        empty: q ? __("لا نتائج لـ {0}", [q]) : __("اكتب للبحث"),
+                        title: __("Insert a document"),
+                        empty: q ? __("No results for {0}", [q]) : __("Type to search"),
                         onPick: (item) => {
                             const d = item.value;
                             replaceRange(cur.start, cur.end, "@" + (d.title || d.name) + " ");
@@ -531,13 +531,13 @@
                             label: s.title || s.name,
                             sub: s.kind === "plugin" ? s.description || "" : "", // a skill's description is written for the model (English)
                             icon: s.kind === "plugin" ? pluginIcon(s) : "sparkles",
-                            section: s.kind === "plugin" ? __("الإضافات") : __("المهارات"),
+                            section: s.kind === "plugin" ? __("Plugins") : __("Skills"),
                             selected: (s.kind === "plugin" ? c.plugin : c.skill) && (s.kind === "plugin" ? c.plugin : c.skill).name === s.name,
                             value: s,
                         }));
                     popover.open(list, {
                         kind: "skill",
-                        empty: menu.length ? __("لا نتائج مطابقة") : __("لا مهارات ولا إضافات مسموحة لك بعد"),
+                        empty: menu.length ? __("No matching results") : __("No skills or plugins are allowed for you yet"),
                         onPick: (item) => {
                             if (item.value.kind === "plugin") c.plugin = item.value;
                             else c.skill = item.value;

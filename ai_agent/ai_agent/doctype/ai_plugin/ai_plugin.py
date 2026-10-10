@@ -8,7 +8,7 @@ class AIPlugin(Document):
         from ai_agent.runtime.tool_registry import ToolRegistry
 
         if not ToolRegistry().get_tool(self.tool):
-            frappe.throw(_("الأداة {0} غير موجودة في سجل الأدوات.").format(self.tool))
+            frappe.throw(_("Tool {0} is not registered.").format(self.tool))
 
     def on_update(self):
         from ai_agent.runtime import access

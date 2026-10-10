@@ -182,10 +182,10 @@
             const streaming = b.status === "streaming";
             root.classList.toggle("is-streaming", streaming);
             if (streaming) {
-                label.textContent = __("يفكّر…");
+                label.textContent = __("Thinking…");
             } else {
                 const ms = b.duration_ms || durationFromTs(b);
-                label.textContent = ms ? __("فكّر لمدة {0}", [fmtDuration(ms)]) : __("أفكار");
+                label.textContent = ms ? __("Thought for {0}", [fmtDuration(ms)]) : __("Thoughts");
             }
             if (streaming) paint(b.text || "");
             else {
@@ -217,8 +217,8 @@
         const duration = h("span.ac-tool-duration");
         const title = h("span.ac-tool-title", { text: toolLabel(name) });
         const wire = h("span.ac-tool-wire", { text: toolDotted(name) });
-        const inputPre = h("div.ac-tool-section", h("div.ac-tool-section-title", { text: __("المدخلات") }), h("div.ac-tool-section-body"));
-        const outputSec = h("div.ac-tool-section", h("div.ac-tool-section-title", { text: __("المخرجات") }), h("div.ac-tool-section-body"));
+        const inputPre = h("div.ac-tool-section", h("div.ac-tool-section-title", { text: __("Input") }), h("div.ac-tool-section-body"));
+        const outputSec = h("div.ac-tool-section", h("div.ac-tool-section-title", { text: __("Output") }), h("div.ac-tool-section-body"));
         outputSec.hidden = true;
         const body = h("div", inputPre, outputSec);
         const root = collapsible([h("span.ac-tool-icon", icon(toolIcon(name))), title, wire, duration, status], body, {
@@ -251,7 +251,7 @@
             const target = inputPre.lastChild;
             AIChat.clear(target);
             if (b.data && Object.keys(b.data).length) target.appendChild(jsonPre(b.data));
-            else if (b.status === "streaming") target.appendChild(h("div.ac-muted", { text: __("جارٍ تجهيز المدخلات…") }));
+            else if (b.status === "streaming") target.appendChild(h("div.ac-muted", { text: __("Preparing input…") }));
             else target.appendChild(h("div.ac-muted", { text: "—" }));
         }
 
@@ -268,14 +268,14 @@
                 delete data.view;
             }
             if (r.is_error || (data && data.error)) {
-                target.appendChild(h("div.ac-tool-error", icon("alert"), h("span", { text: (data && data.error) || r.text || __("فشلت الأداة") })));
+                target.appendChild(h("div.ac-tool-error", icon("alert"), h("span", { text: (data && data.error) || r.text || __("Tool failed") })));
                 return;
             }
             if (data && Array.isArray(data.rows)) {
                 target.appendChild(dataTable(data.rows, data.columns, { limit: 10 }));
                 const total = data.row_count || data.total || data.rows.length;
                 if (total > 10 || data.is_truncated) {
-                    target.appendChild(h("div.ac-muted.ac-small", { text: __("عرض {0} من {1} صف", [Math.min(10, data.rows.length), total]) }));
+                    target.appendChild(h("div.ac-muted.ac-small", { text: __("Showing {0} of {1} rows", [Math.min(10, data.rows.length), total]) }));
                 }
                 return;
             }
@@ -287,7 +287,7 @@
                 target.appendChild(h("pre.ac-json.ac-tool-text", { text: String(r.text).slice(0, 4000) }));
                 return;
             }
-            target.appendChild(h("div.ac-muted", { text: __("لا مخرجات") }));
+            target.appendChild(h("div.ac-muted", { text: __("No output") }));
         }
 
         function effectiveStatus(b) {
@@ -350,22 +350,22 @@
     /* ------------------------------------------------------------------ */
 
     const APPROVAL_STATUS = {
-        Pending: () => __("بانتظار القرار"),
-        Approved: () => __("تمت الموافقة"),
-        Rejected: () => __("مرفوض"),
-        Expired: () => __("منتهي"),
-        Executed: () => __("نُفّذ"),
-        Failed: () => __("فشل التنفيذ"),
+        Pending: () => __("Awaiting decision"),
+        Approved: () => __("Approved"),
+        Rejected: () => __("Rejected"),
+        Expired: () => __("Expired"),
+        Executed: () => __("Executed"),
+        Failed: () => __("Execution failed"),
     };
 
     const ACTION_TYPES = {
-        Create: () => __("إنشاء"),
-        "Bulk Create": () => __("إنشاء متعدد"),
-        Update: () => __("تعديل"),
-        Submit: () => __("اعتماد"),
-        Cancel: () => __("إلغاء"),
-        Workflow: () => __("سير عمل"),
-        "Approved Method": () => __("إجراء معتمد"),
+        Create: () => __("Create"),
+        "Bulk Create": () => __("Create multiple"),
+        Update: () => __("Edit"),
+        Submit: () => __("Submit"),
+        Cancel: () => __("Cancel"),
+        Workflow: () => __("Workflow"),
+        "Approved Method": () => __("Approved action"),
     };
 
     function payloadSummary(payload) {
@@ -377,8 +377,8 @@
             const v = payload[key];
             let text;
             if (v === null || v === undefined || v === "") continue;
-            if (Array.isArray(v)) text = __("{0} سطر", [v.length]);
-            else if (typeof v === "object") text = __("كائن");
+            if (Array.isArray(v)) text = __("{0} lines", [v.length]);
+            else if (typeof v === "object") text = __("Object");
             else text = String(v);
             rows.push(h("tr", h("th", { text: key }), h("td", { text: text })));
         }
@@ -400,14 +400,14 @@
         const reasonBox = h("div.ac-approval-reason");
         reasonBox.hidden = true;
 
-        const btnApprove = h("button.ac-btn.ac-btn-primary", { type: "button" }, icon("check"), h("span", { text: __("موافقة") }));
-        const btnReject = h("button.ac-btn.ac-btn-danger-ghost", { type: "button" }, icon("x"), h("span", { text: __("رفض") }));
-        const btnDetails = h("button.ac-btn.ac-btn-ghost", { type: "button" }, h("span", { text: __("التفاصيل") }), icon("chevron", "ac-chevron"));
+        const btnApprove = h("button.ac-btn.ac-btn-primary", { type: "button" }, icon("check"), h("span", { text: __("Approve") }));
+        const btnReject = h("button.ac-btn.ac-btn-danger-ghost", { type: "button" }, icon("x"), h("span", { text: __("Reject") }));
+        const btnDetails = h("button.ac-btn.ac-btn-ghost", { type: "button" }, h("span", { text: __("Details") }), icon("chevron", "ac-chevron"));
         const actions = h("div.ac-approval-actions", btnApprove, btnReject, btnDetails);
 
-        const reasonInput = h("textarea.ac-textarea", { rows: 2, placeholder: __("سبب الرفض (اختياري)") });
-        const btnConfirmReject = h("button.ac-btn.ac-btn-danger", { type: "button", text: __("تأكيد الرفض") });
-        const btnCancelReject = h("button.ac-btn.ac-btn-ghost", { type: "button", text: __("إلغاء") });
+        const reasonInput = h("textarea.ac-textarea", { rows: 2, placeholder: __("Reason for rejecting (optional)") });
+        const btnConfirmReject = h("button.ac-btn.ac-btn-danger", { type: "button", text: __("Confirm rejection") });
+        const btnCancelReject = h("button.ac-btn.ac-btn-ghost", { type: "button", text: __("Cancel") });
         reasonBox.append(reasonInput, h("div.ac-row", btnConfirmReject, btnCancelReject));
 
         const root = h(
@@ -489,7 +489,7 @@
             lastKey = key;
 
             const action = ACTION_TYPES[s.action_type] ? ACTION_TYPES[s.action_type]() : s.action_type || "";
-            heading.textContent = [__("طلب اعتماد"), action, s.doctype_name].filter(Boolean).join(" · ");
+            heading.textContent = [__("Approval request"), action, s.doctype_name].filter(Boolean).join(" · ");
             const st = s.status || "Pending";
             badge.textContent = APPROVAL_STATUS[st] ? APPROVAL_STATUS[st]() : st;
             badge.dataset.status = st;
@@ -507,14 +507,14 @@
             const table = payloadSummary(s.payload);
             if (table) kv.appendChild(table);
             if (s.document_name) {
-                kv.appendChild(h("div.ac-small.ac-muted", h("span", { text: __("المستند: ") }), h("a", { href: formLink(s.doctype_name, s.document_name), target: "_blank", rel: "noopener", text: s.document_name })));
+                kv.appendChild(h("div.ac-small.ac-muted", h("span", { text: __("Document: ") }), h("a", { href: formLink(s.doctype_name, s.document_name), target: "_blank", rel: "noopener", text: s.document_name })));
             }
             if (s.expires_at && st === "Pending") {
-                kv.appendChild(h("div.ac-small.ac-muted", icon("clock"), " ", h("span", { text: __("ينتهي {0}", [AIChat.relTime(s.expires_at) || s.expires_at]) })));
+                kv.appendChild(h("div.ac-small.ac-muted", icon("clock"), " ", h("span", { text: __("Expires {0}", [AIChat.relTime(s.expires_at) || s.expires_at]) })));
             }
 
             AIChat.clear(details);
-            details.appendChild(h("div.ac-tool-section-title", { text: __("الحمولة الكاملة") }));
+            details.appendChild(h("div.ac-tool-section-title", { text: __("Full payload") }));
             details.appendChild(jsonPre(s.payload || {}));
 
             AIChat.clear(outcome);
@@ -522,11 +522,11 @@
             actions.hidden = !pending;
             btnDetails.hidden = false;
             if (!pending) {
-                const who = s.decided_by ? __("بواسطة {0}", [s.decided_by]) : "";
+                const who = s.decided_by ? __("By {0}", [s.decided_by]) : "";
                 const when = s.decided_at ? AIChat.relTime(s.decided_at) : "";
                 const line = [who, when].filter(Boolean).join(" · ");
                 if (line) outcome.appendChild(h("div.ac-small.ac-muted", { text: line }));
-                if (s.reason) outcome.appendChild(h("div.ac-small", h("strong", { text: __("السبب: ") }), s.reason));
+                if (s.reason) outcome.appendChild(h("div.ac-small", h("strong", { text: __("Reason: ") }), s.reason));
                 const created = s.result && s.result.document_name;
                 if (created) {
                     outcome.appendChild(
@@ -534,7 +534,7 @@
                             "a.ac-doc-link",
                             { href: formLink(s.doctype_name, created), target: "_blank", rel: "noopener" },
                             icon("external"),
-                            h("span", { text: __("فتح {0}", [created]) })
+                            h("span", { text: __("Open {0}", [created]) })
                         )
                     );
                 } else if (s.result && typeof s.result === "object" && Object.keys(s.result).length) {
@@ -583,7 +583,7 @@
         return [accent, "#5b8def", "#3ec27a", "#e0a83a", "#a78bfa", "#f0605d", "#22b8cf"];
     }
 
-    const FILE_LABEL = { excel: "Excel", csv: "CSV", pdf: "PDF", statement: "PDF", image: __("الصورة") };
+    const FILE_LABEL = { excel: "Excel", csv: "CSV", pdf: "PDF", statement: "PDF", image: __("Image") };
 
     function fileSize(bytes) {
         if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
@@ -637,13 +637,13 @@
                                 barOptions: { spaceRatio: 0.5 },
                             });
                         } catch (e) {
-                            holder.appendChild(h("div.ac-muted", { text: __("تعذّر رسم المخطط") }));
+                            holder.appendChild(h("div.ac-muted", { text: __("The chart could not be drawn") }));
                         }
                     } else {
                         holder.appendChild(jsonPre(s.chart));
                     }
                 });
-                if (s.rows && s.rows.length) bodyEl.appendChild(h("details.ac-details", h("summary", { text: __("البيانات") }), dataTable(s.rows, currentColumns(), { sticky: true })));
+                if (s.rows && s.rows.length) bodyEl.appendChild(h("details.ac-details", h("summary", { text: __("Data") }), dataTable(s.rows, currentColumns(), { sticky: true })));
                 return;
             }
             if (type === "Document Links") {
@@ -663,7 +663,7 @@
             if (type === "File") {
                 // a plugin's output: an image previews inline, every file gets a download button
                 if (s.image && s.file_url) bodyEl.appendChild(h("a.ac-file-preview", { href: s.file_url, target: "_blank", rel: "noopener" }, h("img", { src: s.file_url, alt: s.title || "", loading: "lazy" })));
-                const dl = h("a.ac-btn.ac-btn-primary.ac-file-download", { href: s.file_url, download: s.file_name || "", target: "_blank", rel: "noopener" }, icon("download"), h("span", { text: __("تحميل {0}", [FILE_LABEL[s.format] || ""]).trim() }));
+                const dl = h("a.ac-btn.ac-btn-primary.ac-file-download", { href: s.file_url, download: s.file_name || "", target: "_blank", rel: "noopener" }, icon("download"), h("span", { text: __("Download {0}", [FILE_LABEL[s.format] || ""]).trim() }));
                 bodyEl.appendChild(h("div.ac-file-row", h("span.ac-file-name", { text: s.file_name || "" }), dl));
                 return;
             }
@@ -685,7 +685,7 @@
             const type = s.artifact_type || spec.artifact_type;
             if (type === "Table" || type === "Chart") {
                 if (spec.is_truncated && !full && spec.artifact) {
-                    const btn = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("expand"), h("span", { text: __("عرض الكل ({0})", [fmtTokens(spec.row_count || 0)]) }));
+                    const btn = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("expand"), h("span", { text: __("Show all ({0})", [fmtTokens(spec.row_count || 0)]) }));
                     btn.addEventListener("click", () => {
                         btn.disabled = true;
                         AIChat.api
@@ -703,17 +703,17 @@
                     });
                     footer.appendChild(btn);
                 } else if (rows.length > 8) {
-                    const btn = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("expand"), h("span", { text: expanded ? __("تصغير") : __("توسيع") }));
+                    const btn = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("expand"), h("span", { text: expanded ? __("Collapse") : __("Expand") }));
                     btn.addEventListener("click", () => {
                         expanded = !expanded;
                         const wrap = bodyEl.querySelector(".ac-table-wrap");
                         if (wrap) wrap.classList.toggle("is-expanded", expanded);
-                        btn.lastChild.textContent = expanded ? __("تصغير") : __("توسيع");
+                        btn.lastChild.textContent = expanded ? __("Collapse") : __("Expand");
                     });
                     footer.appendChild(btn);
                 }
                 if (rows.length) {
-                    const csv = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("download"), h("span", { text: __("تصدير CSV") }));
+                    const csv = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("download"), h("span", { text: __("Export CSV") }));
                     csv.addEventListener("click", () => download((s.title || "artifact").replace(/[^\w؀-ۿ -]+/g, "_") + ".csv", toCsv(currentColumns(), rows), "text/csv;charset=utf-8"));
                     footer.appendChild(csv);
                 }
@@ -729,11 +729,11 @@
             lastKey = key;
             AIChat.clear(iconWrap);
             iconWrap.appendChild(icon(spec.artifact_type === "File" ? ({ excel: "table", image: "image" }[spec.format] || "file") : ARTIFACT_ICON[spec.artifact_type] || "file"));
-            titleEl.textContent = spec.title || __("عرض");
+            titleEl.textContent = spec.title || __("View");
             const parts = [];
             if (spec.artifact_type === "File" && spec.file_size) parts.push(fileSize(spec.file_size));
-            if (spec.row_count) parts.push(__("{0} صف", [spec.row_count.toLocaleString()]));
-            if (spec.is_truncated) parts.push(__("معاينة أول {0}", [(spec.rows || []).length]));
+            if (spec.row_count) parts.push(__("{0} rows", [spec.row_count.toLocaleString()]));
+            if (spec.is_truncated) parts.push(__("Preview of the first {0}", [(spec.rows || []).length]));
             metaEl.textContent = parts.join(" · ");
             summaryEl.textContent = spec.summary || "";
             summaryEl.hidden = !spec.summary;
@@ -758,7 +758,7 @@
         const root = h("div.ac-block.ac-chip-row", h("span.ac-chip.ac-chip-skill", icon("sparkles"), label));
         function update(b) {
             const d = b.data || {};
-            label.textContent = d.plugin ? __("الإضافة: {0}", [d.title || b.name || ""]) : __("تم تحميل المهارة: {0}", [d.title || b.name || ""]);
+            label.textContent = d.plugin ? __("Plugin: {0}", [d.title || b.name || ""]) : __("Skill loaded: {0}", [d.title || b.name || ""]);
             AIChat.clear(root.firstChild);
             root.firstChild.append(icon(d.plugin ? "puzzle" : "sparkles"), label);
             root.firstChild.title = d.description || "";
@@ -769,14 +769,14 @@
 
     function renderMemory(block) {
         const label = h("span.ac-chip-label");
-        const chip = h("button.ac-chip.ac-chip-memory", { type: "button", title: __("فتح الذاكرة") }, icon("brain"), label);
+        const chip = h("button.ac-chip.ac-chip-memory", { type: "button", title: __("Open memory") }, icon("brain"), label);
         chip.addEventListener("click", () => AIChat.store.emit("memory:open"));
         const root = h("div.ac-block.ac-chip-row", chip);
         function update(b) {
             const d = b.data || {};
             const note = d.memory || b.text || "";
-            label.textContent = __("تم الحفظ في الذاكرة: {0}", [String(note).slice(0, 80)]);
-            chip.title = String(note) + "\n" + __("انقر لفتح الذاكرة");
+            label.textContent = __("Saved to memory: {0}", [String(note).slice(0, 80)]);
+            chip.title = String(note) + "\n" + __("Click to open memory");
         }
         update(block);
         return { el: root, kind: "memory", update };
@@ -784,12 +784,12 @@
 
     function renderError(block, ctx) {
         const text = h("span.ac-error-text");
-        const retry = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("refresh"), h("span", { text: __("إعادة المحاولة") }));
+        const retry = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("refresh"), h("span", { text: __("Try again") }));
         retry.addEventListener("click", () => ctx && ctx.onRetry && ctx.onRetry());
         retry.hidden = !(ctx && ctx.onRetry);
         const root = h("div.ac-block.ac-error", icon("alert"), text, retry);
         function update(b) {
-            text.textContent = b.text || (b.data && b.data.error) || __("حدث خطأ");
+            text.textContent = b.text || (b.data && b.data.error) || __("Something went wrong");
         }
         update(block);
         return { el: root, kind: "error", update };

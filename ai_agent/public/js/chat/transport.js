@@ -58,8 +58,8 @@
             xhr.upload.addEventListener("progress", (e) => {
                 if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
             });
-            xhr.addEventListener("error", () => reject(new Error(AIChat.__("تعذّر رفع الملف"))));
-            xhr.addEventListener("abort", () => reject(new Error(AIChat.__("أُلغي الرفع"))));
+            xhr.addEventListener("error", () => reject(new Error(AIChat.__("The file could not be uploaded"))));
+            xhr.addEventListener("abort", () => reject(new Error(AIChat.__("Upload cancelled"))));
             xhr.onreadystatechange = () => {
                 if (xhr.readyState !== XMLHttpRequest.DONE) return;
                 let body = null;
@@ -72,8 +72,8 @@
                     if (onProgress) onProgress(1);
                     resolve(body.message);
                 } else {
-                    let msg = AIChat.__("تعذّر رفع الملف");
-                    if (xhr.status === 413) msg = AIChat.__("الملف أكبر من الحد المسموح");
+                    let msg = AIChat.__("The file could not be uploaded");
+                    if (xhr.status === 413) msg = AIChat.__("The file is larger than allowed");
                     else if (body) msg = AIChat.errorMessage(body);
                     reject(new Error(msg));
                 }

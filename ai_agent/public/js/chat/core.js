@@ -10,7 +10,10 @@
     "use strict";
 
     const AIChat = (window.AIChat = window.AIChat || {});
-    const __ = window.__ || ((s) => s);
+    // Chat strings are translated in the "AI Chat" context: a common word (Edit, Close, Stop…)
+    // can carry the chat's own Arabic without changing it elsewhere in Desk. Frappe falls back
+    // to the plain translation when there is none for the context.
+    const __ = (text, args, context) => (window.__ ? window.__(text, args, context || "AI Chat") : text);
 
     /* ------------------------------------------------------------------ */
     /* DOM                                                                 */
@@ -151,13 +154,13 @@
 
     function fmtDuration(ms) {
         ms = Number(ms) || 0;
-        if (ms < 1000) return __("{0} ث", [(ms / 1000).toFixed(1)]);
+        if (ms < 1000) return __("{0}s", [(ms / 1000).toFixed(1)]);
         const s = ms / 1000;
-        if (s < 10) return __("{0} ث", [s.toFixed(1).replace(/\.0$/, "")]);
-        if (s < 60) return __("{0} ث", [Math.round(s)]);
+        if (s < 10) return __("{0}s", [s.toFixed(1).replace(/\.0$/, "")]);
+        if (s < 60) return __("{0}s", [Math.round(s)]);
         const m = Math.floor(s / 60);
         const rest = Math.round(s - m * 60);
-        return __("{0} د {1} ث", [m, rest]);
+        return __("{0}m {1}s", [m, rest]);
     }
 
     function fmtCost(v) {
@@ -182,10 +185,10 @@
         const d = parseTs(ts);
         if (!d) return "";
         const diff = Math.max(0, (Date.now() - d.getTime()) / 1000);
-        if (diff < 45) return __("الآن");
-        if (diff < 3600) return __("قبل {0} د", [Math.round(diff / 60)]);
-        if (diff < 86400) return __("قبل {0} س", [Math.round(diff / 3600)]);
-        if (diff < 7 * 86400) return __("قبل {0} ي", [Math.round(diff / 86400)]);
+        if (diff < 45) return __("Just now");
+        if (diff < 3600) return __("{0}m ago", [Math.round(diff / 60)]);
+        if (diff < 86400) return __("{0}h ago", [Math.round(diff / 3600)]);
+        if (diff < 7 * 86400) return __("{0}d ago", [Math.round(diff / 86400)]);
         try {
             return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
         } catch (e) {
@@ -343,29 +346,29 @@
     /* ------------------------------------------------------------------ */
 
     const TOOL_LABELS = [
-        [/^data__query$/, () => __("استعلام بيانات"), "database"],
-        [/^data__get_document$/, () => __("قراءة مستند"), "file"],
-        [/^data__get_child_records$/, () => __("قراءة بنود مستند"), "list"],
-        [/^data__count$/, () => __("عدّ السجلات"), "database"],
-        [/^reports__run$/, () => __("تشغيل تقرير"), "table"],
-        [/^reports__(search|describe)$/, () => __("البحث في التقارير"), "search"],
-        [/^analysis__/, () => __("تحليل"), "chart"],
-        [/^erp__/, () => __("بيانات ERP"), "database"],
-        [/^diagnose__/, () => __("تشخيص مستند"), "search"],
-        [/^setup__check$/, () => __("فحص الإعداد"), "settings"],
-        [/^knowledge__search$/, () => __("البحث في الدليل"), "book"],
-        [/^skills__(list|read_reference)$/, () => __("المهارات"), "book"],
-        [/^tools__enable$/, () => __("تفعيل أدوات إضافية"), "tool"],
-        [/^attachments__list$/, () => __("مرفقات مستند"), "paperclip"],
-        [/^metrics__query$/, () => __("مؤشر"), "chart"],
-        [/^schema__/, () => __("استكشاف المخطط"), "list"],
-        [/^skills__load$/, () => __("تحميل مهارة"), "book"],
-        [/^actions__prepare_document$/, () => __("تجهيز مستند"), "file"],
-        [/^actions__validate_document$/, () => __("التحقق من مستند"), "check"],
-        [/^actions__request_/, () => __("طلب اعتماد"), "shield"],
-        [/^artifacts__/, () => __("إنشاء عرض"), "chart"],
-        [/^memory__/, () => __("الذاكرة"), "brain"],
-        [/^files__read$/, () => __("قراءة ملف مرفق"), "paperclip"],
+        [/^data__query$/, () => __("Data query"), "database"],
+        [/^data__get_document$/, () => __("Read document"), "file"],
+        [/^data__get_child_records$/, () => __("Read document lines"), "list"],
+        [/^data__count$/, () => __("Count records"), "database"],
+        [/^reports__run$/, () => __("Run report"), "table"],
+        [/^reports__(search|describe)$/, () => __("Search reports"), "search"],
+        [/^analysis__/, () => __("Analysis"), "chart"],
+        [/^erp__/, () => __("ERP lookup"), "database"],
+        [/^diagnose__/, () => __("Diagnose document"), "search"],
+        [/^setup__check$/, () => __("Setup check"), "settings"],
+        [/^knowledge__search$/, () => __("Search the guide"), "book"],
+        [/^skills__(list|read_reference)$/, () => __("Skills"), "book"],
+        [/^tools__enable$/, () => __("Enable more tools"), "tool"],
+        [/^attachments__list$/, () => __("Document attachments"), "paperclip"],
+        [/^metrics__query$/, () => __("Metric"), "chart"],
+        [/^schema__/, () => __("Explore structure"), "list"],
+        [/^skills__load$/, () => __("Load skill"), "book"],
+        [/^actions__prepare_document$/, () => __("Prepare document"), "file"],
+        [/^actions__validate_document$/, () => __("Validate document"), "check"],
+        [/^actions__request_/, () => __("Approval request"), "shield"],
+        [/^artifacts__/, () => __("Create view"), "chart"],
+        [/^memory__/, () => __("Memory"), "brain"],
+        [/^files__read$/, () => __("Read attached file"), "paperclip"],
     ];
 
     /** Wire name ("data__query") → human label; unknown names show dotted. */
@@ -423,7 +426,7 @@
     }
 
     function errorMessage(err) {
-        if (!err) return __("حدث خطأ غير متوقع");
+        if (!err) return __("An unexpected error occurred");
         if (typeof err === "string") return stripHtml(err);
         if (err.message) return stripHtml(err.message);
         if (err._server_messages) {
@@ -436,7 +439,7 @@
             }
         }
         if (err.exc) return stripHtml(String(err.exc).split("\n").pop());
-        return __("حدث خطأ غير متوقع");
+        return __("An unexpected error occurred");
     }
 
     function stripHtml(s) {

@@ -39,11 +39,11 @@ def build_payload(arguments):
     subject = str(arguments.get("subject") or "").strip()[:200]
     message = str(arguments.get("message") or "").strip()
     if not recipients:
-        frappe.throw(_("لا يوجد بريد صحيح للمستلم."))
+        frappe.throw(_("There is no valid recipient email address."))
     if len(recipients) + len(cc) > MAX_RECIPIENTS:
-        frappe.throw(_("عدد المستلمين أكثر من {0}.").format(MAX_RECIPIENTS))
+        frappe.throw(_("More than {0} recipients.").format(MAX_RECIPIENTS))
     if not subject or not message:
-        frappe.throw(_("الموضوع ونص الرسالة مطلوبان."))
+        frappe.throw(_("A subject and a message are required."))
     attachments = [str(a).strip() for a in (arguments.get("attachments") or []) if str(a or "").strip()][:MAX_ATTACHMENTS]
     return {
         "method": METHOD,
@@ -63,13 +63,13 @@ def _attachment_files(urls, user):
     for url in urls or []:
         row = frappe.db.get_value("File", {"file_url": url}, ["name", "owner", "attached_to_doctype", "attached_to_name"], as_dict=True)
         if not row:
-            raise frappe.PermissionError(_("المرفق {0} غير موجود.").format(url))
+            raise frappe.PermissionError(_("Attachment {0} was not found.").format(url))
         # the requester's own export, or a file the checking user (requester or approver) may read
         owned = row.owner == user
         if not owned and row.attached_to_doctype == "AI Run":
             owned = frappe.db.get_value("AI Run", row.attached_to_name, "user") == user
         if not owned and not frappe.has_permission("File", "read", doc=row.name, user=user):
-            raise frappe.PermissionError(_("لا يمكنك إرفاق الملف {0}.").format(url))
+            raise frappe.PermissionError(_("You cannot attach file {0}.").format(url))
         names.append(row.name)
     return names
 
@@ -77,23 +77,23 @@ def _attachment_files(urls, user):
 def assert_email_allowed(payload, user):
     """Raise unless `user` may send this email."""
     if not outgoing_account_ready():
-        raise frappe.ValidationError(_("لا يوجد حساب بريد صادر مُعدّ في النظام. أضِف Email Account بالإرسال مفعّل أولاً."))
+        raise frappe.ValidationError(_("No outgoing email account is set up. Add an Email Account with sending enabled first."))
     if not frappe.has_permission("Communication", "create", user=user):
-        raise frappe.PermissionError(_("ليست لديك صلاحية إرسال البريد."))
+        raise frappe.PermissionError(_("You do not have permission to send email."))
     ref_dt, ref_name = payload.get("reference_doctype"), payload.get("reference_name")
     if ref_dt or ref_name:
         if not (ref_dt and ref_name and frappe.db.exists(ref_dt, ref_name)):
-            raise frappe.PermissionError(_("المستند المرتبط غير موجود."))
+            raise frappe.PermissionError(_("The linked document was not found."))
         if not frappe.has_permission(ref_dt, "read", doc=ref_name, user=user):
-            raise frappe.PermissionError(_("لا تملك صلاحية على المستند المرتبط."))
+            raise frappe.PermissionError(_("You do not have access to the linked document."))
     _attachment_files(payload.get("attachments"), user)
 
 
 def summary(payload):
     to = "، ".join(payload["recipients"])
     files = len(payload.get("attachments") or [])
-    text = _("إرسال بريد إلى {0}: «{1}»").format(to, payload["subject"])
-    return text + (_(" مع {0} مرفق").format(files) if files else "")
+    text = _("Send email to {0}: “{1}”").format(to, payload["subject"])
+    return text + (_(" with {0} attachments").format(files) if files else "")
 
 
 def send_email(payload, approval):

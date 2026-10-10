@@ -8,10 +8,10 @@ class AISettings(Document):
         seen = set()
         for row in self.get("access_rules") or []:
             if row.role and row.user:
-                frappe.throw(_("الصف {0}: اختر دوراً أو مستخدماً، لا الاثنين معاً.").format(row.idx))
+                frappe.throw(_("Row {0}: choose a role or a user, not both.").format(row.idx))
             key = (row.reference_doctype, row.reference_name, row.role or "", row.user or "")
             if key in seen:
-                frappe.throw(_("الصف {0} مكرر.").format(row.idx))
+                frappe.throw(_("Row {0} is a duplicate.").format(row.idx))
             seen.add(key)
 
     def on_update(self):

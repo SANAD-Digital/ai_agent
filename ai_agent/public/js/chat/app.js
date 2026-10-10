@@ -19,10 +19,10 @@
     const api = AIChat.api;
 
     const SUGGESTIONS = [
-        () => __("لخّص مبيعات هذا الشهر مقارنة بالشهر الماضي"),
-        () => __("ما الفواتير المتأخرة السداد لأكثر من 30 يوماً؟"),
-        () => __("أنشئ عرض سعر لعميل جديد"),
-        () => __("اشرح لي كيف يُحتسب هامش الربح في التقارير"),
+        () => __("Summarize this month's sales compared with last month"),
+        () => __("Which invoices are more than 30 days overdue?"),
+        () => __("Create a quotation for a new customer"),
+        () => __("Explain how profit margin is calculated in the reports"),
     ];
 
     async function mount(wrapper, page) {
@@ -48,12 +48,12 @@
         const banner = h("div.ac-banner");
         banner.hidden = true;
 
-        const titleEl = h("button.ac-header-title", { type: "button", title: __("إعادة تسمية") });
+        const titleEl = h("button.ac-header-title", { type: "button", title: __("Rename") });
         const agentEl = h("span.ac-header-agent");
         const meter = AIChat.composer.createContextMeter();
         const usageEl = h("span.ac-header-usage");
-        const btnMenu = h("button.ac-icon-btn.ac-header-menu", { type: "button", title: __("المحادثات"), aria: { label: __("المحادثات") } }, icon("panel"));
-        const btnNewTop = h("button.ac-icon-btn.ac-header-new", { type: "button", title: __("محادثة جديدة"), aria: { label: __("محادثة جديدة") } }, icon("plus"));
+        const btnMenu = h("button.ac-icon-btn.ac-header-menu", { type: "button", title: __("Conversations"), aria: { label: __("Conversations") } }, icon("panel"));
+        const btnNewTop = h("button.ac-icon-btn.ac-header-new", { type: "button", title: __("New Conversation"), aria: { label: __("New Conversation") } }, icon("plus"));
         const header = h("header.ac-header", h("div.ac-header-start", btnMenu, h("div.ac-header-text", titleEl, agentEl)), h("div.ac-header-end", usageEl, meter.el, btnNewTop));
 
         const composer = AIChat.composer.create({
@@ -85,7 +85,7 @@
             const s = store.state.current;
             const agent = s ? s.agent : store.state.composer.agent;
             const a = ((store.state.boot && store.state.boot.agents) || []).find((x) => x.name === agent);
-            return a ? a.agent_name || a.name : agent || __("المساعد");
+            return a ? a.agent_name || a.name : agent || __("Assistant");
         }
 
         function messageCtx() {
@@ -96,8 +96,8 @@
             return h(
                 "div.ac-empty",
                 h("div.ac-empty-mark", icon("sparkles")),
-                h("h2.ac-empty-title", { text: __("ابدأ محادثة") }),
-                h("p.ac-empty-sub", { text: __("اسأل عن بياناتك، شغّل تقريراً، أو جهّز مستنداً — {0} جاهز.", [agentName()]) }),
+                h("h2.ac-empty-title", { text: __("Start a conversation") }),
+                h("p.ac-empty-sub", { text: __("Ask about your data, run a report or prepare a document — {0} is ready.", [agentName()]) }),
                 h(
                     "div.ac-suggestions",
                     SUGGESTIONS.map((fn) => {
@@ -114,7 +114,7 @@
 
         function paintHeader() {
             const s = store.state.current;
-            titleEl.textContent = s ? s.title || __("محادثة جديدة") : __("محادثة جديدة");
+            titleEl.textContent = s ? s.title || __("New Conversation") : __("New Conversation");
             titleEl.disabled = !s;
             AIChat.clear(agentEl);
             agentEl.appendChild(h("span", { text: agentName() }));
@@ -124,13 +124,13 @@
             if (u && (u.input_tokens || u.output_tokens)) {
                 const total = (u.input_tokens || 0) + (u.output_tokens || 0);
                 AIChat.clear(usageEl);
-                usageEl.appendChild(h("span", { text: __("{0} رمز", [fmtTokens(total)]) }));
+                usageEl.appendChild(h("span", { text: __("{0} tokens", [fmtTokens(total)]) }));
                 if (u.estimated_cost) usageEl.appendChild(h("span", { text: fmtCost(u.estimated_cost) }));
                 usageEl.hidden = false;
             } else usageEl.hidden = true;
             composer.setSession(s);
             // the store is shared with the support bubble: only the visible page owns the tab title
-            if (pageVisible()) document.title = (s && s.title ? s.title + " · " : "") + __("مساعد الذكاء الاصطناعي");
+            if (pageVisible()) document.title = (s && s.title ? s.title + " · " : "") + __("AI Assistant");
         }
 
         function paintStreaming() {
@@ -149,7 +149,7 @@
         let bannerTimer = null;
         function showBanner(text, kind) {
             AIChat.clear(banner);
-            const close = h("button.ac-icon-btn", { type: "button", aria: { label: __("إغلاق") } }, icon("x"));
+            const close = h("button.ac-icon-btn", { type: "button", aria: { label: __("Close") } }, icon("x"));
             close.addEventListener("click", () => (banner.hidden = true));
             banner.append(icon(kind === "error" ? "alert" : "info"), h("span", { text }), close);
             banner.dataset.kind = kind || "error";
@@ -292,7 +292,7 @@
         function renameCurrent() {
             const s = store.state.current;
             if (!s) return;
-            const input = h("input.ac-rename-input.ac-header-rename", { type: "text", value: s.title || "", aria: { label: __("عنوان المحادثة") } });
+            const input = h("input.ac-rename-input.ac-header-rename", { type: "text", value: s.title || "", aria: { label: __("Conversation title") } });
             titleEl.replaceWith(input);
             input.focus();
             input.select();

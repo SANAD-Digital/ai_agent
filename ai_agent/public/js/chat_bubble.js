@@ -136,7 +136,7 @@
 
     function render() {
         if (fab || document.getElementById("ai-chatbot-fab")) return; // old widget still active: stay out
-        var label = boot.title || __("المساعد");
+        var label = boot.title || __("Assistant", null, "AI Chat");
         fab = document.createElement("button");
         fab.type = "button";
         fab.id = "ai-chat-bubble-fab";

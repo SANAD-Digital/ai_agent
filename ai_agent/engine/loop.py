@@ -11,6 +11,7 @@ persist and the client can render straight from the events.
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, replace
 
@@ -83,6 +84,13 @@ class Loop:
         self.steps = 0
         self.tool_calls = 0
 
+    def base_tokens(self, tools):
+        """What every request carries besides the history: the system prompt and the
+        full tool definitions (name, description and the parameter schema, which is
+        usually the larger part)."""
+        return (estimate_tokens(self.system_static) + estimate_tokens(self.system_dynamic)
+                + sum(estimate_tokens(json.dumps({"name": t.name, "description": t.description, "parameters": t.parameters}, ensure_ascii=False)) for t in tools))
+
     # -- public -----------------------------------------------------------------
 
     def run(self, messages, start_seq=0, resumed=False):
@@ -91,7 +99,7 @@ class Loop:
         self.seq = start_seq
         yield MessageStarted(model=self.config.model, provider=self.config.provider_name, resumed=resumed)
         tools = self.executor.specs()
-        base_tokens = estimate_tokens(self.system_static) + estimate_tokens(self.system_dynamic) + sum(estimate_tokens(t.description) + 40 for t in tools)
+        base_tokens = self.base_tokens(tools)
         continued = 0
         nudged = False
         attempts = 0
@@ -217,6 +225,7 @@ class Loop:
                 messages = messages + [Message(role="user", blocks=results)]
                 if getattr(self.executor, "specs_changed", False):
                     tools = self.executor.specs()
+                    base_tokens = self.base_tokens(tools)
                     self.executor.specs_changed = False
                 continue
 

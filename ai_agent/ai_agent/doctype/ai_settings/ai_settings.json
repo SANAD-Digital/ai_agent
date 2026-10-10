@@ -23,8 +23,6 @@
   "cb_web",
   "web_search_api_key",
   "web_search_url",
-  "section_model_capabilities",
-  "model_capabilities",
   "tab_limits",
   "section_limits",
   "request_timeout",
@@ -189,19 +187,6 @@
    "fieldtype": "Data",
    "label": "SearXNG URL",
    "description": "For example https://search.example.com"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "section_model_capabilities",
-   "fieldtype": "Section Break",
-   "label": "Model Capabilities"
-  },
-  {
-   "description": "Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.",
-   "fieldname": "model_capabilities",
-   "fieldtype": "Table",
-   "label": "Model Capabilities",
-   "options": "AI Model Capability"
   },
   {
    "fieldname": "tab_limits",
@@ -555,7 +540,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 06:00:00.000000",
+ "modified": "2026-10-10 07:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

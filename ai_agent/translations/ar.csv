@@ -81,7 +81,6 @@ Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات
 Memory,الذاكرة
 Memory Retention Days,مدة الاحتفاظ بالذاكرة (بالأيام)
 Model,النموذج
-Model Capabilities,قدرات النماذج
 No app is connected yet.,لا يوجد تطبيق متصل حتى الآن.
 Off,متوقف
 Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.,متوقف (الافتراضي): لا يعتمد الوكيل المستندات ولا يلغيها أبداً؛ أدوات الاعتماد والإلغاء مخفية، والطلبات القديمة تُرفض عند التنفيذ.
@@ -93,7 +92,6 @@ Open ChatGPT,فتح ChatGPT
 Open Claude settings,فتح إعدادات Claude
 Open my user page,فتح صفحتي
 Other tools,أدوات أخرى
-Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.,تجاوز نافذة السياق ودعم الصور لكل نموذج. يُطبَّق أول صف يطابق نمطه اسم النموذج؛ والنماذج بلا صف مطابق تستخدم التقديرات المدمجة.
 Own Key,مفتاح خاص
 "Own Key mode with third-party providers: questions, tool results and attachments are sent to the selected provider (e.g. DeepSeek, Gemini).",وضع المفتاح الخاص مع مزوّدين خارجيين: الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek وGemini).
 "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",في وضع المفتاح الخاص، نوع في كل سطر (Anthropic، OpenAI، OpenAI Compatible، Ollama، Gemini OCR). فارغ = الكل.

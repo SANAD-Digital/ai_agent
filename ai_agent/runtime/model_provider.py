@@ -464,8 +464,8 @@ def get_provider(provider_name=None):
 
 
 def _configured_model_capability(model=None):
-    """Capability row for a model: an AI Provider Model entry with an exact
-    name match wins, then the AI Settings pattern table."""
+    """Capability row for a model: the AI Provider Model entry with that name
+    (the same source the chat engine uses)."""
     text = str(model or "").lower()
     if text and _providers_available():
         rows = frappe.get_all(
@@ -481,35 +481,18 @@ def _configured_model_capability(model=None):
                 context_window_tokens=row.context_window_tokens,
                 supports_vision=row.supports_vision,
             )
-    try:
-        rows = frappe.get_cached_doc("AI Settings").get("model_capabilities") or []
-    except Exception:
-        return None
-    for row in rows:
-        pattern = str(row.get("model_pattern") or "").strip().lower()
-        if pattern and pattern in text:
-            return row
     return None
 
 
 def estimate_context_window_tokens(model=None, base_url=None):
-    """Context-window estimate: configured capability table first, then heuristics."""
+    """Context window: the provider's model row, else the shared family estimates."""
     capability = _configured_model_capability(model)
     if capability and int(capability.get("context_window_tokens") or 0) > 0:
         return int(capability.get("context_window_tokens"))
 
-    text = f"{model or ''} {base_url or ''}".lower()
-    if "gemini" in text:
-        return 1000000
-    if "gpt-4.1" in text or "gpt-4o" in text or "deepseek" in text:
-        return 128000
-    if "llama-3.3" in text or "llama-3.1" in text or "mixtral" in text:
-        return 128000
-    if "qwen" in text:
-        return 128000
-    if "claude" in text:
-        return 200000
-    return DEFAULT_CONTEXT_WINDOW_TOKENS
+    from ai_agent.engine.providers.base import guess_context_window
+
+    return guess_context_window(model, local=":11434" in str(base_url or "") or "ollama" in str(base_url or "").lower())
 
 
 def supports_vision_model(model=None, base_url=None):

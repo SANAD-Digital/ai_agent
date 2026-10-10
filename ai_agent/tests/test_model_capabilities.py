@@ -1,55 +1,69 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from ai_agent.runtime.model_provider import (
-	DEFAULT_CONTEXT_WINDOW_TOKENS,
-	estimate_context_window_tokens,
-	supports_vision_model,
-)
+from ai_agent.engine.providers.base import caps_from_config, guess_context_window, guess_max_output, model_limits
+from ai_agent.runtime.model_provider import estimate_context_window_tokens, supports_vision_model
 
 
 class TestModelCapabilities(IntegrationTestCase):
-	def setUp(self):
-		self._set_capabilities([])
+	"""One source for every path: the provider's model row, else the family estimates."""
 
-	def tearDown(self):
-		self._set_capabilities([])
-		frappe.db.commit()
+	def test_families(self):
+		cases = {
+			"claude-opus-5-5": (200_000, 32_000),
+			"gemini-3.8-flash": (1_048_576, 65_536),
+			"gemini-3.8-flash-tts": (8_192, 16_384),
+			"google/gemma-4-31b-it:free": (262_144, 32_768),
+			"deepseek-v4-flash": (1_048_576, 393_216),
+			"deepseek-chat": (128_000, 8_192),
+			"gpt-5.6": (1_050_000, 128_000),
+			"gpt-5-mini": (400_000, 128_000),
+			"gpt-4o-mini": (128_000, 16_384),
+			"o4-mini": (200_000, 100_000),
+			"openai/gpt-oss-120b": (131_072, 32_768),
+			"llama-3.3-70b-versatile": (131_072, 8_192),
+			"moonshotai/kimi-k2-instruct": (131_072, 16_384),
+			"totally-unknown-model": (128_000, 8_192),
+		}
+		for model, (context, output) in cases.items():
+			self.assertEqual(model_limits(model)[:2], (context, output), model)
 
-	def _set_capabilities(self, rows):
-		settings = frappe.get_doc("AI Settings")
-		settings.set("model_capabilities", rows)
-		settings.save(ignore_permissions=True)
-		frappe.clear_document_cache("AI Settings", "AI Settings")
+	def test_local_ollama_stays_small(self):
+		self.assertEqual(guess_context_window("llama3.1:8b", local=True), 8_192)
+		self.assertLessEqual(guess_max_output("qwen2.5:7b", local=True), 4_096)
+		caps = caps_from_config({"type": "OpenAI Compatible", "base_url": "http://localhost:11434/v1", "models": {}}, "llama3.1:8b")
+		self.assertEqual(caps.context_window, 8_192)
 
-	def test_configured_row_overrides_context_window(self):
-		self._set_capabilities([
-			{"model_pattern": "my-custom-model", "context_window_tokens": 32000, "supports_vision": 0},
-		])
-		self.assertEqual(estimate_context_window_tokens("my-custom-model-v2"), 32000)
+	def test_provider_row_wins_everywhere(self):
+		row = {"context_window_tokens": 32_000, "max_output_tokens": 2_000}
+		caps = caps_from_config({"type": "OpenAI Compatible", "base_url": "", "models": {"gemini-3.8-flash": row}}, "gemini-3.8-flash")
+		self.assertEqual((caps.context_window, caps.max_output_tokens), (32_000, 2_000))
 
-	def test_configured_row_is_authoritative_for_vision(self):
-		self._set_capabilities([
-			{"model_pattern": "text-only-model", "context_window_tokens": 0, "supports_vision": 0},
-			{"model_pattern": "my-vision-model", "context_window_tokens": 0, "supports_vision": 1},
-		])
-		self.assertTrue(supports_vision_model("my-vision-model-v3"))
-		self.assertFalse(supports_vision_model("text-only-model"))
+		provider = frappe.get_all("AI Provider", pluck="name", limit=1)
+		if not provider:
+			self.skipTest("no AI Provider on this site")
+		doc = frappe.get_doc("AI Provider", provider[0])
+		doc.append("models", {"model_name": "test-capability-model", "context_window_tokens": 32_000, "supports_vision": 1})
+		doc.save(ignore_permissions=True)
+		self.assertEqual(estimate_context_window_tokens("test-capability-model"), 32_000, "the legacy path reads the same row")
+		self.assertTrue(supports_vision_model("test-capability-model"))
+		frappe.db.rollback()
 
-	def test_zero_context_window_falls_back_to_heuristics(self):
-		self._set_capabilities([
-			{"model_pattern": "gemini", "context_window_tokens": 0, "supports_vision": 1},
-		])
-		self.assertEqual(estimate_context_window_tokens("gemini-3.5-flash"), 1000000)
+	def test_legacy_path_matches_the_engine(self):
+		for model in ("claude-opus-5-5", "gemini-3.8-flash", "deepseek-v4-pro", "gpt-5.6", "some-new-model"):
+			if frappe.db.exists("AI Provider Model", {"model_name": model}):
+				continue
+			self.assertEqual(estimate_context_window_tokens(model), guess_context_window(model), model)
 
-	def test_unmatched_model_uses_heuristics(self):
-		self._set_capabilities([
-			{"model_pattern": "my-custom-model", "context_window_tokens": 32000, "supports_vision": 0},
-		])
-		self.assertEqual(estimate_context_window_tokens("claude-fable-5"), 200000)
-		self.assertTrue(supports_vision_model("gpt-4o"))
 
-	def test_no_rows_keeps_default(self):
-		self.assertEqual(
-			estimate_context_window_tokens("totally-unknown-model"), DEFAULT_CONTEXT_WINDOW_TOKENS
-		)
+class TestPromptBudget(IntegrationTestCase):
+	def test_tool_schemas_count_toward_the_prompt(self):
+		from types import SimpleNamespace
+
+		from ai_agent.engine.loop import Loop
+		from ai_agent.engine.types import ToolSpec
+
+		schema = {"type": "object", "properties": {f"field_{i}": {"type": "string", "description": "x" * 60} for i in range(20)}}
+		bare = Loop.base_tokens(SimpleNamespace(system_static="", system_dynamic=""), [ToolSpec(name="t", description="short", parameters={})])
+		full = Loop.base_tokens(SimpleNamespace(system_static="", system_dynamic=""), [ToolSpec(name="t", description="short", parameters=schema)])
+		self.assertGreater(full - bare, 500, "a large parameter schema must raise the estimate")

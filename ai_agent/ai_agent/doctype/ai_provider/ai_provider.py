@@ -100,9 +100,11 @@ def _anthropic_models(config):
 def _openai_models(config):
 	from openai import OpenAI
 
-	from ai_agent.engine.providers.base import guess_context_window, guess_thinking
+	from ai_agent.engine.providers.base import guess_context_window, guess_max_output, guess_thinking, is_local
 
 	client = OpenAI(api_key=config["api_key"] or "none", base_url=config.get("base_url") or None, timeout=30, max_retries=1)
+	local = is_local(config)
+	native = _gemini_native_limits(config)
 	out = []
 	for m in client.models.list():
 		model_id = m.id
@@ -113,17 +115,42 @@ def _openai_models(config):
 		raw = m.model_dump() if hasattr(m, "model_dump") else dict(m)
 		modalities = raw.get("input_modalities") or (raw.get("architecture") or {}).get("input_modalities") or []
 		params = raw.get("supported_parameters") or []
-		context = raw.get("context_window") or raw.get("context_length") or 0
-		output = raw.get("max_output_tokens") or (raw.get("top_provider") or {}).get("max_completion_tokens") or 0
-		reasoning = bool(raw.get("effort") or raw.get("reasoning") or "reasoning" in params)
+		exact = native.get(model_id) or {}
+		context = exact.get("context") or raw.get("context_window") or raw.get("context_length") or 0
+		output = (exact.get("output") or raw.get("max_output_tokens") or raw.get("max_completion_tokens")
+			or (raw.get("top_provider") or {}).get("max_completion_tokens") or 0)
+		reasoning = bool(exact.get("thinking") or raw.get("effort") or raw.get("reasoning") or "reasoning" in params)
 		out.append({
 			"model_name": model_id,
 			"label": raw.get("name") or model_id,
-			"context_window_tokens": int(context or guess_context_window(model_id) or 0),
-			"max_output_tokens": int(output or 0),
+			"context_window_tokens": int(context or guess_context_window(model_id, local=local) or 0),
+			"max_output_tokens": int(output or guess_max_output(model_id, local=local) or 0),
 			"supports_vision": int("image" in modalities),
 			"supports_thinking": int(reasoning or bool(guess_thinking(model_id))),
 			"supports_pdf": int("file" in modalities or "pdf" in modalities),
 			"supports_tools": int("tools" in params) if params else 1,
 		})
 	return out
+
+
+def _gemini_native_limits(config):
+	"""Gemini's OpenAI-compatible model list has no limits; the native list does.
+
+	{model id: {context, output, thinking}}; empty for other providers or on any error
+	(the fetch then falls back to the family estimates).
+	"""
+	base = config.get("base_url") or ""
+	if "generativelanguage.googleapis.com" not in base or not config.get("api_key"):
+		return {}
+	import requests
+
+	try:
+		response = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+			params={"key": config["api_key"], "pageSize": 1000}, timeout=20)
+		models = (response.json().get("models") or []) if response.ok else []
+	except Exception:
+		return {}
+	return {
+		m["name"].split("/", 1)[-1]: {"context": m.get("inputTokenLimit") or 0, "output": m.get("outputTokenLimit") or 0, "thinking": bool(m.get("thinking"))}
+		for m in models if m.get("name")
+	}

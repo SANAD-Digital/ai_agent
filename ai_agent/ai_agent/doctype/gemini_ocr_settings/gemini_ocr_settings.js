@@ -25,3 +25,11 @@ frappe.ui.form.on("Gemini OCR Settings", {
         });
     },
 });
+
+// Frappe checks the strength of every Password field as you type; for a long API key the
+// check fails on the server ("Integer exceeds 64-bit range") and the key ends up in Error Log.
+frappe.ui.form.on("Gemini OCR Settings", {
+	refresh(frm) {
+		frm.get_field("api_key")?.disable_password_checks?.();
+	},
+});

@@ -127,18 +127,6 @@
   {
    "child": 0,
    "collapsible": 1,
-   "icon": "wrench",
-   "indent": 0,
-   "keep_closed": 0,
-   "label": "Tool Calls",
-   "link_to": "AI Tool Call",
-   "link_type": "DocType",
-   "show_arrow": 0,
-   "type": "Link"
-  },
-  {
-   "child": 0,
-   "collapsible": 1,
    "icon": "settings",
    "indent": 0,
    "keep_closed": 0,
@@ -208,7 +196,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-10 21:02:51.664819",
+ "modified": "2026-10-10 21:55:35.439434",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI",

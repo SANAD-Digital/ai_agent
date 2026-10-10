@@ -103,7 +103,7 @@ def ensure_workspace_sidebar():
 
 
 # Pages and DocTypes the app no longer ships; existing sites still carry their links.
-RETIRED_WORKSPACE_TARGETS = {"purchase-invoice-ai", "AI Chatbot Conversation"}
+RETIRED_WORKSPACE_TARGETS = {"purchase-invoice-ai", "AI Chatbot Conversation", "AI Tool Call"}
 RETIRED_SHORTCUT_NAMES = {"Purchase Invoice AI"}
 
 
@@ -235,7 +235,6 @@ def _ai_workspace_sidebar_items():
         link("Skill Grants", "AI Skill Grant", "key-round"),
         section("Monitoring", "activity"),
         link("Runs", "AI Run", "activity"),
-        link("Tool Calls", "AI Tool Call", "wrench"),
         section("Settings", "settings"),
         link("Settings & Permissions", "AI Settings", "settings"),
         link("Model Providers", "AI Provider", "server"),

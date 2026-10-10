@@ -1,64 +1,73 @@
-"<a href=""/app/oauth-settings"">OAuth Settings</a> must list {0} in <b>Allowed Public Client Origins</b>.","يجب إضافة {0} في حقل <b>مصادر العملاء العامة المسموح بها</b> داخل صفحة <a href=""/app/oauth-settings"">إعدادات OAuth</a>."
-<b>Cursor</b> — in the file {0}:,<b>Cursor</b>: أضف هذا في الملف {0}
-<b>VS Code (Copilot)</b> — in the file {0}:,<b>VS Code (Copilot)</b>: أضف هذا في الملف {0}
-<b>opencode</b> — in the file {0}:,<b>opencode</b>: أضف هذا في الملف {0}
 API Key,مفتاح API
 Access Rules,قواعد الصلاحيات
-Add the server from the terminal:,أضف الخادم بكتابة هذا الأمر في نافذة الأوامر (Terminal):
+Add user,إضافة مستخدم
+Add {0} to Allowed MCP Roles first.,أضف {0} إلى أدوار MCP المسموحة أولاً.
 Agent policy applied to every MCP tool call. ERP Analyst is used when empty.,سياسة الوكيل المطبّقة على كل استدعاء أداة عبر MCP. يُستخدم ERP Analyst إذا تُرك فارغاً.
 Agent: {0},الوكيل: {0}
+Allow,السماح
 Allow Admin Conversation Audit,السماح للمدير بمراجعة المحادثات
 Allow Approval from MCP App,السماح بالموافقة من بطاقة MCP
 Allow Submit / Cancel Actions,السماح بإجراءات الاعتماد والإلغاء
 Allowed MCP Browser Origins,المواقع المسموح لها بالاتصال من المتصفح
 Allowed MCP Roles,أدوار MCP المسموحة
 Allowed Provider Types,أنواع المزوّدات المسموحة
+Allows ChatGPT to complete the sign-in.,يسمح لـ ChatGPT بإكمال تسجيل الدخول.
 Approver Role,دور المعتمِد
 Base URL,الرابط الأساسي
-Cause and fix,السبب والحل
-"ChatGPT shows tables, charts and approval cards with buttons inside the conversation.",يعرض ChatGPT الجداول والرسوم البيانية وبطاقات الموافقة بأزرارها داخل المحادثة.
+ChatGPT access,السماح لـ ChatGPT
+ChatGPT access is not allowed yet.,لم يُسمح لـ ChatGPT بعد.
 Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set.,يُصنَّف كل سؤال أولاً ويُرسل للنموذج أدوات ذلك التصنيف فقط (8 كحد أقصى). الأسئلة غير المصنّفة تحصل على كل الأدوات.
-"Claude shows results as text and tables in its reply. To approve a request, reply <b>approve</b> (or <b>موافق</b>) in the chat.",يعرض Claude النتائج نصاً وجداول داخل الرد. للموافقة على طلب، اكتب <b>موافق</b> في المحادثة.
-Click <b>Add custom connector</b>.,اضغط <b>إضافة موصل مخصص (Add custom connector)</b>.
-"Click <b>Add</b>, then <b>Connect</b>, sign in to the system and click <b>Allow</b>.",اضغط <b>إضافة (Add)</b> ثم <b>اتصال (Connect)</b>، وسجّل دخولك في النظام، ثم اضغط <b>السماح</b>.
+"Claude, ChatGPT and other tools sign in with each user's own account.",يدخل Claude وChatGPT وغيرهما بحساب كل مستخدم في النظام.
+"Click <b>Create app</b>, paste the link and choose <b>OAuth</b>.",اضغط <b>إنشاء تطبيق (Create app)</b>، والصق الرابط، واختر <b>تسجيل الدخول بالحساب (OAuth)</b>.
+"Click <b>Open Claude settings</b>, then <b>Add custom connector</b>.",اضغط <b>فتح إعدادات Claude</b>، ثم <b>إضافة موصل مخصص (Add custom connector)</b>.
+Click <b>Start</b> above the server name and sign in.,اضغط <b>Start</b> فوق اسم الخادم، ثم سجّل دخولك.
+Connect an AI tool,ربط أداة ذكاء اصطناعي
+Connected apps,التطبيقات المتصلة
+Connection link,رابط الربط
 Copy,نسخ
-Copy the <b>API Key</b> and <b>API Secret</b>; the secret is shown only once.,انسخ <b>مفتاح API</b> و<b>المفتاح السري</b>، فالمفتاح السري يظهر مرة واحدة فقط.
-"Cursor, VS Code and opencode",محررات البرمجة (Cursor وVS Code وopencode)
+Copy link,نسخ الرابط
+Copy the command and run it in the terminal.,انسخ الأمر وشغّله في نافذة الأوامر (Terminal).
+Copy the settings into <b>.vscode/mcp.json</b>.,انسخ الإعدادات إلى الملف <b>.vscode/mcp.json</b>.
+Copy the settings into <b>opencode.json</b>.,انسخ الإعدادات إلى الملف <b>opencode.json</b>.
+Copy the settings into <b>~/.cursor/mcp.json</b>.,انسخ الإعدادات إلى الملف <b>~/.cursor/mcp.json</b>.
+Could not reach the server.,تعذّر الوصول إلى الخادم.
 Default Approval TTL (minutes),مدة صلاحية الموافقة الافتراضية (بالدقائق)
 Default Model,النموذج الافتراضي
 Default Reasoning Effort,مستوى التفكير الافتراضي
-Disconnect the connector in the tool and connect it again so it fetches the tool list again.,افصل الموصل في الأداة ثم أعد ربطه، حتى تجلب قائمة الأدوات من جديد.
-Each user signs in with their own account and sees or changes only what their permissions allow. They must have one of the roles in <b>Allowed MCP Roles</b>.,كل مستخدم يدخل بحسابه في النظام، فيرى ويعدّل فقط ما تسمح به صلاحياته، ويجب أن يملك أحد الأدوار في حقل <b>أدوار MCP المسموحة</b>.
+Disconnect,فصل
+Disconnect {0}? Its users must sign in again.,فصل {0}؟ سيحتاج مستخدموه إلى تسجيل الدخول من جديد.
+Done,تم
+Enable,تفعيل
 Enable MCP Action Requests,تفعيل طلبات الإجراءات عبر MCP
 Enable MCP Server,تفعيل خادم MCP
 Enable Memory,تفعيل الذاكرة
 Enable Tool Routing,تفعيل توجيه الأدوات
 Enabled,مفعّل
-Enter a name such as <b>Sanad ERPNext</b> and this URL: {0},اكتب اسماً مثل <b>سند ERPNext</b>، وضع الرابط: {0}
-"Enter a name, set the URL to {0} and choose <b>OAuth</b> authentication.",اكتب اسماً، وضع الرابط {0}، واختر طريقة الدخول <b>تسجيل الدخول بالحساب (OAuth)</b>.
 "Every skill or plugin is blocked until it is allowed here. A row with no role and no user applies to everyone. A user row overrides a role row; on a tie, deny wins. Automatic skills (always on) are not subject to this table.",كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. الصف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.
 Expose action-request tools. They only create an approval request; document changes still require approval in Frappe.,إتاحة أدوات طلب الإجراءات. هي تنشئ طلب موافقة فقط، وتعديل المستندات يبقى بحاجة إلى اعتماد داخل النظام.
 Expose the authenticated MCP endpoint for external AI clients.,إتاحة الربط مع أدوات الذكاء الاصطناعي الخارجية (مثل Claude وChatGPT) بعد تسجيل الدخول.
 Extra Masked DocTypes,أنواع مستندات إضافية مخفية
 Extra Masked Fields,حقول إضافية مخفية
-"For any tool that supports MCP over HTTP but not sign-in (OAuth), use a per-user API key:",لأي أداة تدعم MCP لكنها لا تدعم تسجيل الدخول بالحساب، استخدم مفتاح ربط (API) خاصاً بكل مستخدم:
-Give the user one of the roles in <b>Allowed MCP Roles</b> (<b>AI MCP User</b> by default).,أعطِ المستخدم أحد الأدوار المذكورة في حقل <b>أدوار MCP المسموحة</b> (الدور الافتراضي <b>AI MCP User</b>).
+Fix all,إصلاح الكل
+For tools without sign-in: open your user page and click <b>Generate Keys</b> under API access.,للأدوات التي لا تدعم تسجيل الدخول: افتح صفحتك في النظام واضغط <b>توليد المفاتيح</b> في قسم تفاصيل وصول API.
+Give MCP access,منح صلاحية الربط
+Give access,منح الصلاحية
+Give me access,أعطني الصلاحية
 I Accept Sending Data to Third-Party Providers,أوافق على إرسال البيانات إلى مزوّدين خارجيين
-"In <b>Settings → Apps</b>, click <b>Create app</b>.",من <b>الإعدادات (Settings) ← التطبيقات (Apps)</b> اضغط <b>إنشاء تطبيق (Create app)</b>.
-"In a conversation, pick the app from the <b>+</b> button, then <b>Developer mode</b>.",في المحادثة اختر التطبيق من زر <b>+</b> ثم <b>وضع المطوّر (Developer mode)</b>.
-"In a conversation, turn the connector on from the tools menu under the message box.",في المحادثة، فعّل الموصل من قائمة الأدوات أسفل مربع الكتابة.
-"In the tool, set the URL to {0} and add this header:",في الأداة ضع الرابط {0}، وأضف هذا السطر في إعدادات الترويسة (Headers):
-It cannot create documents,لا يستطيع إنشاء مستندات
-Leave <b>Advanced settings</b> empty; Claude registers itself automatically.,اترك <b>الإعدادات المتقدمة (Advanced settings)</b> فارغة، فـ Claude يسجّل نفسه تلقائياً.
+In ChatGPT open <b>Settings → Apps → Advanced settings</b> and turn on <b>Developer mode</b>.,في ChatGPT افتح <b>الإعدادات (Settings) ← التطبيقات (Apps) ← الإعدادات المتقدمة (Advanced settings)</b> وفعّل <b>وضع المطوّر (Developer mode)</b>.
+In Claude Code type <b>/mcp</b> and choose the server to sign in.,داخل Claude Code اكتب <b>/mcp</b> واختر الخادم لتسجيل الدخول.
+"In the tool, paste the link and add the header below with your key and secret.",في الأداة الصق الرابط، وأضف السطر التالي في إعدادات الترويسة (Headers) مع مفتاحك والمفتاح السري.
+Last used {0},آخر استخدام {0}
 "Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat or in Frappe. Independent of 'MCP Actions Require Approval'.",تمكين بطاقة الموافقة من اعتماد الإجراء المعلّق أو تعديله أو إلغائه بأزرارها (برمز موقّع لمرة واحدة، مع إعادة التحقق من صلاحيات المستخدم عند التنفيذ). متوقف: تتم الموافقة في المحادثة أو داخل النظام. مستقل عن «إجراءات MCP تتطلب موافقة».
+Lets external AI tools connect to this site.,يسمح لأدوات الذكاء الاصطناعي الخارجية بالاتصال بهذا الموقع.
 Limits & Timeouts,الحدود والمهل
 MCP Actions Require Approval,إجراءات MCP تتطلب موافقة
 MCP Agent,وكيل MCP
 MCP Company,شركة MCP
 MCP Requests per Minute,طلبات MCP في الدقيقة
 MCP Server,خادم MCP
-MCP Setup Guide,دليل ربط MCP
-"Make sure <a href=""/app/oauth-settings"">OAuth Settings</a> has Show Auth Server Metadata, Show Protected Resource Metadata and Enable Dynamic Client Registration turned on.","افتح <a href=""/app/oauth-settings"">إعدادات OAuth</a> وفعّل: <b>عرض بيانات تعريف خادم المصادقة</b> و<b>عرض بيانات تعريف الموارد المحمية</b> و<b>تفعيل تسجيل العملاء الديناميكي</b>."
+MCP Setup,إعداد الربط مع أدوات الذكاء الاصطناعي
+MCP server,خادم الربط (MCP)
 Managed,مُدار
 Managed: only Anthropic (Claude) providers are used. Own Key: other providers are allowed only with the consent below.,مُدار: تُستخدم مزوّدات Anthropic (Claude) فقط. مفتاح خاص: يُسمح بمزوّدات أخرى بشرط الموافقة أدناه.
 Maximum Result Bytes,أقصى حجم للنتيجة (بايت)
@@ -69,58 +78,61 @@ Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات
 Memory,الذاكرة
 Memory Retention Days,مدة الاحتفاظ بالذاكرة (بالأيام)
 Model Capabilities,قدرات النماذج
-New tools do not appear after a system update,الأدوات الجديدة لا تظهر بعد تحديث النظام
+No app is connected yet.,لا يوجد تطبيق متصل حتى الآن.
 Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.,متوقف (الافتراضي): لا يعتمد الوكيل المستندات ولا يلغيها أبداً؛ أدوات الاعتماد والإلغاء مخفية، والطلبات القديمة تُرفض عند التنفيذ.
 "On (default): every write from MCP waits for a human decision (card button or an explicit word in chat). Off: the requester's own requests execute immediately under their ERPNext permissions, and are still recorded as AI Approval Requests.",مفعّل (الافتراضي): كل كتابة عبر MCP تنتظر قراراً بشرياً (زر البطاقة أو كلمة صريحة في المحادثة). متوقف: تُنفَّذ طلبات صاحبها فوراً بصلاحياته في ERPNext، وتبقى مسجّلة كطلبات موافقة.
-"On Team and Enterprise plans the organization owner adds the connector first in the organization settings, then each member clicks <b>Connect</b> with their own account.",في اشتراكات الفرق والمؤسسات (Team / Enterprise) يضيف مالك المؤسسة الموصل أولاً من إعدادات المؤسسة، ثم يضغط كل عضو <b>اتصال (Connect)</b> بحسابه.
 One DocType per line whose amounts are masked like Salary Slip (per-person pay).,نوع مستند في كل سطر تُخفى مبالغه كما في قسيمة الراتب (أجر كل شخص).
 One Frappe role per line. The authenticated user must have at least one listed role.,دور في كل سطر. يجب أن يملك المستخدم دوراً واحداً على الأقل من القائمة.
 "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",اسم حقل (أو جزء منه) في كل سطر، يُخفى في كل نتيجة أداة قبل وصولها إلى النموذج، إضافةً إلى القائمة المدمجة (أرقام الآيبان، الحسابات البنكية، الهويات، الجوازات، الرواتب).
-Open <b>Settings → Connectors</b>.,افتح <b>الإعدادات (Settings) ← الموصلات (Connectors)</b>.
-"Open the user's page in the system, then <b>Settings → API Access → Generate Keys</b>.",افتح صفحة المستخدم في النظام، ثم <b>الإعدادات ← تفاصيل وصول API ← توليد المفاتيح</b>.
+Open ChatGPT,فتح ChatGPT
+Open Claude settings,فتح إعدادات Claude
+Open my user page,فتح صفحتي
 "Optional browser origins, one per line. Server-to-server clients normally send no Origin header.",عناوين مواقع اختيارية مسموح لها بالاتصال من المتصفح، عنوان في كل سطر. الاتصال بين الخوادم لا يحتاج هذا الحقل عادةً.
 Optional company context applied to MCP calls.,سياق شركة اختياري يُطبَّق على استدعاءات MCP.
-Other tools (API key),أدوات أخرى (مفتاح الربط)
+Other tools,أدوات أخرى
 Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.,تجاوز نافذة السياق ودعم الصور لكل نموذج. يُطبَّق أول صف يطابق نمطه اسم النموذج؛ والنماذج بلا صف مطابق تستخدم التقديرات المدمجة.
 Own Key,مفتاح خاص
 "Own Key mode with third-party providers: questions, tool results and attachments are sent to the selected provider (e.g. DeepSeek, Gemini).",وضع المفتاح الخاص مع مزوّدين خارجيين: الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek وGemini).
 "Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",في وضع المفتاح الخاص، نوع في كل سطر (Anthropic، OpenAI، OpenAI Compatible، Ollama، Gemini OCR). فارغ = الكل.
+"Paste the link, click <b>Add</b>, then <b>Connect</b>.",الصق الرابط، واضغط <b>إضافة (Add)</b> ثم <b>اتصال (Connect)</b>.
 Per authenticated user. Applies across web workers.,لكل مستخدم، على مستوى الخادم كله.
 Policies,السياسات
 Privacy,الخصوصية
-Problem,المشكلة
 Provider Mode,وضع المزوّد
 Provider Type,نوع المزوّد
-Raise <b>MCP Requests per Minute</b>; the limit is per user per minute.,زد قيمة <b>طلبات MCP في الدقيقة</b>، فالحد محسوب لكل مستخدم في الدقيقة.
-Rate limit reached: {0},تجاوز حد الطلبات: {0}
 Read + approval-gated action requests,القراءة + طلبات إجراءات بموافقة
 Read only,قراءة فقط
+Ready,جاهز
+Ready to connect,جاهز للربط
 Request Timeout (seconds),مهلة الطلب (بالثواني)
 Require Four-Eyes Approval,اشتراط اعتماد شخص ثانٍ
 "Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider.",مطلوب لمزوّدات Gemini OCR وDeepSeek والمتوافقة مع OpenAI وOllama. بيانات العمل في الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى ذلك المزوّد.
-"Save, then sign in to the system and click <b>Allow</b>.",احفظ، ثم سجّل دخولك في النظام واضغط <b>السماح</b>.
-Server disabled,الخادم غير مفعّل
-Server disabled: {0},الخادم متوقف: {0}
-Server enabled,الخادم مفعّل
+Restart Cursor; it opens the sign-in page.,أعد تشغيل Cursor، وستُفتح صفحة تسجيل الدخول.
+Restart opencode; it opens the sign-in page.,أعد تشغيل opencode، وستُفتح صفحة تسجيل الدخول.
+Setup incomplete,الإعداد غير مكتمل
+Sign in and click <b>Allow</b>.,سجّل دخولك واضغط <b>السماح</b>.
+"Sign in and click <b>Allow</b>. To approve requests later, reply <b>approve</b> in the chat.",سجّل دخولك واضغط <b>السماح</b>. وللموافقة على الطلبات لاحقاً اكتب <b>موافق</b> في المحادثة.
+Sign-in for AI tools,تسجيل الدخول لأدوات الذكاء الاصطناعي
+Site readiness,جاهزية الموقع
 Skills & Plugins Access,صلاحيات المهارات والإضافات
 Store Full Tool Results,حفظ نتائج الأدوات كاملة
 Strict Tool Calling,استدعاء أدوات صارم
 System Instructions,تعليمات النظام
-"The key carries all of its owner's permissions. Do not use an administrator's key, and do not share a key between people. You can revoke it at any time by generating a new one.",المفتاح يعمل بكل صلاحيات صاحبه، فلا تستخدم مفتاح مستخدم مدير، ولا تشارك المفتاح بين عدة أشخاص. يمكنك إلغاؤه في أي وقت بتوليد مفتاح جديد.
-The sign-in page does not appear,لا تظهر صفحة تسجيل الدخول
-Then type {0} in Claude Code and choose the server to sign in.,ثم اكتب {0} داخل Claude Code واختر الخادم لتسجيل الدخول.
-"These tools open the sign-in page in your browser on first use. If a tool does not support sign-in, use the API key method in the next tab.",تفتح هذه الأدوات صفحة تسجيل الدخول في المتصفح عند أول استخدام. إذا كانت الأداة لا تدعم تسجيل الدخول، فاستخدم طريقة مفتاح الربط في التبويب التالي.
+Test connection,اختبار الاتصال
+Testing…,جارٍ الاختبار…
+The server did not respond as expected (status {0}). Check the items above or ask your system administrator.,لم يستجب الخادم كما يجب (الرمز {0}). راجع البنود أعلاه أو تواصل مع مسؤول النظام.
+The server responds and asks AI tools to sign in. You can connect.,الخادم يستجيب ويطلب من أدوات الذكاء الاصطناعي تسجيل الدخول. يمكنك الربط الآن.
 Thinking Mode,وضع التفكير
-This site's MCP server URL:,رابط خادم MCP لهذا الموقع:
-Troubleshooting,حل المشاكل
-Turn on <b>Developer mode</b> in <b>Settings → Apps → Advanced settings</b>.,فعّل <b>وضع المطوّر (Developer mode)</b> من <b>الإعدادات (Settings) ← التطبيقات (Apps) ← الإعدادات المتقدمة (Advanced settings)</b>.
-Turn on <b>Enable MCP Action Requests</b> and choose an agent that allows actions. Every change waits for your approval.,فعّل <b>تفعيل طلبات الإجراءات عبر MCP</b>، واختر وكيلاً يسمح بالإجراءات. كل تعديل ينتظر موافقتك.
-Turn on <b>Enable MCP Server</b> on this page and save.,فعّل <b>تفعيل خادم MCP</b> في هذه الصفحة ثم احفظ.
-User not allowed: {0},المستخدم غير مسموح له: {0}
+Unknown setup step: {0},خطوة إعداد غير معروفة: {0}
+User,المستخدم
+User {0} not found.,المستخدم {0} غير موجود.
+Users,المستخدمون
 Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.,المستخدمون بهذا الدور يمكنهم اعتماد إجراءات الذكاء الاصطناعي إضافةً إلى مديري النظام. اتركه فارغاً ليقتصر الاعتماد على مديري النظام.
 "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",عند التفعيل يستطيع مديرو النظام قراءة محادثات المستخدمين الآخرين مع الوكيل، وتُسجَّل كل قراءة في سجل الوصول. عند الإيقاف يرى كل مستخدم محادثاته فقط.
 "When enabled, the user who requested an action cannot approve it themselves.",عند التفعيل لا يستطيع صاحب الطلب اعتماد طلبه بنفسه.
-"Works in <b>claude.ai</b> and the Claude desktop and mobile apps, because connectors belong to your account.",يعمل في موقع <b>claude.ai</b> وتطبيق Claude على الكمبيوتر والجوال، لأن الموصلات مرتبطة بحسابك.
+Your access,صلاحيتك
+"Your account has an MCP role, so you can connect.",حسابك يملك صلاحية الربط، فيمكنك الاتصال.
 high,مرتفع
 low,منخفض
 medium,متوسط
+{0} users can connect. Their ERP permissions stay the same.,{0} مستخدم يمكنهم الربط، وتبقى صلاحياتهم في النظام كما هي.

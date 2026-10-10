@@ -22,144 +22,208 @@ frappe.ui.form.on("AI Settings", {
 });
 
 const MCP_ENDPOINT_PATH = "/api/method/ai_agent.mcp.api.handle";
+const MCP_SETUP = "ai_agent.mcp.setup.";
 
-// Setup guide for every MCP client, built around this site's real endpoint.
+// MCP setup panel: readiness checks with one-click fixes, per-client connect steps
+// with copy/open buttons, and the apps connected to this site.
 // Strings go through __() so the page follows the user's language (see translations/ar.csv).
 function render_mcp_guide(frm) {
 	const field = frm.fields_dict.mcp_guide;
-	if (!field) return;
-	const url = frappe.urllib.get_base_url().replace(/\/$/, "") + MCP_ENDPOINT_PATH;
+	if (!field || frm.is_new()) return;
+	frappe.call(MCP_SETUP + "get_status").then((r) => draw_mcp_panel(frm, field.$wrapper, r.message));
+}
+
+function draw_mcp_panel(frm, $w, st) {
 	const esc = frappe.utils.escape_html;
-	const agent = frm.doc.mcp_agent || "ERP Analyst";
-	const actions = frm.doc.mcp_enable_action_requests;
-	const code = (text) => `<pre class="mcp-code" dir="ltr"><code>${esc(text)}</code></pre>`;
-	const steps = (items) => `<ol class="mcp-steps">${items.map((i) => `<li>${i}</li>`).join("")}</ol>`;
-	const note = (text, tone = "blue") => `<div class="mcp-note mcp-note-${tone}">${text}</div>`;
-	const u = `<code dir="ltr">${esc(url)}</code>`;
+	const base = frappe.urllib.get_base_url().replace(/\/$/, "");
+	const url = base + MCP_ENDPOINT_PATH;
+	const c = st.checks;
+	const ready = Object.values(c).every(Boolean);
+	const icon = (ok) => `<span class="mcp-dot ${ok ? "ok" : "bad"}">${ok ? "✓" : "!"}</span>`;
+	const btn = (action, label, style = "default", extra = "") =>
+		`<button class="btn btn-${style} btn-xs" data-act="${action}" ${extra}>${label}</button>`;
 
-	const tabs = [
-		{
-			id: "claude",
-			title: "Claude",
-			body:
-				`<p>${__("Works in <b>claude.ai</b> and the Claude desktop and mobile apps, because connectors belong to your account.")}</p>` +
-				steps([
-					__("Open <b>Settings → Connectors</b>."),
-					__("Click <b>Add custom connector</b>."),
-					__("Enter a name such as <b>Sanad ERPNext</b> and this URL: {0}", [u]),
-					__("Leave <b>Advanced settings</b> empty; Claude registers itself automatically."),
-					__("Click <b>Add</b>, then <b>Connect</b>, sign in to the system and click <b>Allow</b>."),
-					__("In a conversation, turn the connector on from the tools menu under the message box."),
-				]) +
-				note(__("On Team and Enterprise plans the organization owner adds the connector first in the organization settings, then each member clicks <b>Connect</b> with their own account.")) +
-				note(__("Claude shows results as text and tables in its reply. To approve a request, reply <b>approve</b> (or <b>موافق</b>) in the chat."), "gray"),
-		},
-		{
-			id: "chatgpt",
-			title: "ChatGPT",
-			body:
-				steps([
-					__("Turn on <b>Developer mode</b> in <b>Settings → Apps → Advanced settings</b>."),
-					__("In <b>Settings → Apps</b>, click <b>Create app</b>."),
-					__("Enter a name, set the URL to {0} and choose <b>OAuth</b> authentication.", [u]),
-					__("Save, then sign in to the system and click <b>Allow</b>."),
-					__("In a conversation, pick the app from the <b>+</b> button, then <b>Developer mode</b>."),
-				]) +
-				note(__("<a href=\"/app/oauth-settings\">OAuth Settings</a> must list {0} in <b>Allowed Public Client Origins</b>.", ['<code dir="ltr">https://chatgpt.com</code>']), "orange") +
-				note(__("ChatGPT shows tables, charts and approval cards with buttons inside the conversation."), "gray"),
-		},
-		{
-			id: "code",
-			title: "Claude Code",
-			body:
-				`<p>${__("Add the server from the terminal:")}</p>` +
-				code(`claude mcp add --transport http sanad-erpnext ${url}`) +
-				`<p>${__("Then type {0} in Claude Code and choose the server to sign in.", ['<code dir="ltr">/mcp</code>'])}</p>`,
-		},
-		{
-			id: "editors",
-			title: __("Cursor, VS Code and opencode"),
-			body:
-				`<p>${__("<b>Cursor</b> — in the file {0}:", ['<code dir="ltr">~/.cursor/mcp.json</code>'])}</p>` +
-				code(JSON.stringify({ mcpServers: { "sanad-erpnext": { url } } }, null, 2)) +
-				`<p>${__("<b>VS Code (Copilot)</b> — in the file {0}:", ['<code dir="ltr">.vscode/mcp.json</code>'])}</p>` +
-				code(JSON.stringify({ servers: { "sanad-erpnext": { type: "http", url } } }, null, 2)) +
-				`<p>${__("<b>opencode</b> — in the file {0}:", ['<code dir="ltr">opencode.json</code>'])}</p>` +
-				code(JSON.stringify({ mcp: { "sanad-erpnext": { type: "remote", url, enabled: true } } }, null, 2)) +
-				note(__("These tools open the sign-in page in your browser on first use. If a tool does not support sign-in, use the API key method in the next tab.")),
-		},
-		{
-			id: "token",
-			title: __("Other tools (API key)"),
-			body:
-				`<p>${__("For any tool that supports MCP over HTTP but not sign-in (OAuth), use a per-user API key:")}</p>` +
-				steps([
-					__("Open the user's page in the system, then <b>Settings → API Access → Generate Keys</b>."),
-					__("Copy the <b>API Key</b> and <b>API Secret</b>; the secret is shown only once."),
-					__("In the tool, set the URL to {0} and add this header:", [u]),
-				]) +
-				code("Authorization: token API_KEY:API_SECRET") +
-				note(__("The key carries all of its owner's permissions. Do not use an administrator's key, and do not share a key between people. You can revoke it at any time by generating a new one."), "orange"),
-		},
-		{
-			id: "help",
-			title: __("Troubleshooting"),
-			body: `<table class="table table-bordered mcp-table"><thead><tr><th>${__("Problem")}</th><th>${__("Cause and fix")}</th></tr></thead><tbody>${[
-				[__("The sign-in page does not appear"), __("Make sure <a href=\"/app/oauth-settings\">OAuth Settings</a> has Show Auth Server Metadata, Show Protected Resource Metadata and Enable Dynamic Client Registration turned on.")],
-				[__("User not allowed: {0}", ['<code dir="ltr">The authenticated user is not allowed to use MCP</code>']), __("Give the user one of the roles in <b>Allowed MCP Roles</b> (<b>AI MCP User</b> by default).")],
-				[__("Server disabled: {0}", ['<code dir="ltr">MCP server is disabled</code>']), __("Turn on <b>Enable MCP Server</b> on this page and save.")],
-				[__("Rate limit reached: {0}", ['<code dir="ltr">MCP request rate limit exceeded</code>']), __("Raise <b>MCP Requests per Minute</b>; the limit is per user per minute.")],
-				[__("New tools do not appear after a system update"), __("Disconnect the connector in the tool and connect it again so it fetches the tool list again.")],
-				[__("It cannot create documents"), __("Turn on <b>Enable MCP Action Requests</b> and choose an agent that allows actions. Every change waits for your approval.")],
-			].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join("")}</tbody></table>`,
-		},
-	];
-
-	const status = [
-		[frm.doc.enable_mcp, frm.doc.enable_mcp ? __("Server enabled") : __("Server disabled")],
-		[true, __("Agent: {0}", [`<b>${esc(agent)}</b>`])],
-		[true, actions ? __("Read + approval-gated action requests") : __("Read only")],
+	const checks = [
+		["mcp_enabled", __("MCP server"), __("Lets external AI tools connect to this site."), __("Enable")],
+		["oauth", __("Sign-in for AI tools"), __("Claude, ChatGPT and other tools sign in with each user's own account."), __("Enable")],
+		["chatgpt_origin", __("ChatGPT access"), __("Allows ChatGPT to complete the sign-in."), __("Allow")],
+		["my_role", __("Your access"), __("Your account has an MCP role, so you can connect."), __("Give me access")],
 	]
-		.map(([ok, text]) => `<span class="mcp-chip ${ok ? "ok" : "off"}">${text}</span>`)
+		.map(([key, title, hint, fix]) => `
+			<div class="mcp-row">${icon(c[key])}
+				<div class="mcp-row-text"><div class="mcp-row-title">${title}</div><div class="mcp-row-hint">${hint}</div></div>
+				${c[key] ? `<span class="mcp-ready">${__("Ready")}</span>` : btn("fix:" + key, fix, "primary")}
+			</div>`)
 		.join("");
 
-	field.$wrapper.html(`
+	const clients = {
+		claude: {
+			name: "Claude",
+			steps: [
+				__("Click <b>Open Claude settings</b>, then <b>Add custom connector</b>."),
+				__("Paste the link, click <b>Add</b>, then <b>Connect</b>."),
+				__("Sign in and click <b>Allow</b>. To approve requests later, reply <b>approve</b> in the chat."),
+			],
+			actions: btn("copy:url", __("Copy link"), "primary") + `<a class="btn btn-default btn-xs" target="_blank" rel="noopener" href="https://claude.ai/settings/connectors">${__("Open Claude settings")} ↗</a>`,
+		},
+		chatgpt: {
+			name: "ChatGPT",
+			warn: !c.chatgpt_origin,
+			steps: [
+				__("In ChatGPT open <b>Settings → Apps → Advanced settings</b> and turn on <b>Developer mode</b>."),
+				__("Click <b>Create app</b>, paste the link and choose <b>OAuth</b>."),
+				__("Sign in and click <b>Allow</b>."),
+			],
+			actions: btn("copy:url", __("Copy link"), "primary") + `<a class="btn btn-default btn-xs" target="_blank" rel="noopener" href="https://chatgpt.com">${__("Open ChatGPT")} ↗</a>`,
+		},
+		code: {
+			name: "Claude Code",
+			steps: [__("Copy the command and run it in the terminal."), __("In Claude Code type <b>/mcp</b> and choose the server to sign in.")],
+			copy: `claude mcp add --transport http sanad-erpnext ${url}`,
+		},
+		cursor: {
+			name: "Cursor",
+			steps: [__("Copy the settings into <b>~/.cursor/mcp.json</b>."), __("Restart Cursor; it opens the sign-in page.")],
+			copy: JSON.stringify({ mcpServers: { "sanad-erpnext": { url } } }, null, 2),
+		},
+		vscode: {
+			name: "VS Code",
+			steps: [__("Copy the settings into <b>.vscode/mcp.json</b>."), __("Click <b>Start</b> above the server name and sign in.")],
+			copy: JSON.stringify({ servers: { "sanad-erpnext": { type: "http", url } } }, null, 2),
+		},
+		opencode: {
+			name: "opencode",
+			steps: [__("Copy the settings into <b>opencode.json</b>."), __("Restart opencode; it opens the sign-in page.")],
+			copy: JSON.stringify({ mcp: { "sanad-erpnext": { type: "remote", url, enabled: true } } }, null, 2),
+		},
+		other: {
+			name: __("Other tools"),
+			steps: [
+				__("For tools without sign-in: open your user page and click <b>Generate Keys</b> under API access."),
+				__("In the tool, paste the link and add the header below with your key and secret."),
+			],
+			copy: "Authorization: token API_KEY:API_SECRET",
+			actions: `<a class="btn btn-default btn-xs" href="/app/user/${encodeURIComponent(frappe.session.user)}">${__("Open my user page")}</a>`,
+		},
+	};
+	const current = $w.data("mcp-client") || "claude";
+	const cl = clients[current];
+	const clientPanel = `
+		${cl.warn ? `<div class="mcp-warn">${__("ChatGPT access is not allowed yet.")} ${btn("fix:chatgpt_origin", __("Allow"), "primary")}</div>` : ""}
+		<ol class="mcp-steps">${cl.steps.map((x) => `<li>${x}</li>`).join("")}</ol>
+		${cl.copy ? `<pre class="mcp-code" dir="ltr">${esc(cl.copy)}</pre>` : ""}
+		<div class="mcp-actions">${cl.copy ? btn("copy:client", __("Copy"), "primary") : ""}${cl.actions || ""}</div>`;
+
+	const apps = st.clients.length
+		? st.clients
+				.map((a) => `
+				<div class="mcp-row">${icon(true)}
+					<div class="mcp-row-text"><div class="mcp-row-title">${esc(a.app_name)}</div>
+						<div class="mcp-row-hint">${esc(a.users.join("، "))} · ${__("Last used {0}", [frappe.datetime.comment_when(a.last_used)])}</div></div>
+					${btn("revoke", __("Disconnect"), "default", `data-client="${esc(a.client)}" data-name="${esc(a.app_name)}"`)}
+				</div>`)
+				.join("")
+		: `<div class="mcp-empty">${__("No app is connected yet.")}</div>`;
+
+	$w.html(`
 		<style>
-			.mcp-guide { max-width: 900px; text-align: start; }
-			.mcp-guide .mcp-url { display: flex; gap: 8px; align-items: center; margin: 4px 0 12px; }
-			.mcp-guide .mcp-url code { flex: 1; padding: 8px 10px; border-radius: 8px; background: var(--control-bg); overflow-x: auto; white-space: nowrap; }
-			.mcp-guide .mcp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-			.mcp-guide .mcp-chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--bg-green); color: var(--text-on-green); }
-			.mcp-guide .mcp-chip.off { background: var(--bg-orange); color: var(--text-on-orange); }
-			.mcp-guide .mcp-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border-color); margin-bottom: 12px; }
-			.mcp-guide .mcp-tab { border: 0; background: none; padding: 8px 12px; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 500; }
-			.mcp-guide .mcp-tab.active { color: var(--text-color); border-bottom-color: var(--primary); }
-			.mcp-guide .mcp-panel { display: none; line-height: 1.8; }
-			.mcp-guide .mcp-panel.active { display: block; }
-			.mcp-guide .mcp-steps { padding-inline-start: 22px; margin-bottom: 10px; }
-			.mcp-guide .mcp-steps li { margin-bottom: 4px; }
-			.mcp-guide .mcp-code { direction: ltr; text-align: left; background: var(--control-bg); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }
-			.mcp-guide .mcp-note { padding: 8px 12px; border-radius: 8px; margin: 8px 0; font-size: 13px; }
-			.mcp-guide .mcp-note-blue { background: var(--bg-blue); color: var(--text-on-blue); }
-			.mcp-guide .mcp-note-orange { background: var(--bg-orange); color: var(--text-on-orange); }
-			.mcp-guide .mcp-note-gray { background: var(--control-bg); color: var(--text-muted); }
-			.mcp-guide code { direction: ltr; unicode-bidi: isolate; }
-			.mcp-guide .mcp-table td, .mcp-guide .mcp-table th { text-align: start; vertical-align: top; }
+			.mcp-panel { display: grid; gap: 14px; max-width: 980px; }
+			.mcp-card { border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 16px; background: var(--card-bg); }
+			.mcp-card h5 { margin: 0 0 10px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+			.mcp-card h5 .btn { margin-inline-start: auto; }
+			.mcp-url { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+			.mcp-url code { flex: 1; min-width: 240px; padding: 7px 10px; border-radius: 8px; background: var(--control-bg); white-space: nowrap; overflow-x: auto; }
+			.mcp-test { font-size: 12.5px; margin-top: 8px; }
+			.mcp-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-color); }
+			.mcp-row:first-of-type { border-top: 0; }
+			.mcp-row-text { flex: 1; min-width: 0; }
+			.mcp-row-title { font-weight: 500; }
+			.mcp-row-hint { font-size: 12px; color: var(--text-muted); }
+			.mcp-dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
+			.mcp-dot.ok { background: var(--bg-green); color: var(--text-on-green); }
+			.mcp-dot.bad { background: var(--bg-orange); color: var(--text-on-orange); }
+			.mcp-ready { font-size: 12px; color: var(--text-on-green); }
+			.mcp-clients { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+			.mcp-client { border: 1px solid var(--border-color); background: var(--control-bg); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+			.mcp-client.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+			.mcp-steps { padding-inline-start: 20px; margin: 0 0 10px; line-height: 1.9; }
+			.mcp-code { direction: ltr; text-align: left; background: var(--control-bg); border-radius: 8px; padding: 10px 12px; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin-bottom: 10px; }
+			.mcp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+			.mcp-warn { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: var(--bg-orange); color: var(--text-on-orange); margin-bottom: 10px; font-size: 13px; }
+			.mcp-empty { color: var(--text-muted); font-size: 13px; }
+			.mcp-panel code { direction: ltr; unicode-bidi: isolate; }
 		</style>
-		<div class="mcp-guide">
-			<div class="text-muted small">${__("This site's MCP server URL:")}</div>
-			<div class="mcp-url"><code dir="ltr">${esc(url)}</code>
-				<button class="btn btn-default btn-sm mcp-copy">${__("Copy")}</button></div>
-			<div class="mcp-chips">${status}</div>
-			<p class="text-muted small">${__("Each user signs in with their own account and sees or changes only what their permissions allow. They must have one of the roles in <b>Allowed MCP Roles</b>.")}</p>
-			<div class="mcp-tabs">${tabs.map((t, i) => `<button class="mcp-tab${i ? "" : " active"}" data-tab="${t.id}">${t.title}</button>`).join("")}</div>
-			${tabs.map((t, i) => `<div class="mcp-panel${i ? "" : " active"}" data-panel="${t.id}">${t.body}</div>`).join("")}
+		<div class="mcp-panel">
+			<div class="mcp-card">
+				<h5>${__("Connection link")}<span class="indicator-pill ${ready ? "green" : "orange"}">${ready ? __("Ready to connect") : __("Setup incomplete")}</span></h5>
+				<div class="mcp-url"><code dir="ltr">${esc(url)}</code>${btn("copy:url", __("Copy"))}${btn("test", __("Test connection"))}</div>
+				<div class="mcp-test text-muted">${__("Agent: {0}", [`<b>${esc(st.agent)}</b>`])} · ${st.action_requests ? __("Read + approval-gated action requests") : __("Read only")}</div>
+			</div>
+			<div class="mcp-card">
+				<h5>${__("Site readiness")}${ready ? "" : btn("fix:all", __("Fix all"), "primary")}</h5>
+				${checks}
+				<div class="mcp-row">${icon(st.role_users > 0)}
+					<div class="mcp-row-text"><div class="mcp-row-title">${__("Users")}</div>
+						<div class="mcp-row-hint">${__("{0} users can connect. Their ERP permissions stay the same.", [st.role_users])}</div></div>
+					${btn("grant", __("Add user"))}
+				</div>
+			</div>
+			<div class="mcp-card">
+				<h5>${__("Connect an AI tool")}</h5>
+				<div class="mcp-clients">${Object.entries(clients).map(([k, v]) => `<button class="mcp-client ${k === current ? "active" : ""}" data-client-tab="${k}">${v.name}</button>`).join("")}</div>
+				${clientPanel}
+			</div>
+			<div class="mcp-card">
+				<h5>${__("Connected apps")}</h5>
+				${apps}
+			</div>
 		</div>`);
 
-	field.$wrapper.find(".mcp-copy").on("click", () => frappe.utils.copy_to_clipboard(url));
-	field.$wrapper.find(".mcp-tab").on("click", function () {
-		const id = $(this).data("tab");
-		field.$wrapper.find(".mcp-tab").removeClass("active").filter(`[data-tab="${id}"]`).addClass("active");
-		field.$wrapper.find(".mcp-panel").removeClass("active").filter(`[data-panel="${id}"]`).addClass("active");
+	const after = (r) => {
+		frm.reload_doc();
+		draw_mcp_panel(frm, $w, r.message);
+		frappe.show_alert({ message: __("Done"), indicator: "green" });
+	};
+	$w.find("[data-client-tab]").on("click", function () {
+		$w.data("mcp-client", $(this).data("client-tab"));
+		draw_mcp_panel(frm, $w, st);
 	});
+	$w.find("[data-act]").on("click", function () {
+		const act = $(this).data("act");
+		if (act === "copy:url") return frappe.utils.copy_to_clipboard(url);
+		if (act === "copy:client") return frappe.utils.copy_to_clipboard(cl.copy);
+		if (act.startsWith("fix:")) return frappe.call({ method: MCP_SETUP + "fix", args: { item: act.slice(4) }, freeze: true }).then(after);
+		if (act === "test") return test_mcp_connection($w, url);
+		if (act === "grant") {
+			return frappe.prompt(
+				{ fieldname: "user", fieldtype: "Link", options: "User", label: __("User"), reqd: 1, get_query: () => ({ filters: { enabled: 1, user_type: "System User" } }) },
+				(v) => frappe.call({ method: MCP_SETUP + "grant_role", args: { user: v.user } }).then(after),
+				__("Give MCP access"),
+				__("Give access")
+			);
+		}
+		if (act === "revoke") {
+			const name = $(this).data("name");
+			return frappe.confirm(__("Disconnect {0}? Its users must sign in again.", [`<b>${esc(name)}</b>`]), () =>
+				frappe.call({ method: MCP_SETUP + "revoke_client", args: { client: $(this).data("client") } }).then(after)
+			);
+		}
+	});
+}
+
+// Checks what an AI tool sees before signing in: the endpoint asks for sign-in (401)
+// and the sign-in metadata points back to this endpoint.
+async function test_mcp_connection($w, url) {
+	const $out = $w.find(".mcp-test");
+	$out.html(__("Testing…"));
+	try {
+		const r = await fetch(url, { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: '{"jsonrpc":"2.0","id":1,"method":"ping"}' });
+		const meta = await fetch("/.well-known/oauth-protected-resource" + MCP_ENDPOINT_PATH, { credentials: "omit" }).then((x) => (x.ok ? x.json() : null));
+		const ok = r.status === 401 && meta && meta.resource === url;
+		$out.html(ok
+			? `<span class="text-success">✓ ${__("The server responds and asks AI tools to sign in. You can connect.")}</span>`
+			: `<span class="text-danger">✗ ${__("The server did not respond as expected (status {0}). Check the items above or ask your system administrator.", [r.status])}</span>`);
+	} catch (e) {
+		$out.html(`<span class="text-danger">✗ ${__("Could not reach the server.")}</span>`);
+	}
 }

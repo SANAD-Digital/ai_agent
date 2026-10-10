@@ -1,0 +1,123 @@
+"<a href=""/app/oauth-settings"">OAuth Settings</a> must list {0} in <b>Allowed Public Client Origins</b>.","يجب أن يحتوي <a href=""/app/oauth-settings"">OAuth Settings</a> في حقل <b>Allowed Public Client Origins</b> على {0}."
+<b>Cursor</b> — in the file {0}:,<b>Cursor</b> — في الملف {0}:
+<b>VS Code (Copilot)</b> — in the file {0}:,<b>VS Code (Copilot)</b> — في الملف {0}:
+<b>opencode</b> — in the file {0}:,<b>opencode</b> — في الملف {0}:
+API Key,مفتاح API
+Access Rules,قواعد الصلاحيات
+Add the server from the terminal:,أضف الخادم من الطرفية:
+Agent policy applied to every MCP tool call. ERP Analyst is used when empty.,سياسة الوكيل المطبّقة على كل استدعاء أداة عبر MCP. يُستخدم ERP Analyst إذا تُرك فارغاً.
+Agent: {0},الوكيل: {0}
+Allow Admin Conversation Audit,السماح للمدير بمراجعة المحادثات
+Allow Approval from MCP App,السماح بالموافقة من بطاقة MCP
+Allow Submit / Cancel Actions,السماح بإجراءات الاعتماد والإلغاء
+Allowed MCP Browser Origins,مصادر المتصفح المسموحة لـ MCP
+Allowed MCP Roles,أدوار MCP المسموحة
+Allowed Provider Types,أنواع المزوّدات المسموحة
+Approver Role,دور المعتمِد
+Base URL,الرابط الأساسي
+Cause and fix,السبب والحل
+"ChatGPT shows tables, charts and approval cards with buttons inside the conversation.",ChatGPT يعرض الجداول والرسوم وبطاقات الموافقة بأزرار داخل المحادثة.
+Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set.,يُصنَّف كل سؤال أولاً ويُرسل للنموذج أدوات ذلك التصنيف فقط (8 كحد أقصى). الأسئلة غير المصنّفة تحصل على كل الأدوات.
+"Claude shows results as text and tables in its reply. To approve a request, reply <b>approve</b> (or <b>موافق</b>) in the chat.",Claude يعرض النتائج نصاً وجداول في الرد. للموافقة على طلب، اكتب <b>موافق</b> في المحادثة.
+Click <b>Add custom connector</b>.,اضغط <b>Add custom connector</b>.
+"Click <b>Add</b>, then <b>Connect</b>, sign in to the system and click <b>Allow</b>.",اضغط <b>Add</b> ثم <b>Connect</b>، وسجّل دخولك في النظام، ثم اضغط <b>السماح</b>.
+Copy,نسخ
+Copy the <b>API Key</b> and <b>API Secret</b>; the secret is shown only once.,انسخ <b>API Key</b> و<b>API Secret</b>؛ السر يظهر مرة واحدة فقط.
+"Cursor, VS Code and opencode",Cursor وVS Code وopencode
+Default Approval TTL (minutes),مدة صلاحية الموافقة الافتراضية (بالدقائق)
+Default Model,النموذج الافتراضي
+Default Reasoning Effort,مستوى التفكير الافتراضي
+Disconnect the connector in the tool and connect it again so it fetches the tool list again.,افصل الموصل في الأداة ثم أعد ربطه حتى تجلب قائمة الأدوات من جديد.
+Each user signs in with their own account and sees or changes only what their permissions allow. They must have one of the roles in <b>Allowed MCP Roles</b>.,كل مستخدم يدخل بحسابه في النظام، فيرى ويعدّل فقط ما تسمح به صلاحياته. يجب أن يملك أحد الأدوار في <b>Allowed MCP Roles</b>.
+Enable MCP Action Requests,تفعيل طلبات الإجراءات عبر MCP
+Enable MCP Server,تفعيل خادم MCP
+Enable Memory,تفعيل الذاكرة
+Enable Tool Routing,تفعيل توجيه الأدوات
+Enabled,مفعّل
+Enter a name such as <b>Sanad ERPNext</b> and this URL: {0},اكتب اسماً مثل <b>Sanad ERPNext</b>، وضع الرابط: {0}
+"Enter a name, set the URL to {0} and choose <b>OAuth</b> authentication.",اكتب الاسم، وضع الرابط {0}، واختر المصادقة <b>OAuth</b>.
+"Every skill or plugin is blocked until it is allowed here. A row with no role and no user applies to everyone. A user row overrides a role row; on a tie, deny wins. Automatic skills (always on) are not subject to this table.",كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. الصف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.
+Expose action-request tools. They only create an approval request; document changes still require approval in Frappe.,إتاحة أدوات طلب الإجراءات. هي تنشئ طلب موافقة فقط، وتعديل المستندات يبقى بحاجة إلى اعتماد داخل النظام.
+Expose the authenticated MCP endpoint for external AI clients.,إتاحة نقطة MCP المحمية بتسجيل الدخول لأدوات الذكاء الاصطناعي الخارجية.
+Extra Masked DocTypes,أنواع مستندات إضافية مخفية
+Extra Masked Fields,حقول إضافية مخفية
+"For any tool that supports MCP over HTTP but not sign-in (OAuth), use a per-user API key:",لأي أداة تدعم MCP عبر HTTP ولا تدعم تسجيل الدخول (OAuth)، استخدم مفتاح API خاصاً بكل مستخدم:
+Give the user one of the roles in <b>Allowed MCP Roles</b> (<b>AI MCP User</b> by default).,أعطِ المستخدم أحد الأدوار في <b>Allowed MCP Roles</b> (افتراضياً <b>AI MCP User</b>).
+I Accept Sending Data to Third-Party Providers,أوافق على إرسال البيانات إلى مزوّدين خارجيين
+"In <b>Settings → Apps</b>, click <b>Create app</b>.",من <b>Settings ← Apps</b> اضغط <b>Create app</b>.
+"In a conversation, pick the app from the <b>+</b> button, then <b>Developer mode</b>.",في المحادثة اختر التطبيق من زر <b>+</b> ثم <b>Developer mode</b>.
+"In a conversation, turn the connector on from the tools menu under the message box.",في المحادثة فعّل الموصل من قائمة الأدوات أسفل مربع الكتابة.
+"In the tool, set the URL to {0} and add this header:",في الأداة ضع الرابط {0} وأضف الترويسة التالية:
+It cannot create documents,لا يستطيع إنشاء مستندات
+Leave <b>Advanced settings</b> empty; Claude registers itself automatically.,اترك <b>Advanced settings</b> فارغة؛ Claude يسجّل نفسه تلقائياً.
+"Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat or in Frappe. Independent of 'MCP Actions Require Approval'.",تمكين بطاقة الموافقة من اعتماد الإجراء المعلّق أو تعديله أو إلغائه بأزرارها (برمز موقّع لمرة واحدة، مع إعادة التحقق من صلاحيات المستخدم عند التنفيذ). متوقف: تتم الموافقة في المحادثة أو داخل النظام. مستقل عن «إجراءات MCP تتطلب موافقة».
+Limits & Timeouts,الحدود والمهل
+MCP Actions Require Approval,إجراءات MCP تتطلب موافقة
+MCP Agent,وكيل MCP
+MCP Company,شركة MCP
+MCP Requests per Minute,طلبات MCP في الدقيقة
+MCP Server,خادم MCP
+MCP Setup Guide,دليل ربط MCP
+"Make sure <a href=""/app/oauth-settings"">OAuth Settings</a> has Show Auth Server Metadata, Show Protected Resource Metadata and Enable Dynamic Client Registration turned on.","تأكد أن <a href=""/app/oauth-settings"">OAuth Settings</a> مفعّل فيه: Show Auth Server Metadata وShow Protected Resource Metadata وEnable Dynamic Client Registration."
+Managed,مُدار
+Managed: only Anthropic (Claude) providers are used. Own Key: other providers are allowed only with the consent below.,مُدار: تُستخدم مزوّدات Anthropic (Claude) فقط. مفتاح خاص: يُسمح بمزوّدات أخرى بشرط الموافقة أدناه.
+Maximum Result Bytes,أقصى حجم للنتيجة (بايت)
+Maximum Rows Per Query,أقصى عدد صفوف في الاستعلام
+Maximum Run Seconds,أقصى مدة للتشغيل (بالثواني)
+Maximum Steps,أقصى عدد للخطوات
+Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات
+Memory,الذاكرة
+Memory Retention Days,مدة الاحتفاظ بالذاكرة (بالأيام)
+Model Capabilities,قدرات النماذج
+New tools do not appear after a system update,أدوات جديدة لا تظهر بعد تحديث النظام
+Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.,متوقف (الافتراضي): لا يعتمد الوكيل المستندات ولا يلغيها أبداً؛ أدوات الاعتماد والإلغاء مخفية، والطلبات القديمة تُرفض عند التنفيذ.
+"On (default): every write from MCP waits for a human decision (card button or an explicit word in chat). Off: the requester's own requests execute immediately under their ERPNext permissions, and are still recorded as AI Approval Requests.",مفعّل (الافتراضي): كل كتابة عبر MCP تنتظر قراراً بشرياً (زر البطاقة أو كلمة صريحة في المحادثة). متوقف: تُنفَّذ طلبات صاحبها فوراً بصلاحياته في ERPNext، وتبقى مسجّلة كطلبات موافقة.
+"On Team and Enterprise plans the organization owner adds the connector first in the organization settings, then each member clicks <b>Connect</b> with their own account.",في حسابات Team وEnterprise يضيف مالك المؤسسة الموصل أولاً من إعدادات المؤسسة، ثم يضغط كل عضو <b>Connect</b> بحسابه.
+One DocType per line whose amounts are masked like Salary Slip (per-person pay).,نوع مستند في كل سطر تُخفى مبالغه كما في Salary Slip (أجر كل شخص).
+One Frappe role per line. The authenticated user must have at least one listed role.,دور في كل سطر. يجب أن يملك المستخدم دوراً واحداً على الأقل من القائمة.
+"One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",اسم حقل (أو جزء منه) في كل سطر، يُخفى في كل نتيجة أداة قبل وصولها إلى النموذج، إضافةً إلى القائمة المدمجة (IBAN، الحسابات البنكية، الهويات، الجوازات، الرواتب).
+Open <b>Settings → Connectors</b>.,افتح <b>Settings ← Connectors</b>.
+"Open the user's page in the system, then <b>Settings → API Access → Generate Keys</b>.",افتح صفحة المستخدم في النظام، ثم <b>Settings ← API Access ← Generate Keys</b>.
+"Optional browser origins, one per line. Server-to-server clients normally send no Origin header.",مصادر متصفح اختيارية، واحد في كل سطر. الاتصالات بين الخوادم لا ترسل عادةً ترويسة Origin.
+Optional company context applied to MCP calls.,سياق شركة اختياري يُطبَّق على استدعاءات MCP.
+Other tools (API key),أدوات أخرى (مفتاح API)
+Override context window and vision support per model. The first row whose pattern matches the model name wins; models with no matching row use the built-in heuristics.,تجاوز نافذة السياق ودعم الصور لكل نموذج. يُطبَّق أول صف يطابق نمطه اسم النموذج؛ والنماذج بلا صف مطابق تستخدم التقديرات المدمجة.
+Own Key,مفتاح خاص
+"Own Key mode with third-party providers: questions, tool results and attachments are sent to the selected provider (e.g. DeepSeek, Gemini).",وضع المفتاح الخاص مع مزوّدين خارجيين: الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek وGemini).
+"Own Key mode, one per line (Anthropic, OpenAI, OpenAI Compatible, Ollama, Gemini OCR). Empty = all.",في وضع المفتاح الخاص، نوع في كل سطر (Anthropic، OpenAI، OpenAI Compatible، Ollama، Gemini OCR). فارغ = الكل.
+Per authenticated user. Applies across web workers.,لكل مستخدم، وعلى مستوى كل عمليات الخادم.
+Policies,السياسات
+Privacy,الخصوصية
+Problem,المشكلة
+Provider Mode,وضع المزوّد
+Provider Type,نوع المزوّد
+Raise <b>MCP Requests per Minute</b>; the limit is per user per minute.,زد <b>MCP Requests per Minute</b>، فالحد لكل مستخدم في الدقيقة.
+Read + approval-gated action requests,القراءة + طلبات إجراءات بموافقة
+Read only,قراءة فقط
+Request Timeout (seconds),مهلة الطلب (بالثواني)
+Require Four-Eyes Approval,اشتراط اعتماد شخص ثانٍ
+"Required for Gemini OCR, DeepSeek, OpenAI-compatible and Ollama providers. Business data in prompts, tool results and attachments goes to that provider.",مطلوب لمزوّدات Gemini OCR وDeepSeek والمتوافقة مع OpenAI وOllama. بيانات العمل في الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى ذلك المزوّد.
+"Save, then sign in to the system and click <b>Allow</b>.",احفظ، ثم سجّل دخولك في النظام واضغط <b>السماح</b>.
+Server disabled,الخادم غير مفعّل
+Server enabled,الخادم مفعّل
+Skills & Plugins Access,صلاحيات المهارات والإضافات
+Store Full Tool Results,حفظ نتائج الأدوات كاملة
+Strict Tool Calling,استدعاء أدوات صارم
+System Instructions,تعليمات النظام
+"The key carries all of its owner's permissions. Do not use an administrator's key, and do not share a key between people. You can revoke it at any time by generating a new one.",المفتاح يعمل بصلاحيات صاحبه كاملة. لا تستخدم مفتاح مستخدم مدير، ولا تشارك المفتاح بين أشخاص. يمكنك إلغاؤه في أي وقت بإعادة توليده.
+The sign-in page does not appear,لا تظهر صفحة تسجيل الدخول
+Then type {0} in Claude Code and choose the server to sign in.,ثم اكتب {0} داخل Claude Code واختر الخادم لتسجيل الدخول.
+"These tools open the sign-in page in your browser on first use. If a tool does not support sign-in, use the API key method in the next tab.",هذه الأدوات تفتح صفحة تسجيل الدخول في المتصفح عند أول استخدام. إذا لم تدعم أداةٌ تسجيل الدخول، استخدم طريقة مفتاح API في التبويب التالي.
+Thinking Mode,وضع التفكير
+This site's MCP server URL:,رابط خادم MCP لهذا الموقع:
+Troubleshooting,حل المشاكل
+Turn on <b>Developer mode</b> in <b>Settings → Apps → Advanced settings</b>.,فعّل <b>Developer mode</b> من <b>Settings ← Apps ← Advanced settings</b>.
+Turn on <b>Enable MCP Action Requests</b> and choose an agent that allows actions. Every change waits for your approval.,فعّل <b>Enable MCP Action Requests</b>، واختر وكيلاً يسمح بالإجراءات. كل تعديل ينتظر موافقتك.
+Turn on <b>Enable MCP Server</b> on this page and save.,فعّل <b>Enable MCP Server</b> في هذه الصفحة واحفظ.
+Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.,المستخدمون بهذا الدور يمكنهم اعتماد إجراءات الذكاء الاصطناعي إضافةً إلى مديري النظام. اتركه فارغاً ليقتصر الاعتماد على مديري النظام.
+"When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",عند التفعيل يستطيع مديرو النظام قراءة محادثات المستخدمين الآخرين مع الوكيل، وتُسجَّل كل قراءة في Access Log. عند الإيقاف يرى كل مستخدم محادثاته فقط.
+"When enabled, the user who requested an action cannot approve it themselves.",عند التفعيل لا يستطيع صاحب الطلب اعتماد طلبه بنفسه.
+"Works in <b>claude.ai</b> and the Claude desktop and mobile apps, because connectors belong to your account.",يعمل في <b>claude.ai</b> وتطبيق Claude على سطح المكتب والجوال، لأن الموصلات مرتبطة بحسابك.
+high,مرتفع
+low,منخفض
+medium,متوسط

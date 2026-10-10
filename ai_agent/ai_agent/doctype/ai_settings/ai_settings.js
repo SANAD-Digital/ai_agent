@@ -23,7 +23,8 @@ frappe.ui.form.on("AI Settings", {
 
 const MCP_ENDPOINT_PATH = "/api/method/ai_agent.mcp.api.handle";
 
-// Arabic setup guide for every MCP client, built around this site's real endpoint.
+// Setup guide for every MCP client, built around this site's real endpoint.
+// Strings go through __() so the page follows the user's language (see translations/ar.csv).
 function render_mcp_guide(frm) {
 	const field = frm.fields_dict.mcp_guide;
 	if (!field) return;
@@ -41,90 +42,90 @@ function render_mcp_guide(frm) {
 			id: "claude",
 			title: "Claude",
 			body:
-				`<p>يعمل في <b>claude.ai</b> وتطبيق Claude على سطح المكتب والجوال، لأن الموصلات مرتبطة بحسابك.</p>` +
+				`<p>${__("Works in <b>claude.ai</b> and the Claude desktop and mobile apps, because connectors belong to your account.")}</p>` +
 				steps([
-					"افتح <b>Settings ← Connectors</b>.",
-					"اضغط <b>Add custom connector</b>.",
-					`اكتب اسماً مثل <b>Sanad ERPNext</b>، وضع الرابط: ${u}`,
-					"اترك <b>Advanced settings</b> فارغة؛ Claude يسجّل نفسه تلقائياً.",
-					"اضغط <b>Add</b> ثم <b>Connect</b>، وسجّل دخولك في النظام، ثم اضغط <b>السماح</b>.",
-					"في المحادثة فعّل الموصل من قائمة الأدوات أسفل مربع الكتابة.",
+					__("Open <b>Settings → Connectors</b>."),
+					__("Click <b>Add custom connector</b>."),
+					__("Enter a name such as <b>Sanad ERPNext</b> and this URL: {0}", [u]),
+					__("Leave <b>Advanced settings</b> empty; Claude registers itself automatically."),
+					__("Click <b>Add</b>, then <b>Connect</b>, sign in to the system and click <b>Allow</b>."),
+					__("In a conversation, turn the connector on from the tools menu under the message box."),
 				]) +
-				note("في حسابات Team وEnterprise يضيف مالك المؤسسة الموصل أولاً من إعدادات المؤسسة، ثم يضغط كل عضو <b>Connect</b> بحسابه.") +
-				note("Claude يعرض النتائج نصاً وجداول في الرد. للموافقة على طلب، اكتب <b>موافق</b> في المحادثة.", "gray"),
+				note(__("On Team and Enterprise plans the organization owner adds the connector first in the organization settings, then each member clicks <b>Connect</b> with their own account.")) +
+				note(__("Claude shows results as text and tables in its reply. To approve a request, reply <b>approve</b> (or <b>موافق</b>) in the chat."), "gray"),
 		},
 		{
 			id: "chatgpt",
 			title: "ChatGPT",
 			body:
 				steps([
-					"فعّل <b>Developer mode</b> من <b>Settings ← Apps ← Advanced settings</b>.",
-					"من <b>Settings ← Apps</b> اضغط <b>Create app</b>.",
-					`اكتب الاسم، وضع الرابط ${u}، واختر المصادقة <b>OAuth</b>.`,
-					"احفظ، ثم سجّل دخولك في النظام واضغط <b>السماح</b>.",
-					"في المحادثة اختر التطبيق من زر <b>+</b> ثم <b>Developer mode</b>.",
+					__("Turn on <b>Developer mode</b> in <b>Settings → Apps → Advanced settings</b>."),
+					__("In <b>Settings → Apps</b>, click <b>Create app</b>."),
+					__("Enter a name, set the URL to {0} and choose <b>OAuth</b> authentication.", [u]),
+					__("Save, then sign in to the system and click <b>Allow</b>."),
+					__("In a conversation, pick the app from the <b>+</b> button, then <b>Developer mode</b>."),
 				]) +
-				note(`يتطلب أن يحتوي <a href="/app/oauth-settings">OAuth Settings</a> في حقل <b>Allowed Public Client Origins</b> على <code dir="ltr">https://chatgpt.com</code>.`, "orange") +
-				note("ChatGPT يعرض الجداول والرسوم وبطاقات الموافقة بأزرار داخل المحادثة.", "gray"),
+				note(__("<a href=\"/app/oauth-settings\">OAuth Settings</a> must list {0} in <b>Allowed Public Client Origins</b>.", ['<code dir="ltr">https://chatgpt.com</code>']), "orange") +
+				note(__("ChatGPT shows tables, charts and approval cards with buttons inside the conversation."), "gray"),
 		},
 		{
 			id: "code",
 			title: "Claude Code",
 			body:
-				`<p>أضف الخادم من الطرفية:</p>` +
+				`<p>${__("Add the server from the terminal:")}</p>` +
 				code(`claude mcp add --transport http sanad-erpnext ${url}`) +
-				`<p>ثم داخل Claude Code اكتب <code dir="ltr">/mcp</code> واختر الخادم لتسجيل الدخول.</p>`,
+				`<p>${__("Then type {0} in Claude Code and choose the server to sign in.", ['<code dir="ltr">/mcp</code>'])}</p>`,
 		},
 		{
 			id: "editors",
-			title: "Cursor وVS Code وopencode",
+			title: __("Cursor, VS Code and opencode"),
 			body:
-				`<p><b>Cursor</b> — في الملف <code dir="ltr">~/.cursor/mcp.json</code>:</p>` +
+				`<p>${__("<b>Cursor</b> — in the file {0}:", ['<code dir="ltr">~/.cursor/mcp.json</code>'])}</p>` +
 				code(JSON.stringify({ mcpServers: { "sanad-erpnext": { url } } }, null, 2)) +
-				`<p><b>VS Code (Copilot)</b> — في الملف <code dir="ltr">.vscode/mcp.json</code>:</p>` +
+				`<p>${__("<b>VS Code (Copilot)</b> — in the file {0}:", ['<code dir="ltr">.vscode/mcp.json</code>'])}</p>` +
 				code(JSON.stringify({ servers: { "sanad-erpnext": { type: "http", url } } }, null, 2)) +
-				`<p><b>opencode</b> — في الملف <code dir="ltr">opencode.json</code>:</p>` +
+				`<p>${__("<b>opencode</b> — in the file {0}:", ['<code dir="ltr">opencode.json</code>'])}</p>` +
 				code(JSON.stringify({ mcp: { "sanad-erpnext": { type: "remote", url, enabled: true } } }, null, 2)) +
-				note("هذه الأدوات تفتح صفحة تسجيل الدخول في المتصفح عند أول استخدام. إذا لم تدعم أداةٌ تسجيل الدخول، استخدم طريقة مفتاح API في التبويب التالي."),
+				note(__("These tools open the sign-in page in your browser on first use. If a tool does not support sign-in, use the API key method in the next tab.")),
 		},
 		{
 			id: "token",
-			title: "أدوات أخرى (مفتاح API)",
+			title: __("Other tools (API key)"),
 			body:
-				`<p>لأي أداة تدعم MCP عبر HTTP ولا تدعم تسجيل الدخول (OAuth)، استخدم مفتاح API خاصاً بكل مستخدم:</p>` +
+				`<p>${__("For any tool that supports MCP over HTTP but not sign-in (OAuth), use a per-user API key:")}</p>` +
 				steps([
-					"افتح صفحة المستخدم في النظام، ثم <b>Settings ← API Access ← Generate Keys</b>.",
-					"انسخ <b>API Key</b> و<b>API Secret</b>؛ السر يظهر مرة واحدة فقط.",
-					`في الأداة ضع الرابط ${u} وأضف الترويسة التالية:`,
+					__("Open the user's page in the system, then <b>Settings → API Access → Generate Keys</b>."),
+					__("Copy the <b>API Key</b> and <b>API Secret</b>; the secret is shown only once."),
+					__("In the tool, set the URL to {0} and add this header:", [u]),
 				]) +
 				code("Authorization: token API_KEY:API_SECRET") +
-				note("المفتاح يعمل بصلاحيات صاحبه كاملة. لا تستخدم مفتاح مستخدم مدير، ولا تشارك المفتاح بين أشخاص. يمكنك إلغاؤه في أي وقت بإعادة توليده.", "orange"),
+				note(__("The key carries all of its owner's permissions. Do not use an administrator's key, and do not share a key between people. You can revoke it at any time by generating a new one."), "orange"),
 		},
 		{
 			id: "help",
-			title: "حل المشاكل",
-			body: `<table class="table table-bordered mcp-table"><thead><tr><th>المشكلة</th><th>السبب والحل</th></tr></thead><tbody>
-				<tr><td>لا تظهر صفحة تسجيل الدخول</td><td>تأكد أن <a href="/app/oauth-settings">OAuth Settings</a> مفعّل فيه: Show Auth Server Metadata وShow Protected Resource Metadata وEnable Dynamic Client Registration.</td></tr>
-				<tr><td>"The authenticated user is not allowed to use MCP"</td><td>أعطِ المستخدم أحد الأدوار في <b>Allowed MCP Roles</b> (افتراضياً <b>AI MCP User</b>).</td></tr>
-				<tr><td>"MCP server is disabled"</td><td>فعّل <b>Enable MCP Server</b> في هذه الصفحة واحفظ.</td></tr>
-				<tr><td>"MCP request rate limit exceeded"</td><td>زد <b>MCP Requests per Minute</b>، فالحد لكل مستخدم في الدقيقة.</td></tr>
-				<tr><td>أدوات جديدة لا تظهر بعد تحديث النظام</td><td>افصل الموصل في الأداة ثم أعد ربطه حتى تجلب قائمة الأدوات من جديد.</td></tr>
-				<tr><td>لا يستطيع إنشاء مستندات</td><td>فعّل <b>Enable MCP Action Requests</b>، واختر وكيلاً يسمح بالإجراءات. كل تعديل ينتظر موافقتك.</td></tr>
-				</tbody></table>`,
+			title: __("Troubleshooting"),
+			body: `<table class="table table-bordered mcp-table"><thead><tr><th>${__("Problem")}</th><th>${__("Cause and fix")}</th></tr></thead><tbody>${[
+				[__("The sign-in page does not appear"), __("Make sure <a href=\"/app/oauth-settings\">OAuth Settings</a> has Show Auth Server Metadata, Show Protected Resource Metadata and Enable Dynamic Client Registration turned on.")],
+				['"The authenticated user is not allowed to use MCP"', __("Give the user one of the roles in <b>Allowed MCP Roles</b> (<b>AI MCP User</b> by default).")],
+				['"MCP server is disabled"', __("Turn on <b>Enable MCP Server</b> on this page and save.")],
+				['"MCP request rate limit exceeded"', __("Raise <b>MCP Requests per Minute</b>; the limit is per user per minute.")],
+				[__("New tools do not appear after a system update"), __("Disconnect the connector in the tool and connect it again so it fetches the tool list again.")],
+				[__("It cannot create documents"), __("Turn on <b>Enable MCP Action Requests</b> and choose an agent that allows actions. Every change waits for your approval.")],
+			].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join("")}</tbody></table>`,
 		},
 	];
 
 	const status = [
-		[frm.doc.enable_mcp, frm.doc.enable_mcp ? "الخادم مفعّل" : "الخادم غير مفعّل"],
-		[true, `الوكيل: <b>${esc(agent)}</b>`],
-		[true, actions ? "القراءة + طلبات إجراءات بموافقة" : "قراءة فقط"],
+		[frm.doc.enable_mcp, frm.doc.enable_mcp ? __("Server enabled") : __("Server disabled")],
+		[true, __("Agent: {0}", [`<b>${esc(agent)}</b>`])],
+		[true, actions ? __("Read + approval-gated action requests") : __("Read only")],
 	]
 		.map(([ok, text]) => `<span class="mcp-chip ${ok ? "ok" : "off"}">${text}</span>`)
 		.join("");
 
 	field.$wrapper.html(`
 		<style>
-			.mcp-guide { direction: rtl; text-align: right; max-width: 900px; }
+			.mcp-guide { max-width: 900px; text-align: start; }
 			.mcp-guide .mcp-url { display: flex; gap: 8px; align-items: center; margin: 4px 0 12px; }
 			.mcp-guide .mcp-url code { flex: 1; padding: 8px 10px; border-radius: 8px; background: var(--control-bg); overflow-x: auto; white-space: nowrap; }
 			.mcp-guide .mcp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
@@ -143,14 +144,14 @@ function render_mcp_guide(frm) {
 			.mcp-guide .mcp-note-orange { background: var(--bg-orange); color: var(--text-on-orange); }
 			.mcp-guide .mcp-note-gray { background: var(--control-bg); color: var(--text-muted); }
 			.mcp-guide code { direction: ltr; unicode-bidi: isolate; }
-			.mcp-guide .mcp-table td, .mcp-guide .mcp-table th { text-align: right; vertical-align: top; }
+			.mcp-guide .mcp-table td, .mcp-guide .mcp-table th { text-align: start; vertical-align: top; }
 		</style>
 		<div class="mcp-guide">
-			<div class="text-muted small">رابط خادم MCP لهذا الموقع:</div>
+			<div class="text-muted small">${__("This site's MCP server URL:")}</div>
 			<div class="mcp-url"><code dir="ltr">${esc(url)}</code>
-				<button class="btn btn-default btn-sm mcp-copy">نسخ</button></div>
+				<button class="btn btn-default btn-sm mcp-copy">${__("Copy")}</button></div>
 			<div class="mcp-chips">${status}</div>
-			<p class="text-muted small">كل مستخدم يدخل بحسابه في النظام، فيرى ويعدّل فقط ما تسمح به صلاحياته. يجب أن يملك أحد الأدوار في <b>Allowed MCP Roles</b>.</p>
+			<p class="text-muted small">${__("Each user signs in with their own account and sees or changes only what their permissions allow. They must have one of the roles in <b>Allowed MCP Roles</b>.")}</p>
 			<div class="mcp-tabs">${tabs.map((t, i) => `<button class="mcp-tab${i ? "" : " active"}" data-tab="${t.id}">${t.title}</button>`).join("")}</div>
 			${tabs.map((t, i) => `<div class="mcp-panel${i ? "" : " active"}" data-panel="${t.id}">${t.body}</div>`).join("")}
 		</div>`);

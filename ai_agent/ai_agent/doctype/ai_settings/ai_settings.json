@@ -349,7 +349,7 @@
   {
    "default": "0",
    "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests && doc.mcp_require_approval",
-   "description": "Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat ('موافق') or in Frappe. Independent of 'MCP Actions Require Approval'.",
+   "description": "Let the MCP App approval card approve, edit or cancel a pending action with its buttons (signed one-time card token; the user's permissions are re-checked at execution). Off: approval happens in chat or in Frappe. Independent of 'MCP Actions Require Approval'.",
    "fieldname": "mcp_enable_app_approval",
    "fieldtype": "Check",
    "label": "Allow Approval from MCP App"
@@ -374,24 +374,24 @@
    "depends_on": "eval:doc.enable_mcp",
    "fieldname": "section_mcp_guide",
    "fieldtype": "Section Break",
-   "label": "دليل ربط MCP"
+   "label": "MCP Setup Guide"
   },
   {
    "fieldname": "mcp_guide",
    "fieldtype": "HTML",
-   "label": "دليل ربط MCP"
+   "label": "MCP Setup Guide"
   },
   {
    "collapsible": 0,
-   "description": "كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. صف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.",
+   "description": "Every skill or plugin is blocked until it is allowed here. A row with no role and no user applies to everyone. A user row overrides a role row; on a tie, deny wins. Automatic skills (always on) are not subject to this table.",
    "fieldname": "section_access",
    "fieldtype": "Section Break",
-   "label": "صلاحيات المهارات والإضافات"
+   "label": "Skills & Plugins Access"
   },
   {
    "fieldname": "access_rules",
    "fieldtype": "Table",
-   "label": "قواعد الصلاحيات",
+   "label": "Access Rules",
    "options": "AI Access Rule"
   },
   {
@@ -408,7 +408,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 02:00:00.000000",
+ "modified": "2026-10-10 03:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

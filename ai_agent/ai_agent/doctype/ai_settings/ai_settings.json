@@ -54,6 +54,8 @@
   "mcp_enable_action_requests",
   "mcp_require_approval",
   "mcp_enable_app_approval",
+  "section_mcp_guide",
+  "mcp_guide",
   "section_access",
   "access_rules",
   "section_instructions",
@@ -368,6 +370,18 @@
    "label": "MCP Requests per Minute"
   },
   {
+   "collapsible": 1,
+   "depends_on": "eval:doc.enable_mcp",
+   "fieldname": "section_mcp_guide",
+   "fieldtype": "Section Break",
+   "label": "دليل ربط MCP"
+  },
+  {
+   "fieldname": "mcp_guide",
+   "fieldtype": "HTML",
+   "label": "دليل ربط MCP"
+  },
+  {
    "collapsible": 0,
    "description": "كل مهارة أو إضافة ممنوعة حتى يُسمح بها هنا. صف بلا دور ولا مستخدم يعني الجميع. صف المستخدم يغلب صف الدور، وعند التساوي يغلب المنع. المهارات التلقائية (التي تعمل دائماً) لا تخضع لهذا الجدول.",
    "fieldname": "section_access",
@@ -394,7 +408,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-08 22:00:00.000000",
+ "modified": "2026-10-10 02:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

@@ -125,7 +125,10 @@
         const working = h("div.ac-working", h("span.ac-pulse"), workingLabel, timerEl);
         const errorText = h("span.ac-error-text");
         const errorRetry = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("refresh"), h("span", { text: __("إعادة المحاولة") }));
-        const errorBox = h("div.ac-block.ac-error.ac-msg-error", icon("alert"), errorText, errorRetry);
+        // Technical detail (provider message, codes) only reaches System Managers; folded by default.
+        const errorDetailText = h("pre.ac-error-detail-text");
+        const errorDetail = h("details.ac-error-detail", h("summary", { text: __("تفاصيل تقنية") }), errorDetailText);
+        const errorBox = h("div.ac-block.ac-error.ac-msg-error", icon("alert"), h("div.ac-error-main", errorText, errorDetail), errorRetry);
         const cancelledNote = h("div.ac-status-line", { text: __("أُوقف التوليد") });
         const awaitingNote = h("div.ac-status-line.ac-awaiting", icon("shield"), h("span", { text: __("بانتظار قرارك على طلب الاعتماد") }));
 
@@ -332,6 +335,8 @@
             const failed = m.status === "failed";
             errorBox.hidden = !failed;
             if (failed) errorText.textContent = m.error || __("فشل توليد الرد");
+            errorDetail.hidden = !(failed && m.error_detail);
+            errorDetailText.textContent = (failed && m.error_detail) || "";
             errorRetry.hidden = !ctx.onRetry;
             cancelledNote.hidden = m.status !== "cancelled";
 

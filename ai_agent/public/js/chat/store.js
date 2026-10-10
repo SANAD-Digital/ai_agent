@@ -529,6 +529,7 @@
             case "message.failed":
                 msg.status = "failed";
                 msg.error = ev.error || AIChat.__("فشل توليد الرد");
+                msg.error_detail = ev.detail || null;
                 msg.error_kind = ev.kind || null;
                 msg.completed_at = msg.completed_at || nowTs();
                 if (!msg.duration_ms && msg._started_local) msg.duration_ms = Date.now() - msg._started_local;

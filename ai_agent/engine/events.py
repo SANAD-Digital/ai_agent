@@ -151,9 +151,10 @@ class MessageDone(Event):
 @dataclass
 class MessageFailed(Event):
     type: str = "message.failed"
-    error: str = ""
+    error: str = ""         # user-facing sentence
     kind: str = "error"
     usage: dict = field(default_factory=dict)
+    detail: str = ""        # raw technical text, sent only to System Managers
 
 
 @dataclass

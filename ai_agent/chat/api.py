@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
 
+from ai_agent.engine.errors import is_user_message, kind_of, user_message
 from ai_agent.engine import approvals as approvals_mod
 from ai_agent.engine import runner
 from ai_agent.engine.providers.base import guess_context_window
@@ -94,6 +95,22 @@ def block_dict(row):
     }
 
 
+def _error_fields(row):
+    """What a failed reply shows: one plain sentence for everyone, and the raw
+    technical text (provider codes, JSON) only for System Managers. Replies that
+    failed before friendly messages existed stored the raw text; they are
+    worded the same way here."""
+    error = row.get("error")
+    if not error:
+        return {"error": None, "error_detail": None}
+    admin = "System Manager" in frappe.get_roles()
+    if is_user_message(error):
+        detail = frappe.db.get_value("AI Run", row.get("run"), "error_summary") if admin and row.get("run") else None
+        return {"error": error, "error_detail": detail}
+    return {"error": user_message(kind_of("error", error), error, user=row.get("user") or frappe.session.user),
+            "error_detail": error if admin else None}
+
+
 def message_dict(row, blocks=None, attachments=None):
     get = row.get
     return {
@@ -109,7 +126,7 @@ def message_dict(row, blocks=None, attachments=None):
         "model": get("model") or "",
         "provider": get("provider") or "",
         "stop_reason": get("stop_reason") or "",
-        "error": get("error") or None,
+        **_error_fields(row),
         "usage": {k: (get(k) or 0) for k in USAGE_KEYS},
         "context_tokens": cint(get("context_tokens")),
         "attachments": attachments or [],

@@ -8,6 +8,7 @@ from frappe.tests import IntegrationTestCase
 
 from ai_agent.chat import api
 from ai_agent.engine import runner
+from ai_agent.engine.errors import user_message
 from ai_agent.engine.providers.base import CancelToken
 from ai_agent.engine.providers.fake import FakeProvider
 from ai_agent.tests.utils import ensure_test_agent
@@ -117,8 +118,12 @@ class TestChatApi(IntegrationTestCase):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
         self.assertEqual(msg.status, "failed")
-        self.assertIn("invalid api key", msg.error)
+        # The user gets a plain sentence; the raw provider text stays on the run for admins.
+        self.assertNotIn("invalid api key", msg.error)
+        self.assertEqual(msg.error, user_message("auth", user="Administrator"))
         self.assertEqual(frappe.db.get_value("AI Run", msg.run, "status"), "Failed")
+        self.assertIn("invalid api key", frappe.db.get_value("AI Run", msg.run, "error_summary"))
+        self.assertIn("invalid api key", api.message_dict(msg)["error_detail"], "System Managers see the detail")
 
     def test_retry_resets_and_edit_truncates(self):
         out = self._send("hi")

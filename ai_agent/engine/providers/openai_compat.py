@@ -59,7 +59,7 @@ class OpenAICompatProvider(Provider):
     def build_request(self, request: ModelRequest, include_usage=True):
         model = request.model or self.model
         messages = [{"role": "system", "content": join_system(request.system, request.system_dynamic)}]
-        messages.extend(convert_messages(request.messages, keep_reasoning=self._keeps_reasoning(model)))
+        messages.extend(convert_messages(request.messages, keep_reasoning=self._keeps_reasoning(model), gemini=self._is_gemini(model)))
         payload = {
             "model": model,
             "messages": messages,
@@ -99,6 +99,9 @@ class OpenAICompatProvider(Provider):
 
     def _is_deepseek(self, model):
         return "deepseek" in (model or "").lower() or "deepseek" in (self.config.get("base_url") or "").lower()
+
+    def _is_gemini(self, model):
+        return "gemini" in (model or "").lower() or "generativelanguage.googleapis.com" in (self.config.get("base_url") or "")
 
     def _keeps_reasoning(self, model):
         # DeepSeek requires reasoning_content on the current turn's assistant
@@ -186,6 +189,9 @@ class OpenAICompatProvider(Provider):
                             args = getattr(fn, "arguments", None)
                             if args:
                                 yield asm.delta(seq, args)
+                        sig = gemini_signature(tc)
+                        if sig:
+                            asm.signature(seq, sig)
                 if getattr(choice, "finish_reason", None):
                     finish = choice.finish_reason
         except Exception as exc:
@@ -228,10 +234,27 @@ def usage_from(u):
     )
 
 
-def convert_messages(messages, keep_reasoning=False):
+# Gemini (OpenAI-compatible endpoint) returns a thought signature on the first
+# tool call of each step and rejects the next request unless it is sent back
+# with that call. Calls recorded without one (e.g. made by another model earlier
+# in the conversation) carry Google's documented placeholder instead.
+GEMINI_SIGNATURE_PLACEHOLDER = "skip_thought_signature_validator"
+
+
+def gemini_signature(tool_call):
+    extra = getattr(tool_call, "extra_content", None)
+    if extra is None and hasattr(tool_call, "model_extra"):
+        extra = (tool_call.model_extra or {}).get("extra_content")
+    if not isinstance(extra, dict):
+        return ""
+    return ((extra.get("google") or {}).get("thought_signature")) or ""
+
+
+def convert_messages(messages, keep_reasoning=False, gemini=False):
     """Native blocks -> chat-completions messages. Tool results become
     role=tool messages; thinking is replayed as reasoning_content on the
-    current turn only (DeepSeek), otherwise dropped."""
+    current turn only (DeepSeek), otherwise dropped. For Gemini, tool calls
+    carry their thought signature back (extra_content.google)."""
     out = []
     last_user_index = -1
     for i, m in enumerate(messages):
@@ -260,11 +283,16 @@ def convert_messages(messages, keep_reasoning=False):
                 out.append({"role": "user", "content": content})
         elif m.role == "assistant":
             text = "".join(b.text for b in m.blocks if b.kind == TEXT)
-            tool_calls = [
-                {"id": b.id or f"call_{b.seq}", "type": "function", "function": {"name": b.name, "arguments": json.dumps(b.data, ensure_ascii=False)}}
-                for b in m.blocks
-                if b.kind == TOOL_USE
-            ]
+            tool_calls = []
+            for b in m.blocks:
+                if b.kind != TOOL_USE:
+                    continue
+                call = {"id": b.id or f"call_{b.seq}", "type": "function", "function": {"name": b.name, "arguments": json.dumps(b.data, ensure_ascii=False)}}
+                if gemini:
+                    sig = b.signature or (GEMINI_SIGNATURE_PLACEHOLDER if not tool_calls else "")
+                    if sig:
+                        call["extra_content"] = {"google": {"thought_signature": sig}}
+                tool_calls.append(call)
             msg = {"role": "assistant", "content": text or None}
             if tool_calls:
                 msg["tool_calls"] = tool_calls

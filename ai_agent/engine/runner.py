@@ -21,6 +21,7 @@ from ai_agent.engine.context import files as files_mod
 from ai_agent.engine.context import history as history_mod
 from ai_agent.engine.context import system_prompt
 from ai_agent.engine.context.compactor import Compactor, budget_for
+from ai_agent.engine.errors import user_message
 from ai_agent.engine.events import (
     ApprovalRequested,
     ArtifactCreated,
@@ -86,17 +87,22 @@ def enqueue(message, user, resume=False):
     )
 
 
+def error_detail_for(user, raw):
+    return (raw or "")[:600] if "System Manager" in frappe.get_roles(user) else ""
+
+
 def fail_orphaned_message(message, error):
     """The job died (worker restart, crash before the runner could report):
     settle the message so the chat does not wait forever."""
     doc = frappe.get_doc("AI Chat Message", message)
     if doc.status not in ("pending", "streaming"):
         return
-    doc.db_set({"status": "failed", "error": error, "completed_at": now_datetime()}, update_modified=False)
+    friendly = user_message("interrupted", error, user=doc.user)
+    doc.db_set({"status": "failed", "error": friendly, "completed_at": now_datetime()}, update_modified=False)
     frappe.db.set_value("AI Message Block", {"message": doc.name, "status": "streaming"}, "status", "completed", update_modified=False)
     frappe.db.commit()
     pub = Publisher(doc.session, doc.name, doc.user, start_seq=cint(doc.event_seq))
-    pub.publish(MessageFailed(error=error, kind="interrupted"))
+    pub.publish(MessageFailed(error=friendly, kind="interrupted", detail=error_detail_for(doc.user, error)))
     doc.db_set("event_seq", pub.seq, update_modified=False)
     frappe.db.commit()
 
@@ -517,7 +523,7 @@ class Runner:
             "context_tokens": self.context_tokens,
         }
 
-    def close_message(self, status, event=None, error=None, run_status="Completed"):
+    def close_message(self, status, event=None, error=None, run_status="Completed", detail=None):
         self.maybe_flush(force=True)
         # Any block still open (cancelled mid-stream) is closed with what it has.
         for seq, entry in list(self.blocks.items()):
@@ -547,7 +553,7 @@ class Runner:
             self.run_doc.db_set({
                 "status": run_status,
                 "final_answer": text[:16000] if status == "completed" else self.run_doc.final_answer,
-                "error_summary": (error or "")[:500] or None,
+                "error_summary": (detail or error or "")[:500] or None,
                 "completed_at": now if run_status in ("Completed", "Failed", "Cancelled") else None,
                 "input_tokens": cint(self.run_doc.input_tokens) + usage["input_tokens"],
                 "output_tokens": cint(self.run_doc.output_tokens) + usage["output_tokens"],
@@ -571,8 +577,11 @@ class Runner:
         self.publish_session()
 
     def fail(self, error, kind="error"):
-        self.close_message("failed", error=error, run_status="Failed")
-        self.pub.publish(MessageFailed(error=error, kind=kind, usage=self.usage.to_dict()))
+        # The user sees one sentence in their language; the raw provider text
+        # stays on the AI Run (error_summary) and goes live only to System Managers.
+        friendly = user_message(kind, error, user=self.msg.user)
+        self.close_message("failed", error=friendly, run_status="Failed", detail=error)
+        self.pub.publish(MessageFailed(error=friendly, kind=kind, usage=self.usage.to_dict(), detail=error_detail_for(self.msg.user, error)))
         self.publish_session()
 
     def cancelled(self):

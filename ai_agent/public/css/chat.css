@@ -1648,6 +1648,34 @@
 .ac-error .ac-btn-ghost:hover {
     background: rgba(197, 48, 48, 0.1);
 }
+.ac-error-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ac-error-detail {
+    font-size: 12px;
+}
+.ac-error-detail summary {
+    cursor: pointer;
+    opacity: 0.75;
+    width: fit-content;
+}
+.ac-error-detail-text {
+    direction: ltr;
+    text-align: left;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 160px;
+    overflow: auto;
+    margin: 6px 0 0;
+    padding: 8px 10px;
+    border-radius: var(--ac-radius-sm);
+    background: rgba(197, 48, 48, 0.06);
+    font-size: 11.5px;
+}
 
 /* ------------------------------------------------------------------ */
 /* Empty state                                                         */

@@ -122,10 +122,11 @@
    "label": "Access"
   },
   {
-   "description": "One role per line. When empty, every logged-in user can use the chatbot.",
+   "description": "When empty, every logged-in user can use the chatbot.",
    "fieldname": "allowed_roles",
-   "fieldtype": "Small Text",
-   "label": "Allowed Roles"
+   "fieldtype": "Table MultiSelect",
+   "label": "Allowed Roles",
+   "options": "Has Role"
   },
   {
    "fieldname": "fallback_section",
@@ -142,7 +143,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-04 00:00:00.000000",
+ "modified": "2026-10-11 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Chatbot Settings",

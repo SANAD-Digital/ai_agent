@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 
 import frappe
 from frappe.utils import cint, flt
@@ -79,13 +78,14 @@ def system_prompt() -> str:
 
 
 def allowed_roles() -> set[str]:
-    raw = str(_setting("allowed_roles", "") or "")
-    roles = set()
-    for value in re.split(r"[,;\n]+", raw):
-        role = str(value).strip()
-        if role:
-            roles.add(role)
-    return roles
+    """Roles picked in the Allowed Roles multi-select (Has Role rows on the settings)."""
+    if not frappe.db.exists("DocType", SETTINGS_DOCTYPE):
+        return set()
+    return set(frappe.get_all(
+        "Has Role",
+        filters={"parenttype": SETTINGS_DOCTYPE, "parent": SETTINGS_DOCTYPE, "parentfield": "allowed_roles"},
+        pluck="role",
+    ))
 
 
 def can_access(user=None) -> bool:

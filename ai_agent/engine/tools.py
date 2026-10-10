@@ -72,6 +72,10 @@ TOOL_GROUPS = {
         "description": "Child-table rows of a document, attachment metadata, document-link artifacts",
         "tools": ("data.get_child_records", "attachments.list", "artifacts.create_document_links"),
     },
+    "web": {
+        "description": "Search the internet and read public web pages or PDFs (documentation, prices, news, regulations)",
+        "tools": ("web.search", "web.fetch"),
+    },
     "actions_more": {
         "description": "Further approval-gated actions: bulk create, create from an existing document by ERPNext mapping, submit, cancel, workflow action",
         "tools": ("actions.request_bulk_create", "actions.request_mapped_draft", "actions.request_submit", "actions.request_cancel", "actions.request_workflow_action"),
@@ -137,8 +141,12 @@ class ToolExecutor:
         missing = {registry_name(r.get("tool_name") or "") for r in rows} - self.enabled
         return sorted(group for group, spec in TOOL_GROUPS.items() if group not in self.enabled_groups and missing & set(spec["tools"]))
 
+    def group_available(self, group):
+        return any(self.allowed(n) for n in TOOL_GROUPS[group]["tools"])
+
     def groups_for_prompt(self):
-        return [{"name": k, "description": v["description"]} for k, v in TOOL_GROUPS.items() if k not in self.enabled_groups]
+        return [{"name": k, "description": v["description"]} for k, v in TOOL_GROUPS.items()
+                if k not in self.enabled_groups and self.group_available(k)]
 
     # -- what the model sees ---------------------------------------------------
 
@@ -151,6 +159,8 @@ class ToolExecutor:
             if name in ("actions.request_submit", "actions.request_cancel", "actions.request_workflow_action") and not policy.submit_cancel_allowed():
                 return False
         if name.startswith("memory.") and (self.agent.get("disable_memory") or not self.settings.get("enable_memory")):
+            return False
+        if name.startswith("web.") and not self.settings.get("enable_web_browsing"):
             return False
         # a plugin's tool needs that plugin allowed for this user (AI Settings access rules)
         if not access.tool_allowed(name, self.ctx.user):
@@ -205,6 +215,8 @@ class ToolExecutor:
         group = str(args.get("group") or "")
         if group not in TOOL_GROUPS:
             return ToolOutcome(result=self._error_block(block, f"Unknown tool group '{group}'. Groups: {', '.join(TOOL_GROUPS)}"))
+        if not self.group_available(group):
+            return ToolOutcome(result=self._error_block(block, f"Tool group '{group}' is turned off on this site."))
         fresh = self.enable_group(group)
         names = [wire_name(n) for n in TOOL_GROUPS[group]["tools"] if self.allowed(n)]
         result = {"enabled": group, "tools": names, "note": "These tools are available from your next step." if fresh else "Group was already enabled."}

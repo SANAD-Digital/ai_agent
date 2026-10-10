@@ -10,6 +10,7 @@ Allow Action Requests,السماح بطلبات الإجراءات
 Allow Admin Conversation Audit,السماح للمدير بمراجعة المحادثات
 Allow External AI Tools,السماح لأدوات الذكاء الاصطناعي الخارجية
 Allow Submit / Cancel Actions,السماح بإجراءات الاعتماد والإلغاء
+Allow Web Browsing,السماح بتصفّح الإنترنت
 Allowed Provider Types,أنواع المزوّدات المسموحة
 Allowed Roles,الأدوار المسموحة
 Allowed Web Origins,المواقع المسموح لها
@@ -44,6 +45,7 @@ Default Reasoning Effort,مستوى التفكير الافتراضي
 Disconnect,فصل
 Disconnect {0}? Its users must sign in again.,فصل {0}؟ سيحتاج مستخدموه إلى تسجيل الدخول من جديد.
 Done,تم
+DuckDuckGo needs no key. Brave Search and Tavily need an API key; SearXNG needs your server address.,DuckDuckGo لا يحتاج مفتاحاً. Brave Search وTavily يحتاجان مفتاح API، وSearXNG يحتاج عنوان خادمك.
 Enable Memory,تفعيل الذاكرة
 Enable Tool Routing,تفعيل توجيه الأدوات
 Enabled,مفعّل
@@ -55,6 +57,7 @@ External tools can prepare documents and changes. Nothing is saved until it is a
 Extra Masked DocTypes,أنواع مستندات إضافية مخفية
 Extra Masked Fields,حقول إضافية مخفية
 Fix all,إصلاح الكل
+For example https://search.example.com,مثال: https://search.example.com
 For tools without sign-in: open your user page and click <b>Generate Keys</b> under API access.,للأدوات التي لا تدعم تسجيل الدخول: افتح صفحتك في النظام واضغط <b>توليد المفاتيح</b> في قسم تفاصيل وصول API.
 Give a user access,منح مستخدم صلاحية الربط
 Give access,منح الصلاحية
@@ -109,6 +112,9 @@ Require Four-Eyes Approval,اشتراط اعتماد شخص ثانٍ
 Restart Cursor; it opens the sign-in page.,أعد تشغيل Cursor، وستُفتح صفحة تسجيل الدخول.
 Restart opencode; it opens the sign-in page.,أعد تشغيل opencode، وستُفتح صفحة تسجيل الدخول.
 Rules applied to every request from external tools. Default: ERP Analyst.,القواعد المطبّقة على كل طلب من الأدوات الخارجية. الافتراضي: ERP Analyst.
+SearXNG URL,عنوان خادم SearXNG
+Search API Key,مفتاح محرك البحث
+Search Engine,محرك البحث
 Setup incomplete,الإعداد غير مكتمل
 "Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",إظهار أزرار الموافقة والتعديل والإلغاء في بطاقات الموافقة، في الأدوات التي تعرضها (مثل ChatGPT).
 Sign in and click <b>Allow</b>.,سجّل دخولك واضغط <b>السماح</b>.
@@ -121,6 +127,7 @@ Strict Tool Calling,استدعاء أدوات صارم
 System Instructions,تعليمات النظام
 Test connection,اختبار الاتصال
 Testing…,جارٍ الاختبار…
+The assistant can search the internet and read public pages. Search words and page addresses are sent to the search engine.,يستطيع المساعد البحث في الإنترنت وقراءة الصفحات العامة. كلمات البحث وعناوين الصفحات تُرسل إلى محرك البحث.
 The server did not respond as expected (status {0}). Check the items above or ask your system administrator.,لم يستجب الخادم كما يجب (الرمز {0}). راجع البنود أعلاه أو تواصل مع مسؤول النظام.
 The server responds and asks AI tools to sign in. You can connect.,الخادم يستجيب ويطلب من أدوات الذكاء الاصطناعي تسجيل الدخول. يمكنك الربط الآن.
 Thinking Mode,وضع التفكير
@@ -130,6 +137,7 @@ Unknown setup step: {0},خطوة إعداد غير معروفة: {0}
 User,المستخدم
 User {0} not found.,المستخدم {0} غير موجود.
 Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.,المستخدمون بهذا الدور يمكنهم اعتماد إجراءات الذكاء الاصطناعي إضافةً إلى مديري النظام. اتركه فارغاً ليقتصر الاعتماد على مديري النظام.
+Web Browsing,تصفّح الإنترنت
 "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",عند التفعيل يستطيع مديرو النظام قراءة محادثات المستخدمين الآخرين مع الوكيل، وتُسجَّل كل قراءة في سجل الوصول. عند الإيقاف يرى كل مستخدم محادثاته فقط.
 "When enabled, the user who requested an action cannot approve it themselves.",عند التفعيل لا يستطيع صاحب الطلب اعتماد طلبه بنفسه.
 Your account has no access role,حسابك لا يملك صلاحية الربط

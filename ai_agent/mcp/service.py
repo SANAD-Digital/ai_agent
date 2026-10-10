@@ -684,6 +684,8 @@ class MCPService:
             return False
         if tool["name"] in ("tools.request_more", "files.read"):   # files.read reads Desk chat attachments only
             return False
+        if tool["name"].startswith("web."):   # MCP hosts browse with their own tools; no server-side fetching for external callers
+            return False
         from ai_agent.runtime import access
 
         if not access.tool_allowed(tool["name"]):   # a plugin's tool: AI Settings access rules

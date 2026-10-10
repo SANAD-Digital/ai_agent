@@ -17,6 +17,12 @@
   "enable_thinking_mode",
   "default_reasoning_effort",
   "strict_tool_calling",
+  "section_web",
+  "enable_web_browsing",
+  "web_search_provider",
+  "cb_web",
+  "web_search_api_key",
+  "web_search_url",
   "section_model_capabilities",
   "model_capabilities",
   "tab_limits",
@@ -145,6 +151,44 @@
    "fieldname": "strict_tool_calling",
    "fieldtype": "Check",
    "label": "Strict Tool Calling"
+  },
+  {
+   "fieldname": "section_web",
+   "fieldtype": "Section Break",
+   "label": "Web Browsing"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_web_browsing",
+   "fieldtype": "Check",
+   "label": "Allow Web Browsing",
+   "description": "The assistant can search the internet and read public pages. Search words and page addresses are sent to the search engine."
+  },
+  {
+   "default": "DuckDuckGo",
+   "depends_on": "eval:doc.enable_web_browsing",
+   "fieldname": "web_search_provider",
+   "fieldtype": "Select",
+   "label": "Search Engine",
+   "options": "DuckDuckGo\nBrave Search\nTavily\nSearXNG",
+   "description": "DuckDuckGo needs no key. Brave Search and Tavily need an API key; SearXNG needs your server address."
+  },
+  {
+   "fieldname": "cb_web",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.enable_web_browsing && in_list(['Brave Search','Tavily'], doc.web_search_provider)",
+   "fieldname": "web_search_api_key",
+   "fieldtype": "Password",
+   "label": "Search API Key"
+  },
+  {
+   "depends_on": "eval:doc.enable_web_browsing && doc.web_search_provider=='SearXNG'",
+   "fieldname": "web_search_url",
+   "fieldtype": "Data",
+   "label": "SearXNG URL",
+   "description": "For example https://search.example.com"
   },
   {
    "collapsible": 1,
@@ -511,7 +555,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 05:30:00.000000",
+ "modified": "2026-10-10 06:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

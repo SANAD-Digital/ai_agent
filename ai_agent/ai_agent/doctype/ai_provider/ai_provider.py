@@ -41,7 +41,17 @@ NON_CHAT = (
 	"embed", "whisper", "tts", "dall-e", "moderation", "transcribe", "image", "audio", "realtime", "search", "babbage", "davinci",
 	# Gemini: robotics, computer-use, image (nano-banana), video, music, live audio
 	"robotics", "computer-use", "nano-banana", "veo", "imagen", "lyria", "-live", "aqa",
+	# Gemini agent models (Interactions API only): no multi-turn chat, no function calling
+	"antigravity",
 )
+
+
+def chat_capable(row):
+	"""Whether a configured model can run the chat: a chat model that takes tools."""
+	name = str(row.get("model_name") or "").lower()
+	if not name or any(part in name for part in NON_CHAT):
+		return False
+	return row.get("supports_tools") in (1, True, "1", None)
 
 
 @frappe.whitelist()

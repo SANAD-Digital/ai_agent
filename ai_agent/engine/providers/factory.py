@@ -23,8 +23,16 @@ def provider_config(provider_doc, model=None):
             extra = json.loads(raw) if isinstance(raw, str) else dict(raw)
         except ValueError:
             frappe.log_error(f"AI Provider {provider_doc.name}: extra_request_json is not valid JSON", "AI Provider")
-    default_model = provider_doc.get("default_model") or next((r.model_name for r in provider_doc.get("models") or [] if r.is_default), None) \
-        or next((r.model_name for r in provider_doc.get("models") or []), None) or settings.default_model
+    from ai_agent.ai_agent.doctype.ai_provider.ai_provider import chat_capable
+
+    # Only models that can run the chat (a chat model that takes tools) are picked
+    # automatically; the rows are sorted by name, so "first row" alone could land on
+    # e.g. an agent-only or speech model.
+    usable = [r for r in provider_doc.get("models") or [] if chat_capable(r)]
+    default_model = provider_doc.get("default_model") or next((r.model_name for r in usable if r.is_default), None) \
+        or next((r.model_name for r in usable), None) or settings.default_model
+    if model and model in models and not chat_capable(models[model]):
+        model = None   # a session left on a model that cannot chat falls back to the default
     ptype = provider_doc.get("provider_type") or "OpenAI Compatible"
     base_url = (provider_doc.get("base_url") or "").strip()
     if ptype == "OpenAI" and not base_url:

@@ -137,6 +137,7 @@ The model returned an empty answer. Try again.,أعاد النموذج رداً 
 The reply was interrupted. Try again.,انقطع الرد. حاول مرة أخرى.
 The request needed more steps than allowed. Try asking for a smaller part.,احتاج الطلب خطوات أكثر من المسموح. جرّب أن تطلب جزءاً أصغر.
 The selected model cannot use the system's tools. Choose another model.,النموذج المختار لا يستطيع استخدام أدوات النظام. اختر نموذجاً آخر.
+The selected model does not work in chat. Choose another model.,النموذج المختار لا يعمل في المحادثة. اختر نموذجاً آخر.
 The selected model is not available. Choose another model and try again.,النموذج المختار غير متاح. اختر نموذجاً آخر وحاول مرة أخرى.
 The server did not respond as expected (status {0}). Check the items above or ask your system administrator.,لم يستجب الخادم كما يجب (الرمز {0}). راجع البنود أعلاه أو تواصل مع مسؤول النظام.
 The server responds and asks AI tools to sign in. You can connect.,الخادم يستجيب ويطلب من أدوات الذكاء الاصطناعي تسجيل الدخول. يمكنك الربط الآن.

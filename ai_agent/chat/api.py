@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
 
+from ai_agent.ai_agent.doctype.ai_provider.ai_provider import chat_capable
 from ai_agent.engine.errors import is_user_message, kind_of, user_message
 from ai_agent.engine import approvals as approvals_mod
 from ai_agent.engine import runner
@@ -232,9 +233,10 @@ def available_providers():
         rows = frappe.get_all(
             "AI Provider Model",
             filters={"parent": provider.name, "parenttype": "AI Provider"},
-            fields=["model_name", "label", "is_default", "supports_vision", "supports_thinking", "context_window_tokens"],
+            fields=["model_name", "label", "is_default", "supports_vision", "supports_thinking", "supports_tools", "context_window_tokens"],
             order_by="idx asc",
         )
+        rows = [row for row in rows if chat_capable(row)]   # speech, agent-only or tool-less models cannot run the chat
         provider["models"] = rows
         if not provider.default_model:
             provider["default_model"] = next((row.model_name for row in rows if row.is_default), rows[0].model_name if rows else "")

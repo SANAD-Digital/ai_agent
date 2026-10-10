@@ -13,6 +13,7 @@ MESSAGES = {
 	"auth": "The AI service rejected the connection. Ask your administrator to check the provider's API key.",
 	"model": "The selected model is not available. Choose another model and try again.",
 	"no_tools": "The selected model cannot use the system's tools. Choose another model.",
+	"not_chat": "The selected model does not work in chat. Choose another model.",
 	"context_overflow": "This conversation is too long for the model. Start a new conversation.",
 	"timeout": "The AI service took too long to answer. Try again.",
 	"server": "The AI service is having a problem right now. Try again shortly.",
@@ -25,6 +26,7 @@ MESSAGES = {
 
 # Raw provider text that identifies a cause more precisely than the HTTP class.
 PATTERNS = (
+	("not_chat", ("multiturn chat is not enabled", "not a chat model", "is not supported for generatecontent", "only supported in v1/responses", "does not support chat")),
 	("no_tools", ("function calling is not enabled", "does not support tools", "tools are not supported", "tool use is not supported")),
 	("quota", ("insufficient_quota", "exceeded your current quota", "insufficient balance", "credit balance", "billing")),
 	("model", ("model not found", "is not found for api version", "does not exist", "unknown model", "model_not_found", "no such model")),

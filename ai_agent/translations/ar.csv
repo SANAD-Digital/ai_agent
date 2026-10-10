@@ -91,7 +91,7 @@ Off (default): the agent never submits or cancels documents; submit/cancel tools
 One DocType per line whose amounts are masked like Salary Slip (per-person pay).,نوع مستند في كل سطر تُخفى مبالغه كما في قسيمة الراتب (أجر كل شخص).
 "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",اسم حقل (أو جزء منه) في كل سطر، يُخفى في كل نتيجة أداة قبل وصولها إلى النموذج، إضافةً إلى القائمة المدمجة (أرقام الآيبان، الحسابات البنكية، الهويات، الجوازات، الرواتب).
 One role per line. A user needs one of these roles to connect.,دور في كل سطر. يحتاج المستخدم أحد هذه الأدوار ليتصل.
-Only Chat models appear in the assistant's chat; the others are kept for features that use them.,نماذج المحادثة فقط تظهر في محادثة المساعد، والأنواع الأخرى محفوظة للميزات التي تستخدمها.
+Only Chat models appear in the assistant's chat; the others are kept for features that use them. Empty: decided from the model name.,نماذج المحادثة فقط تظهر في محادثة المساعد، والأنواع الأخرى محفوظة للميزات التي تستخدمها. إذا تُرك فارغاً يُحدَّد من اسم النموذج.
 Only for tools that connect from a web page. One address per line.,فقط للأدوات التي تتصل من صفحة ويب. عنوان في كل سطر.
 Open ChatGPT,فتح ChatGPT
 Open Claude settings,فتح إعدادات Claude

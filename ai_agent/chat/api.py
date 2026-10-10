@@ -233,7 +233,7 @@ def available_providers():
         rows = frappe.get_all(
             "AI Provider Model",
             filters={"parent": provider.name, "parenttype": "AI Provider"},
-            fields=["model_name", "label", "is_default", "supports_vision", "supports_thinking", "supports_tools", "context_window_tokens"],
+            fields=["model_name", "label", "is_default", "supports_vision", "supports_thinking", "supports_tools", "model_type", "context_window_tokens"],
             order_by="idx asc",
         )
         rows = [row for row in rows if chat_capable(row)]   # speech, agent-only or tool-less models cannot run the chat

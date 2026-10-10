@@ -21,13 +21,12 @@
    "in_list_view": 1
   },
   {
-   "default": "Chat",
    "fieldname": "model_type",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Model Type",
    "options": "Chat\nSpeech\nImage\nVideo\nEmbedding\nAgent\nOther",
-   "description": "Only Chat models appear in the assistant's chat; the others are kept for features that use them."
+   "description": "Only Chat models appear in the assistant's chat; the others are kept for features that use them. Empty: decided from the model name."
   },
   {
    "fieldname": "is_default",
@@ -98,5 +97,5 @@
   "input_price_per_million",
   "output_price_per_million"
  ],
- "modified": "2026-10-10 08:00:00.000000"
+ "modified": "2026-10-10 08:30:00.000000"
 }

@@ -118,10 +118,43 @@ class TestFetchModels(IntegrationTestCase):
 		client.models.list.return_value = listed
 		with mock_patch("openai.OpenAI", return_value=client):
 			out = {m["model_name"]: m for m in ai_provider._openai_models({"api_key": "k", "base_url": "https://x"})}
-		self.assertNotIn("text-embedding-3-small", out)              # not a chat model
+		self.assertEqual(out["text-embedding-3-small"]["model_type"], "Embedding")   # kept, but not a chat model
+		self.assertEqual(out["deepseek-flash"]["model_type"], "Chat")
 		self.assertEqual(out["deepseek-flash"]["context_window_tokens"], 1048576)
 		self.assertEqual(out["deepseek-flash"]["supports_vision"], 1)
 		self.assertEqual(out["deepseek-flash"]["supports_thinking"], 1)
 		self.assertEqual(out["deepseek-flash"]["label"], "DeepSeek-V4.1-Flash")
 		self.assertEqual(out["vendor/model"]["max_output_tokens"], 8000)  # OpenRouter shape
 		self.assertEqual(out["vendor/model"]["supports_tools"], 1)
+
+
+class TestStrictToolSchemas(IntegrationTestCase):
+	def test_strict_shape(self):
+		from ai_agent.engine.providers.openai_compat import strict_schema
+
+		schema = {"type": "object", "properties": {"q": {"type": "string"}, "n": {"type": "integer", "default": 5},
+			"mode": {"type": "string", "enum": ["a", "b"]}, "tags": {"type": "array", "items": {"type": "object", "properties": {"k": {"type": "string"}}}}},
+			"required": ["q"]}
+		out = strict_schema(schema)
+		self.assertEqual(out["required"], ["q", "n", "mode", "tags"])
+		self.assertFalse(out["additionalProperties"])
+		self.assertEqual(out["properties"]["n"]["type"], ["integer", "null"], "optional fields become nullable")
+		self.assertNotIn("default", out["properties"]["n"])
+		self.assertIn(None, out["properties"]["mode"]["enum"])
+		self.assertFalse(out["properties"]["tags"]["items"]["additionalProperties"], "nested objects too")
+
+	def test_free_form_fields_stay_non_strict(self):
+		from ai_agent.engine.providers.openai_compat import OpenAICompatProvider, strict_schema
+		from ai_agent.engine.types import ToolSpec
+
+		free = {"type": "object", "properties": {"payload": {"type": "object"}}, "required": ["payload"]}
+		self.assertIsNone(strict_schema(free))
+		self.assertIsNone(strict_schema({"type": "object", "properties": {"value": {}}}))
+		provider = OpenAICompatProvider({"strict_tools": True, "model": "m"})
+		self.assertNotIn("strict", provider._tool(ToolSpec(name="t", description="d", parameters=free))["function"])
+		self.assertTrue(provider._tool(ToolSpec(name="t", description="d", parameters={"type": "object", "properties": {"a": {"type": "string"}}}))["function"]["strict"])
+
+	def test_null_arguments_are_dropped(self):
+		from ai_agent.engine.tools import drop_nulls
+
+		self.assertEqual(drop_nulls({"a": None, "b": 1, "c": {"d": None, "e": [{"f": None, "g": 2}]}}), {"b": 1, "c": {"e": [{"g": 2}]}})

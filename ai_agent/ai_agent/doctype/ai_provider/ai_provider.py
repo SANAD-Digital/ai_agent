@@ -37,19 +37,34 @@ class AIProvider(Document):
 
 
 # Model ids that are not chat models (OpenAI and compatible servers list them all).
-NON_CHAT = (
-	"embed", "whisper", "tts", "dall-e", "moderation", "transcribe", "image", "audio", "realtime", "search", "babbage", "davinci",
-	# Gemini: robotics, computer-use, image (nano-banana), video, music, live audio
-	"robotics", "computer-use", "nano-banana", "veo", "imagen", "lyria", "-live", "aqa",
-	# Gemini agent models (Interactions API only): no multi-turn chat, no function calling
-	"antigravity",
+# What a model is for, by its name (the providers' model lists rarely say).
+# First match wins. Only "Chat" models can run the assistant's chat.
+MODEL_TYPES = (
+	("Agent", ("antigravity", "computer-use", "robotics", "deep-research")),
+	("Embedding", ("embed",)),
+	("Video", ("veo", "sora", "video")),
+	("Image", ("imagen", "nano-banana", "dall-e", "gpt-image", "-image", "image-", "flux", "stable-diffusion")),
+	("Speech", ("tts", "whisper", "transcribe", "speech", "audio", "-live", "realtime", "lyria")),
+	("Other", ("moderation", "aqa", "search", "guard")),
 )
+# Legacy completion-only models nobody can use any more.
+NOT_LISTED = ("babbage", "davinci")
+
+
+def model_type_of(name):
+	low = str(name or "").lower()
+	for kind, needles in MODEL_TYPES:
+		if any(n in low for n in needles):
+			return kind
+	return "Chat"
 
 
 def chat_capable(row):
 	"""Whether a configured model can run the chat: a chat model that takes tools."""
-	name = str(row.get("model_name") or "").lower()
-	if not name or any(part in name for part in NON_CHAT):
+	name = row.get("model_name")
+	if not name:
+		return False
+	if (row.get("model_type") or model_type_of(name)) != "Chat":
 		return False
 	return row.get("supports_tools") in (1, True, "1", None)
 
@@ -103,6 +118,7 @@ def _anthropic_models(config):
 			"supports_thinking": int(bool(thinking.get("supported"))),
 			"supports_pdf": int(bool((caps.get("pdf_input") or {}).get("supported"))),
 			"supports_tools": 1,
+			"model_type": "Chat",
 		})
 	return out
 
@@ -120,7 +136,7 @@ def _openai_models(config):
 		model_id = m.id
 		if model_id.startswith("models/"):   # Gemini's OpenAI endpoint lists "models/<id>" but takes "<id>"
 			model_id = model_id[len("models/"):]
-		if any(part in model_id.lower() for part in NON_CHAT):
+		if any(part in model_id.lower() for part in NOT_LISTED):
 			continue
 		raw = m.model_dump() if hasattr(m, "model_dump") else dict(m)
 		modalities = raw.get("input_modalities") or (raw.get("architecture") or {}).get("input_modalities") or []
@@ -139,6 +155,7 @@ def _openai_models(config):
 			"supports_thinking": int(reasoning or bool(guess_thinking(model_id))),
 			"supports_pdf": int("file" in modalities or "pdf" in modalities),
 			"supports_tools": int("tools" in params) if params else 1,
+			"model_type": model_type_of(model_id),
 		})
 	return out
 

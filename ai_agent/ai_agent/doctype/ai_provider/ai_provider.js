@@ -41,9 +41,16 @@ function fetch_models(frm) {
 		.then((r) => r && r.message && show_models_dialog(frm, r.message.models || [], r.message.stale || []));
 }
 
+// Only chat models run the assistant's chat; the others are kept for features that use them.
+const MODEL_TYPE_LABELS = { Chat: ["محادثة", "green"], Speech: ["صوت", "blue"], Image: ["صور", "purple"], Video: ["فيديو", "purple"], Embedding: ["تضمين", "gray"], Agent: ["وكيل", "orange"], Other: ["أخرى", "gray"] };
+function type_pill(type) {
+	const [label, color] = MODEL_TYPE_LABELS[type || "Chat"] || [type, "gray"];
+	return `<span class="indicator-pill ${color}">${__(label)}</span>`;
+}
+
 function show_models_dialog(frm, models, stale) {
 	if (!models.length) {
-		frappe.msgprint(__("لم يُرجع المزوّد أي نموذج محادثة لهذا الحساب."));
+		frappe.msgprint(__("لم يُرجع المزوّد أي نموذج لهذا الحساب."));
 		return;
 	}
 	const esc = frappe.utils.escape_html;
@@ -54,6 +61,7 @@ function show_models_dialog(frm, models, stale) {
 			(m, i) => `<tr class="ai-model-row" data-search="${esc((m.model_name + " " + (m.label || "")).toLowerCase())}">
 				<td><input type="checkbox" class="ai-pick" data-i="${i}" ${m.exists ? "checked" : ""}></td>
 				<td><code>${esc(m.model_name)}</code><div class="text-muted small">${esc(m.label || "")}</div></td>
+				<td>${type_pill(m.model_type)}</td>
 				<td class="text-right">${num(m.context_window_tokens)}</td>
 				<td class="text-right">${num(m.max_output_tokens)}</td>
 				<td class="text-center">${yes(m.supports_vision)}</td>
@@ -79,7 +87,7 @@ function show_models_dialog(frm, models, stale) {
 						<span class="text-muted small ai-model-count text-nowrap"></span>
 					</div>
 					<div style="max-height:55vh;overflow:auto"><table class="table table-bordered table-sm">
-					<thead><tr><th></th><th>${__("النموذج")}</th><th>${__("نافذة السياق")}</th><th>${__("أقصى إخراج")}</th><th>${__("صور")}</th><th>${__("تفكير")}</th><th>${__("أدوات")}</th><th></th></tr></thead>
+					<thead><tr><th></th><th>${__("النموذج")}</th><th>${__("النوع")}</th><th>${__("نافذة السياق")}</th><th>${__("أقصى إخراج")}</th><th>${__("صور")}</th><th>${__("تفكير")}</th><th>${__("أدوات")}</th><th></th></tr></thead>
 					<tbody>${rows}</tbody></table></div>`,
 			},
 			{
@@ -122,7 +130,7 @@ function show_models_dialog(frm, models, stale) {
 	d.show();
 }
 
-const MODEL_FIELDS = ["label", "context_window_tokens", "max_output_tokens", "supports_vision", "supports_thinking", "supports_pdf", "supports_tools"];
+const MODEL_FIELDS = ["label", "model_type", "context_window_tokens", "max_output_tokens", "supports_vision", "supports_thinking", "supports_pdf", "supports_tools"];
 
 function apply_models(frm, picked, default_model, drop) {
 	if (drop.length) {

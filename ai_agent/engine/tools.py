@@ -88,6 +88,16 @@ ENABLE_TOOL = ToolSpec(
 )
 
 
+def drop_nulls(value):
+    """Strict tool calling sends null for every optional field the model leaves
+    out; the handlers expect such fields to be absent."""
+    if isinstance(value, dict):
+        return {k: drop_nulls(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [drop_nulls(v) for v in value]
+    return value
+
+
 class _NoTrace:
     def __getattr__(self, _name):
         return lambda *a, **k: None
@@ -192,7 +202,7 @@ class ToolExecutor:
     def execute(self, block: Block) -> ToolOutcome:
         name = registry_name(block.name)
         args = block.data if isinstance(block.data, dict) else {}
-        args = {k: v for k, v in args.items() if not str(k).startswith("_")}
+        args = drop_nulls({k: v for k, v in args.items() if not str(k).startswith("_")})
         started = time.monotonic()
         try:
             if name != "tools.enable" and not access.tool_allowed(name, self.ctx.user):

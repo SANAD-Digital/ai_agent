@@ -71,18 +71,7 @@ class OpenAICompatProvider(Provider):
         if request.temperature is not None:
             payload["temperature"] = request.temperature
         if request.tools:
-            payload["tools"] = [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": t.name,
-                        "description": t.description,
-                        "parameters": t.parameters or {"type": "object", "properties": {}},
-                        **({"strict": True} if self.config.get("strict_tools") else {}),
-                    },
-                }
-                for t in request.tools
-            ]
+            payload["tools"] = [self._tool(t) for t in request.tools]
             payload["tool_choice"] = "auto"
         effort = (request.effort or "").lower()
         if effort and self._supports_effort(model):
@@ -99,6 +88,15 @@ class OpenAICompatProvider(Provider):
 
     def _is_deepseek(self, model):
         return "deepseek" in (model or "").lower() or "deepseek" in (self.config.get("base_url") or "").lower()
+
+    def _tool(self, spec):
+        parameters = spec.parameters or {"type": "object", "properties": {}}
+        function = {"name": spec.name, "description": spec.description, "parameters": parameters}
+        if self.config.get("strict_tools"):
+            strict = strict_schema(parameters)
+            if strict is not None:   # a tool with free-form fields stays non-strict
+                function.update(parameters=strict, strict=True)
+        return {"type": "function", "function": function}
 
     def _is_gemini(self, model):
         return "gemini" in (model or "").lower() or "generativelanguage.googleapis.com" in (self.config.get("base_url") or "")
@@ -232,6 +230,68 @@ def usage_from(u):
         cache_read_input_tokens=cached,
         cache_creation_input_tokens=0,
     )
+
+
+STRICT_DROP = ("default", "examples", "title")
+
+
+def strict_schema(schema):
+    """The tool schema in the shape OpenAI/Groq strict mode accepts, or None.
+
+    Strict mode needs every object to list all its properties as required and to
+    forbid others (additionalProperties: false); a field that was optional
+    becomes nullable instead. Free-form parts (an object without properties, a
+    value without a type) cannot be expressed, so the tool is sent non-strict.
+    """
+    def nullable(node):
+        node = dict(node)
+        if "anyOf" in node:
+            node["anyOf"] = node["anyOf"] + [{"type": "null"}]
+        elif isinstance(node.get("type"), list):
+            node["type"] = node["type"] + (["null"] if "null" not in node["type"] else [])
+        elif "type" in node:
+            node["type"] = [node["type"], "null"]
+        if "enum" in node and None not in node["enum"]:
+            node["enum"] = node["enum"] + [None]
+        return node
+
+    def convert(node):
+        if not isinstance(node, dict):
+            return None
+        node = {k: v for k, v in node.items() if k not in STRICT_DROP}
+        for key in ("anyOf", "oneOf"):
+            if key in node:
+                branches = [convert(b) for b in node.pop(key)]
+                if any(b is None for b in branches):
+                    return None
+                node["anyOf"] = branches
+                return node
+        kind = node.get("type")
+        kinds = kind if isinstance(kind, list) else [kind]
+        if "object" in kinds:
+            props = node.get("properties")
+            if not props:
+                return None
+            required = set(node.get("required") or [])
+            out = {}
+            for name, sub in props.items():
+                sub = convert(sub)
+                if sub is None:
+                    return None
+                out[name] = sub if name in required else nullable(sub)
+            node.update(properties=out, required=list(props), additionalProperties=False)
+            return node
+        if "array" in kinds:
+            items = convert(node.get("items"))
+            if items is None:
+                return None
+            node["items"] = items
+            return node
+        if kind is None and "enum" not in node and "const" not in node:
+            return None
+        return node
+
+    return convert(schema)
 
 
 # Gemini (OpenAI-compatible endpoint) returns a thought signature on the first

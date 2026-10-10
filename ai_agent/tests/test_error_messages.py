@@ -87,3 +87,19 @@ class TestChatCapableModels(IntegrationTestCase):
 
 	def test_multiturn_error_is_worded_precisely(self):
 		self.assertEqual(kind_of("error", "Multiturn chat is not enabled for models/antigravity-preview-05-2026"), "not_chat")
+
+	def test_models_are_classified_not_dropped(self):
+		from ai_agent.ai_agent.doctype.ai_provider.ai_provider import model_type_of
+
+		cases = {"gemini-3.8-flash": "Chat", "gemini-3.8-flash-tts": "Speech", "whisper-large-v3": "Speech",
+			"gemini-3.8-flash-image": "Image", "gpt-image-1": "Image", "veo-4": "Video", "text-embedding-3-large": "Embedding",
+			"antigravity-preview-05-2026": "Agent", "meta-llama/llama-guard-4-12b": "Other", "openai/gpt-oss-120b": "Chat"}
+		for name, kind in cases.items():
+			self.assertEqual(model_type_of(name), kind, name)
+
+	def test_explicit_type_decides(self):
+		from ai_agent.ai_agent.doctype.ai_provider.ai_provider import chat_capable
+
+		self.assertFalse(chat_capable({"model_name": "my-model", "model_type": "Image", "supports_tools": 1}))
+		self.assertTrue(chat_capable({"model_name": "my-model", "model_type": "Chat", "supports_tools": 1}))
+

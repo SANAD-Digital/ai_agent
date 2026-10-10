@@ -4,7 +4,7 @@ Access Rules,قواعد الصلاحيات
 Actions & Approvals,الإجراءات والموافقات
 Add {0} to Allowed Roles first.,أضف {0} إلى الأدوار المسموحة أولاً.
 Advanced,متقدم
-Agent,الوكيل
+Agent,وكيل
 Allow,السماح
 Allow Action Requests,السماح بطلبات الإجراءات
 Allow Admin Conversation Audit,السماح للمدير بمراجعة المحادثات
@@ -18,6 +18,7 @@ Approval Buttons in Cards,أزرار الموافقة في البطاقات
 Approvals,الموافقات
 Approver Role,دور المعتمِد
 Base URL,الرابط الأساسي
+Chat,محادثة
 ChatGPT is not allowed to sign in,ChatGPT غير مسموح له بتسجيل الدخول
 ChatGPT is not allowed to sign in yet. Use Fix in the status above.,ChatGPT غير مسموح له بتسجيل الدخول بعد. استخدم زر السماح في حالة الربط أعلاه.
 Classify each question first and send the model only the tools for that class (max 8). Unclassified questions keep the full tool set.,يُصنَّف كل سؤال أولاً ويُرسل للنموذج أدوات ذلك التصنيف فقط (8 كحد أقصى). الأسئلة غير المصنّفة تحصل على كل الأدوات.
@@ -46,6 +47,7 @@ Disconnect,فصل
 Disconnect {0}? Its users must sign in again.,فصل {0}؟ سيحتاج مستخدموه إلى تسجيل الدخول من جديد.
 Done,تم
 DuckDuckGo needs no key. Brave Search and Tavily need an API key; SearXNG needs your server address.,DuckDuckGo لا يحتاج مفتاحاً. Brave Search وTavily يحتاجان مفتاح API، وSearXNG يحتاج عنوان خادمك.
+Embedding,تضمين
 Enable Memory,تفعيل الذاكرة
 Enable Tool Routing,تفعيل توجيه الأدوات
 Enabled,مفعّل
@@ -63,6 +65,7 @@ Give a user access,منح مستخدم صلاحية الربط
 Give access,منح الصلاحية
 Give me access,أعطني الصلاحية
 I Accept Sending Data to Third-Party Providers,أوافق على إرسال البيانات إلى مزوّدين خارجيين
+Image,صور
 In ChatGPT open <b>Settings → Apps → Advanced settings</b> and turn on <b>Developer mode</b>.,في ChatGPT افتح <b>الإعدادات (Settings) ← التطبيقات (Apps) ← الإعدادات المتقدمة (Advanced settings)</b> وفعّل <b>وضع المطوّر (Developer mode)</b>.
 In Claude Code type <b>/mcp</b> and choose the server to sign in.,داخل Claude Code اكتب <b>/mcp</b> واختر الخادم لتسجيل الدخول.
 "In the tool, paste the link and add the header below with your key and secret.",في الأداة الصق الرابط، وأضف السطر التالي في إعدادات الترويسة (Headers) مع مفتاحك والمفتاح السري.
@@ -81,16 +84,19 @@ Maximum Tool Calls,أقصى عدد لاستدعاءات الأدوات
 Memory,الذاكرة
 Memory Retention Days,مدة الاحتفاظ بالذاكرة (بالأيام)
 Model,النموذج
+Model Type,نوع النموذج
 No app is connected yet.,لا يوجد تطبيق متصل حتى الآن.
 Off,متوقف
 Off (default): the agent never submits or cancels documents; submit/cancel tools are hidden and old requests are refused at execution.,متوقف (الافتراضي): لا يعتمد الوكيل المستندات ولا يلغيها أبداً؛ أدوات الاعتماد والإلغاء مخفية، والطلبات القديمة تُرفض عند التنفيذ.
 One DocType per line whose amounts are masked like Salary Slip (per-person pay).,نوع مستند في كل سطر تُخفى مبالغه كما في قسيمة الراتب (أجر كل شخص).
 "One fieldname (or part of a fieldname) per line, masked in every tool result before it reaches the model, on top of the built-in list (IBAN, bank accounts, IDs, passports, salaries).",اسم حقل (أو جزء منه) في كل سطر، يُخفى في كل نتيجة أداة قبل وصولها إلى النموذج، إضافةً إلى القائمة المدمجة (أرقام الآيبان، الحسابات البنكية، الهويات، الجوازات، الرواتب).
 One role per line. A user needs one of these roles to connect.,دور في كل سطر. يحتاج المستخدم أحد هذه الأدوار ليتصل.
+Only Chat models appear in the assistant's chat; the others are kept for features that use them.,نماذج المحادثة فقط تظهر في محادثة المساعد، والأنواع الأخرى محفوظة للميزات التي تستخدمها.
 Only for tools that connect from a web page. One address per line.,فقط للأدوات التي تتصل من صفحة ويب. عنوان في كل سطر.
 Open ChatGPT,فتح ChatGPT
 Open Claude settings,فتح إعدادات Claude
 Open my user page,فتح صفحتي
+Other,أخرى
 Other tools,أدوات أخرى
 Own Key,مفتاح خاص
 "Own Key mode with third-party providers: questions, tool results and attachments are sent to the selected provider (e.g. DeepSeek, Gemini).",وضع المفتاح الخاص مع مزوّدين خارجيين: الأسئلة ونتائج الأدوات والمرفقات تُرسل إلى المزوّد المختار (مثل DeepSeek وGemini).
@@ -120,6 +126,7 @@ Sign in and click <b>Allow</b>.,سجّل دخولك واضغط <b>السماح</
 Sign-in for AI tools is off,تسجيل الدخول لأدوات الذكاء الاصطناعي متوقف
 Skills & Plugins,المهارات والإضافات
 Skills & Plugins Access,صلاحيات المهارات والإضافات
+Speech,صوت
 Store Full Tool Results,حفظ نتائج الأدوات كاملة
 Strict Tool Calling,استدعاء أدوات صارم
 System Instructions,تعليمات النظام
@@ -149,6 +156,7 @@ Unknown setup step: {0},خطوة إعداد غير معروفة: {0}
 User,المستخدم
 User {0} not found.,المستخدم {0} غير موجود.
 Users with this role may approve AI actions in addition to System Managers. Leave empty to allow System Managers only.,المستخدمون بهذا الدور يمكنهم اعتماد إجراءات الذكاء الاصطناعي إضافةً إلى مديري النظام. اتركه فارغاً ليقتصر الاعتماد على مديري النظام.
+Video,فيديو
 Web Browsing,تصفّح الإنترنت
 "When enabled, System Managers can read other users' agent conversations. Every such read is recorded in Access Log. Disabled: each user sees only their own conversations.",عند التفعيل يستطيع مديرو النظام قراءة محادثات المستخدمين الآخرين مع الوكيل، وتُسجَّل كل قراءة في سجل الوصول. عند الإيقاف يرى كل مستخدم محادثاته فقط.
 "When enabled, the user who requested an action cannot approve it themselves.",عند التفعيل لا يستطيع صاحب الطلب اعتماد طلبه بنفسه.

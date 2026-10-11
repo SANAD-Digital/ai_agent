@@ -75,11 +75,12 @@ def bootstrap():
         "can_access": True,
         "title": bot_settings.widget_title(),
         "welcome_message": bot_settings.welcome_message(),
-        "agent": {"name": agent, "agent_name": frappe.db.get_value("AI Agent", agent, "agent_name") or agent},
+        "agent": {"name": agent, "agent_name": _(frappe.db.get_value("AI Agent", agent, "agent_name") or agent, context="AI Agent")},
         "user": {"name": user, "full_name": info.get("full_name") or user, "image": info.get("user_image"), "language": lang, "dir": "rtl" if str(lang).startswith(("ar", "he", "fa", "ur")) else "ltr"},
         "session": api.get_session(session)["session"] if session else None,
         "suggestions": SUGGESTIONS_AR,
         "third_party_warning": policy.third_party_warning(),
+        "auto_approval": policy.auto_approval_available(),
     }
 
 
@@ -91,7 +92,7 @@ def send_message(text=None, session=None, files=None, skill=None, plugin=None, c
             frappe.throw(_("This is not a support conversation."), frappe.PermissionError)
     else:
         agent = _agent()
-        provider, model = api._resolve_provider_model(None, bot_settings.model(), agent)
+        provider, model = api._resolve_provider_model(bot_settings.provider(), bot_settings.model(), agent)
         company = bot_settings.company()
         title = " ".join((text or "").split())[:80] or _("Support conversation")
         doc = frappe.get_doc({

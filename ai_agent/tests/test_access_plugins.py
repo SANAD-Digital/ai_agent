@@ -83,13 +83,13 @@ class TestExportTools(IntegrationTestCase):
         delete_docs("File", frappe.get_all("File", filters={"attached_to_doctype": "AI Run", "attached_to_name": self.run.name}, pluck="name"))
         delete_docs("AI Run", [self.run.name])
 
-    def assert_file(self, result, ext):
+    def assert_file(self, result, ext, min_bytes=100):
         self.assertNotIn("error", result, result)
         self.assertTrue(result["file_name"].endswith("." + ext))
         doc = frappe.get_doc("File", {"file_url": result["file_url"]})
         self.assertTrue(doc.is_private)
         self.assertEqual((doc.attached_to_doctype, doc.attached_to_name), ("AI Run", self.run.name))
-        self.assertTrue(os.path.getsize(doc.get_full_path()) > 100)
+        self.assertGreater(os.path.getsize(doc.get_full_path()), min_bytes)
         return doc
 
     def test_excel(self):
@@ -106,7 +106,8 @@ class TestExportTools(IntegrationTestCase):
     def test_csv_has_bom_for_arabic(self):
         from ai_agent.tools import exports
 
-        doc = self.assert_file(exports.handle_csv({"title": "x", "rows": self.ROWS}, self.ctx), "csv")
+        # two rows of CSV are ~80 bytes: a real file, just a small one
+        doc = self.assert_file(exports.handle_csv({"title": "x", "rows": self.ROWS}, self.ctx), "csv", min_bytes=20)
         with open(doc.get_full_path(), "rb") as f:
             self.assertTrue(f.read().startswith(b"\xef\xbb\xbf"))
 

@@ -39,8 +39,10 @@
                 el.hidden = true;
                 return;
             }
-            el.hidden = false;
             const pct = Math.min(100, Math.round((used / window_) * 100));
+            // only worth the space once the conversation has used half the model's context
+            el.hidden = pct < 50;
+            if (el.hidden) return;
             bar.firstChild.style.width = pct + "%";
             el.dataset.level = pct >= 90 ? "danger" : pct >= 75 ? "warning" : "ok";
             label.textContent = fmtTokens(used) + " / " + fmtTokens(window_);
@@ -150,6 +152,8 @@
         const btnAgent = toolBtn("bot", __("Agent"), () => toggleAgentPicker(), true);
         const btnModel = toolBtn("zap", __("Model"), () => toggleModelPicker(), true);
         const btnThinking = toolBtn("brain", __("Thinking"), () => cycleThinking(), true);
+        // Ask: every action waits for approval. Auto: drafts and edits run at once (server policy decides).
+        const btnApproval = toolBtn("shield", __("Approvals"), () => toggleApprovalMode(), true);
         const btnSend = h("button.ac-send", { type: "button", aria: { label: __("Send") } }, icon("send"));
         const hint = h("div.ac-composer-hint");
         const warning = h("div.ac-composer-warning");
@@ -162,7 +166,7 @@
         const errorLine = h("div.ac-composer-error", { role: "alert" }, icon("alert"), errorText, errorRetry);
         errorLine.hidden = true;
 
-        const tools = h("div.ac-composer-tools", btnAttach, pickers ? [btnAgent, btnModel, btnThinking] : null, compact ? info : null);
+        const tools = h("div.ac-composer-tools", btnAttach, pickers ? [btnAgent, btnModel, btnThinking, btnApproval] : null, compact ? info : null);
         const bar = h("div.ac-composer-bar", tools, h("div.ac-composer-right", btnSend));
         const box = h("div.ac-composer-box", chips, ta, bar);
         const dropHint = h("div.ac-drop-hint", icon("paperclip"), h("span", { text: __("Drop files here") }));
@@ -200,6 +204,7 @@
                 const a = (getBoot().agents || []).find((x) => x.is_default) || (getBoot().agents || [])[0];
                 if (a) c.agent = a.name;
             }
+            if (!session && !c.provider) followAgentModel();
             if (!c.provider || !c.model) {
                 const p = (getBoot().providers || []).find((x) => x.is_default) || (getBoot().providers || [])[0];
                 if (p) {
@@ -224,6 +229,14 @@
             const labels = { off: __("No thinking"), adaptive: __("Adaptive thinking"), on: __("Thinking") };
             btnThinking.lastChild.textContent = labels[c.thinking] || c.thinking;
             btnThinking.dataset.state = c.thinking;
+            const auto = c.approval_mode === "Auto";
+            btnApproval.hidden = !store.state.autoApproval;
+            btnApproval.firstChild.replaceWith(icon(auto ? "shield-check" : "shield"));
+            btnApproval.lastChild.textContent = auto ? __("Auto-approve edits") : __("Ask before acting");
+            btnApproval.dataset.state = auto ? "auto" : "ask";
+            btnApproval.title = auto
+                ? __("Drafts and edits run without asking. Submit, cancel, workflow changes and email still ask.")
+                : __("Every action waits for your approval.");
             const notice = ctx.warning !== undefined ? ctx.warning : getBoot().settings && getBoot().settings.third_party_warning;
             warning.hidden = !notice;
             warning.textContent = notice || "";
@@ -405,6 +418,7 @@
                 onPick: (item) => {
                     c.agent = item.value;
                     skillCacheClear();
+                    if (!session) followAgentModel(); // a new conversation runs on the agent's provider
                     paintPickers();
                     focus();
                 },
@@ -443,6 +457,25 @@
             c.thinking = opts[(i + 1) % opts.length];
             paintPickers();
             AIChat.toast(btnThinking.lastChild.textContent, "blue");
+        }
+
+        function toggleApprovalMode() {
+            const mode = c.approval_mode === "Auto" ? "Ask" : "Auto";
+            const done = () => {
+                c.approval_mode = mode;
+                paintPickers();
+                AIChat.toast(mode === "Auto" ? btnApproval.title : btnApproval.lastChild.textContent, "blue");
+            };
+            if (!session) return done(); // a new conversation: sent with the first message
+            btnApproval.disabled = true;
+            AIChat.api
+                .set_approval_mode({ session: session.name, mode })
+                .then((r) => {
+                    if (r && r.session) store.upsertSession(r.session);
+                    done();
+                })
+                .catch((e) => AIChat.toast(AIChat.errorMessage(e), "red"))
+                .finally(() => (btnApproval.disabled = false));
         }
 
         function skillCacheClear() {
@@ -625,6 +658,7 @@
                 provider: c.provider,
                 model: c.model,
                 thinking: !pickers || btnThinking.hidden ? null : c.thinking,
+                approval_mode: !pickers || btnApproval.hidden ? null : c.approval_mode,
                 context_doctype: c.context ? c.context.doctype : null,
                 context_name: c.context ? c.context.name : null,
             };
@@ -695,6 +729,9 @@
                 if (session.provider) c.provider = session.provider;
                 if (session.model) c.model = session.model;
                 if (session.company !== undefined) c.company = session.company;
+                c.approval_mode = session.approval_mode || "Ask";
+            } else {
+                c.approval_mode = "Ask"; // a new conversation starts asking
             }
             defaults();
             paintPickers();
@@ -704,8 +741,19 @@
             if (agentOf(name)) {
                 c.agent = name;
                 skillCacheClear();
+                if (!session) followAgentModel();
             }
             paintPickers();
+        }
+
+        /** The agent's own provider/model, when it names one this user can pick. */
+        function followAgentModel() {
+            const a = agentOf(c.agent);
+            const p = a && a.provider && (getBoot().providers || []).find((x) => x.name === a.provider);
+            if (!p) return;
+            c.provider = p.name;
+            const m = a.model && (p.models || []).find((x) => x.model_name === a.model);
+            c.model = m ? m.model_name : (((p.models || []).find((x) => x.is_default) || (p.models || [])[0]) || {}).model_name || c.model;
         }
 
         function setCompany(company) {
@@ -735,7 +783,7 @@
 
     /** A private draft state for a second composer (the bubble). */
     function newState() {
-        return { text: "", agent: null, company: null, provider: null, model: null, thinking: "adaptive", skill: null, plugin: null, context: null, files: [] };
+        return { text: "", agent: null, company: null, provider: null, model: null, thinking: "adaptive", approval_mode: "Ask", skill: null, plugin: null, context: null, files: [] };
     }
 
     AIChat.composer = { create, createContextMeter, createPopover, newState };

@@ -404,7 +404,7 @@ PALETTE = ["#c96442", "#3b82c4", "#2f9e6e", "#d4a72c", "#8e5bd0", "#d0567a", "#5
 
 def _draw_chart(plt, title, chart):
     kind = chart.get("type") or "bar"
-    labels = [_shape(l) for l in chart.get("labels") or []]
+    labels = [_shape(label) for label in chart.get("labels") or []]
     datasets = chart.get("datasets") or []
     fig, ax = plt.subplots(figsize=(9, 5))
     if kind in ("pie", "donut", "percentage"):

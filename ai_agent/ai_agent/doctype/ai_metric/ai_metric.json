@@ -4,7 +4,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "creation": "2026-09-28 16:00:00.000000",
- "modified": "2026-09-28 16:00:00.000000",
+ "modified": "2026-10-11 07:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "field_order": [
@@ -202,8 +202,31 @@
    "delete": 1
   },
   {
-   "role": "All",
-   "read": 1
+   "role": "AI Chat User",
+   "read": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
+  },
+  {
+   "role": "AI Chatbot User",
+   "read": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
+  },
+  {
+   "role": "AI MCP User",
+   "read": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
   }
  ],
  "search_fields": "label_ar,label_en"

@@ -16,7 +16,9 @@ from ai_agent.engine.types import (
     APPROVAL,
     ARTIFACT,
     MEMORY,
+    QUESTION,
     SKILL,
+    SUGGESTIONS,
     TOOL_RESULT,
     Block,
     ToolSpec,
@@ -77,10 +79,44 @@ TOOL_GROUPS = {
         "tools": ("web.search", "web.fetch"),
     },
     "actions_more": {
-        "description": "Further approval-gated actions: bulk create, create from an existing document by ERPNext mapping, submit, cancel, workflow action",
-        "tools": ("actions.request_bulk_create", "actions.request_mapped_draft", "actions.request_submit", "actions.request_cancel", "actions.request_workflow_action"),
+        "description": "Further approval-gated actions: bulk create, create from an existing document by ERPNext mapping, submit, cancel",
+        "tools": ("actions.request_bulk_create", "actions.request_mapped_draft", "actions.request_submit", "actions.request_cancel"),
+    },
+    "workflow": {
+        "description": "Document workflow: the state of a document and the workflow actions this user may take (approve, reject, send for review…), and requesting one",
+        "tools": ("workflow.get_transitions", "actions.request_workflow_action"),
     },
 }
+# Chat-only tools that draw UI instead of reading data (Desk page and support window).
+UI_SURFACES = ("Desk", "Chatbot")
+ASK_TOOL = ToolSpec(
+    name="ui__ask",
+    description=(
+        "Ask the user to choose, when the decision is theirs and you cannot infer it (which company, which "
+        "approach, which of several matches). Shows a card with 2-4 options, each with a short description, plus "
+        "\"Other\" for a free answer. Your reply ends right after this call; the answer arrives as the user's next "
+        "message. Prefer it to asking a multiple-choice question in prose."
+    ),
+    parameters={"type": "object", "properties": {
+        "question": {"type": "string", "description": "The question, one short sentence ending with ?"},
+        "options": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "object", "properties": {
+            "label": {"type": "string", "description": "1-5 words"},
+            "description": {"type": "string", "description": "What this option means or implies"},
+        }, "required": ["label"]}},
+        "multiple": {"type": "boolean", "description": "Allow picking several options"},
+    }, "required": ["question", "options"]},
+)
+SUGGEST_TOOL = ToolSpec(
+    name="ui__suggest",
+    description=(
+        "After a complete answer, offer 2-3 short follow-up requests the user is likely to send next (in their "
+        "language, as they would type them). Shown as chips under your answer; the reply ends with this call."
+    ),
+    parameters={"type": "object", "properties": {
+        "suggestions": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string"}},
+    }, "required": ["suggestions"]},
+)
+
 ENABLE_TOOL = ToolSpec(
     name="tools__enable",
     description="Enable an additional tool group for this conversation. Groups: " + ", ".join(f"{k} ({v['description']})" for k, v in TOOL_GROUPS.items()),
@@ -111,13 +147,15 @@ class ToolOutcome:
     approval_block: Block | None = None
     duration_ms: int = 0
     tool_call: str = ""                     # audit row
+    end_turn: bool = False                  # ui.ask / ui.suggest: the reply stops here
 
 
 class ToolExecutor:
-    def __init__(self, ctx, agent_doc, run_name, settings=None):
+    def __init__(self, ctx, agent_doc, run_name, settings=None, session=None):
         self.ctx = ctx
         self.agent = agent_doc
         self.run_name = run_name
+        self.session = session  # AI Chat Session: its approval_mode can run a request at once
         self.settings = settings or frappe.get_cached_doc("AI Settings")
         self.registry = ToolRegistry()
         self.gateway = ToolGateway(ctx, self.registry, skill_tools=[])
@@ -166,8 +204,10 @@ class ToolExecutor:
         if name.startswith("actions."):
             if self.agent.get("read_only") or not self.agent.get("allow_actions"):
                 return False
-            if name in ("actions.request_submit", "actions.request_cancel", "actions.request_workflow_action") and not policy.submit_cancel_allowed():
+            if name in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
                 return False
+        if name == "workflow.get_transitions" and (self.agent.get("read_only") or not self.agent.get("allow_actions")):
+            return False
         if name.startswith("memory.") and (self.agent.get("disable_memory") or not self.settings.get("enable_memory")):
             return False
         if name.startswith("web.") and not self.settings.get("enable_web_browsing"):
@@ -191,7 +231,14 @@ class ToolExecutor:
             ))
         if len(self.enabled_groups) < len(TOOL_GROUPS):
             out.append(ENABLE_TOOL)
+        if self._ui_surface():
+            out += [ASK_TOOL, SUGGEST_TOOL]
         return out
+
+    def _ui_surface(self):
+        if not self.session:
+            return False
+        return (frappe.db.get_value("AI Chat Session", self.session, "surface") or "Desk") in UI_SURFACES
 
     def is_read_only(self, wire):
         tool = self.registry.get_tool(registry_name(wire)) or {}
@@ -205,10 +252,12 @@ class ToolExecutor:
         args = drop_nulls({k: v for k, v in args.items() if not str(k).startswith("_")})
         started = time.monotonic()
         try:
-            if name != "tools.enable" and not access.tool_allowed(name, self.ctx.user):
+            if name not in ("tools.enable", "ui.ask", "ui.suggest") and not access.tool_allowed(name, self.ctx.user):
                 raise ToolDenied(f"Tool '{name}' belongs to a plugin this user is not allowed to use.")
             if name == "tools.enable":
                 outcome = self._enable_call(block, args)
+            elif name in ("ui.ask", "ui.suggest"):
+                outcome = self._ui_call(block, name, args)
             elif name in KNOWN_ACTION_TOOLS:
                 outcome = self._approval_call(block, name, args)
             else:
@@ -220,6 +269,29 @@ class ToolExecutor:
             outcome = ToolOutcome(result=self._error_block(block, f"The tool failed: {frappe.utils.cstr(exc)[:300]}"))
         outcome.duration_ms = int((time.monotonic() - started) * 1000)
         return outcome
+
+    def _ui_call(self, block, name, args):
+        """Draw a question card or follow-up chips; the reply ends after it."""
+        def clip_text(value, limit):
+            return " ".join(str(value or "").split())[:limit]
+
+        if name == "ui.ask":
+            options = [{"label": clip_text(o.get("label"), 60), "description": clip_text(o.get("description"), 200)}
+                       for o in (args.get("options") or []) if isinstance(o, dict) and clip_text(o.get("label"), 60)][:4]
+            question = clip_text(args.get("question"), 300)
+            if not question or len(options) < 2:
+                return ToolOutcome(result=self._error_block(block, "ui__ask needs a question and 2-4 options with labels."))
+            card = Block(kind=QUESTION, id=block.id, name=block.name, data={"question": question, "options": options, "multiple": bool(args.get("multiple"))})
+            note = "The question is shown with its options. Stop here: the user's choice arrives as their next message."
+        else:
+            items = [clip_text(s, 90) for s in (args.get("suggestions") or []) if clip_text(s, 90)][:3]
+            if not items:
+                return ToolOutcome(result=self._error_block(block, "ui__suggest needs 1-3 suggestions."))
+            card = Block(kind=SUGGESTIONS, id=block.id, name=block.name, data={"items": items})
+            note = "Shown."
+        text = wrap(json.dumps({"shown": True, "note": note}, ensure_ascii=False), f"tool {block.name}")
+        return ToolOutcome(result=Block(kind=TOOL_RESULT, id=block.id, name=block.name, text=text, data={"shown": True}),
+                           extras=[card], end_turn=True)
 
     def _enable_call(self, block, args):
         group = str(args.get("group") or "")
@@ -293,8 +365,41 @@ class ToolExecutor:
             outcome.result = self._error_block(block, str(message or "approval could not be created"))
             return outcome
         approval = frappe.get_doc("AI Approval Request", response["approval_id"])
+        if self._auto_mode() and policy.auto_approves("Auto", approval.action_type):
+            return self._auto_execute(block, name, approval, outcome)
         outcome.approval = approval.name
         outcome.approval_block = Block(kind=APPROVAL, id=block.id, name=name, data=approval_snapshot(approval))
+        return outcome
+
+    def _auto_mode(self):
+        # read each time: the user may switch the mode while the reply runs
+        if not self.session or not frappe.db.has_column("AI Chat Session", "approval_mode"):  # site not migrated yet
+            return False
+        return frappe.db.get_value("AI Chat Session", self.session, "approval_mode") == "Auto"
+
+    def _auto_execute(self, block, name, approval, outcome):
+        """Auto mode: the requester's own request runs at once (same checks and executor as an
+        approved one, under the user's permissions). The decided card is kept for the record and
+        the model gets the result, so the reply goes on without a pause."""
+        result, error = None, None
+        try:
+            result = self.approvals.execute_direct(approval.name, self.ctx.user)
+        except Exception as exc:
+            error = frappe.utils.cstr(exc)[:500]
+        approval.reload()
+        snapshot = approval_snapshot(approval)
+        snapshot.update({"auto": True, "decided_by": self.ctx.user, "result": _jsonable(result), "error": error})
+        card = Block(kind=APPROVAL, id=block.id, name=name, data=snapshot)
+        outcome.extras.append(card)
+        note = (
+            "Auto-approval is on in this conversation: the action was executed at once. Tell the user what was created or changed (link the document)."
+            if approval.status == "Executed" else
+            "Auto-approval is on, but the action failed. Explain the error to the user and propose a fix."
+        )
+        payload = {"approval": approval.name, "status": approval.status, "result": snapshot["result"], "error": error, "note": note}
+        text = wrap(json.dumps(payload, ensure_ascii=False, default=str), f"tool {name}")
+        outcome.result = Block(kind=TOOL_RESULT, id=block.id, name=block.name, text=text,
+            data={"approval": approval.name, "status": approval.status, "result": snapshot["result"], "error": error}, is_error=bool(error))
         return outcome
 
     # -- blocks ---------------------------------------------------------------------
@@ -369,6 +474,13 @@ def plugin_text(plugin):
         f"<<<PLUGIN name=\"{plugin.get('name')}\" title=\"{title}\">>>\n"
         f"The user picked this plugin for the request that follows: deliver the result through the `{tool}` tool.\n{body}\n<<<END_PLUGIN>>>"
     )
+
+
+def _jsonable(value):
+    try:
+        return json.loads(json.dumps(value, default=str)) if value is not None else None
+    except (TypeError, ValueError):
+        return {"raw": str(value)}
 
 
 def approval_snapshot(approval):

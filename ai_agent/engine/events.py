@@ -130,6 +130,32 @@ class ApprovalRequested(Event):
 
 
 @dataclass
+class ApprovalAutoExecuted(Event):
+    """The conversation is in auto mode: the request ran at once, without a pause.
+    The block is the approval card, already decided, shown for the record."""
+    type: str = "approval.auto"
+    block_seq: int = 0
+    block: dict = field(default_factory=dict)
+    approval: str = ""
+
+
+@dataclass
+class QuestionAsked(Event):
+    """ui.ask: a question with options; the reply ends here and the answer is the next user message."""
+    type: str = "question.asked"
+    block_seq: int = 0
+    block: dict = field(default_factory=dict)
+
+
+@dataclass
+class SuggestionsShown(Event):
+    """ui.suggest: follow-up chips under the answer."""
+    type: str = "suggestions.shown"
+    block_seq: int = 0
+    block: dict = field(default_factory=dict)
+
+
+@dataclass
 class Compaction(Event):
     type: str = "compaction"
     before_tokens: int = 0

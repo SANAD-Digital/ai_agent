@@ -1,0 +1,102 @@
+/* =========================================================
+   Musaed (مساعد) — Design tokens
+   Import once, then use the --ms-* variables everywhere.
+   Light theme is the default; dark theme follows the OS
+   unless [data-theme="light"] is forced, or can be forced
+   with [data-theme="dark"].
+   ========================================================= */
+
+:root {
+  /* ---- Brand: Clay (body of the brand, robot eyes) ---- */
+  --ms-clay-50:  #FBEEE8;
+  --ms-clay-100: #F6DED3;   /* user message bubble */
+  --ms-clay-300: #EBA98E;
+  --ms-clay-500: #D97757;   /* brand colour: app icon, primary buttons, send */
+  --ms-clay-700: #A8502F;   /* links and highlighted text on light */
+  --ms-clay-900: #5C2A17;
+
+  /* ---- Brand: Petrol (robot screen, headings, trust) ---- */
+  --ms-petrol-50:  #E8F1F0;
+  --ms-petrol-100: #D5E7E5;
+  --ms-petrol-300: #7FA9A8;
+  --ms-petrol-500: #2C6667;
+  --ms-petrol-700: #0F3D3E; /* robot screen, headings, wordmark */
+  --ms-petrol-900: #072223; /* dark theme background */
+
+  /* ---- Neutrals ---- */
+  --ms-white:    #FFFFFF;
+  --ms-sand:     #F7F3EE;   /* app background */
+  --ms-line:     #E6DED4;   /* borders and dividers */
+  --ms-stone:    #6A6560;   /* secondary text */
+  --ms-charcoal: #1A1D1E;   /* primary text */
+
+  /* ---- Semantic (light) ---- */
+  --ms-bg:            var(--ms-sand);
+  --ms-surface:       var(--ms-white);
+  --ms-border:        var(--ms-line);
+  --ms-text:          var(--ms-charcoal);
+  --ms-text-muted:    var(--ms-stone);
+  --ms-heading:       var(--ms-petrol-700);
+  --ms-link:          var(--ms-clay-700);
+  --ms-accent:        var(--ms-clay-500);
+  --ms-on-accent:     #2B0F05;   /* icon/text placed on clay */
+  --ms-bubble-user:   var(--ms-clay-100);
+  --ms-bubble-user-text: var(--ms-charcoal);
+  --ms-bubble-agent:  var(--ms-white);
+  --ms-status-online: var(--ms-petrol-500);
+
+  /* ---- Typography ---- */
+  --ms-font-brand: "Readex Pro", system-ui, sans-serif;            /* wordmark, headings, numbers */
+  --ms-font-ui:    "IBM Plex Sans Arabic", system-ui, sans-serif;  /* UI and chat text */
+  --ms-text-xs: 12px;
+  --ms-text-sm: 13px;
+  --ms-text-md: 15px;   /* chat message body */
+  --ms-text-lg: 19px;   /* panel title */
+  --ms-text-xl: 30px;   /* key figures in answers */
+  --ms-leading: 1.7;
+
+  /* ---- Shape & spacing ---- */
+  --ms-radius-icon: 23%;         /* app icon corner, relative to size */
+  --ms-radius-lg: 22px;
+  --ms-radius-md: 14px;
+  --ms-radius-pill: 999px;
+  --ms-bubble-radius-user:  18px 18px 4px 18px;  /* RTL: tail on the start side */
+  --ms-bubble-radius-agent: 18px 18px 18px 4px;
+  --ms-space-1: 4px;
+  --ms-space-2: 8px;
+  --ms-space-3: 12px;
+  --ms-space-4: 16px;
+  --ms-space-6: 24px;
+  --ms-shadow-launcher: 0 10px 28px rgba(217, 119, 87, 0.45);
+  --ms-shadow-card: 0 8px 24px rgba(15, 61, 62, 0.12);
+}
+
+/* ---- Dark theme ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ms-bg:            var(--ms-petrol-900);
+    --ms-surface:       #0F3435;
+    --ms-border:        #1E4344;
+    --ms-text:          #F0ECE6;
+    --ms-text-muted:    #9FB8B7;
+    --ms-heading:       #F7F3EE;
+    --ms-link:          var(--ms-clay-300);
+    --ms-bubble-user:   var(--ms-clay-700);
+    --ms-bubble-user-text: #FFFFFF;
+    --ms-bubble-agent:  #0F3435;
+    --ms-status-online: var(--ms-petrol-300);
+  }
+}
+:root[data-theme="dark"] {
+  --ms-bg:            var(--ms-petrol-900);
+  --ms-surface:       #0F3435;
+  --ms-border:        #1E4344;
+  --ms-text:          #F0ECE6;
+  --ms-text-muted:    #9FB8B7;
+  --ms-heading:       #F7F3EE;
+  --ms-link:          var(--ms-clay-300);
+  --ms-bubble-user:   var(--ms-clay-700);
+  --ms-bubble-user-text: #FFFFFF;
+  --ms-bubble-agent:  #0F3435;
+  --ms-status-online: var(--ms-petrol-300);
+}

@@ -4,6 +4,8 @@ Each check reports whether one prerequisite of a working MCP connection is in pl
 and each fix changes exactly that prerequisite on this site.
 """
 
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import cint
@@ -11,12 +13,42 @@ from frappe.utils import cint
 MCP_ROLE = "AI MCP User"
 CHATGPT_ORIGIN = "https://chatgpt.com"
 OAUTH_FLAGS = ("show_auth_server_metadata", "show_protected_resource_metadata", "enable_dynamic_client_registration")
-DEFAULT_ROLES = "AI MCP User\nSystem Manager"
+DEFAULT_ROLES = ("AI MCP User", "System Manager")
 
 
-def _allowed_roles(settings=None):
-	settings = settings or frappe.get_single("AI Settings")
-	return [r.strip() for r in (settings.mcp_allowed_roles or DEFAULT_ROLES).splitlines() if r.strip()]
+def allowed_roles(settings=None):
+	"""Roles picked in AI Settings > Allowed Roles (Has Role rows); none picked means the defaults."""
+	settings = settings or frappe.get_cached_doc("AI Settings")
+	value = settings.get("mcp_allowed_roles") or []
+	if isinstance(value, str):  # a site not migrated yet still has the old text field
+		roles = [r.strip() for r in re.split(r"[,;\n]+", value) if r.strip()]
+	else:
+		roles = [row.role for row in value if row.get("role")]
+	return roles or list(DEFAULT_ROLES)
+
+
+def move_allowed_roles_to_table():
+	"""Allowed Roles was a text field (one role per line); it is now a multi-select of Has Role rows.
+
+	On migrate, a value still stored the old way is turned into rows once and then removed, so the
+	setting carries over without a patch (unknown role names are dropped). A site with no rows gets
+	the defaults as rows, so the form shows what actually applies."""
+	if not frappe.db.exists("DocType", "AI Settings"):
+		return
+	old = frappe.db.sql("select value from `tabSingles` where doctype='AI Settings' and field='mcp_allowed_roles'")
+	has_rows = frappe.get_all("Has Role", filters={"parenttype": "AI Settings", "parentfield": "mcp_allowed_roles"}, limit=1)
+	if not has_rows:
+		names = re.split(r"[,;\n]+", str(old[0][0] or "")) if old else []
+		roles = [r.strip() for r in names if r.strip() and frappe.db.exists("Role", r.strip())] or list(DEFAULT_ROLES)
+		doc = frappe.get_single("AI Settings")
+		for role in dict.fromkeys(roles):
+			if frappe.db.exists("Role", role):
+				doc.append("mcp_allowed_roles", {"role": role})
+		doc.flags.ignore_validate = True
+		doc.flags.ignore_mandatory = True
+		doc.save(ignore_permissions=True)
+	if old:
+		frappe.db.sql("delete from `tabSingles` where doctype='AI Settings' and field='mcp_allowed_roles'")
 
 
 def _origins(oauth):
@@ -28,7 +60,7 @@ def get_status():
 	frappe.only_for("System Manager")
 	settings = frappe.get_single("AI Settings")
 	oauth = frappe.get_single("OAuth Settings")
-	allowed = _allowed_roles(settings)
+	allowed = allowed_roles(settings)
 	role_users = frappe.get_all(
 		"Has Role",
 		filters={"role": ["in", allowed], "parenttype": "User", "parent": ["not in", ["Administrator", "Guest"]]},
@@ -92,7 +124,7 @@ def fix(item):
 
 
 def _ensure_role(user):
-	if MCP_ROLE not in _allowed_roles():
+	if MCP_ROLE not in allowed_roles(frappe.get_single("AI Settings")):
 		frappe.throw(_("Add {0} to Allowed Roles first.").format(MCP_ROLE))
 	if MCP_ROLE not in frappe.get_roles(user):
 		frappe.get_doc("User", user).add_roles(MCP_ROLE)

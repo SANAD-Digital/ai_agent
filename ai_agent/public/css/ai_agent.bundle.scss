@@ -1,0 +1,9 @@
+/* ai_agent.bundle.scss — every Desk page (app_include_css). A bundle so each
+ * build gets a new hashed URL: /assets is cached for a year by nginx.
+ * The Musaed brand kit first (fonts, --ms-* tokens, robot motion), then the
+ * floating launcher that builds on it. Sass inlines the plain .css files
+ * (imported without the extension). */
+@import "../musaed-brand/fonts/fonts";
+@import "../musaed-brand/tokens/tokens";
+@import "../musaed-brand/motion/motion";
+@import "./chat_bubble";

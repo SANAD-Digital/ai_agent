@@ -9,6 +9,7 @@
   "tab_model",
   "section_provider",
   "enabled",
+  "default_provider",
   "provider_type",
   "base_url",
   "api_key",
@@ -41,6 +42,7 @@
   "cb_approvals2",
   "require_four_eyes",
   "allow_submit_cancel_actions",
+  "allow_auto_approval",
   "tab_privacy",
   "section_policies",
   "provider_mode",
@@ -100,24 +102,33 @@
    "label": "Enabled"
   },
   {
+   "fieldname": "default_provider",
+   "fieldtype": "Link",
+   "options": "AI Provider",
+   "label": "Default Provider",
+   "description": "Used when an agent or a conversation does not pick a provider. Keys, URLs and models are set on the provider itself (AI Provider list)."
+  },
+  {
    "default": "OpenAI",
    "fieldname": "provider_type",
    "fieldtype": "Select",
    "label": "Provider Type",
    "options": "OpenAI\nOpenAI Compatible\nOllama\nAnthropic",
-   "reqd": 1
+   "hidden": 1
   },
   {
    "depends_on": "eval:doc.provider_type != 'OpenAI'",
    "fieldname": "base_url",
    "fieldtype": "Data",
-   "label": "Base URL"
+   "label": "Base URL",
+   "hidden": 1
   },
   {
    "depends_on": "eval:doc.provider_type != 'Ollama'",
    "fieldname": "api_key",
    "fieldtype": "Password",
-   "label": "API Key"
+   "label": "API Key",
+   "hidden": 1
   },
   {
    "fieldname": "cb_general",
@@ -128,14 +139,15 @@
    "fieldname": "default_model",
    "fieldtype": "Data",
    "label": "Default Model",
-   "reqd": 1
+   "hidden": 1
   },
   {
    "default": "0",
    "depends_on": "eval:doc.provider_type == 'OpenAI Compatible'",
    "fieldname": "enable_thinking_mode",
    "fieldtype": "Check",
-   "label": "Thinking Mode"
+   "label": "Thinking Mode",
+   "hidden": 1
   },
   {
    "default": "medium",
@@ -148,7 +160,8 @@
    "default": "0",
    "fieldname": "strict_tool_calling",
    "fieldtype": "Check",
-   "label": "Strict Tool Calling"
+   "label": "Strict Tool Calling",
+   "hidden": 1
   },
   {
    "fieldname": "section_web",
@@ -292,6 +305,13 @@
    "label": "Allow Submit / Cancel Actions"
   },
   {
+   "default": "1",
+   "fieldname": "allow_auto_approval",
+   "fieldtype": "Check",
+   "label": "Allow Auto-Approval",
+   "description": "Users may switch a conversation to auto-approval: creating and editing documents then run without asking, under the user's own permissions. Submit, cancel, workflow changes and email always ask. Not available while Four-Eyes Approval is on."
+  },
+  {
    "fieldname": "tab_privacy",
    "fieldtype": "Tab Break",
    "label": "Privacy & Data"
@@ -422,12 +442,12 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "AI MCP User\nSystem Manager",
    "depends_on": "eval:doc.enable_mcp",
-   "description": "One role per line. A user needs one of these roles to connect.",
+   "description": "A user needs one of these roles to connect. Empty: AI MCP User and System Manager.",
    "fieldname": "mcp_allowed_roles",
-   "fieldtype": "Small Text",
-   "label": "Allowed Roles"
+   "fieldtype": "Table MultiSelect",
+   "label": "Allowed Roles",
+   "options": "Has Role"
   },
   {
    "default": "60",
@@ -540,7 +560,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 07:00:00.000000",
+ "modified": "2026-10-11 05:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

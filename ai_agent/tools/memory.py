@@ -69,9 +69,15 @@ def handle_search(arguments, permission_context):
 
 def handle_store_context(arguments, permission_context):
     """Store a compact reusable context entry for future runs."""
-    content = _clean(arguments.get("content"), 900)
+    from ai_agent.runtime.memory_service import MAX_MEMORY_CONTENT_CHARS
+
+    content = " ".join(str(arguments.get("content") or "").split())
     if not content:
         return {"error": "content is required"}
+    if len(content) > MAX_MEMORY_CONTENT_CHARS:
+        # never cut silently: a cut rule list loses its last rules without anyone noticing
+        return {"error": f"Too long ({len(content)} characters, max {MAX_MEMORY_CONTENT_CHARS}). Keep one topic per memory: "
+            "shorten it, or store parts as separate memories, each with its own entity_key."}
 
     service = MemoryService()
     if not service.is_enabled():
@@ -85,11 +91,7 @@ def handle_store_context(arguments, permission_context):
     agent = getattr(permission_context, "agent_name", None) or arguments.get("agent")
     if scope == "Agent" and not agent:
         return {"error": "agent is required when scope is Agent"}
-    tagged_content = content
-    if agent and "agent=" not in tagged_content:
-        tagged_content = f"agent={agent}; {tagged_content}"
-    if company and "company=" not in tagged_content:
-        tagged_content = f"company={company}; {tagged_content}"
+    tagged_content = content  # company and agent live in their own fields, not in the text
 
     mapping = arguments.get("mapping")
     memory = service.store(

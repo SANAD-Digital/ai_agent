@@ -377,6 +377,27 @@ class ApprovalEngine:
             "workflow_state": updated.get("workflow_state"),
         }
 
+    def _assert_workflow_action(self, doctype_name, document_name, payload, user):
+        """The action must be one Frappe would offer ``user`` on the document now (role,
+        condition, self-approval), checked at request time and again at execution."""
+        from ai_agent.tools.workflow import available_transitions, workflow_of
+
+        action = (payload or {}).get("action") if isinstance(payload, dict) else None
+        workflow = workflow_of(doctype_name)
+        if not workflow:
+            raise PermissionDenied(f"{doctype_name} has no active workflow.")
+        if not frappe.db.exists(doctype_name, document_name):
+            raise PermissionDenied(TARGET_NOT_ACCESSIBLE)
+        doc = frappe.get_doc(doctype_name, document_name)
+        mine = available_transitions(doc, user, workflow)
+        if action not in {t.action for t in mine}:
+            state = doc.get(workflow.workflow_state_field or "workflow_state")
+            offered = ", ".join(sorted({t.action for t in mine})) or "none"
+            raise PermissionDenied(
+                f"Workflow action '{action}' is not available to {user} on {doctype_name} {document_name} "
+                f"in state '{state}'. Actions this user may take: {offered}."
+            )
+
     def _can_decide(self, approval, user):
         if user == "Guest":
             return False
@@ -442,6 +463,8 @@ class ApprovalEngine:
             raise PermissionDenied(TARGET_NOT_ACCESSIBLE)
         if not frappe.has_permission(doctype_name, permtype, user=user):
             raise PermissionDenied(f"User {user} has no {permtype} permission on {doctype_name}.")
+        if action_type == "Workflow":
+            self._assert_workflow_action(doctype_name, document_name, payload, user)
         try:
             doc = frappe.get_doc(doctype_name, document_name)
         except frappe.DoesNotExistError:

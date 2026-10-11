@@ -21,7 +21,7 @@ import frappe
 from ai_agent.runtime.exceptions import MYSYSAgentError
 
 DYNAMIC_CONTEXT_MARKER = "Per-run context:"
-DEFAULT_MODEL = "claude-opus-5"
+DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_MAX_TOKENS = 16000
 CACHE = {"type": "ephemeral"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}

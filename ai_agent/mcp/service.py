@@ -56,6 +56,7 @@ TOOL_TITLES = {
     "schema.describe_doctype": "Describe a document type",
     "schema.describe_links": "Document type links",
     "schema.describe_workflow": "Document type workflow",
+    "workflow.get_transitions": "Workflow actions I can take on a document",
     "schema.search_doctypes": "Find document types",
     "setup.check": "Check setup",
     "skills.list": "List skills",
@@ -646,13 +647,9 @@ class MCPService:
         if not cint(self.settings.get("enable_mcp")):
             raise MCPProtocolError(-32002, "MCP server is disabled")
 
-        allowed_roles = {
-            role.strip()
-            for role in (
-                self.settings.get("mcp_allowed_roles") or "AI MCP User\nSystem Manager"
-            ).splitlines()
-            if role.strip()
-        }
+        from ai_agent.mcp.setup import allowed_roles as mcp_allowed_roles
+
+        allowed_roles = set(mcp_allowed_roles(self.settings))
         if allowed_roles and not allowed_roles.intersection(frappe.get_roles(self.user)):
             raise MCPProtocolError(-32003, "The authenticated user is not allowed to use MCP")
         self._check_rate_limit()

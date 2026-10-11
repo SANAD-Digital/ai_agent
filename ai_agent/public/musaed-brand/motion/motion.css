@@ -1,0 +1,64 @@
+/* =========================================================
+   Musaed robot — motion & states
+   Use with the inline SVG in components/robot.svg.html.
+   Set the state on the root:  <svg class="ms-robot" data-state="idle">
+   States: idle | listening | processing | thinking | done | welcome | sleep
+   Only the screen and the antenna ball change; head, ears and
+   antenna stay fixed so the robot is always recognisable.
+   ========================================================= */
+
+.ms-robot .ms-fb { transform-box: fill-box; transform-origin: center; }
+
+/* Layers hidden by default; each state reveals its own */
+.ms-robot .ms-dots,
+.ms-robot .ms-smile,
+.ms-robot .ms-wink,
+.ms-robot .ms-sleep,
+.ms-robot .ms-ping { opacity: 0; }
+
+/* idle: gentle float + blink every 3.5s */
+.ms-robot[data-state="idle"] .ms-body   { animation: ms-float 3s ease-in-out infinite; }
+.ms-robot[data-state="idle"] .ms-eye    { animation: ms-blink 3.5s linear infinite; }
+
+/* listening: antenna pings while the user types */
+.ms-robot[data-state="listening"] .ms-ping { opacity: 1; animation: ms-ping 1.8s ease-out infinite; }
+.ms-robot[data-state="listening"] .ms-eye  { animation: ms-blink 3.5s linear infinite; }
+
+/* processing: eyes off, three dots run on the screen */
+.ms-robot[data-state="processing"] .ms-eyes { opacity: 0; }
+.ms-robot[data-state="processing"] .ms-dots { opacity: 1; }
+.ms-robot[data-state="processing"] .ms-dot:nth-child(1) { animation: ms-dot .9s ease-in-out infinite; }
+.ms-robot[data-state="processing"] .ms-dot:nth-child(2) { animation: ms-dot .9s ease-in-out .15s infinite; }
+.ms-robot[data-state="processing"] .ms-dot:nth-child(3) { animation: ms-dot .9s ease-in-out .3s infinite; }
+.ms-robot[data-state="processing"] .ms-ping { opacity: 1; animation: ms-ping 1.8s ease-out infinite; }
+
+/* thinking: looks up while composing the answer */
+.ms-robot[data-state="thinking"] .ms-eyes { transform: translate(-3px, -2.5px) scaleY(.9); transition: transform .3s ease; }
+
+/* done: smiling eyes, one soft pop */
+.ms-robot[data-state="done"] .ms-eyes  { opacity: 0; }
+.ms-robot[data-state="done"] .ms-smile { opacity: 1; animation: ms-pop .5s ease-out 1; }
+
+/* welcome: a wink when the chat opens */
+.ms-robot[data-state="welcome"] .ms-eye-start { opacity: 0; }
+.ms-robot[data-state="welcome"] .ms-wink { opacity: 1; }
+
+/* sleep: after long inactivity */
+.ms-robot[data-state="sleep"] .ms-eyes  { opacity: 0; }
+.ms-robot[data-state="sleep"] .ms-sleep { opacity: 1; }
+.ms-robot[data-state="sleep"] .ms-ball  { opacity: .6; }
+
+@keyframes ms-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes ms-blink { 0%,44%,50%,100% { transform: scaleY(1); } 47% { transform: scaleY(.12); } }
+@keyframes ms-dot   { 0%,100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-2.5px); opacity: 1; } }
+@keyframes ms-ping  { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes ms-pop   { 0% { transform: scaleY(.6); } 60% { transform: scaleY(1.2); } 100% { transform: scaleY(1); } }
+
+/* Floating launcher bob */
+.ms-launcher { animation: ms-bob 3s ease-in-out infinite; }
+@keyframes ms-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-robot *, .ms-launcher { animation: none !important; transition: none !important; }
+  .ms-robot .ms-ping { opacity: 0 !important; }
+}

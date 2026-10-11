@@ -104,7 +104,7 @@ def ocr_text(data):
 
 
 def uncertain_ratio(text):
-    lines = [l for l in (text or "").splitlines() if l.strip() and not l.startswith("[OCR note")]
+    lines = [line for line in (text or "").splitlines() if line.strip() and not line.startswith("[OCR note")]
     if not lines:
         return 1.0
-    return sum(1 for l in lines if l.startswith("[?]")) / len(lines)
+    return sum(1 for line in lines if line.startswith("[?]")) / len(lines)

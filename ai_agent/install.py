@@ -17,6 +17,9 @@ def after_migrate():
 def ensure_standard_configuration():
     """Install or refresh app-managed defaults without storing secrets."""
     ensure_mcp_role()
+    from ai_agent.roles import ensure_roles
+
+    ensure_roles()
     # Before anything that syncs skills (agents, WhatsApp, chatbot): a skill row
     # naming a tool missing from AI Skill Tool's options is rejected.
     sync_tool_name_options()
@@ -24,7 +27,10 @@ def ensure_standard_configuration():
     create_default_gemini_ocr_settings()
     ensure_default_provider()
     ensure_preset_providers()
+    link_default_provider()
     create_default_agents()
+    link_model_providers()
+    tidy_memory_rows()
     ensure_whatsapp_support_configuration()
     ensure_chatbot_configuration()
     ensure_workspace_sidebar()
@@ -35,13 +41,14 @@ def ensure_standard_configuration():
     create_default_skill_grants()
     ensure_default_metrics()
     ensure_new_setting_defaults()
+    move_mcp_allowed_roles_to_table()
     frappe.db.commit()
 
 
 # Check fields added to the AI Settings single after it already exists do not
 # get their JSON default on existing sites. Seed them once; a saved value
 # (including an admin's explicit 0) is never overwritten.
-NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1, "mcp_require_approval": 1}
+NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1, "mcp_require_approval": 1, "allow_auto_approval": 1}
 
 
 def ensure_provider_policy_defaults():
@@ -63,6 +70,12 @@ def ensure_provider_policy_defaults():
         frappe.db.set_single_value("AI Settings", "allow_third_party_providers", 1)
     else:
         frappe.db.set_single_value("AI Settings", "provider_mode", "Managed")
+
+
+def move_mcp_allowed_roles_to_table():
+    from ai_agent.mcp.setup import move_allowed_roles_to_table
+
+    move_allowed_roles_to_table()
 
 
 def ensure_new_setting_defaults():
@@ -158,7 +171,7 @@ def ensure_desktop_icon():
         "standard": 1,
         "app": "ai_agent",
         "hidden": 0,
-        "logo_url": "/assets/ai_agent/desktop_icons/ai.svg",
+        "logo_url": "/assets/ai_agent/musaed-brand/assets/svg/icon/icon-primary.svg",
     }
 
     if icon_name:
@@ -201,16 +214,27 @@ def ensure_workspace_sidebar_doc():
         if frappe.db.exists("Workspace Sidebar", "AI")
         else frappe.get_doc({"doctype": "Workspace Sidebar", **values})
     )
-    for field, value in values.items():
-        sidebar.set(field, value)
-    sidebar.set("items", [])
-    for item in _ai_workspace_sidebar_items():
-        sidebar.append("items", item)
+    wanted = _ai_workspace_sidebar_items()
+    def key(row):
+        # only link rows link: Frappe fills section rows with a default link_type
+        keys = ("label", "type", "link_type", "link_to", "icon") if row.get("type") == "Link" else ("label", "type", "icon")
+        return {k: row.get(k) for k in keys if row.get(k) not in (None, "", 0)}
 
-    if sidebar.is_new():
-        sidebar.insert(ignore_permissions=True)
-    else:
-        sidebar.save(ignore_permissions=True)
+    current = [key(row) for row in sidebar.get("items") or []]
+    target = [key(item) for item in wanted]
+    unchanged = not sidebar.is_new() and current == target and all(sidebar.get(f) == v for f, v in values.items())
+    # saving re-exports the JSON in developer mode: only when something changed, so a
+    # migrate does not leave a timestamp-only diff behind
+    if not unchanged:
+        for field, value in values.items():
+            sidebar.set(field, value)
+        sidebar.set("items", [])
+        for item in wanted:
+            sidebar.append("items", item)
+        if sidebar.is_new():
+            sidebar.insert(ignore_permissions=True)
+        else:
+            sidebar.save(ignore_permissions=True)
 
     for old_name in ("AI Agent", "AI Agent Workspace"):
         if frappe.db.exists("Workspace Sidebar", old_name):
@@ -263,7 +287,7 @@ def create_default_settings():
             "memory_retention_days": 90,
             "default_approval_ttl_minutes": 1440,
             "enable_mcp": 0,
-            "mcp_allowed_roles": "AI MCP User\nSystem Manager",
+            "mcp_allowed_roles": [{"role": "AI MCP User"}, {"role": "System Manager"}],
             "mcp_max_requests_per_minute": 60,
             "mcp_enable_action_requests": 0,
         })
@@ -285,7 +309,6 @@ def create_default_settings():
         "enable_memory": 1,
         "memory_retention_days": 90,
         "default_approval_ttl_minutes": 1440,
-        "mcp_allowed_roles": "AI MCP User\nSystem Manager",
         "mcp_max_requests_per_minute": 60,
     }
     changed = False
@@ -342,7 +365,29 @@ def ensure_default_provider():
 # Ready-made providers, created disabled and without a key: the admin pastes the
 # key, presses "جلب النماذج من المزوّد", picks models and enables. Created once;
 # an existing record (edited or renamed by the admin) is never touched.
+def _claude_model(name, label, input_price, output_price, default=0):
+    return {
+        "model_name": name, "label": label, "model_type": "Chat", "is_default": default,
+        "supports_vision": 1, "supports_tools": 1, "supports_thinking": 1, "supports_pdf": 1,
+        "context_window_tokens": 1000000, "max_output_tokens": 128000,
+        "input_price_per_million": input_price, "output_price_per_million": output_price,
+    }
+
+
 PRESET_PROVIDERS = [
+    {
+        "provider_name": "Anthropic",
+        "provider_type": "Anthropic",
+        "default_model": "claude-opus-5-5",
+        "description": "Anthropic (Claude) عبر واجهته الأصلية مع التخزين المؤقت للتعليمات (prompt caching)، وهو المزوّد الوحيد المسموح في الوضع المُدار. "
+        "أنشئ المفتاح من platform.claude.com، الصقه هنا واحفظ، ثم فعّل المزوّد. النموذج الافتراضي Claude Opus 5.5؛ "
+        "Sonnet 5.5 أسرع وأرخص، وHaiku 5.5 للمهام البسيطة.",
+        "models": [
+            _claude_model("claude-opus-5-5", "Claude Opus 5.5", 4.0, 20.0, default=1),
+            _claude_model("claude-sonnet-5-5", "Claude Sonnet 5.5", 2.0, 10.0),
+            _claude_model("claude-haiku-5-5", "Claude Haiku 5.5", 0.10, 0.50),
+        ],
+    },
     {
         "provider_name": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1",
@@ -362,6 +407,49 @@ PRESET_PROVIDERS = [
         "أنشئ المفتاح من console.groq.com/keys، الصقه هنا واحفظ، ثم «جلب النماذج من المزوّد» واختر ما تريد، ثم فعّل المزوّد.",
     },
 ]
+
+
+def tidy_memory_rows():
+    """AI Memory kept "company=…; agent=…;" inside the text (the fields hold it) and had no
+    title; clean both once."""
+    import re
+
+    from ai_agent.ai_agent.doctype.ai_memory.ai_memory import memory_title
+
+    if not frappe.db.has_column("AI Memory", "title"):
+        return
+    for row in frappe.get_all("AI Memory", filters={"title": ["is", "not set"]}, fields=["name", "content"]):
+        content = re.sub(r"^(\s*(agent|company)=[^;]+;\s*)+", "", row.content or "")
+        frappe.db.set_value("AI Memory", row.name, {"content": content, "title": memory_title(content)}, update_modified=False)
+
+
+def link_model_providers():
+    """Agents and the support window named a model with no provider; give each the
+    provider that offers that model (the default one first). Runs once per record."""
+    def provider_of(model):
+        if not model:
+            return None
+        rows = frappe.get_all("AI Provider Model", filters={"model_name": model, "parenttype": "AI Provider"}, pluck="parent")
+        default = frappe.db.get_value("AI Provider", {"is_default": 1}, "name")
+        return default if default in rows else (rows[0] if rows else None)
+
+    for agent in frappe.get_all("AI Agent", filters={"provider": ["is", "not set"], "model": ["is", "set"]}, fields=["name", "model"]):
+        found = provider_of(agent.model)
+        if found:
+            frappe.db.set_value("AI Agent", agent.name, "provider", found, update_modified=False)
+    if frappe.db.exists("DocType", "AI Chatbot Settings") and not frappe.db.get_single_value("AI Chatbot Settings", "provider"):
+        found = provider_of(frappe.db.get_single_value("AI Chatbot Settings", "model"))
+        if found:
+            frappe.db.set_single_value("AI Chatbot Settings", "provider", found)
+
+
+def link_default_provider():
+    """AI Settings > Default Provider (a link) names the provider marked default."""
+    if frappe.db.get_single_value("AI Settings", "default_provider"):
+        return
+    default = frappe.db.get_value("AI Provider", {"is_default": 1, "enabled": 1}, "name")
+    if default:
+        frappe.db.set_single_value("AI Settings", "default_provider", default)
 
 
 def ensure_preset_providers():

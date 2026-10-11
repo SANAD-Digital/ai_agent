@@ -4,34 +4,42 @@
  * rules at the end. Prefix: .ac-
  */
 
+/* Colours and fonts come from the Musaed brand tokens (--ms-*, loaded on
+ * every Desk page from musaed-brand/tokens/tokens.css), which already switch
+ * for [data-theme="dark"]. Shades the kit does not name are mixed from it. */
 :root {
-    --ac-bg: #f7f7f5;
-    --ac-surface: #ffffff;
-    --ac-surface-2: #f0efeb;
-    --ac-surface-3: #e8e7e2;
-    --ac-border: #e3e2dd;
-    --ac-border-strong: #cfcec8;
-    --ac-text: #1f1f1c;
-    --ac-text-2: #6f6e68;
-    --ac-text-3: #9a9992;
-    --ac-accent: #c96442;
-    --ac-accent-hover: #b5573a;
-    --ac-accent-soft: #f7e9e3;
-    --ac-accent-text: #ffffff;
+    --ac-bg: var(--ms-bg);
+    --ac-surface: var(--ms-surface);
+    --ac-surface-2: var(--ms-sand);
+    --ac-surface-3: var(--ms-line);
+    --ac-border: var(--ms-border);
+    --ac-border-strong: color-mix(in srgb, var(--ms-border) 75%, var(--ms-text-muted));
+    --ac-text: var(--ms-text);
+    --ac-text-2: var(--ms-text-muted);
+    --ac-text-3: color-mix(in srgb, var(--ms-text-muted) 70%, var(--ms-bg));
+    --ac-heading: var(--ms-heading);
+    --ac-link: var(--ms-link);
+    --ac-accent: var(--ms-accent);
+    --ac-accent-hover: color-mix(in srgb, var(--ms-clay-500) 82%, var(--ms-clay-700));
+    --ac-accent-soft: var(--ms-clay-50);
+    --ac-accent-text: var(--ms-on-accent);
+    --ac-bubble-user: var(--ms-bubble-user);
+    --ac-bubble-user-text: var(--ms-bubble-user-text);
     --ac-success: #1f8f56;
     --ac-success-soft: #e4f4ea;
     --ac-warning: #b7791f;
     --ac-warning-soft: #fbf1dc;
     --ac-danger: #c53030;
     --ac-danger-soft: #fbe5e5;
-    --ac-radius: 12px;
+    --ac-radius: var(--ms-radius-md);
     --ac-radius-sm: 8px;
     --ac-radius-xs: 6px;
-    --ac-shadow: 0 1px 2px rgba(20, 20, 16, 0.05), 0 6px 20px rgba(20, 20, 16, 0.07);
-    --ac-shadow-sm: 0 1px 2px rgba(20, 20, 16, 0.06);
-    --ac-font: var(--font-stack, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", "Helvetica Neue", Arial, sans-serif);
+    --ac-shadow: 0 1px 2px rgba(15, 61, 62, 0.05), var(--ms-shadow-card);
+    --ac-shadow-sm: 0 1px 2px rgba(15, 61, 62, 0.06);
+    --ac-font: var(--ms-font-ui);
+    --ac-font-brand: var(--ms-font-brand);
     --ac-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    --ac-focus: 0 0 0 3px rgba(201, 100, 66, 0.28);
+    --ac-focus: 0 0 0 3px color-mix(in srgb, var(--ms-clay-500) 32%, transparent);
     --ac-content: 768px;
     --ac-sidebar: 280px;
     --ac-top: 60px;
@@ -39,19 +47,11 @@
 }
 
 [data-theme="dark"] {
-    --ac-bg: #1b1b19;
-    --ac-surface: #242422;
-    --ac-surface-2: #2d2d2a;
-    --ac-surface-3: #363633;
-    --ac-border: #363633;
-    --ac-border-strong: #4a4a46;
-    --ac-text: #ecebe6;
-    --ac-text-2: #a6a59e;
-    --ac-text-3: #77766f;
-    --ac-accent: #d97757;
-    --ac-accent-hover: #e48a6c;
-    --ac-accent-soft: #3a2a23;
-    --ac-accent-text: #1b1b19;
+    --ac-surface-2: var(--ms-border);
+    --ac-surface-3: color-mix(in srgb, var(--ms-border) 70%, var(--ms-petrol-500));
+    --ac-border-strong: color-mix(in srgb, var(--ms-border) 70%, var(--ms-petrol-500));
+    --ac-accent-hover: var(--ms-clay-300);
+    --ac-accent-soft: color-mix(in srgb, var(--ms-clay-700) 28%, var(--ms-surface));
     --ac-success: #3ec27a;
     --ac-success-soft: #1e3427;
     --ac-warning: #e0a83a;
@@ -60,13 +60,19 @@
     --ac-danger-soft: #3d2323;
     --ac-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
     --ac-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --ac-focus: 0 0 0 3px rgba(217, 119, 87, 0.35);
 }
 
 /* ------------------------------------------------------------------ */
 /* Frappe page chrome                                                  */
 /* ------------------------------------------------------------------ */
 
+/* Desk keeps room for a scrollbar on .main-section (scrollbar-gutter: stable).
+ * The chat fills the viewport and never scrolls it, so that room was only an
+ * empty strip beside the chat (on the left in RTL). */
+body[data-route="agent-workspace"] .main-section,
+body[data-route^="agent-workspace/"] .main-section {
+    scrollbar-gutter: auto;
+}
 .ai-chat-page .page-head {
     display: none;
 }
@@ -286,22 +292,12 @@
 .ac-sidebar-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     padding: 12px 12px 4px 16px;
     min-height: 52px;
 }
-.ac-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 15px;
-}
-.ac-brand .ac-icon {
-    color: var(--ac-accent);
-    width: 18px;
-    height: 18px;
-}
+/* musaed-brand icon-small.svg: the mark under 32px */
+
 .ac-sidebar-new {
     padding: 8px 12px 4px;
 }
@@ -770,10 +766,10 @@
     flex-direction: column;
     gap: 8px;
     padding: 10px 14px;
-    border-radius: var(--ac-radius);
+    border-radius: 18px;
     border-end-end-radius: 4px;
-    background: var(--ac-surface-2);
-    color: var(--ac-text);
+    background: var(--ac-bubble-user);
+    color: var(--ac-bubble-user-text);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -823,28 +819,10 @@
 .ac-msg-assistant {
     gap: 8px;
 }
-.ac-msg-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.ac-avatar {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: var(--ac-accent);
-    color: var(--ac-accent-text);
-    font-size: 14px;
-}
-.ac-msg-author {
-    font-size: 13.5px;
-    font-weight: 600;
-}
+/* musaed-brand avatar-round.svg */
+
 .ac-msg-assistant .ac-msg-body {
-    padding-inline-start: 34px;
+    padding-inline-start: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -956,6 +934,12 @@
 .ac-md :is(h1, h2, h3, h4) {
     margin: 1.2em 0 0.5em;
     line-height: 1.35;
+    font-family: var(--ac-font-brand);
+    font-weight: 600;
+    color: var(--ac-heading);
+}
+.ac-md a {
+    color: var(--ac-link);
     font-weight: 600;
 }
 .ac-md h1 { font-size: 1.35em; }
@@ -1107,19 +1091,6 @@
     overflow-y: auto;
 }
 
-/* process group: thinking + tool calls between two answers, one collapsible (message.js) */
-.ac-process {
-    border-style: dashed;
-    background: transparent;
-}
-.ac-process-icon {
-    display: inline-flex;
-    color: var(--ac-accent);
-}
-.ac-process-meta {
-    color: var(--ac-text-3);
-    font-size: 12.5px;
-}
 .ac-process.is-streaming .ac-process-label {
     background: linear-gradient(90deg, var(--ac-text-3) 0%, var(--ac-text) 50%, var(--ac-text-3) 100%);
     background-size: 200% 100%;
@@ -1153,64 +1124,13 @@
 }
 
 /* tool card */
-.ac-tool-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    background: var(--ac-surface-2);
-    color: var(--ac-text-2);
-    font-size: 13px;
-}
+
 .ac-tool-title {
     font-weight: 500;
     color: var(--ac-text);
 }
-.ac-tool-wire {
-    font-family: var(--ac-mono);
-    font-size: 11.5px;
-    color: var(--ac-text-3);
-    direction: ltr;
-    unicode-bidi: embed;
-}
-.ac-tool-duration {
-    font-size: 12px;
-    color: var(--ac-text-3);
-    font-variant-numeric: tabular-nums;
-    margin-inline-start: auto;
-}
-.ac-tool-duration + .ac-status-icon {
-    margin-inline-start: 0;
-}
-.ac-status-icon {
-    display: inline-flex;
-    width: 18px;
-    height: 18px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 12px;
-    color: var(--ac-text-3);
-}
-.ac-status-icon[data-status="completed"] {
-    background: var(--ac-success-soft);
-    color: var(--ac-success);
-}
-.ac-status-icon[data-status="failed"] {
-    background: var(--ac-danger-soft);
-    color: var(--ac-danger);
-}
-.ac-status-icon[data-status="streaming"],
-.ac-status-icon[data-status="running"] {
-    color: var(--ac-accent);
-}
 .ac-tool[data-status="failed"] {
     border-color: var(--ac-danger-soft);
-}
-.ac-tool-section + .ac-tool-section {
-    margin-top: 12px;
 }
 .ac-tool-section-title {
     font-size: 11.5px;
@@ -1308,45 +1228,8 @@
 }
 
 /* approval */
-.ac-approval {
-    border: 1px solid var(--ac-border-strong);
-    border-radius: var(--ac-radius);
-    background: var(--ac-surface);
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-shadow: var(--ac-shadow-sm);
-    transition: box-shadow 0.2s, border-color 0.2s;
-}
-.ac-msg.is-awaiting .ac-approval[data-status="Pending"] {
-    border-color: var(--ac-accent);
-    box-shadow: 0 0 0 3px var(--ac-accent-soft);
-}
 .ac-approval.is-busy {
     opacity: 0.7;
-}
-.ac-approval-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.ac-approval-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: var(--ac-warning-soft);
-    color: var(--ac-warning);
-    font-size: 15px;
-}
-.ac-approval-title {
-    font-weight: 600;
-    flex: 1;
-    min-width: 0;
 }
 .ac-badge {
     display: inline-flex;
@@ -1374,32 +1257,10 @@
     background: var(--ac-danger-soft);
     color: var(--ac-danger);
 }
-.ac-approval-summary {
-    font-size: 14.5px;
-}
-.ac-approval-impact {
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    font-size: 13px;
-    color: var(--ac-text-2);
-    padding: 8px 10px;
-    border-radius: var(--ac-radius-xs);
-    background: var(--ac-surface-2);
-}
-.ac-approval-impact .ac-icon {
-    margin-top: 3px;
-}
 .ac-approval-kv {
     display: flex;
     flex-direction: column;
     gap: 6px;
-}
-.ac-approval-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding-top: 4px;
 }
 .ac-approval-reason {
     display: flex;
@@ -1701,11 +1562,18 @@
     font-size: 24px;
     margin-bottom: 6px;
 }
+/* the live Musaed robot (core.js robot(), states from musaed-brand/motion) */
+.ac-empty-robot {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 6px;
+}
 .ac-empty-title {
     margin: 0;
+    font-family: var(--ac-font-brand);
     font-size: 24px;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    color: var(--ac-heading);
 }
 .ac-empty-sub {
     margin: 0;
@@ -1853,7 +1721,8 @@
     display: none;
 }
 .ac-tool-btn[data-state="on"],
-.ac-tool-btn[data-state="adaptive"] {
+.ac-tool-btn[data-state="adaptive"],
+.ac-tool-btn[data-state="auto"] {
     color: var(--ac-accent);
 }
 .ac-send {
@@ -1864,7 +1733,7 @@
     height: 34px;
     border-radius: 50%;
     background: var(--ac-accent);
-    color: var(--ac-accent-text);
+    color: var(--ms-white); /* a white icon on clay (3.1:1, enough for an icon; text on clay stays --ac-accent-text) */
     font-size: 16px;
     transition: background 0.15s, transform 0.15s;
 }
@@ -2034,8 +1903,10 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    font-family: var(--ac-font-brand);
     font-weight: 600;
     font-size: 15px;
+    color: var(--ac-heading);
 }
 .ac-sheet-title .ac-icon {
     color: var(--ac-accent);
@@ -2286,9 +2157,374 @@
         --ac-sheet: 100vw;
         border-inline-start: 0;
     }
-    .ac-tool-wire {
-        display: none;
-    }
+}
+
+/* ================================================================== */
+/* claude.ai look: "Used … ⌄" opens one bordered box of one-line steps */
+/* ("label  argument  ›"), Request / Response panels, Q&A, permission  */
+/* ================================================================== */
+
+:root {
+    --ac-panel: color-mix(in srgb, var(--ms-text) 5%, var(--ms-bg));   /* Request/Response: a shade under the page */
+    --ac-hover: color-mix(in srgb, var(--ms-text) 3%, var(--ms-bg));
+}
+
+.ac-process {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+}
+.ac-process > .ac-collapsible-head {
+    display: inline-flex;
+    width: auto;
+    max-width: 100%;
+    gap: 4px;
+    padding: 2px 0;
+    color: var(--ac-text);
+    font-size: 14.5px;
+    background: transparent;
+}
+.ac-process > .ac-collapsible-head:hover {
+    background: transparent;
+    color: var(--ac-text-2);
+}
+.ac-process > .ac-collapsible-head .ac-chevron {
+    margin-inline-start: 2px;
+    color: var(--ac-text-2);
+}
+.ac-process > .ac-collapsible-body {
+    margin-top: 8px;
+    padding: 0;
+    border: 1px solid var(--ac-border);
+    border-radius: 12px;
+    background: transparent;
+    overflow: hidden;
+}
+.ac-process-body {
+    gap: 0;
+}
+.ac-process-body > :not([hidden]) ~ :not([hidden]) {
+    border-top: 1px solid var(--ac-border);
+}
+.ac-process-body .ac-tool-wrap {
+    gap: 0;
+}
+.ac-process-body .ac-tool {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+}
+.ac-process-body .ac-tool > .ac-collapsible-head {
+    gap: 8px;
+    padding: 11px 14px;
+    border-radius: 0;
+    font-size: 14.5px;
+}
+.ac-process-body .ac-tool > .ac-collapsible-head:hover {
+    background: var(--ac-hover);
+}
+.ac-process-body .ac-tool-title {
+    flex: 0 0 auto;
+    font-weight: 400;
+    color: var(--ac-text-2);
+}
+.ac-step-args {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ac-text);
+    unicode-bidi: plaintext;
+}
+.ac-step-failed {
+    display: none;
+    flex: 0 0 auto;
+    color: var(--ac-danger);
+}
+.ac-tool[data-status="failed"] .ac-step-failed {
+    display: inline;
+}
+.ac-tool[data-status="running"] .ac-tool-title,
+.ac-tool[data-status="streaming"] .ac-tool-title {
+    animation: ac-step-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ac-step-pulse {
+    50% { opacity: 0.45; }
+}
+/* "›" after the text, "⌄" when open */
+.ac-process-body .ac-tool .ac-chevron {
+    flex: 0 0 auto;
+    margin-inline-start: 0;
+    color: var(--ac-text-3);
+    transform: rotate(-90deg);
+}
+.ac-root[data-dir="rtl"] .ac-process-body .ac-tool .ac-chevron {
+    transform: rotate(90deg);
+}
+.ac-process-body .ac-tool[data-open="1"] > .ac-collapsible-head .ac-chevron {
+    transform: none;
+}
+.ac-process-body .ac-tool > .ac-collapsible-body {
+    margin: 0;
+    padding: 0 14px 12px;
+    border: 0;
+    background: transparent;
+}
+.ac-step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ac-step-panel {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--ac-panel);
+}
+.ac-step-panel-title {
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--ac-text);
+}
+.ac-kv-grid {
+    display: grid;
+    grid-template-columns: minmax(110px, 34%) minmax(0, 1fr);
+    gap: 4px 16px;
+    font-size: 14px;
+}
+.ac-kv-key {
+    color: var(--ac-text-2);
+}
+.ac-kv-val {
+    color: var(--ac-text);
+    overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
+}
+.ac-step-panel .ac-json,
+.ac-step-panel .ac-tool-text {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 13px;
+    max-height: 360px;
+}
+.ac-step-panel .ac-tool-view {
+    margin-top: 2px;
+}
+/* thoughts between steps: a plain grey row */
+.ac-process-body .ac-thinking-inline {
+    padding: 11px 14px;
+}
+.ac-process-body .ac-thinking-inline .ac-thinking-body {
+    padding: 0;
+    border: 0;
+    font-size: 14.5px;
+    color: var(--ac-text-2);
+}
+
+/* question: the same box; answered = question in grey, answer in dark text */
+.ac-question {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--ac-border);
+    border-radius: 12px;
+    background: transparent;
+}
+.ac-question-head {
+    font-size: 14.5px;
+    color: var(--ac-text);
+}
+.ac-question-head .ac-icon {
+    display: none;
+}
+.ac-question.is-answered .ac-question-head {
+    color: var(--ac-text-2);
+}
+.ac-question-answered {
+    margin-top: -6px;
+    font-size: 14.5px;
+    color: var(--ac-text);
+}
+.ac-question-options {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--ac-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.ac-root :where(.ac-question-option) {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    text-align: start;
+    background: transparent;
+    cursor: pointer;
+}
+.ac-question-options > .ac-question-option + .ac-question-option {
+    border-top: 1px solid var(--ac-border);
+}
+.ac-question-option:hover:not(:disabled) {
+    background: var(--ac-hover);
+}
+.ac-question-option[aria-checked="true"] {
+    background: var(--ac-panel);
+}
+.ac-question-mark {
+    flex: 0 0 16px;
+    height: 16px;
+    margin-top: 3px;
+    border: 1.5px solid var(--ac-border-strong);
+    border-radius: 50%;
+}
+.ac-question-option[role="checkbox"] .ac-question-mark {
+    border-radius: 4px;
+}
+.ac-question-option[aria-checked="true"] .ac-question-mark {
+    border-color: var(--ac-text);
+    background: var(--ac-text);
+    box-shadow: inset 0 0 0 3px var(--ac-bg);
+}
+.ac-question-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.ac-question-label {
+    color: var(--ac-text);
+}
+.ac-question-desc {
+    font-size: 13px;
+    color: var(--ac-text-2);
+}
+.ac-question-other {
+    align-items: center;
+    border: 1px solid var(--ac-border);
+    border-radius: 10px;
+    padding-block: 4px;
+    cursor: text;
+}
+.ac-question-other-input {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    color: var(--ac-text);
+}
+.ac-question-foot {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* permission: the same box, plain text, buttons at the end */
+.ac-approval {
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.2s;
+    gap: 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--ac-border);
+    border-radius: 12px;
+    background: transparent;
+    box-shadow: none;
+}
+.ac-msg.is-awaiting .ac-approval[data-status="Pending"] {
+    border-color: color-mix(in srgb, var(--ac-accent) 50%, var(--ac-border));
+    box-shadow: none;
+}
+.ac-approval-head {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+}
+.ac-approval-icon {
+    display: none;
+}
+.ac-approval-heading {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.ac-approval-kicker {
+    font-size: 14.5px;
+    color: var(--ac-text-2);
+}
+.ac-approval-summary {
+    font-size: 14.5px;
+    font-weight: 400;
+    color: var(--ac-text);
+}
+.ac-approval-meta,
+.ac-approval-impact {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 0;
+    background: transparent;
+    font-size: 13px;
+    color: var(--ac-text-2);
+}
+.ac-approval-impact .ac-icon {
+    display: none;
+}
+.ac-approval-details:not([hidden]) {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--ac-panel);
+}
+.ac-approval-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 2px;
+}
+.ac-approval-actions .ac-btn-danger-ghost {
+    background: transparent;
+}
+.ac-approval-actions > .ac-btn-ghost:first-child {
+    margin-inline-end: auto;
+}
+
+/* follow-ups: plain outlined chips */
+.ac-suggestions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.ac-root :where(.ac-followup) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 6px 12px;
+    border: 1px solid var(--ac-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ac-text);
+    font-size: 13.5px;
+    text-align: start;
+}
+.ac-followup:hover {
+    background: var(--ac-hover);
+}
+.ac-followup-arrow {
+    flex: 0 0 auto;
+    color: var(--ac-text-3);
+}
+.ac-root[data-dir="ltr"] .ac-followup-arrow {
+    transform: scaleX(-1);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2362,7 +2598,8 @@
     flex-direction: column;
     width: 400px;
     max-width: calc(100vw - 40px);
-    height: min(640px, calc(100dvh - 110px));
+    /* --acs-clear: what is pinned to the top of the page (bubble.js fitTop) */
+    height: min(640px, calc(100dvh - 84px - var(--acs-clear, 26px)));
     min-height: 0;
     border: 1px solid var(--ac-border);
     border-radius: 16px;
@@ -2397,10 +2634,9 @@
     background: var(--ac-surface);
     border-bottom: 1px solid var(--ac-border);
 }
-.ac-support-head .ac-avatar {
-    width: 30px;
-    height: 30px;
-    font-size: 15px;
+.ac-support-robot {
+    width: 40px;
+    height: 40px;
     flex: 0 0 auto;
 }
 .ac-support-titles {
@@ -2409,8 +2645,10 @@
     line-height: 1.3;
 }
 .ac-support-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-family: var(--ac-font-brand);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ac-heading);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2480,9 +2718,6 @@
 .ac-support :is(.ac-block, .ac-tool-wrap, .ac-view, .ac-table-wrap, .ac-approval, .ac-artifact) {
     min-width: 0;
     max-width: 100%;
-}
-.ac-support .ac-tool-wire {
-    display: none;
 }
 .ac-support .ac-approval {
     padding: 12px;

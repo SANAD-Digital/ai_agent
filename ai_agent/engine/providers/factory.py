@@ -11,6 +11,17 @@ from ai_agent.engine.providers.openai_compat import OpenAICompatProvider
 from ai_agent.runtime import policy
 
 
+def anthropic_base_url(url):
+    """The Anthropic SDK adds /v1/... itself, so a base URL ending in /v1 (as OpenAI-style
+    URLs do) would call /v1/v1/models and get 404. Keep only the host part; empty stays empty
+    (the SDK then uses https://api.anthropic.com)."""
+    url = (url or "").strip().rstrip("/")
+    for suffix in ("/v1/messages", "/v1"):
+        if url.endswith(suffix):
+            url = url[: -len(suffix)].rstrip("/")
+    return url
+
+
 def provider_config(provider_doc, model=None):
     settings = frappe.get_cached_doc("AI Settings")
     models = {}
@@ -39,6 +50,8 @@ def provider_config(provider_doc, model=None):
         base_url = "https://api.openai.com/v1"
     elif ptype == "Ollama" and not base_url:
         base_url = "http://localhost:11434/v1"
+    elif ptype == "Anthropic":
+        base_url = anthropic_base_url(base_url)
     try:
         api_key = provider_doc.get_password("api_key") if provider_doc.get("api_key") else ""
     except Exception:
@@ -55,6 +68,18 @@ def provider_config(provider_doc, model=None):
         "extra_request": extra,
         "default_effort": provider_doc.get("default_reasoning_effort") or settings.get("default_reasoning_effort") or "",
     }
+
+
+def validate_provider_model(provider, model):
+    """For agent / support settings: a picked model must belong to the picked provider."""
+    if not provider:
+        return
+    if not frappe.db.exists("AI Provider", provider):
+        frappe.throw(frappe._("AI Provider {0} not found.").format(provider))
+    if model:
+        known = set(frappe.get_all("AI Provider Model", filters={"parent": provider, "parenttype": "AI Provider"}, pluck="model_name"))
+        if known and model not in known:
+            frappe.throw(frappe._("Model {0} is not configured for provider {1}.").format(model, provider))
 
 
 def resolve_provider_doc(provider_name=None):

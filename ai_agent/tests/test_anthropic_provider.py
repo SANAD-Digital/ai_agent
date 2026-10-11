@@ -154,3 +154,13 @@ class TestAnthropicKeySafety(IntegrationTestCase):
 		with patch.object(model_provider, "resolve_provider_doc", return_value=MagicMock()), \
 				patch.object(model_provider, "ProviderConfig", return_value=config):
 			self.assertIsInstance(model_provider.get_provider("X"), ap.AnthropicProvider)
+
+
+class TestAnthropicBaseUrl(IntegrationTestCase):
+	def test_v1_suffix_is_dropped(self):
+		from ai_agent.engine.providers.factory import anthropic_base_url
+
+		for url in ("https://api.anthropic.com/v1/", "https://api.anthropic.com/v1", "https://api.anthropic.com/v1/messages", " https://api.anthropic.com/ "):
+			self.assertEqual(anthropic_base_url(url), "https://api.anthropic.com", url)
+		self.assertEqual(anthropic_base_url("https://proxy.example/anthropic"), "https://proxy.example/anthropic")
+		self.assertEqual(anthropic_base_url(""), "")

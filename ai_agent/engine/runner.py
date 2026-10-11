@@ -23,7 +23,10 @@ from ai_agent.engine.context import system_prompt
 from ai_agent.engine.context.compactor import Compactor, budget_for
 from ai_agent.engine.errors import user_message
 from ai_agent.engine.events import (
+    ApprovalAutoExecuted,
     ApprovalRequested,
+    QuestionAsked,
+    SuggestionsShown,
     ArtifactCreated,
     BlockDelta,
     BlockDone,
@@ -196,7 +199,7 @@ class Runner:
         provider, provider_name, model = provider_for(self.session.provider, self.session.model)
         caps = provider.caps(model)
         ctx = PermissionContext(self.user, self.agent.name, self.session.company)
-        executor = ToolExecutor(ctx, self.agent, self.run_doc.name if self.run_doc else None, settings=self.settings)
+        executor = ToolExecutor(ctx, self.agent, self.run_doc.name if self.run_doc else None, settings=self.settings, session=self.session.name)
 
         granted = skills_mod.granted(ctx)
         implicit, advertised = skills_mod.split(granted, ctx)
@@ -384,12 +387,16 @@ class Runner:
         elif isinstance(event, BlockDone):
             self.close_block(event.block_seq, event.block)
             self.pub.publish(event)
-        elif isinstance(event, (ToolResultEvent, SkillLoaded, MemoryNote, ArtifactCreated)):
+        elif isinstance(event, (ToolResultEvent, SkillLoaded, MemoryNote, ArtifactCreated, QuestionAsked, SuggestionsShown)):
             self.insert_block(event.block_seq, event.block, extra={"duration_ms": getattr(event, "duration_ms", 0), "tool_call": getattr(event, "tool_call", "")})
             self.pub.publish(event)
             frappe.db.commit()
         elif isinstance(event, ApprovalRequested):
             self.insert_block(event.block_seq, event.block, extra={"approval": event.approval})
+            self.pub.publish(event)
+            frappe.db.commit()
+        elif isinstance(event, ApprovalAutoExecuted):
+            self.insert_block(event.block_seq, event.block, extra={"approval": (event.block.get("data") or {}).get("approval")})
             self.pub.publish(event)
             frappe.db.commit()
         elif isinstance(event, UsageEvent):

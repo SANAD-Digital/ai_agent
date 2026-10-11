@@ -25,8 +25,10 @@ ERROR = "error"
 STATUS = "status"
 IMAGE = "image"
 DOCUMENT = "document"
+QUESTION = "question"        # ui.ask: options the user picks from (UI only, like approval)
+SUGGESTIONS = "suggestions"  # ui.suggest: follow-up chips under the answer (UI only)
 
-BLOCK_KINDS = (THINKING, TEXT, TOOL_USE, TOOL_RESULT, APPROVAL, ARTIFACT, SKILL, MEMORY, ERROR, STATUS, IMAGE, DOCUMENT)
+BLOCK_KINDS = (THINKING, TEXT, TOOL_USE, TOOL_RESULT, APPROVAL, ARTIFACT, SKILL, MEMORY, ERROR, STATUS, IMAGE, DOCUMENT, QUESTION, SUGGESTIONS)
 
 # Stop reasons, normalised across providers.
 END_TURN = "end_turn"

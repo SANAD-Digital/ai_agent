@@ -102,6 +102,14 @@
    "label": "Model"
   },
   {
+   "default": "Ask",
+   "fieldname": "approval_mode",
+   "fieldtype": "Select",
+   "label": "Approval Mode",
+   "options": "Ask\nAuto",
+   "description": "Ask: every action waits for approval. Auto: creating and editing documents run at once in this conversation; submit, cancel, workflow changes and email still ask."
+  },
+  {
    "fieldname": "pinned",
    "fieldtype": "Check",
    "label": "Pinned"
@@ -168,11 +176,37 @@
    "delete": 1
   },
   {
-   "role": "All",
+   "role": "AI Chat User",
    "read": 1,
    "write": 1,
    "create": 1,
-   "if_owner": 1
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
+  },
+  {
+   "role": "AI Chatbot User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
+  },
+  {
+   "role": "AI MCP User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
   }
  ],
  "sort_field": "last_message_on",
@@ -192,6 +226,7 @@
   "external_key",
   "provider",
   "model",
+  "approval_mode",
   "pinned",
   "last_seq",
   "summary",
@@ -204,5 +239,5 @@
   "cache_creation_input_tokens",
   "estimated_cost"
  ],
- "modified": "2026-09-30 12:00:00.000000"
+ "modified": "2026-10-11 07:00:00.000000"
 }

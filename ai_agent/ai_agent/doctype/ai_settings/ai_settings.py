@@ -5,6 +5,8 @@ from frappe.model.document import Document
 
 class AISettings(Document):
     def validate(self):
+        if self.default_provider and not frappe.db.get_value("AI Provider", self.default_provider, "enabled"):
+            frappe.throw(_("The default provider must be enabled."))
         seen = set()
         for row in self.get("access_rules") or []:
             if row.role and row.user:
@@ -18,3 +20,7 @@ class AISettings(Document):
         from ai_agent.runtime import access
 
         access.clear_cache()
+        # the link and AI Provider.is_default (what the engine reads) always name the same provider
+        if self.default_provider and not frappe.db.get_value("AI Provider", self.default_provider, "is_default"):
+            frappe.db.sql("update `tabAI Provider` set is_default = (name = %s)", self.default_provider)
+            frappe.clear_document_cache("AI Provider", self.default_provider)

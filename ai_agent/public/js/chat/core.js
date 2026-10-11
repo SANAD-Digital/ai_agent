@@ -293,6 +293,10 @@
         wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
         brain: '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>',
         check: '<path d="M20 6 9 17l-5-5"/>',
+        help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+        "arrow-up-left": '<path d="M7 17V7h10"/><path d="M17 17 7 7"/>',
+        "check-check": '<path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/>',
+        "shield-check": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
         x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
         alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
         paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
@@ -342,6 +346,83 @@
     }
 
     /* ------------------------------------------------------------------ */
+    /* Musaed brand (public/musaed-brand)                                  */
+    /* ------------------------------------------------------------------ */
+
+
+    // components/robot.svg.html: every state layer, animated by motion.css
+    const ROBOT =
+        '<rect width="100" height="100" rx="23" fill="var(--ms-clay-500)"/>' +
+        '<g transform="translate(50 50) scale(0.86) translate(-50 -42)"><g class="ms-body">' +
+        '<circle class="ms-ping ms-fb" cx="50" cy="18" r="4.5" fill="var(--ms-petrol-700)"/>' +
+        '<line x1="50" y1="30" x2="50" y2="20" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>' +
+        '<circle class="ms-ball" cx="50" cy="18" r="4.5" fill="var(--ms-petrol-700)"/>' +
+        '<rect x="21" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/>' +
+        '<rect x="73" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/>' +
+        '<rect x="26" y="30" width="48" height="40" rx="14" fill="#FFFFFF"/>' +
+        '<rect x="32" y="39" width="36" height="20" rx="10" fill="var(--ms-petrol-700)"/>' +
+        '<g class="ms-eyes ms-fb">' +
+        '<rect class="ms-eye ms-eye-start ms-fb" x="40" y="44" width="5" height="10" rx="2.5" fill="var(--ms-clay-500)"/>' +
+        '<rect class="ms-eye ms-fb" x="55" y="44" width="5" height="10" rx="2.5" fill="var(--ms-clay-500)"/></g>' +
+        '<g class="ms-dots">' +
+        '<circle class="ms-dot ms-fb" cx="42" cy="49" r="2.6" fill="var(--ms-clay-500)"/>' +
+        '<circle class="ms-dot ms-fb" cx="50" cy="49" r="2.6" fill="var(--ms-clay-500)"/>' +
+        '<circle class="ms-dot ms-fb" cx="58" cy="49" r="2.6" fill="var(--ms-clay-500)"/></g>' +
+        '<g class="ms-smile ms-fb">' +
+        '<path d="M39 52 Q42.5 45 46 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/>' +
+        '<path d="M54 52 Q57.5 45 61 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/></g>' +
+        '<path class="ms-wink" d="M39 52 Q42.5 45 46 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/>' +
+        '<g class="ms-sleep">' +
+        '<rect x="39" y="50" width="7" height="2.5" rx="1.25" fill="var(--ms-clay-500)"/>' +
+        '<rect x="54" y="50" width="7" height="2.5" rx="1.25" fill="var(--ms-clay-500)"/></g>' +
+        "</g></g>";
+
+    /** The inline Musaed robot; switch its face with `el.dataset.state` (see robotMood). */
+    function robot(cls, state) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 100 100");
+        svg.setAttribute("aria-hidden", "true");
+        svg.setAttribute("focusable", "false");
+        svg.setAttribute("class", "ms-robot" + (cls ? " " + cls : ""));
+        svg.dataset.state = state || "idle";
+        svg.innerHTML = ROBOT;
+        return svg;
+    }
+
+    /**
+     * Drives a robot's data-state through the brand's lifecycle:
+     * set(state) shows a state; flash(state, ms) shows one for a moment, then
+     * goes back to idle; idle arms the 2-minute timer that puts it to sleep.
+     */
+    function robotMood(el) {
+        const SLEEP_AFTER = 120000;
+        let back = null;
+        let sleep = null;
+        function show(state) {
+            clearTimeout(sleep);
+            el.dataset.state = state;
+            if (state === "idle") sleep = setTimeout(() => (el.dataset.state = "sleep"), SLEEP_AFTER);
+        }
+        return {
+            get: () => el.dataset.state,
+            set(state) {
+                clearTimeout(back);
+                back = null;
+                show(state);
+            },
+            flash(state, ms) {
+                clearTimeout(back);
+                show(state);
+                back = setTimeout(() => {
+                    back = null;
+                    show("idle");
+                }, ms);
+            },
+            flashing: () => back !== null,
+        };
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Tool names                                                          */
     /* ------------------------------------------------------------------ */
 
@@ -365,6 +446,8 @@
         [/^skills__load$/, () => __("Load skill"), "book"],
         [/^actions__prepare_document$/, () => __("Prepare document"), "file"],
         [/^actions__validate_document$/, () => __("Validate document"), "check"],
+        [/^workflow__get_transitions$/, () => __("Workflow actions"), "shield-check"],
+        [/^actions__request_workflow_action$/, () => __("Workflow action request"), "shield"],
         [/^actions__request_/, () => __("Approval request"), "shield"],
         [/^artifacts__/, () => __("Create view"), "chart"],
         [/^memory__/, () => __("Memory"), "brain"],
@@ -507,6 +590,8 @@
         debounce,
         throttle,
         icon,
+        robot,
+        robotMood,
         toolLabel,
         toolIcon,
         toolDotted,

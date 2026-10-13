@@ -185,6 +185,9 @@
             return;
         }
         if (f.session && f.session.user === "Guest") return;
+        // The bundle can reach a site that does not have ai_agent (a stale hooks cache after an
+        // uninstall, shared assets): boot.versions lists only this site's installed apps.
+        if (!f.boot.versions || !("ai_agent" in f.boot.versions)) return;
         if (window.requestIdleCallback) window.requestIdleCallback(bootstrap, { timeout: 4000 });
         else setTimeout(bootstrap, 1500);
     }

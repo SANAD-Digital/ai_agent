@@ -72,6 +72,14 @@ TOOL_PARAMETER_SCHEMAS = {
         "properties": {"doctype": {"type": "string"}},
         "required": ["doctype"],
     },
+    "workflow.get_transitions": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string"},
+            "document_name": {"type": "string"},
+        },
+        "required": ["doctype", "document_name"],
+    },
     "metrics.query": {
         "type": "object",
         "properties": {
@@ -225,7 +233,9 @@ TOOL_PARAMETER_SCHEMAS = {
     "files.read": {
         "type": "object",
         "properties": {
-            "file": {"type": "string", "description": "File id or file name from the list; omit to list this conversation's attachments"},
+            "file": {"type": "string", "description": "File id or file name: from this conversation's list, or from attachments__list of a document; omit to list this conversation's attachments"},
+            "doctype": {"type": "string", "description": "For a document's file: the document's DocType (narrows a file name)"},
+            "document_name": {"type": "string", "description": "For a document's file: the document's name"},
             "refresh": {"type": "boolean", "description": "Read again instead of using the cached extraction"},
         },
     },
@@ -292,15 +302,15 @@ TOOL_PARAMETER_SCHEMAS = {
         "properties": {
             "content": {
                 "type": "string",
-                "description": "Compact reusable lesson or mapping confirmed by the user or by a successful approved document action.",
+                "description": "One reusable topic confirmed by the user or by an approved action: a mapping, a preference, or a short rule set (max 1200 characters).",
             },
             "scope": {"type": "string", "description": "User, Agent, or Company. Defaults to Agent."},
             "memory_type": {"type": "string", "description": "Context, Summary, or Mapping. Defaults to Context."},
             "company": {"type": "string"},
             "agent": {"type": "string"},
             "sensitivity": {"type": "string", "description": "Low, Medium, or High. Defaults to Medium."},
-            "entity_type": {"type": "string", "description": "For Mapping memories: Supplier, Cash Supplier, Customer, Account, Item, ..."},
-            "entity_key": {"type": "string", "description": "For Mapping memories: the entity name (normalized automatically)."},
+            "entity_type": {"type": "string", "description": "What the memory is about: Supplier, Customer, Account, Item, Procedure, ... Give it (with entity_key) so a later correction replaces this memory instead of adding a duplicate."},
+            "entity_key": {"type": "string", "description": "The entity or topic name, e.g. the supplier, or \"Daily expense journal entries\" (normalized automatically)."},
             "mapping": {"type": "object", "description": "For Mapping memories: the structured fact, e.g. {\"account\": \"...\"}."},
         },
         "required": ["content"],
@@ -497,6 +507,7 @@ class ToolRegistry:
             {"name": "schema.describe_doctype", "description": "Describe a DocType's fields and relationships", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_doctype"},
             {"name": "schema.describe_links", "description": "Describe link relationships for a DocType", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_links"},
             {"name": "schema.describe_workflow", "description": "Describe workflow for a DocType", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_workflow"},
+            {"name": "workflow.get_transitions", "description": "A document's current workflow state and the workflow actions THIS user may take on it now (by their roles, the workflow conditions and self-approval rules), with what each action leads to. Call it before requesting a workflow action.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.workflow.handle_get_transitions"},
             # Data
             {"name": "tools.request_more", "description": "Ask for extra tools when the ones offered cannot answer the request", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.runtime.router.handle_request_more_stub"},
             {"name": "metrics.query", "description": "Answer a business number (sales, balances, receivables...) from the metric catalog, grouped and compared, permission-scoped", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.metrics.handle_query"},
@@ -516,7 +527,7 @@ class ToolRegistry:
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
             {"name": "data.count", "description": "Count records matching filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_count"},
-            {"name": "files.read", "description": "List the files the user attached in this chat conversation, or read one (text of PDF/Word/Excel/CSV, OCR of images and scans). Use it whenever the user refers to a file or image sent earlier.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.chat_files.handle_read", "model_result_max_chars": 40000},
+            {"name": "files.read", "description": "Read a file's content (text of PDF/Word/Excel/CSV, OCR of images and scans): one the user attached in this chat, or one attached to an ERP document the user can read (ids from attachments__list). Without `file`, lists this conversation's attachments.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.chat_files.handle_read", "model_result_max_chars": 40000},
             {"name": "attachments.list", "description": "List safe metadata for files attached to a readable document", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.attachments.handle_list"},
             # Reports
             {"name": "reports.search", "description": "Search available reports", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_search"},
@@ -524,7 +535,7 @@ class ToolRegistry:
             {"name": "reports.run", "description": "Run a report with filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_run"},
             # Memory
             {"name": "memory.search", "description": "Search reusable AI memory for mappings and prior confirmed context", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.memory.handle_search"},
-            {"name": "memory.store_context", "description": "Store reusable AI memory such as confirmed account mappings", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.memory.handle_store_context"},
+            {"name": "memory.store_context", "description": "Store one reusable memory (a confirmed mapping, preference or short rule set). Name its topic with entity_type and entity_key: storing the same topic again updates it", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.memory.handle_store_context"},
             # Artifacts
             {"name": "artifacts.create_table", "description": "Create a table artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_table"},
             {"name": "artifacts.create_chart", "description": "Create a chart artifact", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.artifacts.handle_create_chart"},
@@ -546,7 +557,7 @@ class ToolRegistry:
             {"name": "actions.request_update", "description": "Request approval to update a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_update", "requires_approval": True},
             {"name": "actions.request_submit", "description": "Request approval to submit a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_submit", "requires_approval": True},
             {"name": "actions.request_cancel", "description": "Request approval to cancel a document", "access_level": "Destructive", "side_effect": "destructive", "handler": "ai_agent.tools.actions.handle_request_cancel", "requires_approval": True},
-            {"name": "actions.request_workflow_action", "description": "Request approval for a workflow action", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_workflow", "requires_approval": True},
+            {"name": "actions.request_workflow_action", "description": "Request a workflow action on a document (approve, reject, send for review…). Use an action workflow.get_transitions lists for this user; the user approves it in the chat", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_workflow", "requires_approval": True},
         ]
         for tool in tools:
             tool["parameters"] = TOOL_PARAMETER_SCHEMAS.get(tool["name"], OBJECT_SCHEMA)

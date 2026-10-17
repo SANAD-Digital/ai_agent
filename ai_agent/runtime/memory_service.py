@@ -43,11 +43,11 @@ class MemoryService:
             if isinstance(mapping, dict) else None
         )
 
-        # Mapping memories are one-fact-per-entity: the latest approved fact
-        # replaces the previous one instead of accumulating near-duplicates.
-        if memory_type == "Mapping" and entity_type and entity_key:
+        # One memory per topic: a memory naming an entity (a supplier's mapping, "Journal
+        # Entry rules"…) replaces the previous one instead of piling up near-duplicates.
+        if entity_type and entity_key:
             filters = {
-                "memory_type": "Mapping",
+                "memory_type": memory_type,
                 "scope": scope,
                 "entity_type": entity_type,
                 "entity_key": entity_key,
@@ -72,7 +72,7 @@ class MemoryService:
         existing = frappe.db.exists("AI Memory", filters)
         if existing:
             memory = frappe.get_doc("AI Memory", existing)
-            if source_run or memory_type == "Mapping":
+            if source_run or (entity_type and entity_key):
                 memory.update({
                     "user": user,
                     "agent": agent if scope == "Agent" else None,

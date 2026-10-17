@@ -31,6 +31,11 @@ def agent_name() -> str:
     return value or DEFAULT_AGENT_NAME
 
 
+def provider() -> str | None:
+    value = str(_setting("provider", "") or "").strip()
+    return value or None
+
+
 def model() -> str | None:
     value = str(_setting("model", "") or "").strip()
     return value or None
@@ -89,14 +94,11 @@ def allowed_roles() -> set[str]:
 
 
 def can_access(user=None) -> bool:
-    """Whether `user` may use the support bubble (empty allowed_roles = everyone)."""
-    user = user or frappe.session.user
-    if user == "Administrator":
-        return True
-    roles = allowed_roles()
-    if not roles:
-        return True
-    return bool(set(frappe.get_roles(user)) & roles)
+    """Whether `user` may use the support bubble: one of the Allowed Roles (none picked:
+    the AI Chatbot User role), or System Manager. Nobody gets it by default ("All" is gone)."""
+    from ai_agent import roles as app_roles
+
+    return app_roles.has_role(allowed_roles() or {app_roles.BUBBLE_ROLE}, user)
 
 
 def error_reply() -> str:

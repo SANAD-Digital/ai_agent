@@ -26,6 +26,9 @@ class AIProvider(Document):
 				self.name,
 			)
 			frappe.clear_document_cache("AI Provider", self.name)
+			# AI Settings > Default Provider shows the same choice
+			if frappe.db.get_single_value("AI Settings", "default_provider") != self.name:
+				frappe.db.set_single_value("AI Settings", "default_provider", self.name)
 
 	def api_key_preview(self):
 		try:
@@ -81,6 +84,12 @@ def fetch_models(provider):
 	from ai_agent.engine.providers.factory import provider_config
 
 	config = provider_config(doc)
+	from ai_agent.engine.providers.base import is_local
+
+	# a local server (Ollama, LM Studio…) may need no key; a cloud provider always does
+	on_this_machine = is_local(config) or any(h in (config.get("base_url") or "") for h in ("localhost", "127.0.0.1"))
+	if not config.get("api_key") and not on_this_machine:
+		frappe.throw(_("Add the provider's API key and save, then fetch the models."))
 	try:
 		if config["type"] == "Anthropic":
 			models = _anthropic_models(config)
@@ -108,6 +117,8 @@ def _anthropic_models(config):
 	out = []
 	for m in anthropic.Anthropic(**kwargs).models.list():   # iterating auto-paginates
 		caps = getattr(m, "capabilities", None) or {}
+		if hasattr(caps, "model_dump"):   # SDK 1.x returns a typed object, older ones a dict
+			caps = caps.model_dump()
 		thinking = caps.get("thinking") or {}
 		out.append({
 			"model_name": m.id,

@@ -64,7 +64,23 @@ frappe.pages["agent-workspace"].on_page_load = async function (wrapper) {
     }
 };
 
+/**
+ * Show the app's workspace sidebar. Desk picks a sidebar from the route's
+ * second part, which here is a conversation name (agent-workspace/<session>)
+ * that no sidebar links to, so after a reload it showed none. Keep the current
+ * sidebar when it already holds the chat; otherwise prefer AI.
+ */
+function show_ai_sidebar() {
+    const sidebar = frappe.app && frappe.app.sidebar;
+    if (!sidebar || !sidebar.setup || !sidebar.get_workspace_sidebars) return;
+    const holders = sidebar.get_workspace_sidebars("agent-workspace");
+    if (!holders.length || holders.includes(sidebar.sidebar_title)) return;
+    sidebar.setup(holders.includes("AI") ? "AI" : holders[0]);
+    sidebar.set_active_workspace_item();
+}
+
 frappe.pages["agent-workspace"].on_page_show = function (wrapper) {
+    show_ai_sidebar();
     // on_page_show fires right after on_page_load too — before the async
     // mount has finished. In that case on_page_load owns the route options.
     if (!wrapper.ai_chat) return;

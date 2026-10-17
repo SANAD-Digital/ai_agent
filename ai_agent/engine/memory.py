@@ -24,7 +24,8 @@ from ai_agent.runtime.memory_service import MemoryService, normalize_entity_key
 
 MAX_PREFERENCES = 12
 MAX_RELEVANT = 6
-MAX_LINE_CHARS = 220
+MAX_LINE_CHARS = 1200   # a whole memory (the store limit); the total stays under MAX_RECALL_CHARS
+MAX_RECALL_CHARS = 5000
 IDLE_MINUTES = 20
 MIN_NEW_MESSAGES = 2
 TRANSCRIPT_CHARS = 24_000
@@ -75,14 +76,24 @@ def recall(ctx, agent_doc, query_text, limit=MAX_RELEVANT):
     normalized_query = normalize_entity_key(query_text or "")
     others.sort(key=lambda r: MemoryService()._relevance_key(r, normalized_query), reverse=True)
 
-    lines = []
+    lines, budget = [], MAX_RECALL_CHARS
+
+    def add(rows):
+        nonlocal budget
+        for r in rows:
+            line = f"- {_line(r)}"
+            if len(line) > budget:
+                break
+            lines.append(line)
+            budget -= len(line)
+
     if preferences:
         lines.append("Preferences:")
-        lines += [f"- {_line(r)}" for r in preferences[:MAX_PREFERENCES]]
+        add(preferences[:MAX_PREFERENCES])
     relevant = others[:limit]
     if relevant:
         lines.append("Facts that may apply:")
-        lines += [f"- {_line(r)}" for r in relevant]
+        add(relevant)
     return "\n".join(lines)
 
 

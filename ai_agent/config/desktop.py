@@ -4,9 +4,9 @@ def get_data():
             "module_name": "AI Agent",
             "category": "Modules",
             "label": "AI",
-            "color": "#171717",
+            "color": "#D97757",
             "icon": "octicon octicon-hubot",
-            "logo_url": "/assets/ai_agent/desktop_icons/ai.svg",
+            "logo_url": "/assets/ai_agent/musaed-brand/assets/svg/icon/icon-primary.svg",
             "type": "module",
             "description": "Run ERP AI analysis, approvals, purchase invoice extraction, and agent configuration.",
         }

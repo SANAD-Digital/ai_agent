@@ -160,7 +160,7 @@ class ActionInterceptor:
                     f"Workflow action '{arguments.get('action')}' on "
                     f"{arguments.get('doctype')} {arguments.get('document_name')}"
                 ),
-                impact_summary="The workflow action will be applied to the document.",
+                impact_summary=self._workflow_impact(arguments),
                 payload={
                     "doctype": arguments.get("doctype"),
                     "name": arguments.get("document_name"),
@@ -174,6 +174,23 @@ class ActionInterceptor:
             return {"approval_required": True, "approval_id": approval.name}
 
         return {"error": f"Unknown action tool: {tool_name}"}
+
+    @staticmethod
+    def _workflow_impact(arguments):
+        """"State A → State B" for the approval card, when the transition is known."""
+        try:
+            from ai_agent.tools.workflow import workflow_of
+
+            doctype, name, action = arguments.get("doctype"), arguments.get("document_name"), arguments.get("action")
+            workflow = workflow_of(doctype)
+            if workflow and name and frappe.db.exists(doctype, name):
+                state = frappe.db.get_value(doctype, name, workflow.workflow_state_field or "workflow_state")
+                nxt = next((t.next_state for t in workflow.transitions if t.state == state and t.action == action), None)
+                if nxt:
+                    return f"{state} → {nxt}"
+        except Exception:
+            pass
+        return "The workflow action will be applied to the document."
 
     def maybe_create_approval_from_prepare(self, tool_name, result):
         if tool_name != "actions.prepare_document" or not isinstance(result, dict):

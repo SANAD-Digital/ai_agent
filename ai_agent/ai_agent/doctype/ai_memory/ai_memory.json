@@ -1,117 +1,147 @@
 {
-    "name": "AI Memory",
-    "module": "AI Agent",
-    "doctype": "DocType",
-    "engine": "InnoDB",
-    "fields": [
-        {
-            "fieldname": "scope",
-            "fieldtype": "Select",
-            "options": "User\nCompany\nAgent",
-            "default": "User",
-            "reqd": 1,
-            "in_list_view": 1,
-            "label": "Scope"
-        },
-        {
-            "fieldname": "user",
-            "fieldtype": "Link",
-            "options": "User",
-            "mandatory_depends_on": "eval:doc.scope!='Agent'",
-            "in_list_view": 1,
-            "label": "User"
-        },
-        {
-            "fieldname": "agent",
-            "fieldtype": "Link",
-            "options": "AI Agent",
-            "depends_on": "eval:doc.scope=='Agent'",
-            "mandatory_depends_on": "eval:doc.scope=='Agent'",
-            "in_list_view": 1,
-            "label": "Agent"
-        },
-        {
-            "fieldname": "company",
-            "fieldtype": "Link",
-            "options": "Company",
-            "depends_on": "eval:doc.scope=='Company' || doc.scope=='Agent'",
-            "mandatory_depends_on": "eval:doc.scope=='Company'",
-            "in_list_view": 1,
-            "label": "Company"
-        },
-        {
-            "fieldname": "source_run",
-            "fieldtype": "Link",
-            "options": "AI Run",
-            "read_only": 1,
-            "label": "Source Run"
-        },
-        {
-            "fieldname": "memory_type",
-            "fieldtype": "Select",
-            "options": "Preference\nContext\nSummary\nMapping",
-            "reqd": 1,
-            "in_list_view": 1,
-            "label": "Memory Type"
-        },
-        {
-            "fieldname": "content",
-            "fieldtype": "Long Text",
-            "reqd": 1,
-            "label": "Content"
-        },
-        {
-            "fieldname": "entity_type",
-            "fieldtype": "Data",
-            "label": "Entity Type",
-            "description": "What the memory is about: Supplier, Cash Supplier, Customer, Account, Item, ..."
-        },
-        {
-            "fieldname": "entity_key",
-            "fieldtype": "Data",
-            "label": "Entity Key",
-            "search_index": 1,
-            "description": "Arabic-normalized entity name used for relevance lookup and mapping upserts."
-        },
-        {
-            "fieldname": "mapping_json",
-            "fieldtype": "Small Text",
-            "label": "Mapping JSON",
-            "description": "Structured fact for Mapping memories, e.g. {\"account\": ..., \"cost_center\": ...}."
-        },
-        {
-            "fieldname": "usage_count",
-            "fieldtype": "Int",
-            "label": "Usage Count",
-            "default": "0"
-        },
-        {
-            "fieldname": "expires_at",
-            "fieldtype": "Datetime",
-            "label": "Expires At"
-        },
-        {
-            "fieldname": "sensitivity",
-            "fieldtype": "Select",
-            "options": "Low\nMedium\nHigh",
-            "default": "Low",
-            "label": "Sensitivity"
-        }
-    ],
-    "permissions": [
-        {
-            "role": "System Manager",
-            "read": 1,
-            "write": 1,
-            "create": 1,
-            "delete": 1,
-            "submit": 0,
-            "cancel": 0,
-            "amend": 0
-        }
-    ],
-    "sort_field": "modified",
-    "sort_order": "DESC",
-    "title_field": "content",
-    "track_changes": 1
+ "actions": [],
+ "creation": "2026-10-11 02:34:59.651660",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "scope",
+  "user",
+  "agent",
+  "company",
+  "source_run",
+  "memory_type",
+  "title",
+  "content",
+  "entity_type",
+  "entity_key",
+  "mapping_json",
+  "usage_count",
+  "expires_at",
+  "sensitivity"
+ ],
+ "fields": [
+  {
+   "default": "User",
+   "fieldname": "scope",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Scope",
+   "options": "User\nCompany\nAgent",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "mandatory_depends_on": "eval:doc.scope!='Agent'",
+   "options": "User"
+  },
+  {
+   "depends_on": "eval:doc.scope=='Agent'",
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Agent",
+   "mandatory_depends_on": "eval:doc.scope=='Agent'",
+   "options": "AI Agent"
+  },
+  {
+   "depends_on": "eval:doc.scope=='Company' || doc.scope=='Agent'",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "mandatory_depends_on": "eval:doc.scope=='Company'",
+   "options": "Company"
+  },
+  {
+   "fieldname": "source_run",
+   "fieldtype": "Link",
+   "label": "Source Run",
+   "options": "AI Run",
+   "read_only": 1
+  },
+  {
+   "fieldname": "memory_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Memory Type",
+   "options": "Preference\nContext\nSummary\nMapping",
+   "reqd": 1
+  },
+  {
+   "description": "Set from the start of the content.",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Long Text",
+   "label": "Content"
+  },
+  {
+   "description": "What the memory is about: Supplier, Cash Supplier, Customer, Account, Item, ...",
+   "fieldname": "entity_type",
+   "fieldtype": "Data",
+   "label": "Entity Type"
+  },
+  {
+   "description": "Arabic-normalized entity name used for relevance lookup and mapping upserts.",
+   "fieldname": "entity_key",
+   "fieldtype": "Data",
+   "label": "Entity Key",
+   "search_index": 1
+  },
+  {
+   "description": "Structured fact for Mapping memories, e.g. {\"account\": ..., \"cost_center\": ...}.",
+   "fieldname": "mapping_json",
+   "fieldtype": "Small Text",
+   "label": "Mapping JSON"
+  },
+  {
+   "default": "0",
+   "fieldname": "usage_count",
+   "fieldtype": "Int",
+   "label": "Usage Count"
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Expires At"
+  },
+  {
+   "default": "Low",
+   "fieldname": "sensitivity",
+   "fieldtype": "Select",
+   "label": "Sensitivity",
+   "options": "Low\nMedium\nHigh"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-11 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Memory",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
 }

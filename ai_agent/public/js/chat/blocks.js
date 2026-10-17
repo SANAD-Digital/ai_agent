@@ -13,32 +13,13 @@
     "use strict";
 
     const AIChat = window.AIChat;
-    const { h, icon, md, __, fmtDuration, prettyJson, toolLabel, toolIcon, toolDotted, escape, formLink, fmtTokens } = AIChat;
+    const { h, icon, md, __, fmtDuration, prettyJson, toolLabel, escape, formLink, fmtTokens } = AIChat;
 
     const RENDER_THROTTLE_MS = 50;
 
     /* ------------------------------------------------------------------ */
     /* shared pieces                                                       */
     /* ------------------------------------------------------------------ */
-
-    function statusIcon(status) {
-        const wrap = h("span.ac-status-icon", { dataset: { status } });
-        if (status === "streaming" || status === "running" || status === "pending") {
-            wrap.appendChild(icon("loader", "ac-spin"));
-        } else if (status === "failed" || status === "denied") {
-            wrap.appendChild(icon("x"));
-        } else {
-            wrap.appendChild(icon("check"));
-        }
-        return wrap;
-    }
-
-    function setStatusIcon(wrap, status) {
-        if (wrap.dataset.status === status) return;
-        wrap.dataset.status = status;
-        AIChat.clear(wrap);
-        wrap.appendChild(statusIcon(status).firstChild);
-    }
 
     function jsonPre(value) {
         return h("pre.ac-json", { text: prettyJson(value) });
@@ -211,26 +192,78 @@
     /* tool card (tool_use + tool_result)                                  */
     /* ------------------------------------------------------------------ */
 
+    /* Claude-style step rows: "tool label  argument summary  ›", Request / Response panels */
+    const ARG_KEYS = ["doctype", "parent_doctype", "document_name", "name", "report_name", "report", "metric", "group", "action", "file", "skill", "plugin", "query", "q", "txt", "search", "url", "title"];
+
+    function humanKey(key) {
+        const text = String(key).replace(/^_+/, "").replace(/[_.]+/g, " ").trim();
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    function isScalar(v) {
+        return v !== null && v !== undefined && v !== "" && typeof v !== "object";
+    }
+
+    /** "Journal Entry", or "Doctype: Journal Entry Account, Parent doctype: Journal Entry" (like Claude). */
+    function argsSummary(data) {
+        if (!data || typeof data !== "object") return "";
+        const keys = Object.keys(data).filter((k) => !k.startsWith("_") && isScalar(data[k]));
+        const ordered = ARG_KEYS.filter((k) => keys.includes(k)).concat(keys.filter((k) => !ARG_KEYS.includes(k)));
+        const picked = ordered.slice(0, 2);
+        if (!picked.length) return "";
+        const text = picked.length === 1 ? String(data[picked[0]]) : picked.map((k) => `${humanKey(k)}: ${data[k]}`).join(", ");
+        return text.length > 90 ? text.slice(0, 89) + "…" : text;
+    }
+
+    /** Flat key/value rows, one level deep ("Payload item group name"), lists counted. */
+    function kvRows(obj, prefix, out) {
+        out = out || [];
+        for (const key of Object.keys(obj || {})) {
+            if (key.startsWith("_") || out.length >= 40) continue;
+            const v = obj[key];
+            const label = prefix ? `${prefix} ${humanKey(key).toLowerCase()}` : humanKey(key);
+            if (isScalar(v)) out.push([label, String(v)]);
+            else if (Array.isArray(v)) out.push([label, v.length && v.every(isScalar) && v.join(", ").length < 120 ? v.join(", ") : __("{0} items", [v.length])]);
+            else if (v && typeof v === "object" && !prefix) kvRows(v, humanKey(key), out);
+            else if (v && typeof v === "object") out.push([label, JSON.stringify(v).slice(0, 120)]);
+        }
+        return out;
+    }
+
+    function kvGrid(obj) {
+        const rows = kvRows(obj);
+        if (!rows.length) return null;
+        return h("div.ac-kv-grid", rows.map(([k, v]) => [h("div.ac-kv-key", { text: k }), h("div.ac-kv-val", { text: v })]).flat());
+    }
+
+    function stepPanel(title) {
+        const body = h("div.ac-step-panel-body");
+        const el = h("div.ac-step-panel", h("div.ac-step-panel-title", { text: title }), body);
+        return { el, body };
+    }
+
     function renderTool(block, ctx) {
         const name = block.name || "";
-        const status = h("span.ac-status-icon");
-        const duration = h("span.ac-tool-duration");
         const title = h("span.ac-tool-title", { text: toolLabel(name) });
-        const wire = h("span.ac-tool-wire", { text: toolDotted(name) });
-        const inputPre = h("div.ac-tool-section", h("div.ac-tool-section-title", { text: __("Input") }), h("div.ac-tool-section-body"));
-        const outputSec = h("div.ac-tool-section", h("div.ac-tool-section-title", { text: __("Output") }), h("div.ac-tool-section-body"));
+        const argsEl = h("span.ac-step-args");
+        const failEl = h("span.ac-step-failed", { text: __("Failed") });
+        const request = stepPanel(__("Request"));
+        const response = stepPanel(__("Response"));
+        const outputSec = response.el;
         outputSec.hidden = true;
-        const body = h("div", inputPre, outputSec);
-        const root = collapsible([h("span.ac-tool-icon", icon(toolIcon(name))), title, wire, duration, status], body, {
+        const body = h("div.ac-step-body", request.el, response.el);
+        const root = collapsible([title, argsEl, failEl], body, {
             class: "ac-block ac-tool",
             open: false,
         });
         let resultBlock = null;
         let lastInput = null;
         let lastOutputKey = null;
-        // The MCP App view of the result (same view ChatGPT/Claude render), shown outside the collapsed details.
+        // The MCP App view of the result (same view ChatGPT/Claude render): inside the tool's own
+        // collapsed details, so every step of the work stays folded until the user opens it.
         const viewSlot = h("div.ac-tool-view");
-        const card = h("div.ac-tool-wrap", root, viewSlot);
+        response.el.insertBefore(viewSlot, response.body);
+        const card = h("div.ac-tool-wrap", root);
         let view = null;
 
         function paintView(r) {
@@ -242,15 +275,18 @@
                 view = AIChat.viewHost.mount(toolResult, { session });
                 viewSlot.appendChild(view.el);
             }
+            outputSec.hidden = false;
+            response.body.hidden = true; // the view is the output; the raw rows would repeat it
         }
 
         function paintInput(b) {
             const key = b.data && Object.keys(b.data).length ? JSON.stringify(b.data) : b._json || "";
             if (key === lastInput) return;
             lastInput = key;
-            const target = inputPre.lastChild;
+            const target = request.body;
             AIChat.clear(target);
-            if (b.data && Object.keys(b.data).length) target.appendChild(jsonPre(b.data));
+            argsEl.textContent = argsSummary(b.data);
+            if (b.data && Object.keys(b.data).length) target.appendChild(kvGrid(b.data) || jsonPre(b.data));
             else if (b.status === "streaming") target.appendChild(h("div.ac-muted", { text: __("Preparing input…") }));
             else target.appendChild(h("div.ac-muted", { text: "—" }));
         }
@@ -260,6 +296,7 @@
             if (key === lastOutputKey) return;
             lastOutputKey = key;
             outputSec.hidden = false;
+            response.body.hidden = !!view;
             const target = outputSec.lastChild;
             AIChat.clear(target);
             let data = r.data;
@@ -280,7 +317,7 @@
                 return;
             }
             if (data && typeof data === "object" && Object.keys(data).length) {
-                target.appendChild(jsonPre(data));
+                target.appendChild(kvGrid(data) || jsonPre(data));
                 return;
             }
             if (r.text) {
@@ -300,15 +337,8 @@
         }
 
         function update(b) {
-            if (b.name && b.name !== name) {
-                title.textContent = toolLabel(b.name);
-                wire.textContent = toolDotted(b.name);
-            }
-            const st = effectiveStatus(b);
-            setStatusIcon(status, st);
-            root.dataset.status = st;
-            const ms = (resultBlock && resultBlock.duration_ms) || b.duration_ms || 0;
-            duration.textContent = ms ? fmtDuration(ms) : "";
+            if (b.name && b.name !== name) title.textContent = toolLabel(b.name);
+            root.dataset.status = effectiveStatus(b); // CSS: "Failed" tag, running pulse
             paintInput(b);
             if (resultBlock) {
                 paintOutput(resultBlock);
@@ -322,11 +352,8 @@
         }
 
         update(block);
-        const grouped = ctx && ctx.inGroup;
-        if (grouped) card.removeChild(viewSlot); // the result view stays in the message flow, outside the collapsed group
         return {
             el: card,
-            outside: grouped ? viewSlot : null,
             kind: "tool_use",
             update: (b) => {
                 block = b;
@@ -368,6 +395,8 @@
         "Approved Method": () => __("Approved action"),
     };
 
+    const AUTO_TYPES = new Set(["Create", "Bulk Create", "Update"]);
+
     function payloadSummary(payload) {
         if (!payload || typeof payload !== "object") return null;
         const rows = [];
@@ -388,7 +417,6 @@
 
     function renderApproval(block, ctx) {
         const badge = h("span.ac-badge");
-        const heading = h("span.ac-approval-title");
         const summary = h("div.ac-approval-summary");
         const impact = h("div.ac-approval-impact");
         const kv = h("div.ac-approval-kv");
@@ -401,19 +429,23 @@
         reasonBox.hidden = true;
 
         const btnApprove = h("button.ac-btn.ac-btn-primary", { type: "button" }, icon("check"), h("span", { text: __("Approve") }));
+        // drafts and edits can switch the conversation to auto mode (policy.AUTO_APPROVE_TYPES)
+        const btnAlways = h("button.ac-btn.ac-btn-ghost", { type: "button" }, icon("check-check"), h("span", { text: __("Always approve in this conversation") }));
         const btnReject = h("button.ac-btn.ac-btn-danger-ghost", { type: "button" }, icon("x"), h("span", { text: __("Reject") }));
         const btnDetails = h("button.ac-btn.ac-btn-ghost", { type: "button" }, h("span", { text: __("Details") }), icon("chevron", "ac-chevron"));
-        const actions = h("div.ac-approval-actions", btnApprove, btnReject, btnDetails);
+        // Claude's permission card: details on the far side, then Deny · Always allow · Allow once
+        const actions = h("div.ac-approval-actions", btnDetails, btnReject, btnAlways, btnApprove);
 
         const reasonInput = h("textarea.ac-textarea", { rows: 2, placeholder: __("Reason for rejecting (optional)") });
         const btnConfirmReject = h("button.ac-btn.ac-btn-danger", { type: "button", text: __("Confirm rejection") });
         const btnCancelReject = h("button.ac-btn.ac-btn-ghost", { type: "button", text: __("Cancel") });
         reasonBox.append(reasonInput, h("div.ac-row", btnConfirmReject, btnCancelReject));
 
+        const kicker = h("span.ac-approval-kicker");
+        const meta = h("div.ac-approval-meta");
         const root = h(
             "div.ac-block.ac-approval",
-            h("div.ac-approval-head", h("span.ac-approval-icon", icon("shield")), heading, badge),
-            summary,
+            h("div.ac-approval-head", h("span.ac-approval-icon", icon("shield")), h("div.ac-approval-heading", kicker, summary, meta), badge),
             impact,
             kv,
             details,
@@ -432,7 +464,7 @@
 
         function setBusy(v) {
             busy = v;
-            [btnApprove, btnReject, btnConfirmReject].forEach((x) => (x.disabled = v));
+            [btnApprove, btnAlways, btnReject, btnConfirmReject].forEach((x) => (x.disabled = v));
             root.classList.toggle("is-busy", v);
         }
 
@@ -444,6 +476,7 @@
             AIChat.api
                 .decide_approval({ approval: s.approval, decision, reason: reason || null })
                 .then((r) => {
+                    if (r && r.session && ctx && ctx.store) ctx.store.upsertSession(r.session); // now in auto mode
                     if (r && r.approval) {
                         current = Object.assign({}, current, { data: Object.assign({}, s, r.approval), status: "completed" });
                         // reflect locally right away; approval.decided will confirm
@@ -469,6 +502,7 @@
         }
 
         btnApprove.addEventListener("click", () => decide("approve"));
+        btnAlways.addEventListener("click", () => decide("approve_always"));
         btnReject.addEventListener("click", () => {
             reasonBox.hidden = !reasonBox.hidden;
             if (!reasonBox.hidden) reasonInput.focus();
@@ -489,14 +523,15 @@
             lastKey = key;
 
             const action = ACTION_TYPES[s.action_type] ? ACTION_TYPES[s.action_type]() : s.action_type || "";
-            heading.textContent = [__("Approval request"), action, s.doctype_name].filter(Boolean).join(" · ");
             const st = s.status || "Pending";
-            badge.textContent = APPROVAL_STATUS[st] ? APPROVAL_STATUS[st]() : st;
+            kicker.textContent = st === "Pending" ? __("Musaed needs your approval") : __("Approval request");
+            meta.textContent = [action, s.doctype_name, s.document_name].filter(Boolean).join(" · ");
+            badge.textContent = s.auto && st === "Executed" ? __("Executed automatically") : APPROVAL_STATUS[st] ? APPROVAL_STATUS[st]() : st;
             badge.dataset.status = st;
             root.dataset.status = st;
 
-            summary.textContent = s.action_summary || "";
-            summary.hidden = !s.action_summary;
+            summary.textContent = s.action_summary || [__("Approval request"), action, s.doctype_name].filter(Boolean).join(" · ");
+            badge.hidden = st === "Pending";
             AIChat.clear(impact);
             if (s.impact_summary) {
                 impact.append(icon("info"), h("span", { text: s.impact_summary }));
@@ -504,8 +539,7 @@
             } else impact.hidden = true;
 
             AIChat.clear(kv);
-            const table = payloadSummary(s.payload);
-            if (table) kv.appendChild(table);
+            const table = payloadSummary(s.payload); // the request's fields live under "Details", like Claude's parameters
             if (s.document_name) {
                 kv.appendChild(h("div.ac-small.ac-muted", h("span", { text: __("Document: ") }), h("a", { href: formLink(s.doctype_name, s.document_name), target: "_blank", rel: "noopener", text: s.document_name })));
             }
@@ -514,15 +548,19 @@
             }
 
             AIChat.clear(details);
+            if (table) details.appendChild(table);
             details.appendChild(h("div.ac-tool-section-title", { text: __("Full payload") }));
             details.appendChild(jsonPre(s.payload || {}));
 
             AIChat.clear(outcome);
             const pending = st === "Pending";
             actions.hidden = !pending;
+            const canAlways = pending && AUTO_TYPES.has(s.action_type) && !!(AIChat.store && AIChat.store.state.autoApproval);
+            btnAlways.hidden = !canAlways;
+            btnApprove.lastChild.textContent = canAlways ? __("Approve once") : __("Approve");
             btnDetails.hidden = false;
             if (!pending) {
-                const who = s.decided_by ? __("By {0}", [s.decided_by]) : "";
+                const who = s.auto ? __("Auto-approval is on in this conversation") : s.decided_by ? __("By {0}", [s.decided_by]) : "";
                 const when = s.decided_at ? AIChat.relTime(s.decided_at) : "";
                 const line = [who, when].filter(Boolean).join(" · ");
                 if (line) outcome.appendChild(h("div.ac-small.ac-muted", { text: line }));
@@ -543,7 +581,7 @@
                 // the details toggle stays; move it into the outcome row
                 outcome.appendChild(h("div.ac-row", btnDetails));
             } else {
-                actions.appendChild(btnDetails);
+                actions.insertBefore(btnDetails, actions.firstChild); // the far side, before Deny · Always · Allow once
             }
         }
 
@@ -805,6 +843,125 @@
     }
 
     /* ------------------------------------------------------------------ */
+    /* question (ui__ask) and suggestions (ui__suggest)                    */
+    /* ------------------------------------------------------------------ */
+
+    /** The next user message after this reply, if any (the question's answer). */
+    function answerAfter(ctx) {
+        const store = ctx && ctx.store;
+        const msg = ctx && ctx.message;
+        if (!store || !msg) return null;
+        const i = store.state.order.indexOf(msg.name);
+        if (i < 0) return null;
+        for (const name of store.state.order.slice(i + 1)) {
+            const m = store.getMessage(name);
+            if (m && m.role === "user") return m;
+        }
+        return null;
+    }
+
+    function renderQuestion(block, ctx) {
+        const title = h("div.ac-question-title");
+        const list = h("div.ac-question-options", { role: "group" });
+        const other = h("input.ac-question-other-input", { type: "text", placeholder: __("Something else…"), aria: { label: __("Something else…") } });
+        const btnSend = h("button.ac-btn.ac-btn-primary.ac-btn-sm", { type: "button" }, h("span", { text: __("Send") }), icon("send"));
+        const otherRow = h("label.ac-question-option.ac-question-other", h("span.ac-question-mark"), other);
+        const footer = h("div.ac-question-foot", btnSend);
+        const answered = h("div.ac-question-answered");
+        const root = h("div.ac-block.ac-question", h("div.ac-question-head", icon("help"), title), list, otherRow, footer, answered);
+        let data = {};
+        let picked = new Set();
+        let sent = null;
+
+        function answerText() {
+            const typed = other.value.trim();
+            const labels = data.options.filter((o, i) => picked.has(i)).map((o) => o.label);
+            return [...labels, typed].filter(Boolean).join("، ");
+        }
+        function send(text) {
+            if (!text || sent || !ctx || !ctx.onSend) return;
+            sent = text;
+            paint();
+            Promise.resolve(ctx.onSend(text)).catch(() => {
+                sent = null;
+                paint();
+            });
+        }
+        function paint() {
+            const after = answerAfter(ctx);
+            const done = sent || (after && after.text);
+            root.classList.toggle("is-answered", !!done);
+            Array.from(list.children).forEach((el, i) => {
+                el.disabled = !!done;
+                el.setAttribute("aria-checked", String(picked.has(i) || (!!done && done.split("، ").includes(data.options[i].label))));
+            });
+            other.disabled = !!done;
+            otherRow.hidden = !!done;
+            footer.hidden = !!done || (!data.multiple && !other.value.trim());
+            btnSend.disabled = !answerText();
+            // answered, like Claude: the question in grey, the answer under it in dark text
+            list.hidden = !!done;
+            answered.hidden = !done;
+            answered.textContent = done || "";
+        }
+        function update(b) {
+            data = Object.assign({ options: [] }, b.data || {});
+            title.textContent = data.question || "";
+            AIChat.clear(list);
+            list.setAttribute("aria-label", data.question || "");
+            data.options.forEach((o, i) => {
+                const opt = h(
+                    "button.ac-question-option",
+                    { type: "button", role: data.multiple ? "checkbox" : "radio" },
+                    h("span.ac-question-mark"),
+                    h("span.ac-question-text", h("span.ac-question-label", { text: o.label }), o.description ? h("span.ac-question-desc", { text: o.description }) : null)
+                );
+                opt.addEventListener("click", () => {
+                    if (!data.multiple) return send(o.label); // one choice: picking it is the answer
+                    picked.has(i) ? picked.delete(i) : picked.add(i);
+                    paint();
+                });
+                list.appendChild(opt);
+            });
+            paint();
+        }
+        other.addEventListener("input", paint);
+        other.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.isComposing) {
+                e.preventDefault();
+                send(answerText());
+            }
+        });
+        btnSend.addEventListener("click", () => send(answerText()));
+        const off = ctx && ctx.store ? ctx.store.on("messages", paint) : null;
+        update(block);
+        return { el: root, kind: "question", update, destroy: () => off && off() };
+    }
+
+    function renderSuggestions(block, ctx) {
+        const row = h("div.ac-block.ac-suggestions-row", { role: "group", aria: { label: __("Suggestions") } });
+        function isLatest() {
+            const order = (ctx && ctx.store && ctx.store.state.order) || [];
+            return !!(ctx && ctx.message) && order[order.length - 1] === ctx.message.name;
+        }
+        function paint() {
+            row.hidden = !isLatest(); // only the newest reply offers follow-ups
+        }
+        function update(b) {
+            AIChat.clear(row);
+            ((b.data && b.data.items) || []).forEach((text) => {
+                const chip = h("button.ac-followup", { type: "button" }, h("span", { text }), icon("arrow-up-left", "ac-followup-arrow"));
+                chip.addEventListener("click", () => ctx && ctx.onSend && ctx.onSend(text));
+                row.appendChild(chip);
+            });
+            paint();
+        }
+        const off = ctx && ctx.store ? ctx.store.on("messages", paint) : null;
+        update(block);
+        return { el: row, kind: "suggestions", update, destroy: () => off && off() };
+    }
+
+    /* ------------------------------------------------------------------ */
     /* dispatch                                                            */
     /* ------------------------------------------------------------------ */
 
@@ -814,6 +971,8 @@
         tool_use: renderTool,
         tool_result: renderToolResultOnly,
         approval: renderApproval,
+        question: renderQuestion,
+        suggestions: renderSuggestions,
         artifact: renderArtifact,
         skill: renderSkill,
         memory: renderMemory,

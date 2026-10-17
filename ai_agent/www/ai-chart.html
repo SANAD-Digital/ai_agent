@@ -2,10 +2,18 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block favicon %}
+<link rel="icon" href="/assets/ai_agent/musaed-brand/assets/favicon/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/ai_agent/musaed-brand/assets/favicon/favicon-32.png">
+<link rel="apple-touch-icon" href="/assets/ai_agent/musaed-brand/assets/favicon/apple-touch-icon.png">
+{% endblock %}
+
 {% block page_content %}
 <link rel="stylesheet" href="/assets/frappe/node_modules/frappe-charts/dist/frappe-charts.min.css">
-<div dir="auto" style="max-width: 960px; margin: 32px auto;">
-	<h2 style="margin-bottom: 16px;">{{ title }}</h2>
+<link rel="stylesheet" href="/assets/ai_agent/musaed-brand/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/ai_agent/musaed-brand/tokens/tokens.css">
+<div dir="auto" style="max-width: 960px; margin: 32px auto; font-family: var(--ms-font-ui);">
+	<h2 style="margin-bottom: 16px; font-family: var(--ms-font-brand); color: var(--ms-heading);">{{ title }}</h2>
 	<div id="ai-chart"></div>
 	<p id="ai-chart-error" class="text-muted" style="display: none;">{{ _("Could not draw the chart.") }}</p>
 </div>
@@ -27,7 +35,8 @@
 			data: { labels, datasets },
 			type,
 			height: 360,
-			colors: ["#6366f1", "#0ea5e9", "#f59e0b", "#16a34a", "#ef4444"],
+			// Musaed clay first; the rest are validated distinct hues (the brand's petrol reads gray as a series)
+			colors: ["#D97757", "#6366f1", "#0ea5e9", "#16a34a", "#f59e0b"],
 			truncateLegends: true,
 			axisOptions: { xIsSeries: 0, shortenYAxisNumbers: 1 },
 		});

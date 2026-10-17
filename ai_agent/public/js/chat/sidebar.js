@@ -53,7 +53,7 @@
         const el = h(
             "aside.ac-sidebar",
             { aria: { label: __("Conversations") } },
-            h("div.ac-sidebar-head", h("div.ac-brand", icon("sparkles"), h("span", { text: __("Assistant") })), btnCollapse),
+            h("div.ac-sidebar-head", btnCollapse),
             h("div.ac-sidebar-new", btnNew),
             h("div.ac-search", icon("search"), search),
             list,
@@ -123,7 +123,9 @@
         function row(session) {
             const current = store.state.current && store.state.current.name === session.name;
             const title = h("span.ac-session-title", { text: session.title || __("Untitled conversation") });
-            const preview = h("span.ac-session-preview", { text: session.preview || session.agent || "" });
+            // no preview yet: the agent's (translated) name from the boot list, not its record id
+            const agent = ((store.state.boot && store.state.boot.agents) || []).find((a) => a.name === session.agent);
+            const preview = h("span.ac-session-preview", { text: session.preview || (agent && agent.agent_name) || session.agent || "" });
             const time = h("span.ac-session-time", { text: relTime(session.last_message_on) });
             const btnMenu = h("button.ac-icon-btn.ac-session-menu-btn", { type: "button", title: __("Options"), aria: { label: __("Options"), haspopup: "menu" } }, icon("more"));
             const main = h("button.ac-session-main", { type: "button" }, h("span.ac-session-line", title, time), preview);

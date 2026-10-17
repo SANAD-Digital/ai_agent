@@ -27,6 +27,7 @@
         order: [],
         streaming: new Set(),
         hasMore: false,
+        autoApproval: false, // AI Settings allow auto mode (bootstrap of the page or the bubble)
         composer: {
             text: "",
             agent: null,
@@ -34,6 +35,7 @@
             provider: null,
             model: null,
             thinking: "adaptive",
+            approval_mode: "Ask",
             skill: null,
             context: null,
             files: [],
@@ -463,6 +465,9 @@
 
             case "skill.loaded":
             case "memory.note":
+            case "approval.auto": // auto mode: the card arrives already decided, the reply goes on
+            case "question.asked":
+            case "suggestions.shown":
             case "artifact.created": {
                 const block = upsertBlock(msg, ev.block_seq, ev.block || {});
                 if (!block.status || block.status === "streaming") block.status = "completed";

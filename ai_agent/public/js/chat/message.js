@@ -3,8 +3,8 @@
  *
  * Responsibility: `AIChat.message.render(msg, ctx)` → `{ el, update(msg),
  * destroy() }`. A user message is a light bubble with attachment chips and a
- * hover bar (edit / copy, inline edit form). An assistant message has an
- * avatar row, the block list (reconciled in place through blocks.js so
+ * hover bar (edit / copy, inline edit form). An assistant message has the
+ * block list (reconciled in place through blocks.js so
  * streaming deltas patch DOM instead of re-creating it), a pulsing "يعمل…"
  * indicator with an elapsed timer, an error state with retry, and a footer
  * with actions (copy / regenerate / 👍 / 👎) and meta (model · tokens · time).
@@ -139,12 +139,9 @@
         const btnDown = iconBtn("thumbs-down", __("Not helpful"), () => feedback(-1));
         const footer = h("div.ac-msg-footer", h("div.ac-msg-actions", btnCopy, btnRetry, btnUp, btnDown), meta);
 
-        const avatar = h("span.ac-avatar", icon("sparkles"));
-        const nameEl = h("span.ac-msg-author", { text: ctx.agentName || __("Assistant") });
         const root = h(
             "article.ac-msg.ac-msg-assistant",
-            { dataset: { name: msg.name } },
-            h("div.ac-msg-head", avatar, nameEl),
+            { dataset: { name: msg.name }, aria: { label: ctx.agentName || __("Assistant") } },
             h("div.ac-msg-body", blocksEl, working, awaitingNote, errorBox, cancelledNote, footer)
         );
 
@@ -183,28 +180,24 @@
         }
 
         function blockCtx() {
-            return { message: current, onRetry: ctx.onRetry ? () => ctx.onRetry(current) : null, api: ctx.api || AIChat.api, store: ctx.store || AIChat.store };
+            return { message: current, onRetry: ctx.onRetry ? () => ctx.onRetry(current) : null, onSend: ctx.onSend || null, api: ctx.api || AIChat.api, store: ctx.store || AIChat.store };
         }
 
-        /* Thinking and tool calls between two answers form one "process" group: a single
-           collapsible ("فكّر لمدة 7 ث · 3 أدوات") like Claude.ai. The answer text, artifacts,
-           approvals and the tools' result views stay in the message flow. */
+        // ui__ask / ui__suggest draw their own card (question, suggestions); their calls are not work steps
+        const isUiCall = (b) => (b.kind === "tool_use" || b.kind === "tool_result") && /^ui__/.test(b.name || "");
+
+        /* All the work behind a reply forms one "process" group: a single collapsible
+           ("فكّر لمدة 7 ث · 3 أدوات") like Claude.ai, holding the thinking, the tool calls,
+           their result views and any text written between steps. Only the final answer (text
+           after the last step), approvals and other cards stay in the message flow. */
         const PROCESS = new Set(["thinking", "tool_use", "tool_result"]);
         const groups = new Map(); // seq of the run's first block → group
 
-        function toolCount(n) {
-            if (n === 1) return __("1 tool");
-            if (n === 2) return __("2 tools");
-            // Arabic counts 3-10 and 11+ differently; the context picks the form.
-            return n <= 10 ? __("{0} tools", [n], "3-10") : __("{0} tools", [n]);
-        }
-
         function createGroup() {
             const label = h("span.ac-process-label");
-            const metaEl = h("span.ac-process-meta");
             const body = h("div.ac-process-body");
-            const el = AIChat.blocks.collapsible([h("span.ac-process-icon", icon("brain")), label, metaEl], body, { class: "ac-block ac-process", open: false });
-            return { el, body, label, metaEl, members: [] };
+            const el = AIChat.blocks.collapsible([label], body, { class: "ac-block ac-process", open: false });
+            return { el, body, label, members: [] };
         }
 
         /** Insert `el` after `after` in `parent` (first when null); an element already placed is never moved (an iframe would reload). */
@@ -230,9 +223,10 @@
                 let ms = first && ends.length ? Math.max(...ends) - first : 0;
                 if (!ms) ms = g.members.reduce((t, b) => t + (b.duration_ms || 0), 0);
                 const thought = g.members.some((b) => b.kind === "thinking");
-                g.label.textContent = ms ? (thought ? __("Thought for {0}", [fmtDuration(ms)]) : __("Worked for {0}", [fmtDuration(ms)])) : thought ? __("Thoughts") : __("Steps");
+                // like Claude's "Used SD MCP": tools named plainly; a pure thought keeps its time
+                g.label.textContent = tools ? __("Used the system tools") : ms ? __("Thought for {0}", [fmtDuration(ms)]) : __("Thoughts");
             }
-            g.metaEl.textContent = tools ? " · " + toolCount(tools) : "";
+
         }
 
         /** Reconcile renderers with msg.blocks, patching in place. */
@@ -244,14 +238,18 @@
                 if (b.kind === "tool_use" && b.id) useById.set(b.id, b.seq);
             });
             let cursor = null; // last element placed in the message flow
-            let run = null; // the open process group
+            let run = null; // the reply's process group
             let inner = null; // last element placed inside it
             let lastGroupKey = null;
-            for (const block of m.blocks) {
+            let lastStep = -1; // index of the last process block: text before it is narration, not the answer
+            m.blocks.forEach((b, i) => {
+                if (PROCESS.has(b.kind) && !isUiCall(b)) lastStep = i;
+            });
+            m.blocks.forEach((block, index) => {
+                if (isUiCall(block)) return;
                 const isProcess = PROCESS.has(block.kind);
-                // only answer text closes the group; cards (files, tables, approvals) go after it meanwhile
-                if (block.kind === "text") run = null;
-                if (isProcess && !run) {
+                const inGroup = isProcess || (block.kind === "text" && index < lastStep);
+                if (inGroup && !run) {
                     run = groups.get(block.seq);
                     if (!run) {
                         run = createGroup();
@@ -269,14 +267,13 @@
                     const owner = renderers.get(useById.get(block.id));
                     if (owner && owner.setResult) {
                         owner.setResult(block);
-                        continue;
+                        return;
                     }
                 }
                 let r = renderers.get(block.seq);
                 if (r && (r.kind !== block.kind || !!r.grouped !== isProcess)) {
                     if (r.destroy) r.destroy();
                     r.el.remove();
-                    if (r.outside) r.outside.remove();
                     renderers.delete(block.seq);
                     r = null;
                 }
@@ -287,24 +284,20 @@
                 } else {
                     r.update(block);
                 }
-                if (isProcess) {
+                if (inGroup) {
+                    // narration text moves in once a later step shows it was not the answer
                     place(run.body, r.el, inner);
                     inner = r.el;
-                    if (r.outside) {
-                        place(blocksEl, r.outside, cursor);
-                        cursor = r.outside;
-                    }
                 } else {
                     place(blocksEl, r.el, cursor);
                     cursor = r.el;
                 }
                 seen.add(block.seq);
-            }
+            });
             for (const [seq, r] of Array.from(renderers.entries())) {
                 if (!seen.has(seq)) {
                     if (r.destroy) r.destroy();
                     r.el.remove();
-                    if (r.outside) r.outside.remove();
                     renderers.delete(seq);
                 }
             }

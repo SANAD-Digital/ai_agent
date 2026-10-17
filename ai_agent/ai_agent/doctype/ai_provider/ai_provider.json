@@ -120,13 +120,36 @@
    "delete": 1
   },
   {
-   "role": "All",
-   "read": 1
+   "role": "AI Chat User",
+   "read": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
+  },
+  {
+   "role": "AI Chatbot User",
+   "read": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
+  },
+  {
+   "role": "AI MCP User",
+   "read": 1,
+   "email": 0,
+   "print": 0,
+   "report": 0,
+   "export": 0,
+   "share": 0
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-09-30 12:00:00.000000",
+ "modified": "2026-10-11 07:00:00.000000",
  "field_order": [
   "provider_name",
   "enabled",

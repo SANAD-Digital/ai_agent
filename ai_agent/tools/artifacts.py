@@ -54,7 +54,7 @@ def _normalize_chart_spec(spec):
         return None, shape
     labels = spec.get("labels")
     datasets = spec.get("datasets")
-    if not isinstance(labels, list) or not labels or not all(isinstance(l, (str, int, float)) for l in labels):
+    if not isinstance(labels, list) or not labels or not all(isinstance(label, (str, int, float)) for label in labels):
         return None, f"labels must be a flat array of strings. {shape}"
     if not isinstance(datasets, list) or not datasets:
         return None, f"datasets must be a non-empty array. {shape}"
@@ -71,7 +71,7 @@ def _normalize_chart_spec(spec):
     chart_type = str(spec.get("type") or "bar")
     return {
         "type": chart_type if chart_type in CHART_TYPES else "bar",
-        "labels": [str(l) for l in labels],
+        "labels": [str(label) for label in labels],
         "datasets": normalized,
     }, None
 

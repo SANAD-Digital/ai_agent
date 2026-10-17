@@ -88,14 +88,21 @@
             return a ? a.agent_name || a.name : agent || __("Assistant");
         }
 
+        /** A question's answer or a picked suggestion: sent as if the user typed it. */
+        function sendText(text) {
+            if (!text) return;
+            composer.setText(text);
+            return composer.submit();
+        }
+
         function messageCtx() {
-            return { onEdit: edit, onRetry: retry, onFeedback: feedback, agentName: agentName(), api, store };
+            return { onEdit: edit, onRetry: retry, onFeedback: feedback, onSend: sendText, agentName: agentName(), api, store };
         }
 
         function renderEmpty() {
             return h(
                 "div.ac-empty",
-                h("div.ac-empty-mark", icon("sparkles")),
+                AIChat.robot("ac-empty-robot"),
                 h("h2.ac-empty-title", { text: __("Start a conversation") }),
                 h("p.ac-empty-sub", { text: __("Ask about your data, run a report or prepare a document — {0} is ready.", [agentName()]) }),
                 h(
@@ -121,7 +128,7 @@
             if (s && s.model) agentEl.appendChild(h("span", { text: s.model }));
             meter.update(s);
             const u = s && s.usage;
-            if (u && (u.input_tokens || u.output_tokens)) {
+            if (u && (u.input_tokens || u.output_tokens) && !meter.el.hidden) {
                 const total = (u.input_tokens || 0) + (u.output_tokens || 0);
                 AIChat.clear(usageEl);
                 usageEl.appendChild(h("span", { text: __("{0} tokens", [fmtTokens(total)]) }));
@@ -222,6 +229,7 @@
                 provider: payload.provider,
                 model: payload.model,
                 thinking: payload.thinking,
+                approval_mode: payload.approval_mode,
                 files: payload.files,
                 skill: payload.skill,
                 context_doctype: payload.context_doctype,
@@ -338,6 +346,7 @@
         try {
             const boot = await api.bootstrap();
             store.setBoot(boot);
+            store.state.autoApproval = !!(boot.settings && boot.settings.auto_approval);
             if (boot.user && boot.user.dir) root.dataset.dir = boot.user.dir;
             composer.setSession(null);
             if (frappe.route_options && frappe.route_options.company) composer.setCompany(frappe.route_options.company);

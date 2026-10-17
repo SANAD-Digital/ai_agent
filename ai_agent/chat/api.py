@@ -11,6 +11,8 @@ import json
 
 import frappe
 from frappe import _
+
+from ai_agent import roles
 from frappe.utils import cint, now_datetime
 
 from ai_agent.ai_agent.doctype.ai_provider.ai_provider import chat_capable
@@ -50,6 +52,7 @@ def session_dict(doc, preview=None, context_tokens=None):
         "company": get("company"),
         "provider": get("provider"),
         "model": model,
+        "approval_mode": get("approval_mode") or "Ask",
         "status": get("status") or "Active",
         "surface": get("surface") or frappe.db.get_value("AI Chat Session", doc.name, "surface") or "Desk",
         "pinned": cint(get("pinned")),
@@ -167,7 +170,18 @@ def _attachments_for(message_names):
     return out
 
 
+def _chat_page():
+    """The full chat page and its own endpoints: AI Chat User (or System Manager)."""
+    roles.assert_role([roles.CHAT_ROLE])
+
+
+def _any_chat():
+    """Endpoints the page and the support window share."""
+    roles.assert_role([roles.CHAT_ROLE, roles.BUBBLE_ROLE])
+
+
 def _get_session(name, ptype="read"):
+    _any_chat()
     doc = frappe.get_doc("AI Chat Session", name)
     assert_owned_access(doc.user, "AI Chat Session", doc.name)
     if ptype != "read" and doc.user != frappe.session.user:
@@ -176,6 +190,7 @@ def _get_session(name, ptype="read"):
 
 
 def _get_message(name, ptype="read"):
+    _any_chat()
     doc = frappe.get_doc("AI Chat Message", name)
     assert_owned_access(doc.user, "AI Chat Message", doc.name)
     if ptype != "read" and doc.user != frappe.session.user:
@@ -189,6 +204,7 @@ def _get_message(name, ptype="read"):
 
 @frappe.whitelist()
 def bootstrap():
+    _chat_page()
     user = frappe.session.user
     info = frappe.db.get_value("User", user, ["full_name", "user_image", "language"], as_dict=True) or {}
     lang = info.get("language") or frappe.local.lang or "en"
@@ -206,13 +222,17 @@ def bootstrap():
             ],
         })
     agents = []
-    for a in frappe.get_all("AI Agent", filters={"enabled": 1}, fields=["name", "agent_name", "description", "read_only", "allow_actions"]):
-        agents.append({"name": a["name"], "agent_name": a.get("agent_name") or a["name"], "description": a.get("description") or "", "read_only": cint(a.get("read_only")), "allow_actions": cint(a.get("allow_actions")), "is_default": cint(a.get("is_default"))})
+    for a in frappe.get_all("AI Agent", filters={"enabled": 1}, fields=["name", "agent_name", "description", "read_only", "allow_actions", "provider", "model"]):
+        # Names and descriptions are data, translated in the "AI Agent" context (ar.csv for the
+        # standard agents; any other agent through Desk's Translation list).
+        agents.append({"name": a["name"], "agent_name": _(a.get("agent_name") or a["name"], context="AI Agent"),
+            "description": _(a.get("description") or "", context="AI Agent") if a.get("description") else "", "read_only": cint(a.get("read_only")), "allow_actions": cint(a.get("allow_actions")), "is_default": cint(a.get("is_default")),
+            "provider": a.get("provider") or None, "model": a.get("model") or None})
     return {
         "user": {"name": user, "full_name": info.get("full_name") or user, "image": info.get("user_image"), "language": lang, "dir": "rtl" if str(lang).startswith(("ar", "he", "fa", "ur")) else "ltr"},
         "agents": agents,
         "providers": providers,
-        "settings": {"third_party_warning": policy.third_party_warning(), "thinking_options": ["off", "adaptive", "on"]},
+        "settings": {"third_party_warning": policy.third_party_warning(), "thinking_options": ["off", "adaptive", "on"], "auto_approval": policy.auto_approval_available()},
         "sessions": list_sessions(limit=50)["sessions"],
     }
 
@@ -252,6 +272,7 @@ def _guess_thinking(model):
 
 @frappe.whitelist()
 def list_sessions(limit=50, offset=0, include_archived=0, search=""):
+    _chat_page()
     limit, offset = min(cint(limit) or 50, 200), cint(offset)
     filters = dict(owner_filters())
     filters["surface"] = SURFACE
@@ -294,6 +315,7 @@ def _previews(session_names):
 
 @frappe.whitelist()
 def create_session(agent=None, company=None, provider=None, model=None, title=None):
+    _chat_page()
     agent = agent or _default_agent()
     _assert_agent(agent)
     if company and not frappe.has_permission("Company", "read", company):
@@ -333,6 +355,9 @@ def _assert_agent(agent):
 def _resolve_provider_model(provider, model, agent):
     from ai_agent.engine.providers.factory import resolve_provider_doc
 
+    agent_provider, agent_model = (frappe.db.get_value("AI Agent", agent, ["provider", "model"]) if agent else None) or (None, None)
+    if not provider and agent_provider and frappe.db.get_value("AI Provider", agent_provider, "enabled"):
+        provider = agent_provider   # no explicit choice: the agent's own provider
     doc = resolve_provider_doc(provider or None)
     policy.assert_provider_allowed(doc.provider_type or "OpenAI Compatible")
     if model:
@@ -340,7 +365,8 @@ def _resolve_provider_model(provider, model, agent):
         if known and model not in known:
             frappe.throw(_("Model {0} is not configured for provider {1}.").format(model, doc.name))
     else:
-        model = frappe.db.get_value("AI Agent", agent, "model") or doc.get("default_model") \
+        # the agent's model only counts on the agent's provider (or when it names none)
+        model = (agent_model if agent_provider in (None, "", doc.name) else None) or doc.get("default_model") \
             or next((r.model_name for r in doc.get("models") or [] if r.is_default), None) \
             or next((r.model_name for r in doc.get("models") or []), None) or ""
     return doc.name, model
@@ -450,7 +476,7 @@ def get_message(message):
 
 
 @frappe.whitelist()
-def send_message(text=None, session=None, agent=None, company=None, provider=None, model=None, thinking=None, files=None, skill=None, plugin=None, context_doctype=None, context_name=None):
+def send_message(text=None, session=None, agent=None, company=None, provider=None, model=None, thinking=None, files=None, skill=None, plugin=None, context_doctype=None, context_name=None, approval_mode=None):
     text = (text or "").strip()
     files = _parse_list(files)
     if not text and not files:
@@ -463,6 +489,8 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
 
     if session:
         sdoc = _get_session(session, "write")
+        if (sdoc.surface or "Desk") == "Desk":
+            _chat_page()
         changes = {}
         if agent and agent != sdoc.agent:
             _assert_agent(agent)
@@ -481,6 +509,8 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
     else:
         created = create_session(agent=agent, company=company, provider=provider, model=model, title=" ".join(text.split())[:80])
         sdoc = frappe.get_doc("AI Chat Session", created["session"]["name"])
+    if approval_mode and approval_mode != (sdoc.approval_mode or "Ask"):
+        sdoc.db_set("approval_mode", _approval_mode(approval_mode), update_modified=False)
 
     _assert_agent(sdoc.agent)
     if frappe.db.exists("AI Chat Message", {"session": sdoc.name, "status": ("in", ("pending", "streaming"))}):
@@ -664,10 +694,38 @@ def edit_message(message, text):
     return {"user_message": message_dict(frappe.get_doc("AI Chat Message", doc.name), blocks=[], attachments=_attachments_for([doc.name]).get(doc.name, [])), "assistant_message": message_dict(assistant, blocks=[])}
 
 
+def _approval_mode(mode):
+    """A valid approval mode the policy allows; Auto only while auto-approval is available."""
+    if mode not in policy.APPROVAL_MODES:
+        frappe.throw(_("Unknown approval mode: {0}").format(mode))
+    if mode == "Auto" and not policy.auto_approval_available():
+        frappe.throw(_("Auto-approval is turned off on this site."), frappe.PermissionError)
+    return mode
+
+
+@frappe.whitelist()
+def set_approval_mode(session, mode):
+    """Ask (every action waits) or Auto (drafts and edits run at once) for one conversation."""
+    sdoc = _get_session(session, "write")
+    sdoc.db_set("approval_mode", _approval_mode(mode), update_modified=False)
+    return {"session": session_dict(sdoc)}
+
+
 @frappe.whitelist()
 def decide_approval(approval, decision, reason=None):
-    if decision not in ("approve", "reject"):
+    """approve | reject | approve_always (approve, and switch this conversation to auto mode)."""
+    if decision not in ("approve", "reject", "approve_always"):
         frappe.throw(_("decision must be approve or reject"))
+    switched = None
+    if decision == "approve_always":
+        doc = frappe.get_doc("AI Approval Request", approval)
+        if doc.action_type not in policy.AUTO_APPROVE_TYPES:
+            frappe.throw(_("This kind of action always needs approval."))
+        session = frappe.db.get_value("AI Chat Message", frappe.db.get_value("AI Message Block", {"approval": approval, "block_type": "approval"}, "message"), "session")
+        if not session:
+            frappe.throw(_("This request is not part of a conversation."))
+        switched = set_approval_mode(session, "Auto")["session"]
+        decision = "approve"
     try:
         snapshot, message = approvals_mod.decide(approval, decision, reason=reason, user=frappe.session.user)
     except frappe.PermissionError:
@@ -679,7 +737,7 @@ def decide_approval(approval, decision, reason=None):
         if isinstance(exc, PermissionDenied):
             frappe.throw(str(exc), frappe.PermissionError)
         frappe.throw(str(exc))
-    return {"approval": snapshot, "message": message}
+    return {"approval": snapshot, "message": message, "session": switched}
 
 
 @frappe.whitelist()
@@ -697,6 +755,7 @@ def feedback(message, value=0):
 
 @frappe.whitelist()
 def list_skills(agent=None, company=None):
+    _any_chat()
     from ai_agent.runtime.skill_registry import SkillRegistry
 
     agent = agent or _default_agent()
@@ -739,6 +798,7 @@ def list_plugins():
 
 @frappe.whitelist()
 def search_documents(txt, doctype=None, limit=10):
+    _any_chat()
     txt = (txt or "").strip()
     if len(txt) < 2:
         return {"results": []}
@@ -760,6 +820,7 @@ def search_documents(txt, doctype=None, limit=10):
 
 @frappe.whitelist()
 def get_artifact(artifact):
+    _any_chat()
     doc = frappe.get_doc("AI Artifact", artifact)
     owner = frappe.db.get_value("AI Run", doc.run, "user") if doc.run else None
     assert_owned_access(owner, "AI Artifact", doc.name)
@@ -787,6 +848,7 @@ def get_artifact(artifact):
 
 @frappe.whitelist()
 def list_memories(agent=None):
+    _any_chat()
     from ai_agent.engine import memory as memory_mod
 
     return {"memories": memory_mod.list_for_user(frappe.session.user, agent=agent or None), "enabled": bool(cint(frappe.db.get_single_value("AI Settings", "enable_memory")))}
@@ -794,6 +856,7 @@ def list_memories(agent=None):
 
 @frappe.whitelist()
 def delete_memory(memory):
+    _any_chat()
     doc = frappe.get_doc("AI Memory", memory)
     if doc.user != frappe.session.user:
         frappe.throw(_("Not your memory."), frappe.PermissionError)
@@ -818,6 +881,7 @@ def remember_now(session):
 
 @frappe.whitelist()
 def view_html():
+    _any_chat()
     from ai_agent.chat.view_host import view_html as build
 
     html, version = build()

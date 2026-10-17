@@ -25,6 +25,24 @@ def _settings():
 	return frappe.get_cached_doc("AI Settings")
 
 
+# -- auto-approval -----------------------------------------------------------
+
+# What a conversation in auto mode runs without asking: drafts and edits only. Submit,
+# cancel, workflow changes and email (Approved Method) always wait for a person.
+AUTO_APPROVE_TYPES = frozenset({"Create", "Bulk Create", "Update"})
+APPROVAL_MODES = ("Ask", "Auto")
+
+
+def auto_approval_available():
+	"""Users may pick auto mode: the admin allows it and four-eyes (no self-approval) is off."""
+	settings = _settings()
+	return bool(cint(settings.get("allow_auto_approval"))) and not cint(settings.get("require_four_eyes"))
+
+
+def auto_approves(session_mode, action_type):
+	return session_mode == "Auto" and action_type in AUTO_APPROVE_TYPES and auto_approval_available()
+
+
 # -- submit / cancel ---------------------------------------------------------
 
 

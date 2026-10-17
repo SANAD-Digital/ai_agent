@@ -26,6 +26,7 @@
         "retry_message",
         "edit_message",
         "decide_approval",
+        "set_approval_mode",
         "rename_session",
         "archive_session",
         "pin_session",

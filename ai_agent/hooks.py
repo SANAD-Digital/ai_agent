@@ -1,5 +1,5 @@
 app_name = "ai_agent"
-app_title = "AI Agent"
+app_title = "Musaed"
 app_publisher = "MYSYS"
 app_description = "AI Agent for Frappe/ERPNext - Data Analysis and Document Operations"
 app_email = "admin@mysys.com"
@@ -11,8 +11,11 @@ after_request = ["ai_agent.mcp.http.after_request"]
 
 # The support bubble on the chat engine (ai_agent/chat/support.py). Only this
 # tiny loader ships on every Desk page; the chat itself loads on first open.
-app_include_css = "/assets/ai_agent/css/chat_bubble.css"
-app_include_js = "/assets/ai_agent/js/chat_bubble.js"
+# The CSS bundle also carries the Musaed brand kit (public/musaed-brand):
+# fonts, --ms-* tokens and the robot's motion states. Bundles, not plain
+# files, so a build always reaches browsers despite the year-long asset cache.
+app_include_css = "ai_agent.bundle.css"
+app_include_js = "ai_agent.bundle.js"
 
 # Installation
 after_install = "ai_agent.install.after_install"

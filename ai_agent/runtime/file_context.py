@@ -287,7 +287,7 @@ class FileContextService:
                     return (
                         f"- pages: {len(reader.pages)}\n"
                         "- extraction: OCR from scanned/image PDF\n"
-                        f"- ocr_pages: {min(len(reader.pages), MAX_OCR_PDF_PAGES)} of {len(reader.pages)}\n"
+                        f"- ocr_pages: {self._ocr_pages_read(len(reader.pages))} of {len(reader.pages)}\n"
                         f"- text_preview:\n{ocr_text[:MAX_OCR_TEXT_CHARS]}"
                     )
                 diagnostics = self._ocr_diagnostics()
@@ -745,6 +745,9 @@ class FileContextService:
             return ""
 
     def _ocr_pdf(self, file_doc, progress_run=None):
+        claude_text = self._claude_pdf(file_doc, progress_run)
+        if claude_text:
+            return claude_text
         try:
             import fitz
 
@@ -756,7 +759,7 @@ class FileContextService:
             for page_index in range(total):
                 page = document.load_page(page_index)
                 pixmap = page.get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72), alpha=False)
-                text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png")
+                text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png", allow_claude=False)
                 if text:
                     pages.append(f"[page {page_index + 1}]\n{text}")
                     summary = frappe._("استُخرج {0} حرفًا: {1}").format(
@@ -774,7 +777,7 @@ class FileContextService:
         except Exception:
             return ""
 
-    def _ocr_image_bytes(self, data, mime_type="image/png"):
+    def _ocr_image_bytes(self, data, mime_type="image/png", allow_claude=True):
         # Route through the configured OCR engine only. A failed cloud request
         # should fail fast instead of silently starting a heavy local OCR pass.
         try:
@@ -785,8 +788,36 @@ class FileContextService:
                 return ocr_text.strip()
         except Exception:
             pass
+        if allow_claude:   # a single image; PDF pages go to Claude as one document (_claude_pdf)
+            try:
+                from ai_agent.runtime import claude_ocr
 
+                return claude_ocr.read_image(data, mime_type, FINANCIAL_ATTACHMENT_OCR_PROMPT)
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), "AI Claude OCR")
         return ""
+
+    def _ocr_pages_read(self, total):
+        # Claude reads the whole document; page-by-page OCR stops at MAX_OCR_PDF_PAGES
+        return total if getattr(self, "_read_by_claude", False) else min(total, MAX_OCR_PDF_PAGES)
+
+    def _claude_pdf(self, file_doc, progress_run=None):
+        """A scanned PDF read by Claude in one request, when Gemini OCR cannot be used
+        (Managed mode or off) and an Anthropic provider is set up."""
+        try:
+            from ai_agent.runtime import claude_ocr
+            from ai_agent.runtime.gemini_ocr import is_gemini_ocr_enabled
+
+            if is_gemini_ocr_enabled() or not claude_ocr.available():
+                return ""
+            filename = file_doc.file_name or file_doc.name
+            self._emit_read_progress(progress_run, frappe._("قراءة {0} بواسطة Claude").format(filename))
+            text = claude_ocr.read_pdf(get_file_path(file_doc.name), FINANCIAL_ATTACHMENT_OCR_PROMPT)
+            self._read_by_claude = bool(text)
+            return text
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "AI Claude OCR")
+            return ""
 
     def _is_visual_file(self, file_doc):
         filename = file_doc.file_name or file_doc.name

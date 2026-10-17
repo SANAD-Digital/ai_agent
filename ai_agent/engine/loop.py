@@ -16,6 +16,9 @@ import time
 from dataclasses import dataclass, replace
 
 from ai_agent.engine.events import (
+    QuestionAsked,
+    SuggestionsShown,
+    ApprovalAutoExecuted,
     ApprovalRequested,
     ArtifactCreated,
     BlockDelta,
@@ -34,6 +37,9 @@ from ai_agent.engine.events import (
     UsageEvent,
 )
 from ai_agent.engine.types import (
+    QUESTION,
+    SUGGESTIONS,
+    APPROVAL,
     ARTIFACT,
     CANCELLED,
     END_TURN,
@@ -51,7 +57,7 @@ from ai_agent.engine.types import (
     estimate_tokens,
 )
 
-EXTRA_EVENTS = {SKILL: SkillLoaded, ARTIFACT: ArtifactCreated, MEMORY: MemoryNote}
+EXTRA_EVENTS = {SKILL: SkillLoaded, ARTIFACT: ArtifactCreated, MEMORY: MemoryNote, APPROVAL: ApprovalAutoExecuted, QUESTION: QuestionAsked, SUGGESTIONS: SuggestionsShown}
 
 
 @dataclass
@@ -194,6 +200,7 @@ class Loop:
 
             if stop == TOOL_USE_STOP and tool_uses:
                 results = []
+                ended = False
                 for call in tool_uses:
                     if self.cancel.cancelled:
                         yield MessageCancelled(usage=self.usage.to_dict())
@@ -222,7 +229,12 @@ class Loop:
                     for extra in outcome.extras:
                         if extra.kind == SKILL:
                             results.append(extra)
+                    if getattr(outcome, "end_turn", False):
+                        ended = True
                 messages = messages + [Message(role="user", blocks=results)]
+                if ended:   # ui.ask / ui.suggest: the turn is the user's now
+                    yield MessageDone(status="completed", stop_reason=END_TURN, usage=self.usage.to_dict(), steps=self.steps, tool_calls=self.tool_calls)
+                    return
                 if getattr(self.executor, "specs_changed", False):
                     tools = self.executor.specs()
                     base_tokens = self.base_tokens(tools)

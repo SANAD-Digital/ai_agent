@@ -100,7 +100,7 @@ class TestListPresenter(IntegrationTestCase):
 		self.assertIn("currency", [c["key"] for c in p["columns"]])
 
 	def test_truncation_is_never_silent(self):
-		env = self._present("Sales Invoice", [{"name": "A", "grand_total": 1}])
+		self._present("Sales Invoice", [{"name": "A", "grand_total": 1}])
 		env2 = present("data.query", {"specification": {"doctype": "Sales Invoice"}}, {"rows": [{"name": "A", "grand_total": 1}], "row_count": 1248}, None)
 		p = env2["presentation"]
 		self.assertEqual(p["paging"]["total"], 1248)

@@ -13,6 +13,7 @@
   "enabled",
   "is_default",
   "system_instructions",
+  "provider",
   "model",
   "reasoning_effort",
   "thinking",
@@ -72,9 +73,17 @@
    "label": "System Instructions"
   },
   {
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "options": "AI Provider",
+   "label": "Provider",
+   "description": "The model provider for this agent. Empty: the default provider in AI Settings."
+  },
+  {
    "fieldname": "model",
-   "fieldtype": "Data",
-   "label": "Model"
+   "fieldtype": "Autocomplete",
+   "label": "Model",
+   "description": "A model of the provider above. Empty: the provider's default model."
   },
   {
    "default": "medium",
@@ -161,7 +170,7 @@
   }
  ],
  "links": [],
- "modified": "2026-09-30 12:00:00.000000",
+ "modified": "2026-10-11 06:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Agent",

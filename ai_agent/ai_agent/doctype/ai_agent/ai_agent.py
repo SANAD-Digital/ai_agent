@@ -4,6 +4,9 @@ from frappe.model.document import Document
 
 class AIAgent(Document):
     def validate(self):
+        from ai_agent.engine.providers.factory import validate_provider_model
+
+        validate_provider_model(self.provider, self.model)
         if self.is_default:
             existing = frappe.get_all(
                 "AI Agent",

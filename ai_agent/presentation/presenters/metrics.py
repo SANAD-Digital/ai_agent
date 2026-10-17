@@ -16,7 +16,7 @@ def chart_spec(kind, labels, series, *, unit=None, title=None):
     """Chart only when it adds understanding; donut is limited to a few categories."""
     if kind == "donut" and len(labels) > DONUT_MAX:
         kind = "bar"
-    return {"kind": kind, "labels": [str(l) for l in labels], "title": title, "unit": unit,
+    return {"kind": kind, "labels": [str(label) for label in labels], "title": title, "unit": unit,
             "series": [{"name": s["name"], "values": [fmt.to_number(v) or 0 for v in s["values"]],
                         "d": [fmt.money(v, unit) if unit else fmt.number(v) for v in s["values"]]} for s in series]}
 

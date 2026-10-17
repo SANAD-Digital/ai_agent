@@ -13,7 +13,17 @@
         ["core", "h"], ["store", "store"], ["transport", "transport"], ["viewhost", "viewHost"], ["blocks", "blocks"],
         ["message", "message"], ["composer", "composer"], ["list", "messageList"], ["bubble", "bubble"],
     ];
-    var ICON_CHAT = '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/>';
+    // the Musaed launcher robot (musaed-brand/components/chat-widget-demo.html): white head on the clay button
+    var ROBOT = '<svg class="acb-icon acb-robot ms-robot" data-state="idle" viewBox="0 0 100 100" aria-hidden="true" focusable="false">' +
+        '<g transform="translate(50 50) scale(0.95) translate(-50 -42)"><g class="ms-body">' +
+        '<line x1="50" y1="30" x2="50" y2="20" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>' +
+        '<circle class="ms-ball" cx="50" cy="18" r="5.5" fill="var(--ms-petrol-700)"/>' +
+        '<rect x="20" y="44" width="7" height="12" rx="3.5" fill="#FFFFFF"/><rect x="73" y="44" width="7" height="12" rx="3.5" fill="#FFFFFF"/>' +
+        '<rect x="26" y="30" width="48" height="40" rx="14" fill="#FFFFFF"/>' +
+        '<rect x="32" y="38" width="36" height="22" rx="11" fill="var(--ms-petrol-700)"/>' +
+        '<g class="ms-eyes ms-fb"><rect class="ms-eye ms-fb" x="39" y="43" width="7" height="12" rx="3.5" fill="var(--ms-clay-500)"/>' +
+        '<rect class="ms-eye ms-fb" x="54" y="43" width="7" height="12" rx="3.5" fill="var(--ms-clay-500)"/></g>' +
+        "</g></g></svg>";
     var ICON_DOWN = '<path d="m6 9 6 6 6-6"/>';
     var fab = null, boot = null, loading = null, pending = null, tries = 0;
 
@@ -140,12 +150,12 @@
         fab = document.createElement("button");
         fab.type = "button";
         fab.id = "ai-chat-bubble-fab";
-        fab.className = "acb-fab";
+        fab.className = "acb-fab ms-launcher";
         fab.title = label;
         fab.setAttribute("aria-label", label);
         fab.setAttribute("aria-haspopup", "dialog");
         fab.setAttribute("aria-expanded", "false");
-        fab.innerHTML = svg("acb-icon acb-icon-chat", ICON_CHAT) + svg("acb-icon acb-icon-down", ICON_DOWN) + '<span class="acb-dot"></span>';
+        fab.innerHTML = ROBOT + svg("acb-icon acb-icon-down", ICON_DOWN) + '<span class="acb-dot"></span>';
         fab.addEventListener("click", function () {
             act("toggle");
         });
@@ -175,6 +185,9 @@
             return;
         }
         if (f.session && f.session.user === "Guest") return;
+        // The bundle can reach a site that does not have ai_agent (a stale hooks cache after an
+        // uninstall, shared assets): boot.versions lists only this site's installed apps.
+        if (!f.boot.versions || !("ai_agent" in f.boot.versions)) return;
         if (window.requestIdleCallback) window.requestIdleCallback(bootstrap, { timeout: 4000 });
         else setTimeout(bootstrap, 1500);
     }

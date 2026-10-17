@@ -57,12 +57,16 @@
         const title = boot.title || __("Assistant");
 
         let mine = boot.session || null; // the bubble's own session
+        store.state.autoApproval = !!boot.auto_approval; // the approval card's "always approve" button
         let loadedFor = null;            // session whose messages we put in the store
         let loadingMessages = false;
         let isOpen = false;
         let suppressed = route()[0] === "agent-workspace";
         let detached = null;             // "doctype::name" the user detached on this route
         let prevStreaming = new Set();
+        let sending = false;             // send_message in flight: the robot stays on "processing"
+        let wasLive = false;             // a reply of ours was streaming at the last paint
+        let watching = null;             // [message name, unsubscribe] while a reply streams
 
         const active = () => isOpen && !suppressed;
         const owns = () => (store.state.current ? store.state.current.name : null) === (mine ? mine.name : null);
@@ -83,9 +87,11 @@
         const btnClose = iconBtn("x", __("Close"), close);
         btnHistory.setAttribute("aria-haspopup", "true");
 
+        const face = AIChat.robot("ac-support-robot", "idle");
+        const mood = AIChat.robotMood(face);
         const header = h(
             "header.ac-support-head",
-            h("span.ac-avatar", icon("sparkles")),
+            face,
             h("div.ac-support-titles", h("div.ac-support-title", { text: title }), h("div.ac-support-sub", { text: agentName })),
             h("div.ac-support-actions", btnNew, btnHistory, btnWorkspace, btnClose)
         );
@@ -98,7 +104,7 @@
             isActive: active,
             showEmpty: () => !store.state.order.length && !loadingMessages,
             renderEmpty: renderWelcome,
-            messageCtx: () => ({ onEdit: edit, onRetry: retry, onFeedback: feedback, agentName, api, store }),
+            messageCtx: () => ({ onEdit: edit, onRetry: retry, onFeedback: feedback, onSend: sendText, agentName, api, store }),
             onError: (text) => composer.showError(text),
         });
 
@@ -130,6 +136,13 @@
         );
         document.body.appendChild(root);
 
+        /** A question's answer or a picked suggestion: sent as if the user typed it. */
+        function sendText(text) {
+            if (!text) return;
+            composer.setText(text);
+            return composer.submit();
+        }
+
         /* ---- welcome ---- */
 
         function renderWelcome() {
@@ -147,7 +160,6 @@
             const hello = boot.welcome_message || __("Hello{0}, how can I help you today?", [boot.user && boot.user.full_name ? " " + boot.user.full_name : ""]);
             return h(
                 "div.ac-support-welcome",
-                h("div.ac-msg-head", h("span.ac-avatar", icon("sparkles")), h("span.ac-msg-author", { text: agentName })),
                 h("div.ac-md.ac-support-hello", { html: md(hello) }),
                 chips.length ? h("div.ac-support-chips", chips) : null
             );
@@ -212,12 +224,40 @@
             const mineLive = owns() && store.state.streaming.size > 0;
             composer.setStreaming(owns() ? store.streamingMessage() : null);
             if (fab) fab.classList.toggle("is-working", mineLive);
+            paintMood();
+        }
+
+        /**
+         * The header robot follows the request: processing until the reply's
+         * first words arrive, thinking while they stream, done when it lands;
+         * otherwise listening while the user types, idle (then asleep) at rest.
+         */
+        function paintMood() {
+            const msg = owns() ? store.streamingMessage() : null;
+            if (!msg || (watching && watching[0] !== msg.name)) {
+                if (watching) watching[1]();
+                watching = null;
+            }
+            if (msg) {
+                if (!watching) watching = [msg.name, store.on("message:" + msg.name, paintMood)];
+                wasLive = true;
+                return mood.set(msg.text ? "thinking" : "processing");
+            }
+            if (sending) return;
+            if (wasLive) {
+                wasLive = false;
+                return mood.flash("done", 2000);
+            }
+            if (mood.flashing()) return;
+            mood.set(composer.getText().trim() ? "listening" : "idle");
         }
 
         /* ---- actions ---- */
 
         async function send(payload) {
             if (!owns()) store.setCurrent(mine);
+            sending = true;
+            mood.set("processing");
             const args = {
                 text: payload.text,
                 session: mine ? mine.name : null,
@@ -229,6 +269,7 @@
             };
             try {
                 const r = await frappe.xcall(SUPPORT + "send_message", args);
+                sending = false;
                 mine = r.session;
                 store.setCurrent(r.session);
                 loadedFor = r.session.name;
@@ -238,7 +279,9 @@
                 paintLive();
                 list.scrollToBottom();
             } catch (e) {
+                sending = false;
                 composer.showError(AIChat.errorMessage(e));
+                paintMood();
                 throw e;
             }
         }
@@ -411,6 +454,30 @@
             if (wasAtBottom) list.scrollToBottom(); // keep the last message in sight as the keyboard opens
         }
 
+        /**
+         * Keep the panel's top below whatever is pinned to the top of the page
+         * (Desk's sticky page head, a site's own bar). Those differ per page
+         * and per site, so look at what actually sits at the top edge above
+         * the panel: the nearest fixed/sticky ancestor of each element there.
+         */
+        function fitTop() {
+            if (!active() || sheet.matches) return;
+            const r = root.getBoundingClientRect();
+            let bottom = 0;
+            for (const el of document.elementsFromPoint((r.left + r.right) / 2, 1)) {
+                if (root.contains(el)) continue;
+                for (let a = el; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+                    const pos = getComputedStyle(a).position;
+                    if (pos !== "fixed" && pos !== "sticky") continue;
+                    const b = a.getBoundingClientRect();
+                    if (b.top <= 1 && b.height < window.innerHeight / 3) bottom = Math.max(bottom, b.bottom); // not full-page overlays
+                    break;
+                }
+            }
+            root.style.setProperty("--acs-clear", Math.round(bottom) + 12 + "px");
+        }
+        window.addEventListener("resize", AIChat.debounce(fitTop, 100));
+
         if (vv) {
             vv.addEventListener("resize", fitKeyboard);
             vv.addEventListener("scroll", fitKeyboard);
@@ -418,6 +485,7 @@
 
         function paintOpen() {
             fitKeyboard();
+            fitTop();
             const shown = active();
             root.classList.toggle("is-shown", shown);
             root.setAttribute("aria-hidden", shown ? "false" : "true");
@@ -434,6 +502,7 @@
             if (fab) fab.classList.remove("is-unread");
             paintOpen();
             if (suppressed) return;
+            if (!wasLive) mood.flash("welcome", 1500);
             syncContext();
             claim();
             requestAnimationFrame(() => composer.focus());
@@ -466,6 +535,10 @@
         });
         document.addEventListener("click", (e) => {
             if (!history.hidden && !history.contains(e.target) && !btnHistory.contains(e.target)) closeHistory();
+        });
+
+        composer.ta.addEventListener("input", () => {
+            if (!wasLive && !mood.flashing()) paintMood();
         });
 
         store.on("streaming", (set) => {

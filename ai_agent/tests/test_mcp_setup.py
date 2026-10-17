@@ -47,3 +47,26 @@ class TestMCPSetup(IntegrationTestCase):
 		frappe.set_user(plain)
 		with self.assertRaises(frappe.PermissionError):
 			setup.fix("oauth")
+
+	def test_allowed_roles_reads_rows_and_falls_back_to_defaults(self):
+		settings = frappe.get_single("AI Settings")
+		settings.set("mcp_allowed_roles", [{"role": "System Manager"}])
+		self.assertEqual(setup.allowed_roles(settings), ["System Manager"])
+		settings.set("mcp_allowed_roles", [])
+		self.assertEqual(setup.allowed_roles(settings), list(setup.DEFAULT_ROLES))
+		settings.mcp_allowed_roles = "AI MCP User\nSystem Manager"  # a site not migrated yet
+		self.assertEqual(setup.allowed_roles(settings), ["AI MCP User", "System Manager"])
+
+	def test_old_text_roles_move_to_rows_once(self):
+		frappe.db.delete("Has Role", {"parenttype": "AI Settings", "parentfield": "mcp_allowed_roles"})
+		frappe.db.sql("delete from `tabSingles` where doctype='AI Settings' and field='mcp_allowed_roles'")
+		frappe.db.sql(
+			"insert into `tabSingles` (doctype, field, value) values ('AI Settings', 'mcp_allowed_roles', %s)",
+			"System Manager\nNo Such Role",
+		)
+		setup.move_allowed_roles_to_table()
+		roles = frappe.get_all("Has Role", filters={"parenttype": "AI Settings", "parentfield": "mcp_allowed_roles"}, pluck="role")
+		self.assertEqual(roles, ["System Manager"], "unknown role names are dropped")
+		self.assertFalse(frappe.db.sql("select 1 from `tabSingles` where doctype='AI Settings' and field='mcp_allowed_roles'"))
+		setup.move_allowed_roles_to_table()  # a second run changes nothing
+		self.assertEqual(frappe.get_all("Has Role", filters={"parenttype": "AI Settings", "parentfield": "mcp_allowed_roles"}, pluck="role"), ["System Manager"])

@@ -15,6 +15,8 @@ import json
 
 from ai_agent.engine.types import (
     APPROVAL,
+    QUESTION,
+    SUGGESTIONS,
     ARTIFACT,
     DOCUMENT,
     ERROR,
@@ -69,7 +71,7 @@ def to_messages(turns):
                 # A loaded skill is a durable user-turn instruction block.
                 flush_assistant()
                 pending_results.append(b)
-            elif b.kind in (APPROVAL, ARTIFACT, MEMORY, ERROR, STATUS):
+            elif b.kind in (APPROVAL, ARTIFACT, MEMORY, ERROR, STATUS, QUESTION, SUGGESTIONS):
                 continue
         flush_assistant()
         flush_results()

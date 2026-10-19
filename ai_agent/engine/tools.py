@@ -214,6 +214,9 @@ class ToolExecutor:
         if writes and (self.agent.get("read_only") or not self.agent.get("allow_actions")):
             return (f"Tool group '{group}' changes the system, and this assistant ({self.agent.get('name')}) is read-only. "
                     "Tell the user to start the conversation with an assistant that may act (allow actions in AI Agent).")
+        if group == "customization" and not self.agent.get("allow_customization"):
+            return (f"Customization belongs to the Implementation assistant, not {self.agent.get('name')}. "
+                    "Tell the user to start a new conversation with the Implementation assistant for this change.")
         if group == "customization":
             from ai_agent.customization import policy as customize_policy
 
@@ -244,7 +247,7 @@ class ToolExecutor:
         if name.startswith("web.") and not self.settings.get("enable_web_browsing"):
             return False
         if name.startswith("customize."):
-            if self.agent.get("read_only") or not self.agent.get("allow_actions"):
+            if self.agent.get("read_only") or not self.agent.get("allow_actions") or not self.agent.get("allow_customization"):
                 return False
             from ai_agent.customization import policy as customization_policy
 

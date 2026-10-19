@@ -112,6 +112,8 @@ class ToolGateway:
             return False
         if not agent_doc.get("allow_actions") and acting:
             return False
+        if tool_name.startswith("customize.") and not agent_doc.get("allow_customization"):
+            return False   # the Implementation agent (or one an admin opted in) owns customization
         return True
 
     def _assert_customization_available(self, tool_name):

@@ -64,6 +64,22 @@ class TestPythonAnalyzer(IntegrationTestCase):
 		src = "def get_generation_history():\n    return frappe.get_list('ToDo')\n"
 		self.assertIn("py.api_def", critical(python_code.analyze(src, "API")))
 
+	def test_called_helper_def_is_fine(self):
+		src = "def count(rows):\n    return len(rows)\nfrappe.response['message'] = count(frappe.get_list('ToDo', fields=['name']))"
+		self.assertNotIn("py.api_def", critical(python_code.analyze(src, "API")))
+
+	def test_sandbox_runtime_traps(self):
+		"""Each compiles under RestrictedPython but fails inside safe_exec on Frappe v16."""
+		for src, code in (
+			("a, b = 1, 2", "py.unpack"),
+			("x = frappe.utils.now_datetime().strftime('%Y')", "py.strftime"),
+			("x = list(map(str, [1]))", "py.not_available"),
+		):
+			with self.subTest(src=src):
+				self.assertIn(code, critical(python_code.analyze(src, "DocType Event", "ToDo")))
+		ok = "for k, v in {'a': 1}.items():\n    pass\nnames = [r.name for r in frappe.get_list('ToDo', fields=['name'])]"
+		self.assertFalse(critical(python_code.analyze(ok, "DocType Event", "ToDo")))
+
 	def test_clean_event_script(self):
 		src = 'if doc.priority == "High" and not doc.description:\n    frappe.throw(_("Describe high priority tasks"))\n'
 		checks = python_code.analyze(src, "DocType Event", "ToDo")

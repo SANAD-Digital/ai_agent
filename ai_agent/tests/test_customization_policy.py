@@ -26,7 +26,7 @@ from ai_agent.tests.utils import ensure_test_agent, make_test_run
 def acting_agent(**overrides):
 	"""The test agent as an agent that may act (the shared test agent may be read-only on this site)."""
 	agent = ensure_test_agent()
-	return frappe._dict(agent.as_dict(), **{"allow_actions": 1, "read_only": 0, **overrides})
+	return frappe._dict(agent.as_dict(), **{"allow_actions": 1, "read_only": 0, "allow_customization": 1, **overrides})
 
 
 def _ctx(user, surface="Desk", tainted=False):
@@ -131,6 +131,12 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 		with patch.object(ToolExecutor, "_session_surface", return_value="Desk"):
 			ro = ToolExecutor(PermissionContext("Administrator", agent.name), read_only, self.run.name)
 		self.assertFalse(ro.allowed("customize.inspect"), "an agent without actions has no customization")
+		operations = acting_agent(allow_customization=0)
+		with patch.object(ToolExecutor, "_session_surface", return_value="Desk"):
+			ops = ToolExecutor(PermissionContext("Administrator", agent.name), operations, self.run.name)
+		self.assertFalse(ops.allowed("customize.inspect"), "customization belongs to the Implementation agent")
+		self.assertTrue(ops.allowed("actions.request_update"), "it keeps its document actions")
+		self.assertIn("Implementation", ops._unavailable_reason("customization"))
 		fx.set_settings(allow_customization_actions=0)
 		self.assertFalse(ex.allowed("customize.inspect"))
 
@@ -282,7 +288,9 @@ class TestLimits(CustomizationTestCase):
 			self.request(name="same", value="other")
 
 	def test_pending_per_user(self):
-		for i in range(cpolicy.MAX_PENDING_PER_USER):
+		# Real requests already waiting on this site count toward the same limit.
+		waiting = len(cpolicy.pending("Administrator"))
+		for i in range(max(0, cpolicy.MAX_PENDING_PER_USER - waiting)):
 			self.assertTrue(self.request(name=f"p-{i}").get("approval_id"))
 		with self.assertRaises(PermissionDenied):
 			self.request(name="p-extra")

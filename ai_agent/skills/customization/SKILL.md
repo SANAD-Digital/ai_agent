@@ -7,76 +7,84 @@ tools: customize.inspect, customize.get, customize.check, customize.request_fiel
 
 # Customization (Frappe / ERPNext v16)
 
-Every change here alters the system for everyone. Each `customize.request_*` creates one approval card that shows the
-diff, the full code, the checks and the undo plan; a person with the right Frappe roles approves it in ERPNext. Nothing
-is ever applied automatically, and there is no "always approve" for these requests.
+Every change here alters the system for everyone. Each `customize.request_*` creates one approval card with the
+diff, the full code, the checks and the undo plan; a person holding the needed Frappe roles approves it in ERPNext.
+Nothing is applied automatically and there is no "always approve" for these requests.
+
+**Read the matching reference before writing any code or field definition** — it has the exact v16 API, verified
+examples and the errors seen on real sites:
+`skills.read_reference {skill_name:"customization", reference:"<name>"}`.
+
+| Reference | Read it before |
+|---|---|
+| `server-scripts` | any server script: events and what `doc` is, API scripts, the sandbox language rules, the full `frappe.*` list |
+| `client-scripts` | any client script: form/child/list events and order, `frm` API, list settings, how scripts are loaded |
+| `fields` | adding or changing a custom field: every fieldtype and its `options`, `depends_on`/`eval:`, `fetch_from`, naming |
+| `properties` | Customize Form changes: allowed properties, what Frappe refuses on standard fields, recipes |
+| `reports` | any report: Builder JSON, Query Report SQL and filters, roles, Script Report (later) |
+| `print-formats-notifications` | questions about print formats, notifications, workflows (not offered yet) |
 
 ## 1. Pick the least powerful tool that does the job
 
 | The user wants | Use |
 |---|---|
-| Show, hide, require, make read-only, bold or relabel a field; change its default, description or `depends_on` | `customize.request_properties` (field_properties) |
-| A column in the list view / a filter in the list sidebar | `request_properties` with `in_list_view` / `in_standard_filter` (+ `columns` for width) |
+| Show, hide, require, read-only, bold, relabel a field; its default, description or `depends_on` | `customize.request_properties` |
+| A column in the list / a filter in the sidebar | `request_properties`: `in_list_view` (+ `columns`) / `in_standard_filter` |
 | Form title, link search, default sort, quick entry, track changes | `request_properties` (doctype_properties) |
-| A new field | `customize.request_field` (operation add) |
-| A report | `customize.request_report` — **Report Builder first**; Query Report only for joins between unrelated DocTypes or aggregates the builder cannot do |
+| A new field | `customize.request_field` (operation `add`) |
+| A report | `customize.request_report`: **Report Builder first**; Query Report only for joins with other DocTypes or aggregates the Builder cannot do |
 | Behaviour on the screen (set a value, filter a link, a button, show/hide live) | `customize.request_client_script` |
-| A rule enforced everywhere (screen, import, REST): validate, compute, block | `customize.request_server_script` with `script_type: "DocType Event"` |
-| An endpoint for a client script or an integration | `customize.request_server_script` with `script_type: "API"` |
+| A rule enforced everywhere (screen, import, REST): validate, compute, block | `customize.request_server_script`, `script_type: "DocType Event"` |
+| An endpoint for a client script or an integration | `customize.request_server_script`, `script_type: "API"` |
 
 Order of power: property < field < Builder report < client script < server script. Go down only when the step above
 cannot do it, and say why in `purpose`.
 
 ## 2. Workflow
 
-1. `customize.inspect {doctype}` first: what is already customized, whether the request already exists, whether the
-   DocType can be customized at all (core, Single and custom DocTypes cannot go through Customize Form).
-2. `schema.describe_doctype {doctype, fields_filter:[...]}` for exact fieldnames. Never invent one.
-3. Design the change, then `customize.check {kind, arguments}` until `valid` is true. On any `critical` check: fix it
-   and check again. Never send a request you know fails.
-4. Send the matching `customize.request_*` **once**, with `purpose` (one line, in the user's language: why).
-5. Tell the user what the card will show and that they approve it in ERPNext. Stop and wait.
-6. After it ran: say how to see it working (open form X, save, look at list Y) and that "undo" makes a new request
+1. `customize.inspect {doctype}`: what is already customized (fields, property setters, scripts, reports), whether
+   the request already exists, whether the DocType can be customized (core, Single, custom and protected DocTypes
+   cannot).
+2. `schema.describe_doctype {doctype, fields_filter:[...]}` for exact fieldnames and child table DocTypes. Never
+   invent a fieldname, DocType or method.
+3. Read the reference, design the change, then `customize.check {kind, arguments}` with the same arguments as the
+   request. Repeat until `valid` is true; fix every `critical`, read every `warning`. Never send a request you know
+   fails.
+4. Send the matching `customize.request_*` **once**, with `purpose` (one line in the user's language: why).
+5. Tell the user what the card shows and that they approve it in ERPNext. Stop and wait.
+6. After it ran: say how to see it working (open form X, save, open list Y) and that undo is a new request
    (`customize.request_undo {approval}`).
 
-Editing an existing script or report: read it with `customize.get {kind, name}` first, change only what was asked,
-send the whole new source with `operation: "update"`.
+Changing an existing script or report: `customize.get {kind, name}` first, change only what was asked, send the
+whole new source with `operation: "update"`. A client script that calls an API server script needs that API to exist
+first (otherwise the check is critical): request the server script, wait for approval, then the client script.
 
 ## 3. Fixed rules
 
 - Never use `actions.request_*` for Custom Field, Property Setter, Client/Server Script, Report, Print Format,
-  Workflow, DocType or anything in their family: those requests are refused. Use these tools.
-- Fieldnames are English `snake_case` ASCII (`custom_` is added if missing); labels are in the user's language.
-- One script per purpose. Name it `<DocType> - <purpose>`; the tool adds the provenance header.
-- Do not offer what these tools cannot do: Scheduler Event, Permission Query, Web Page/Web Form, Print Format,
-  Notification, Workflow, new DocTypes, roles and permissions. Explain the alternative, or that an administrator adds it
-  by hand in ERPNext.
-- Server scripts never send data out: no HTTP requests, no email, no enqueue, no `ignore_permissions`. The checker
-  refuses them; do not try to work around it.
-- A client script is convenience, not protection: data rules that must hold on import or REST go in a server script.
+  Workflow, DocType or their family: refused. Use these tools.
+- Fieldnames are English ASCII `snake_case` (`custom_` is added); labels are in the user's language.
+- One script per purpose, named `<DocType> - <purpose>`; the tool adds the provenance header.
+- Not offered: Scheduler Event, Permission Query, Script Report, Print Format, Notification, Workflow, Web
+  Page/Form, new DocTypes, roles and permissions. Explain the alternative or that an administrator adds it by hand.
+- Server scripts never send data out or bypass permissions: no HTTP, mail, enqueue, `frappe.call`, SQL,
+  `ignore_permissions`. The checker refuses them; do not work around it.
+- A client script and `mandatory_depends_on` are convenience, not protection: rules that must hold on import or
+  REST go in a Before Save server script.
 - When the user only asks "can it be done?", answer and offer; do not create a request unasked.
 
-## 4. Mistakes seen on real sites (do not repeat)
+## 4. The ten mistakes that broke real requests
 
-- `import frappe` / `from x import y` in a server script → `ImportError: __import__ not found`. `frappe`, `doc` and
-  the safe helpers are already there.
-- `return` at the top level of a server script, `@frappe.whitelist()`, a `def` wrapping the main logic. An API script
-  answers with `frappe.response["message"] = ...`.
-- `"...".format(...)` → fails at run time (`format` is blocked). Use f-strings.
-- Invented Server Script fields (`code`, `api_method_name`, `created_by`): the script ended up empty.
-- `%(from_date)s` in a query with no `from_date` filter → `KeyError: b'from_date'`. Every `%(x)s` needs a filter named
-  `x`, and every filter should be used.
-- Arabic fieldnames (`custom_اسم_العميل`), spaces in fieldnames, fields named `name`, `owner`, `docstatus`, `idx`.
-- Making an existing field mandatory without telling the user that every old document will ask for it on next save.
-
-## 5. References
-
-`skills.read_reference {skill_name:"customization", reference:"<name>"}`:
-
-| Reference | When |
-|---|---|
-| `fields` | field types and their options, fetch_from, depends_on syntax, permlevel, reserved names, removing fields |
-| `properties` | every property Customize Form accepts, what Frappe refuses, recipes (list columns, filters, title, search, quick entry) |
-| `server-scripts` | the v16 safe_exec cheat sheet: events, what is available, permissions of each read, API scripts, full examples |
-| `client-scripts` | form and list events, frm API, child tables, list settings, what the checker refuses |
-| `reports` | Builder vs Query, the Builder JSON, query parameters, filters and columns, roles and the permission warning |
+1. `import …` in a server script → `ImportError: __import__ not found`. Everything is already there.
+2. Top-level `return`, `@frappe.whitelist()`, or the logic inside an uncalled `def`. APIs set
+   `frappe.response["message"]`.
+3. `"…".format()`, `d[k] += 1`, `a, b = f()`, `frappe._dict`, `getattr`: all fail in the sandbox (see server-scripts §4).
+4. `frappe.has_permission`, `frappe.get_roles`, `frappe.get_single`, `frappe.get_cached_value` do not exist in a
+   server script.
+5. `fields=["sum(x) as total"]` in `get_list` (v16 needs `{"SUM": "x", "as": "total"}`).
+6. Invented argument names (`code`, `api_method_name`, `json_options`): the script/report ended up empty.
+7. `%(x)s` in a Query Report without a **mandatory** filter `x` → `KeyError: b'x'`; `OR` without parentheses.
+8. Arabic or label-derived fieldnames; Select options separated by commas; `depends_on` without `eval:`.
+9. Changing the options of a standard Select, or un-requiring a standard mandatory field: Frappe refuses it.
+10. Two client scripts on one DocType declaring the same top-level helper, or replacing ERPNext's
+    `listview_settings` instead of merging.

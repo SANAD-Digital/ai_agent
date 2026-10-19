@@ -716,6 +716,8 @@ class MCPService:
             cint(self.agent.get("read_only")) or not cint(self.agent.get("allow_actions"))
         ):
             return False
+        if tool["name"].startswith("customize.") and not cint(self.agent.get("allow_customization")):
+            return False
         if tool["name"].startswith("customize."):
             # Off unless AI Settings allows customization over MCP (customization_allow_mcp) and the user holds
             # the roles; requests also need action requests enabled for MCP. Approval is from Desk only.

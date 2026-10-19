@@ -299,6 +299,8 @@ class _Visitor(ast.NodeVisitor):
 		if self.script_type == "API":
 			body = [n for n in tree.body if not (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant))]
 			defs = [n for n in body if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)]
+			called = {n.func.id for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+			defs = [d for d in defs if d.name not in called]   # a helper the script calls is fine
 			if defs and all(isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef | ast.Assign) for n in body):
 				self.add("py.api_def", "critical",
 					_("The API logic sits inside 'def {0}' that nothing calls. Write the logic at the top level and set frappe.response[\"message\"]").format(defs[0].name), defs[0].lineno)
@@ -325,12 +327,49 @@ def analyze(src, script_type="DocType Event", reference_doctype=None):
 	visitor.visit(tree)
 	visitor.finish(tree)
 	checks.extend(visitor.checks)
+	checks.extend(_runtime_traps(tree))
 
 	# RestrictedPython after our rules: its messages duplicate ours for imports/underscores.
 	if not any(c.level == "critical" for c in checks):
 		checks.extend(_restricted_check(src))
 	if not any(c.level == "critical" for c in checks):
 		checks.insert(0, Check("py.syntax", "ok", _("Python syntax is valid and it compiles in the Server Script sandbox")))
+	return checks
+
+
+# -- run-time traps of the sandbox ---------------------------------------------------
+
+
+def _sandbox_names():
+	"""Names a Server Script can call: safe_exec's globals and its builtins (Frappe v16)."""
+	from frappe.utils.safe_exec import get_safe_globals
+
+	g = get_safe_globals()
+	builtins = g.get("__builtins__") or {}
+	return set(g) | set(builtins if isinstance(builtins, dict) else dir(builtins))
+
+
+def _runtime_traps(tree):
+	"""Code that compiles in the sandbox but fails when it runs (verified against safe_exec on Frappe v16)."""
+	checks = []
+	available = _sandbox_names()
+	defined = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)}
+	defined |= {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)}
+	defined |= {a.arg for n in ast.walk(tree) if isinstance(n, ast.arguments) for a in n.args + n.kwonlyargs}
+	seen = set()
+	for node in ast.walk(tree):
+		if isinstance(node, ast.Assign) and any(isinstance(t, ast.Tuple | ast.List) for t in node.targets):
+			checks.append(Check("py.unpack", "critical",
+				_("Unpacking in an assignment (a, b = ...) fails in a Server Script (no _unpack_sequence_). Assign one name and index it: pair = ...; a = pair[0]"), node.lineno))
+		elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "strftime":
+			checks.append(Check("py.strftime", "critical",
+				_(".strftime() fails in a Server Script (it imports at run time). Use frappe.utils.formatdate / format_datetime / getdate"), node.lineno))
+		elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+			name = node.func.id
+			if name not in available and name not in defined and name not in seen:
+				seen.add(name)
+				checks.append(Check("py.not_available", "critical",
+					_("{0}() does not exist inside a Server Script and fails at run time; use a list comprehension or a frappe.utils helper instead").format(name), node.lineno))
 	return checks
 
 

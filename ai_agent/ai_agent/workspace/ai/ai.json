@@ -19,8 +19,7 @@
    "label": "Usage",
    "link_count": 4,
    "onboard": 0,
-   "type": "Card Break",
-   "idx": 1
+   "type": "Card Break"
   },
   {
    "hidden": 0,
@@ -30,8 +29,7 @@
    "link_to": "agent-workspace",
    "link_type": "Page",
    "onboard": 0,
-   "type": "Link",
-   "idx": 2
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -41,8 +39,7 @@
    "link_to": "AI Approval Request",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 3
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -52,8 +49,7 @@
    "link_to": "AI Chat Session",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 4
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -63,8 +59,7 @@
    "link_to": "AI Memory",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 5
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -72,8 +67,7 @@
    "label": "Capabilities",
    "link_count": 5,
    "onboard": 0,
-   "type": "Card Break",
-   "idx": 6
+   "type": "Card Break"
   },
   {
    "hidden": 0,
@@ -83,8 +77,7 @@
    "link_to": "AI Agent",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 7
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -94,8 +87,7 @@
    "link_to": "AI Skill",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 8
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -105,8 +97,7 @@
    "link_to": "AI Plugin",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 9
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -116,8 +107,7 @@
    "link_to": "AI Skill Grant",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 10
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -127,8 +117,7 @@
    "link_to": "AI Metric",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 11
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -136,8 +125,7 @@
    "label": "Monitoring",
    "link_count": 2,
    "onboard": 0,
-   "type": "Card Break",
-   "idx": 12
+   "type": "Card Break"
   },
   {
    "hidden": 0,
@@ -147,8 +135,7 @@
    "link_to": "AI Run",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 13
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -158,8 +145,7 @@
    "link_to": "AI Artifact",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 14
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -167,8 +153,7 @@
    "label": "Settings",
    "link_count": 5,
    "onboard": 0,
-   "type": "Card Break",
-   "idx": 15
+   "type": "Card Break"
   },
   {
    "hidden": 0,
@@ -178,8 +163,7 @@
    "link_to": "AI Settings",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 16
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -189,8 +173,7 @@
    "link_to": "AI Provider",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 17
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -200,8 +183,7 @@
    "link_to": "AI Chatbot Settings",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 18
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -211,8 +193,7 @@
    "link_to": "AI WhatsApp Support Settings",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 19
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -222,11 +203,10 @@
    "link_to": "Gemini OCR Settings",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link",
-   "idx": 20
+   "type": "Link"
   }
  ],
- "modified": "2026-10-11 13:00:00.000000",
+ "modified": "2026-10-19 20:37:56.769848",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI",
@@ -252,7 +232,7 @@
   {
    "color": "Yellow",
    "doc_view": "",
-   "format": "{} معلّقة",
+   "format": "{} \u0645\u0639\u0644\u0651\u0642\u0629",
    "label": "Approval Requests",
    "link_to": "AI Approval Request",
    "stats_filter": "{\"status\":\"Pending\"}",

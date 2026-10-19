@@ -663,6 +663,10 @@ def create_default_skill_grants():
         if not agent_docname:
             continue
         allowed_skills = _skills_for_agent(agent_name, skills)
+        if "customization" not in allowed_skills:
+            # earlier versions granted it to every acting agent; it moved to the Implementation agent
+            for grant in frappe.get_all("AI Skill Grant", filters={"agent": agent_docname, "skill": "customization", "enabled": 1}, pluck="name"):
+                frappe.db.set_value("AI Skill Grant", grant, "enabled", 0)
         for skill in allowed_skills:
             if skill in ROLE_GRANTED_SKILLS:
                 _ensure_role_skill_grant(agent_docname, skill, ROLE_GRANTED_SKILLS[skill])
@@ -689,6 +693,7 @@ def _standard_agents():
             "is_default": 1,
             "read_only": 1,
             "allow_actions": 0,
+            "allow_customization": 0,
             "require_approval_for_all_writes": 1,
             "reasoning_effort": "medium",
             "compact_session": (
@@ -706,6 +711,7 @@ def _standard_agents():
             "is_default": 0,
             "read_only": 0,
             "allow_actions": 1,
+            "allow_customization": 0,
             "require_approval_for_all_writes": 1,
             "reasoning_effort": "medium",
             "compact_session": (
@@ -724,6 +730,7 @@ def _standard_agents():
             "is_default": 0,
             "read_only": 0,
             "allow_actions": 1,
+            "allow_customization": 0,
             "require_approval_for_all_writes": 1,
             "reasoning_effort": "high",
             "maximum_steps": 60,
@@ -741,6 +748,34 @@ def _standard_agents():
                 "When several prerequisite records are missing, request one bulk create approval for the full set. "
                 "Prefer one complete target payload for large child tables instead of one action per row. "
                 "If you must stop after a prerequisite approval, clearly state what remains and offer to continue."
+            ),
+        },
+        "Implementation": {
+            "description": "Frappe implementation agent: custom fields, field and DocType properties, client and server scripts, reports",
+            "enabled": 1,
+            "is_default": 0,
+            "read_only": 0,
+            "allow_actions": 1,
+            "allow_customization": 1,
+            "require_approval_for_all_writes": 1,
+            "reasoning_effort": "high",
+            "maximum_steps": 60,
+            "maximum_tool_calls": 120,
+            "compact_session": (
+                "Session purpose: Frappe implementation and customization through the customize tools.\n"
+                "Session rules: inspect the target first, read the customization skill reference for the kind before writing "
+                "code, run customize.check until it is clean, then request; one request per target; never use the generic "
+                "document actions for code, fields or reports."
+            ),
+            "system_instructions": (
+                "You are the Implementation agent: a senior Frappe/ERPNext implementer. You add custom fields, change field and "
+                "DocType properties, write client scripts, server scripts and reports, always through the customize tools. "
+                "Before writing any code, load the customization skill and read the reference for that kind; use only APIs the "
+                "reference lists for Frappe v16. Inspect the DocType first (real fieldnames only, never guessed), run "
+                "customize.check and fix every critical finding before requesting, and explain the change, its risk and how to undo "
+                "it in plain words. Every change waits for the user's approval in Desk; never claim a change is done before it is "
+                "executed and verified. Prefer configuration (fields, properties, list settings) over code, and client-side over "
+                "server-side code when both would work."
             ),
         },
     }
@@ -795,4 +830,7 @@ def _skills_for_agent(agent, skills):
         # read-only agent: no document creation or workflow playbook, and no changes to the system itself
         excluded = {"documents", "customization"}
         return [skill for skill in skills if skill not in excluded]
+    if not _standard_agents().get(agent, {}).get("allow_customization"):
+        # customization belongs to the Implementation agent
+        return [skill for skill in skills if skill != "customization"]
     return list(skills)

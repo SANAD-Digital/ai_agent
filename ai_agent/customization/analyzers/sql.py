@@ -202,8 +202,9 @@ def _placeholder_checks(query, filters):
 			out.append(Check("sql.filter_unused", "warning", _("The filter {0} is not used in the query").format(name)))
 	for f in filters or []:
 		if f.get("fieldname") in used and not f.get("mandatory") and f.get("default") in (None, ""):
-			out.append(Check("sql.filter_optional", "info",
-				_("The optional filter {0} runs as an empty value when not set; write ifnull(%({0})s, '') = '' OR ... to make it optional").format(f.get("fieldname"))))
+			# The report screen leaves empty filters out of the values, so %(x)s raises KeyError, ifnull() included.
+			out.append(Check("sql.filter_optional", "critical",
+				_("The filter {0} is used in the query but is optional with no default: when it is left empty the report fails with KeyError (ifnull does not help). Make it mandatory or give it a default").format(f.get("fieldname"))))
 	return out
 
 

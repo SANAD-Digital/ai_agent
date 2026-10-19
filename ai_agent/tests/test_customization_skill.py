@@ -11,7 +11,7 @@ from ai_agent.runtime.skill_registry import SKILLS_DIR, SkillRegistry
 from ai_agent.runtime.tool_registry import ToolRegistry
 
 SKILL = "customization"
-REFERENCES = ("client-scripts", "fields", "properties", "reports", "server-scripts")
+REFERENCES = ("client-scripts", "fields", "print-formats-notifications", "properties", "reports", "server-scripts")
 
 
 def _frontmatter():
@@ -39,7 +39,7 @@ class TestCustomizationSkillFiles(IntegrationTestCase):
 		missing = [t for t in registry._parse_csv(meta["tools"]) if t not in registered]
 		self.assertEqual(missing, [], "a skill row naming an unregistered tool fails the skill sync on migrate")
 
-	def test_five_references(self):
+	def test_references(self):
 		registry = SkillRegistry()
 		self.assertEqual(registry.list_references(SKILL), sorted(REFERENCES))
 		for ref in REFERENCES:

@@ -1,0 +1,124 @@
+"""The customization skill (design §3.7) and how it is installed (§3.6.1: granted by role only)."""
+
+import os
+from unittest.mock import patch
+
+import frappe
+from frappe.tests import IntegrationTestCase
+
+from ai_agent import install
+from ai_agent.runtime.skill_registry import SKILLS_DIR, SkillRegistry
+from ai_agent.runtime.tool_registry import ToolRegistry
+
+SKILL = "customization"
+REFERENCES = ("client-scripts", "fields", "properties", "reports", "server-scripts")
+
+
+def _frontmatter():
+	registry = SkillRegistry()
+	with open(os.path.join(SKILLS_DIR, SKILL, "SKILL.md"), encoding="utf-8") as handle:
+		return registry, registry._parse_frontmatter(handle.read())
+
+
+class TestCustomizationSkillFiles(IntegrationTestCase):
+	def test_frontmatter(self):
+		registry, meta = _frontmatter()
+		self.assertEqual(meta["name"], SKILL)
+		self.assertEqual(meta["title"], "Customization")
+		self.assertIn("not to enter data", meta["description"])
+		self.assertFalse(registry._as_bool(meta.get("allow_implicit_invocation")), "loaded on demand, never always-on")
+		tools = registry._parse_csv(meta["tools"])
+		self.assertEqual(len(tools), len(set(tools)))
+		for name in ("customize.inspect", "customize.get", "customize.check", "customize.request_field", "customize.request_properties",
+				"customize.request_client_script", "customize.request_server_script", "customize.request_report", "customize.request_undo"):
+			self.assertIn(name, tools)
+
+	def test_every_declared_tool_is_registered(self):
+		registry, meta = _frontmatter()
+		registered = {tool["name"] for tool in ToolRegistry().list_tools()}
+		missing = [t for t in registry._parse_csv(meta["tools"]) if t not in registered]
+		self.assertEqual(missing, [], "a skill row naming an unregistered tool fails the skill sync on migrate")
+
+	def test_five_references(self):
+		registry = SkillRegistry()
+		self.assertEqual(registry.list_references(SKILL), sorted(REFERENCES))
+		for ref in REFERENCES:
+			text = registry.read_reference(SKILL, ref)
+			self.assertTrue(text and text.startswith("# "), ref)
+		self.assertIsNone(registry.read_reference(SKILL, "../system/SKILL"))
+
+	def test_server_script_reference_matches_safe_exec(self):
+		"""The cheat sheet's claims about Frappe v16 safe_exec hold on this bench."""
+		from frappe.utils.safe_exec import UNSAFE_ATTRIBUTES, get_safe_globals
+
+		text = SkillRegistry().read_reference(SKILL, "server-scripts")
+		g = get_safe_globals()
+		self.assertIn("format", UNSAFE_ATTRIBUTES)
+		self.assertNotIn("has_permission", g.frappe, "the reference says there is no frappe.has_permission")
+		for name in ("get_list", "get_all", "get_doc", "msgprint", "throw", "session", "form_dict", "utils", "qb"):
+			self.assertIn(name, g.frappe, name)
+		for name in ("nowdate", "today", "add_days", "getdate", "flt", "cint", "fmt_money", "date_diff"):
+			self.assertIn(name, g.frappe.utils, name)
+			self.assertIn(f"`{name}`", text)
+		from frappe.core.doctype.server_script.server_script_utils import EVENT_MAP
+
+		self.assertEqual(EVENT_MAP["validate"], "Before Save")
+		self.assertEqual(EVENT_MAP["on_update"], "After Save")
+
+	def test_properties_reference_lists_frappe_whitelists(self):
+		from frappe.custom.doctype.customize_form.customize_form import docfield_properties, doctype_properties
+
+		text = SkillRegistry().read_reference(SKILL, "properties")
+		for prop in list(doctype_properties) + list(docfield_properties):
+			self.assertIn(f"`{prop}`", text, prop)
+
+
+class TestCustomizationSkillInstall(IntegrationTestCase):
+	"""Runs the real sync and grant code inside the test transaction (no commit), then rolls back."""
+
+	def setUp(self):
+		commit = patch.object(frappe.db, "commit")
+		commit.start()
+		self.addCleanup(commit.stop)
+		install.sync_tool_name_options()
+		SkillRegistry().sync_app_skills()
+
+	def test_sync_creates_the_skill_with_its_tools(self):
+		skill = frappe.get_doc("AI Skill", SKILL)
+		self.assertEqual(skill.source_type, "App File")
+		self.assertEqual(skill.skill_path, SKILL)
+		self.assertFalse(skill.allow_implicit_invocation)
+		self.assertIn("customize.request_server_script", [row.tool_name for row in skill.tools])
+
+	def test_granted_to_system_manager_only(self):
+		install.create_default_skill_grants()
+		grants = frappe.get_all("AI Skill Grant", filters={"skill": SKILL}, fields=["agent", "grant_type", "role", "enabled"])
+		self.assertFalse([g for g in grants if g.grant_type != "Role"], "never an All Users / User grant from the app")
+		self.assertTrue(grants)
+		self.assertEqual({g.role for g in grants}, {"System Manager"})
+		analyst = install._get_agent_docname("ERP Analyst")
+		self.assertFalse([g for g in grants if g.agent == analyst], "the read-only analyst never gets it")
+		operations = install._get_agent_docname("ERP Operations Agent")
+		if operations:
+			self.assertIn(operations, {g.agent for g in grants})
+		# idempotent: a second run adds nothing
+		install.create_default_skill_grants()
+		self.assertEqual(len(frappe.get_all("AI Skill Grant", filters={"skill": SKILL})), len(grants))
+
+	def test_not_offered_without_the_role(self):
+		install.create_default_skill_grants()
+		operations = install._get_agent_docname("ERP Operations Agent")
+		if not operations:
+			self.skipTest("no ERP Operations Agent on this site")
+		with patch.object(frappe, "get_roles", return_value=["Accounts User"]):
+			grants = SkillRegistry()._get_matching_grants("someone@example.com", operations)
+		self.assertNotIn(SKILL, {g.skill for g in grants})
+
+	def test_seeds_rate_limit_only_when_the_field_exists(self):
+		if not frappe.get_meta("AI Settings").has_field("customization_max_requests_per_hour"):
+			install.ensure_new_setting_defaults()  # must not write an unknown field
+			self.assertFalse(frappe.db.sql("select 1 from `tabSingles` where doctype='AI Settings' and field='customization_max_requests_per_hour'"))
+			return
+		frappe.db.sql("delete from `tabSingles` where doctype='AI Settings' and field='customization_max_requests_per_hour'")
+		install.ensure_new_setting_defaults()
+		self.assertEqual(frappe.db.get_single_value("AI Settings", "customization_max_requests_per_hour"), 20)

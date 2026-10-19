@@ -393,6 +393,7 @@
         Cancel: () => __("Cancel"),
         Workflow: () => __("Workflow"),
         "Approved Method": () => __("Approved action"),
+        Customize: () => __("Customization"),
     };
 
     const AUTO_TYPES = new Set(["Create", "Bulk Create", "Update"]);
@@ -413,6 +414,275 @@
         }
         if (!rows.length) return null;
         return h("div.ac-table-wrap", h("table.ac-table.ac-kv", h("tbody", rows)));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* customization request (action_type "Customize", design §3.4):        */
+    /* findings, before/after, the full code, impact, undo plan.            */
+    /* Every string comes translated from customization/presenter.py.       */
+    /* Code is built from text nodes only, never innerHTML.                 */
+    /* ------------------------------------------------------------------ */
+
+    const CZ_KEYWORDS = {
+        python: "and as assert break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return True try while with yield",
+        javascript: "async await break case catch class const continue default delete do else export extends false finally for function if import in instanceof let new null return super switch this throw true try typeof undefined var void while yield",
+        sql: "select from where and or not in is null like between group by order having limit offset join left right inner outer on as union all distinct case when then else end with asc desc count sum avg min max ifnull coalesce exists",
+        json: "true false null",
+    };
+    const czRes = {};
+    function czRe(lang) {
+        if (czRes[lang]) return czRes[lang];
+        const com = lang === "python" ? "#.*$" : lang === "sql" ? "--.*$" : lang === "javascript" ? "\\/\\/.*$" : "(?!)";
+        const str = lang === "javascript" ? "`(?:\\\\.|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'" : "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'";
+        const kw = (CZ_KEYWORDS[lang] || "").split(" ").join("|");
+        const src = "(" + com + ")|(" + str + ")|(%\\(\\w+\\)s)|(\\b\\d+(?:\\.\\d+)?\\b)" + (kw ? "|(\\b(?:" + kw + ")\\b)" : "");
+        return (czRes[lang] = new RegExp(src, lang === "sql" ? "gi" : "g"));
+    }
+    function czTokens(text, lang) {
+        const out = [];
+        const re = czRe(lang);
+        const cls = ["c-com", "c-str", "c-var", "c-num", "c-kw"];
+        let last = 0;
+        let m;
+        re.lastIndex = 0;
+        while ((m = re.exec(text))) {
+            if (!m[0]) {
+                re.lastIndex++;
+                continue;
+            }
+            if (m.index > last) out.push(document.createTextNode(text.slice(last, m.index)));
+            for (let g = 1; g <= 5; g++) {
+                if (m[g] !== undefined) {
+                    out.push(h("span", { class: cls[g - 1], text: m[0] }));
+                    break;
+                }
+            }
+            last = m.index + m[0].length;
+        }
+        if (last < text.length) out.push(document.createTextNode(text.slice(last)));
+        return out;
+    }
+
+    function czCode(code, marks, L) {
+        let view = code.diff ? "diff" : "full";
+        const body = h("div.ac-cz-code-body", { tabindex: "0" });
+        const tabs = code.diff
+            ? h(
+                  "div.ac-cz-tabs",
+                  [["diff", L.diff_view], ["full", L.full_view]].map(([key, label]) =>
+                      h("button.ac-cz-tab", { type: "button", dataset: { view: key }, text: label, onclick: () => show(key) })
+                  )
+              )
+            : null;
+        const copy = h("button.ac-btn.ac-btn-ghost.ac-btn-sm", { type: "button", onclick: () => AIChat.copyText(code.text) }, icon("copy"), h("span", { text: L.copy }));
+        const box = h(
+            "div.ac-cz-code",
+            { dir: "ltr" },
+            h("div.ac-cz-code-head", h("span.ac-cz-lang", { text: code.language }), h("span.ac-cz-lines", { text: String(code.lines || "") }), tabs, h("span.ac-grow"), copy),
+            body
+        );
+        function full() {
+            return h(
+                "ol.ac-cz-src",
+                String(code.text)
+                    .split("\n")
+                    .map((line, i) => {
+                        const n = i + 1;
+                        return h(
+                            "li.ac-cz-line",
+                            { class: marks[n] ? "mark-" + marks[n] : null, dataset: { line: n } },
+                            h("span.ac-cz-ln", { text: String(n), aria: { hidden: "true" } }),
+                            h("span.ac-cz-tx", czTokens(line, code.language))
+                        );
+                    })
+            );
+        }
+        function diff() {
+            return h(
+                "ol.ac-cz-src.ac-cz-diff",
+                String(code.diff)
+                    .split("\n")
+                    .map((line) => {
+                        const k = line.startsWith("+++") || line.startsWith("---") ? "meta" : line[0] === "@" ? "hunk" : line[0] === "+" ? "add" : line[0] === "-" ? "del" : "ctx";
+                        const content = k === "add" || k === "del" || k === "ctx" ? czTokens(line.slice(1), code.language) : line;
+                        return h("li.ac-cz-line", { class: "d-" + k }, h("span.ac-cz-ln", { text: k === "add" ? "+" : k === "del" ? "−" : "" }), h("span.ac-cz-tx", content));
+                    })
+            );
+        }
+        function show(next) {
+            view = next;
+            AIChat.clear(body);
+            body.appendChild(view === "diff" ? diff() : full());
+            if (tabs) Array.from(tabs.children).forEach((b) => b.classList.toggle("is-on", b.dataset.view === view));
+        }
+        show(view);
+        box.goTo = (n) => {
+            if (view !== "full") show("full");
+            const el = body.querySelector('[data-line="' + n + '"]');
+            if (!el) return;
+            body.scrollTop = el.offsetTop - body.clientHeight / 3;
+            el.classList.remove("is-flash");
+            void el.offsetWidth;
+            el.classList.add("is-flash");
+        };
+        return box;
+    }
+
+    const CZ_GLYPH = { ok: "check", info: "info", warning: "alert", critical: "alert" };
+    function czChecks(checks, onLine, L) {
+        if (!checks || !checks.length) return h("div.ac-small.ac-muted", { text: L.no_checks });
+        return h(
+            "ul.ac-cz-checks",
+            checks.map((c) =>
+                h(
+                    "li.ac-cz-check",
+                    { class: "lvl-" + c.level, role: c.level === "critical" ? "alert" : null },
+                    icon(CZ_GLYPH[c.level] || "info"),
+                    h("span.ac-grow", { text: c.message }),
+                    c.line && onLine ? h("button.ac-cz-lineref", { type: "button", text: (L.line || "{0}").replace("{0}", c.line), onclick: () => onLine(c.line) }) : null
+                )
+            )
+        );
+    }
+
+    function czSection(glyph, title, content, extra) {
+        return h("section.ac-cz-sec", h("div.ac-tool-section-title.ac-cz-title", icon(glyph), h("span", { text: title || "" }), extra || null), content);
+    }
+
+    function customizationView(c, pending) {
+        const L = c.labels || {};
+        const marks = {};
+        (c.checks || []).forEach((k) => {
+            if (k.line && (!marks[k.line] || k.level === "critical")) marks[k.line] = k.level;
+        });
+        const code = c.code ? czCode(c.code, marks, L) : null;
+        const parts = [];
+        const who = c.provenance && c.provenance.requested_by;
+        parts.push(
+            h(
+                "div.ac-cz-meta",
+                h("span.ac-cz-risk", { class: "risk-" + c.risk, text: c.risk_label }),
+                h("span.ac-cz-kind", { text: [c.kind_label, c.operation_label].filter(Boolean).join(" · ") }),
+                who ? h("span.ac-cz-who", icon("user"), h("span", { dir: "ltr", text: who + (c.provenance.surface ? " · " + c.provenance.surface : "") })) : null
+            )
+        );
+        if (c.tainted_text) parts.push(h("div.ac-cz-banner.is-warning", { role: "alert" }, icon("alert"), h("span", { text: c.tainted_text })));
+        if (pending && c.approve_hidden_reason) parts.push(h("div.ac-cz-banner", { class: c.has_critical ? "is-critical" : "is-info" }, icon(c.has_critical ? "alert" : "info"), h("span", { text: c.approve_hidden_reason })));
+        const counts = c.counts || {};
+        const tally = h(
+            "span.ac-cz-tally",
+            ["critical", "warning", "info"].filter((l) => counts[l]).map((l) => h("span.ac-cz-count", { class: "lvl-" + l, text: String(counts[l]) }))
+        );
+        parts.push(czSection("shield", L.checks, czChecks(c.checks, code ? (n) => code.goTo(n) : null, L), tally));
+        if (c.impact && c.impact.length) parts.push(czSection("user", L.impact, h("ul.ac-cz-bullets", c.impact.map((x) => h("li", { text: x })))));
+        if (c.diff && c.diff.length) {
+            parts.push(
+                czSection(
+                    "list",
+                    L.diff,
+                    h(
+                        "div.ac-table-wrap",
+                        h(
+                            "table.ac-table.ac-cz-diff-table",
+                            h("thead", h("tr", [L.field, L.property, L.before, L.after].map((x) => h("th", { text: x || "" })))),
+                            h(
+                                "tbody",
+                                c.diff.map((r) =>
+                                    h(
+                                        "tr",
+                                        h("td", h("span", { text: r.field_label || r.field || "—" }), r.field && r.field_label && r.field !== r.field_label ? h("div.ac-cz-fn", { dir: "ltr", text: r.field }) : null),
+                                        h("td", { text: r.label }),
+                                        h("td.ac-cz-before", { text: r.before }),
+                                        h("td.ac-cz-after", { text: r.after })
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        }
+        if (c.fields && c.fields.length) {
+            parts.push(
+                czSection(
+                    "plus",
+                    L.fields,
+                    h(
+                        "div.ac-cz-fields",
+                        c.fields.map((f) =>
+                            h(
+                                "div.ac-cz-field",
+                                { class: f.removed ? "is-removed" : null },
+                                h("div.ac-cz-field-head", h("strong", { text: f.label }), h("span.ac-cz-fn", { dir: "ltr", text: f.fieldname })),
+                                h("dl.ac-cz-dl", f.facts.map((x) => h("div", h("dt", { text: x.label }), h("dd", { text: x.d }))))
+                            )
+                        )
+                    )
+                )
+            );
+        }
+        if (c.layout && c.layout.fields) {
+            parts.push(
+                czSection(
+                    "list",
+                    L.layout,
+                    h(
+                        "ol.ac-cz-layout",
+                        c.layout.fields.map((f) =>
+                            h("li", { class: f.new ? "is-new" : null }, h("span.ac-grow", { text: f.label }), f.fieldtype ? h("span.ac-cz-fn", { text: f.fieldtype }) : null, f.new ? h("span.ac-cz-new", { text: L.new }) : null)
+                        )
+                    ),
+                    c.layout.title ? h("span.ac-muted", { text: "· " + c.layout.title }) : null
+                )
+            );
+        }
+        (c.lists || []).forEach((l) => parts.push(czSection("list", l.title, h("div.ac-cz-tags", l.items.map((x) => h("span.ac-cz-tag", { text: x }))))));
+        if (code) parts.push(czSection("code", c.code.title || L.code, code));
+        if (c.dry_run) {
+            const changed = c.dry_run.changed || [];
+            parts.push(
+                czSection(
+                    "refresh",
+                    L.dry_run,
+                    h(
+                        "div",
+                        h("div.ac-cz-banner", { class: c.dry_run.threw ? "is-warning" : "is-info" }, icon(c.dry_run.threw ? "alert" : "check"), h("span", { text: c.dry_run.threw ? L.threw + " " + c.dry_run.message : L.passed })),
+                        changed.length ? h("dl.ac-cz-dl", changed.map((x) => h("div", h("dt", { text: x.label }), h("dd", { text: x.before + " → " + x.after })))) : null
+                    ),
+                    c.dry_run.document ? h("span.ac-muted", { dir: "ltr", text: "· " + c.dry_run.document }) : null
+                )
+            );
+        }
+        if (c.rows && c.rows.columns && c.rows.columns.length) {
+            parts.push(
+                czSection(
+                    "table",
+                    c.rows.title || L.rows,
+                    h("div.ac-table-wrap", h("table.ac-table", h("thead", h("tr", c.rows.columns.map((x) => h("th", { text: x })))), h("tbody", c.rows.rows.map((r) => h("tr", r.map((v) => h("td", { text: v })))))))
+                )
+            );
+        }
+        if (c.result && c.result.checks && c.result.checks.length) parts.push(czSection("shield-check", L.verification, czChecks(c.result.checks, null, L)));
+        if (c.purpose) parts.push(czSection("info", L.purpose, h("p.ac-cz-p", { text: c.purpose })));
+        parts.push(czSection("refresh", L.undo, h("p.ac-cz-p", { text: c.undo })));
+        if (pending && c.next_steps && c.next_steps.length) parts.push(h("ol.ac-cz-next", c.next_steps.map((x) => h("li", { text: x }))));
+        return h("div.ac-cz", parts);
+    }
+
+    /** After execution: the verdict, links to what was created, and an Undo that asks the assistant for a new request. */
+    function customizationOutcome(c, ctx) {
+        const r = c.result;
+        if (!r) return null;
+        const row = h("div.ac-row.ac-cz-outcome");
+        if (r.error) return h("div.ac-cz-banner.is-critical", { role: "alert" }, icon("alert"), h("span", { text: r.error }));
+        row.appendChild(h("div.ac-cz-banner", { class: r.verified ? "is-ok" : "is-warning" }, icon(r.verified ? "shield-check" : "alert"), h("span", { text: r.text })));
+        const links = h("div.ac-row");
+        (r.targets || []).forEach((t) => links.appendChild(h("a.ac-doc-link", { href: t.href, target: "_blank", rel: "noopener" }, icon("external"), h("span", { text: t.label }))));
+        if (r.undo_prompt && ctx && ctx.onSend) {
+            links.appendChild(h("button.ac-btn.ac-btn-ghost.ac-btn-sm", { type: "button", onclick: () => ctx.onSend(r.undo_prompt) }, icon("refresh"), h("span", { text: r.undo_label })));
+        }
+        row.appendChild(links);
+        return row;
     }
 
     function renderApproval(block, ctx) {
@@ -443,10 +713,13 @@
 
         const kicker = h("span.ac-approval-kicker");
         const meta = h("div.ac-approval-meta");
+        const czBox = h("div.ac-approval-cz");
+        czBox.hidden = true;
         const root = h(
             "div.ac-block.ac-approval",
             h("div.ac-approval-head", h("span.ac-approval-icon", icon("shield")), h("div.ac-approval-heading", kicker, summary, meta), badge),
             impact,
+            czBox,
             kv,
             details,
             outcome,
@@ -531,9 +804,17 @@
             root.dataset.status = st;
 
             summary.textContent = s.action_summary || [__("Approval request"), action, s.doctype_name].filter(Boolean).join(" · ");
+            // A customization request carries its own section (customization/presenter.py): it is never auto-approved.
+            const cz = s.action_type === "Customize" ? s.customization : null;
+            AIChat.clear(czBox);
+            czBox.hidden = !cz;
+            if (cz) {
+                czBox.appendChild(customizationView(cz, st === "Pending"));
+                if (cz.target) meta.textContent = [action, cz.kind_label, cz.target].filter(Boolean).join(" · ");
+            }
             badge.hidden = st === "Pending";
             AIChat.clear(impact);
-            if (s.impact_summary) {
+            if (s.impact_summary && !cz) {
                 impact.append(icon("info"), h("span", { text: s.impact_summary }));
                 impact.hidden = false;
             } else impact.hidden = true;
@@ -555,9 +836,17 @@
             AIChat.clear(outcome);
             const pending = st === "Pending";
             actions.hidden = !pending;
-            const canAlways = pending && AUTO_TYPES.has(s.action_type) && !!(AIChat.store && AIChat.store.state.autoApproval);
+            const canAlways = pending && !cz && AUTO_TYPES.has(s.action_type) && !!(AIChat.store && AIChat.store.state.autoApproval);
             btnAlways.hidden = !canAlways;
             btnApprove.lastChild.textContent = canAlways ? __("Approve once") : __("Approve");
+            btnApprove.hidden = false;
+            btnApprove.classList.toggle("ac-btn-danger", false);
+            if (cz) {
+                // No "always approve" for code or schema; a critical finding or a missing role hides Approve.
+                btnApprove.lastChild.textContent = cz.approve_label;
+                btnApprove.hidden = !cz.can_approve;
+                btnApprove.classList.toggle("ac-btn-danger", cz.risk === "high");
+            }
             btnDetails.hidden = false;
             if (!pending) {
                 const who = s.auto ? __("Auto-approval is on in this conversation") : s.decided_by ? __("By {0}", [s.decided_by]) : "";
@@ -566,7 +855,12 @@
                 if (line) outcome.appendChild(h("div.ac-small.ac-muted", { text: line }));
                 if (s.reason) outcome.appendChild(h("div.ac-small", h("strong", { text: __("Reason: ") }), s.reason));
                 const created = s.result && s.result.document_name;
-                if (created) {
+                const czOutcome = cz ? customizationOutcome(cz, ctx) : null;
+                if (czOutcome) outcome.appendChild(czOutcome);
+                else if (cz && s.error) outcome.appendChild(h("div.ac-cz-banner.is-critical", { role: "alert" }, icon("alert"), h("span", { text: s.error })));
+                else if (cz) {
+                    // nothing else to show: the section above holds the verdict
+                } else if (created) {
                     outcome.appendChild(
                         h(
                             "a.ac-doc-link",

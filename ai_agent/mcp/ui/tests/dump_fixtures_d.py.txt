@@ -1,0 +1,43 @@
+"""Customization approval cards (customize.request_*), in Arabic and English.
+
+Copy to ai_agent/tests/test_zz_dump_d.py, run
+  FIXTURE_DIR=<dir>/fx bench --site <site> run-tests --app ai_agent --module ai_agent.tests.test_zz_dump_d
+then delete the copy. Writes fx/main_ar.html, fx/main_en.html, fx/cz_<case>_<lang>.json (MCP view) and
+fx/desk_<case>_<lang>.json (Desk chat block); render with customization.mjs <dir> and desk_customization.mjs <dir>.
+"""
+import json, os
+from unittest.mock import patch
+import frappe
+from frappe.tests import IntegrationTestCase
+from ai_agent.customization import presenter
+from ai_agent.mcp import approvals
+from ai_agent.mcp.protocol import build_main_view
+from ai_agent.tests.test_customization_cards import CASES, approval_for
+from ai_agent.tests.test_mcp_service_views import make_service
+
+OUT = os.environ["FIXTURE_DIR"]
+
+
+class TestDump(IntegrationTestCase):
+	def test_dump(self):
+		from frappe.translate import clear_cache
+
+		clear_cache()  # pick up translations/ar.csv as it is now
+		svc = make_service(True)
+		for lang in ("ar", "en"):
+			frappe.local.ai_label_lang = None
+			with patch("ai_agent.presentation.labels.label_language", return_value=lang), \
+					patch.object(approvals, "app_approval_enabled", return_value=True), \
+					patch("ai_agent.mcp.continuation.peek", return_value=None):
+				frappe.local.lang = lang
+				open(f"{OUT}/main_{lang}.html", "w").write(build_main_view(lang=lang))
+				for name in CASES:
+					frappe.flags.mcp_ui_supported = True
+					apr = approval_for(name, lang)
+					result = svc._envelope_result(approvals.card_envelope(apr, "Administrator"), "customize.request_server_script", {}, for_app=True)
+					json.dump(result, open(f"{OUT}/cz_{name}_{lang}.json", "w"), ensure_ascii=False, default=str)
+					# The Desk chat block: the approval snapshot plus the same section (engine/tools.approval_snapshot).
+					snap = {"approval": apr.name, "approval_id": apr.name, "status": apr.status, "action_type": "Customize", "doctype_name": None, "document_name": None,
+						"action_summary": apr.action_summary, "impact_summary": "", "payload": json.loads(apr.payload_json), "expires_at": "", "requested_by": apr.requested_by,
+						"customization": presenter.section(apr, "Administrator"), "result": json.loads(apr.execution_result) if apr.execution_result else None}
+					json.dump(snap, open(f"{OUT}/desk_{name}_{lang}.json", "w"), ensure_ascii=False, default=str)

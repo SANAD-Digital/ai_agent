@@ -159,6 +159,27 @@ expired request cannot be replayed, and execution re-checks the approver's permi
 business confirmation; it does not replace any native approval a host applies to tool calls.
 Otherwise the card shows the Frappe link and approval happens in the desk as before.
 
+### Customization requests (`customize__request_*`)
+
+Offered over MCP only when **AI Settings > Customization > Allow over MCP** (`customization_allow_mcp`) is on, in
+addition to the customization switches, the user's Frappe roles and an agent that may act. Every MCP request is
+treated as following outside content (the host reads the web itself), so the card always carries the "make sure the
+request is yours" warning.
+
+The card (`card["customization"]`, built by `ai_agent/customization/presenter.py`, the same section the Desk chat
+draws) shows: the kind and operation, the target, the risk; every analyzer finding with its level, most serious
+first, and a line button that jumps to the line in the code; who and what it affects; a before/after table for fields
+and properties; the place of a new field on the form; the **full code** (never shortened) with line numbers and light
+token colouring, and a unified diff on updates; preview rows of a report; a trial run on a copy when the kind made
+one; the purpose and the undo plan.
+
+Approval is **in ERPNext only** (design decision D4): the card has no approve button, its primary action opens the
+`AI Approval Request` in the desk, and `approvals__decide` refuses `approve` for a Customize request whether the call
+comes from the card or from the model ("موافق" in the chat). Cancel stays available. After execution the card shows
+the verification checks, a link to the created record and an Undo action that sends "Undo customization APR-…" as the
+user's next message; the assistant answers with `customize__request_undo`, which is a new request approved the same
+way. Text-only hosts get the risk, the critical and warning findings, the impact, the undo plan and the desk link.
+
 ### Where the view lives
 
 Plain HTML, CSS and JavaScript, with no framework and no build step. `ai_agent/mcp/ui/src/` holds small modules

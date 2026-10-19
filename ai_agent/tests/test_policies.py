@@ -136,8 +136,28 @@ class TestSystemConfigurationPolicy(PolicyTestCase):
 			["default_receivable_account"],
 		)
 
+	def test_code_access_and_agent_doctypes_are_refused(self):
+		"""Generic document actions never write code, access or the agent's own setup (phase 0)."""
+		self.assertRaises(PermissionDenied, self._create, "Server Script",
+			{"name": "t-guest-api", "script_type": "API", "api_method": "t_guest", "allow_guest": 1, "script": "frappe.response['x'] = 1"})
+		self.assertRaises(PermissionDenied, self._create, "Webhook",
+			{"webhook_doctype": "Customer", "webhook_docevent": "on_update", "request_url": "https://example.com/hook"})
+		self.assertRaises(PermissionDenied, self._create, "User", {"email": "t-agent@example.com", "first_name": "T"})
+		self.assertRaises(PermissionDenied, self._create, "AI Skill Grant", {"skill": "documents"})
+		self.assertRaises(PermissionDenied, self.engine.create_approval_request,
+			run_name=self.run.name, action_type="Bulk Create", doctype_name=None, action_summary="t",
+			payload={"documents": [{"doctype": "Custom Field", "payload": {"dt": "Customer", "fieldname": "x", "fieldtype": "Data"}}]})
+		script = frappe.get_all("Server Script", pluck="name", limit=1)
+		if script:
+			with self.assertRaises(PermissionDenied):
+				self.engine.create_approval_request(
+					run_name=self.run.name, action_type="Update", doctype_name="Server Script", document_name=script[0],
+					action_summary="t", payload={"disabled": 0},
+				)
+
 	def test_ordinary_business_documents_are_not_affected(self):
 		self.assertFalse(policy.is_protected_doctype("Sales Invoice"))
+		self.assertNotIn("Sales Invoice", policy.CODE_AND_ACCESS_DOCTYPES)
 		self.assertEqual(
 			policy.protected_payload_fields("Item", {"item_code": "X", "item_defaults": [{"default_warehouse": "W"}]}),
 			[],

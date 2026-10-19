@@ -719,7 +719,7 @@ def decide_approval(approval, decision, reason=None):
     switched = None
     if decision == "approve_always":
         doc = frappe.get_doc("AI Approval Request", approval)
-        if doc.action_type not in policy.AUTO_APPROVE_TYPES:
+        if policy.requires_human(doc.action_type) or doc.action_type not in policy.AUTO_APPROVE_TYPES:
             frappe.throw(_("This kind of action always needs approval."))
         session = frappe.db.get_value("AI Chat Message", frappe.db.get_value("AI Message Block", {"approval": approval, "block_type": "approval"}, "message"), "session")
         if not session:

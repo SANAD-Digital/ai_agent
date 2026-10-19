@@ -30,6 +30,8 @@ class ToolGateway:
         if not self._is_tool_allowed_by_agent(tool_name, agent_doc):
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
 
+        self._assert_customization_available(tool_name)
+
         from ai_agent.runtime import access
 
         if not access.tool_allowed(tool_name, self.ctx.user):
@@ -84,6 +86,8 @@ class ToolGateway:
         if not self._is_tool_allowed_by_agent(tool_name, agent_doc):
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
 
+        self._assert_customization_available(tool_name)
+
         from ai_agent.runtime import access
 
         if not access.tool_allowed(tool_name, self.ctx.user):
@@ -102,11 +106,23 @@ class ToolGateway:
     def _is_tool_allowed_by_agent(self, tool_name, agent_doc):
         if not agent_doc:
             return True
-        if agent_doc.get("read_only") and tool_name.startswith("actions."):
+        # customize.* (reads included) belong to agents that may act: they lead to approvals that change the system.
+        acting = tool_name.startswith("actions.") or tool_name.startswith("customize.")
+        if agent_doc.get("read_only") and acting:
             return False
-        if not agent_doc.get("allow_actions") and tool_name.startswith("actions."):
+        if not agent_doc.get("allow_actions") and acting:
             return False
         return True
+
+    def _assert_customization_available(self, tool_name):
+        """customize.* need the AI Settings switches, Frappe's roles and an allowed surface. The caller sets
+        ``ctx.surface`` ("Desk" chat, "MCP"); without it (WhatsApp, support bubble, legacy runs) they are refused."""
+        if not tool_name.startswith("customize."):
+            return
+        from ai_agent.customization import policy as customization_policy
+
+        if not customization_policy.tool_available(tool_name, self.ctx.user, getattr(self.ctx, "surface", None)):
+            raise ToolDenied(f"Tool '{tool_name}' is not available: customization is turned off here or needs other roles.")
 
     def _is_tool_allowed_by_skill(self, tool_name):
         if not self.enforce_skill_tools:

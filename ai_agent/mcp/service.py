@@ -173,6 +173,12 @@ VIEW_TOOLS = {
     "actions.request_submit",
     "actions.request_update",
     "actions.request_workflow_action",
+    "customize.request_field",
+    "customize.request_properties",
+    "customize.request_client_script",
+    "customize.request_server_script",
+    "customize.request_report",
+    "customize.request_undo",
 }
 
 
@@ -347,11 +353,15 @@ class MCPService:
 
         run = self._create_run(internal_name, arguments)
         ctx = PermissionContext(self.user, self.agent.name, self.company)
+        # Customization gates: the MCP surface, and every MCP request counts as tainted (the host reads
+        # the web and files with its own tools, out of our sight).
+        ctx.surface = "MCP"
+        ctx.tainted = True
         gateway = ToolGateway(ctx, self.registry)
 
         then = None
         try:
-            if internal_name.startswith(ACTION_PREFIX):
+            if registered.get("requires_approval"):
                 then = arguments.pop("then", None)
                 if then is not None:
                     then = continuation.clean(then)
@@ -365,7 +375,7 @@ class MCPService:
                     if then:
                         continuation.store(result["approval_id"], self.user, then)
                         events.log("continuation_stored", user=self.user, approval_id=result["approval_id"], goal=then["goal"])
-                    if not approvals.approval_required():
+                    if not approvals.approval_required() and not self._always_human(result["approval_id"]):
                         return self._direct_execute(result["approval_id"], internal_name, run.name)
             else:
                 events.log("tool_called", user=self.user, tool=internal_name)
@@ -508,10 +518,13 @@ class MCPService:
             elif name == "approvals__list_pending":
                 envelope = approvals.list_pending(self.user)
             elif name == "approvals__decide":
+                if arguments.get("decision") != "reject":
+                    self._assert_decidable_here(arguments.get("approval_id"))
                 envelope = approvals.decide(self.user, arguments.get("approval_id"), arguments.get("decision"),
                                             arguments.get("token") or None, arguments.get("reason"))
                 envelope = self._continue_after(envelope, arguments.get("approval_id"))
             elif name == "approvals__revise":
+                self._assert_decidable_here(arguments.get("approval_id"))
                 envelope = approvals.revise(self.user, arguments.get("approval_id"), arguments.get("token"), arguments.get("changes"))
             elif name == "view__load":
                 envelope, tool, load_args = self._load(arguments)
@@ -548,6 +561,25 @@ class MCPService:
             raise approvals.ApprovalUiError(t("There are no options to choose from."))
         return choice.build(arguments.get("title") or title, options, subtitle=arguments.get("subtitle") or subtitle, icon=icon,
                             reply_template=arguments.get("reply_template") or reply)
+
+    @staticmethod
+    def _always_human(approval_id):
+        from ai_agent.runtime import policy
+
+        return policy.requires_human(frappe.db.get_value("AI Approval Request", approval_id, "action_type"))
+
+    def _assert_decidable_here(self, approval_id):
+        """A Customize request is approved from Desk only (D4): never by approvals__decide, which an external
+        model calls, nor by the card's buttons. Rejecting from here stays allowed."""
+        if not approval_id:
+            return
+        action_type = frappe.db.get_value("AI Approval Request", approval_id, "action_type")
+        if action_type == "Customize":
+            url = frappe.utils.get_url(f"/app/ai-approval-request/{approval_id}")
+            raise PermissionDenied(
+                f"Customization changes are approved in ERPNext only, not from an external AI tool. Open {url} to review "
+                "and approve it, or ask the user to approve it in the ERPNext chat."
+            )
 
     def _direct_execute(self, approval_id, internal_name, run_name):
         """Approval not required: run the requester's own request now, verify, and continue its `then`."""
@@ -680,10 +712,19 @@ class MCPService:
     def _is_exposed(self, tool):
         from ai_agent.runtime import policy
 
-        if tool["name"].startswith("actions.") and (
+        if (tool["name"].startswith("actions.") or tool["name"].startswith("customize.")) and (
             cint(self.agent.get("read_only")) or not cint(self.agent.get("allow_actions"))
         ):
             return False
+        if tool["name"].startswith("customize."):
+            # Off unless AI Settings allows customization over MCP (customization_allow_mcp) and the user holds
+            # the roles; requests also need action requests enabled for MCP. Approval is from Desk only.
+            from ai_agent.customization import policy as customization_policy
+
+            if not customization_policy.tool_available(tool["name"], self.user, customization_policy.MCP):
+                return False
+            if tool.get("requires_approval") and not self._action_requests_enabled():
+                return False
         if tool["name"] in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
             return False
         if tool["name"] in ("tools.request_more", "files.read"):   # files.read reads Desk chat attachments only
@@ -697,6 +738,8 @@ class MCPService:
         side_effect = tool.get("side_effect") or "read_only"
         if side_effect in SAFE_SIDE_EFFECTS:
             return True
+        if tool["name"].startswith("customize."):
+            return True   # checked above
         return tool["name"].startswith(ACTION_PREFIX) and self._action_requests_enabled()
 
     def _create_run(self, tool_name, arguments):

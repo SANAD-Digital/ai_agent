@@ -49,6 +49,11 @@ def ensure_standard_configuration():
 # get their JSON default on existing sites. Seed them once; a saved value
 # (including an admin's explicit 0) is never overwritten.
 NEW_SETTING_DEFAULTS = {"enable_tool_routing": 1, "mcp_require_approval": 1, "allow_auto_approval": 1}
+# Customization (customize.* tools): every switch is off by default (its JSON default 0 is what an unsaved Check
+# reads as); only the non-zero limit needs seeding. Seeded only once the field exists on this site.
+CUSTOMIZATION_SETTING_DEFAULTS = {"customization_max_requests_per_hour": 20}
+# Skills granted by role, never to "All Users": they change the system itself (design §3.6.1).
+ROLE_GRANTED_SKILLS = {"customization": "System Manager"}
 
 
 def ensure_provider_policy_defaults():
@@ -81,6 +86,15 @@ def move_mcp_allowed_roles_to_table():
 def ensure_new_setting_defaults():
     ensure_provider_policy_defaults()
     for fieldname, value in NEW_SETTING_DEFAULTS.items():
+        stored = frappe.db.sql(
+            "select 1 from `tabSingles` where doctype='AI Settings' and field=%s", fieldname
+        )
+        if not stored:
+            frappe.db.set_single_value("AI Settings", fieldname, value)
+    meta = frappe.get_meta("AI Settings")
+    for fieldname, value in CUSTOMIZATION_SETTING_DEFAULTS.items():
+        if not meta.has_field(fieldname):
+            continue  # the settings field arrives with its migration; seeded on the migrate after it
         stored = frappe.db.sql(
             "select 1 from `tabSingles` where doctype='AI Settings' and field=%s", fieldname
         )
@@ -650,6 +664,9 @@ def create_default_skill_grants():
             continue
         allowed_skills = _skills_for_agent(agent_name, skills)
         for skill in allowed_skills:
+            if skill in ROLE_GRANTED_SKILLS:
+                _ensure_role_skill_grant(agent_docname, skill, ROLE_GRANTED_SKILLS[skill])
+                continue
             if _global_skill_grant_exists(agent_docname, skill):
                 continue
             grant = frappe.get_doc({
@@ -736,6 +753,22 @@ def _get_agent_docname(agent_name):
     )
 
 
+def _ensure_role_skill_grant(agent, skill, role):
+    """One enabled grant of ``skill`` to ``role`` on ``agent``; an admin who disabled it keeps it disabled."""
+    if not frappe.db.exists("Role", role):
+        return
+    if frappe.db.exists("AI Skill Grant", {"agent": agent, "skill": skill, "grant_type": "Role", "role": role}):
+        return
+    frappe.get_doc({
+        "doctype": "AI Skill Grant",
+        "agent": agent,
+        "skill": skill,
+        "grant_type": "Role",
+        "role": role,
+        "enabled": 1,
+    }).insert(ignore_permissions=True)
+
+
 def _global_skill_grant_exists(agent, skill):
     return bool(frappe.db.sql(
         """
@@ -759,6 +792,7 @@ def _skills_for_agent(agent, skills):
         or not frappe.db.get_value("AI Skill", skill, "allow_implicit_invocation")
     ]
     if agent == "ERP Analyst":
-        excluded = {"documents"}  # read-only agent: no document creation or workflow playbook
+        # read-only agent: no document creation or workflow playbook, and no changes to the system itself
+        excluded = {"documents", "customization"}
         return [skill for skill in skills if skill not in excluded]
     return list(skills)

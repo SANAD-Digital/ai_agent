@@ -1828,3 +1828,153 @@ Response,النتيجة,AI Chat
 Failed,فشل,AI Chat
 {0} items,{0} عناصر,AI Chat
 Used the system tools,استخدم أدوات النظام,AI Chat
+"A critical check failed, so this change cannot be approved. Ask the assistant to fix it and request again.",فشل فحص حرج، لذلك لا يمكن اعتماد هذا التغيير. اطلب من المساعد إصلاحه ثم الطلب من جديد.,AI View
+Add,إضافة,AI View
+After,بعد,AI View
+Allow copy,السماح بالنسخ,AI View
+Allow import,السماح بالاستيراد,AI View
+Allow on submit,قابل للتعديل بعد الاعتماد,AI View
+Applied and verified.,طُبّق التغيير وتم التحقق منه.,AI View
+"Applied, but the verification did not confirm every value. Review the checks below.",طُبّق التغيير، لكن التحقق لم يؤكد كل القيم. راجع الفحوص أدناه.,AI View
+Approve and apply,اعتماد وتطبيق,AI View
+Approve high-risk change,اعتماد تغيير عالي الخطورة,AI View
+Approve high-risk code,اعتماد كود عالي الخطورة,AI View
+Approving this change needs the roles: {0}.,اعتماد هذا التغيير يحتاج الأدوار: {0}.,AI View
+Before,قبل,AI View
+Before and after,قبل وبعد,AI View
+Bold,خط عريض,AI View
+Changes,التغييرات,AI View
+Checks,الفحوص,AI View
+Client script,سكربت عميل,AI View
+Code,الكود,AI View
+Collapsible,قابل للطي,AI View
+Column in list,عمود في القائمة,AI View
+Columns,الأعمدة,AI View
+Copy code,نسخ الكود,AI View
+Custom field,حقل مخصص,AI View
+Customization,تخصيص,AI View
+Customization needs a second person: you cannot approve your own change. A colleague with the required roles approves it.,التخصيص يحتاج شخصاً ثانياً: لا يمكنك اعتماد تغييرك بنفسك. يعتمده زميل يحمل الأدوار المطلوبة.,AI View
+Customization requests are approved in ERPNext only. Open the request there to review and approve it.,طلبات التخصيص تُعتمد من ERPNext فقط. افتح الطلب هناك لمراجعته واعتماده.,AI View
+Customization requests are approved in ERPNext only: open request {0}: {1},طلبات التخصيص تُعتمد من ERPNext فقط: افتح الطلب {0}: {1},AI View
+Default,القيمة الافتراضية,AI View
+Default view,العرض الافتراضي,AI View
+Disable,تعطيل,AI View
+Disable the report (it is kept for review).,تعطيل التقرير (يبقى محفوظاً للمراجعة).,AI View
+Disable the script (it is kept for review).,تعطيل السكربت (يبقى محفوظاً للمراجعة).,AI View
+Disable the script again.,تعطيل السكربت من جديد.,AI View
+Display depends on,يظهر بشرط,AI View
+Editable grid,جدول قابل للتحرير,AI View
+Enable,تفعيل,AI View
+Enable the report again.,تفعيل التقرير من جديد.,AI View
+Enable the script again.,تفعيل السكربت من جديد.,AI View
+Fetch from,يُجلب من,AI View
+Fetch only if empty,يُجلب إن كان فارغاً فقط,AI View
+Field,الحقل,AI View
+Field and form properties,خصائص الحقول والنموذج,AI View
+Field order,ترتيب الحقول,AI View
+Fields,الحقول,AI View
+Filter in list sidebar,فلتر في شريط القائمة,AI View
+Form,النموذج,AI View
+Full code,الكود كاملاً,AI View
+Hidden,مخفي,AI View
+Hide in print,مخفي في الطباعة,AI View
+Hide in report,مخفي في التقرير,AI View
+High risk,خطورة عالية,AI View
+Image field,حقل الصورة,AI View
+In global search,في البحث العام,AI View
+In preview,في المعاينة,AI View
+In quick entry,في الإدخال السريع,AI View
+Insert after,بعد الحقل,AI View
+Label,التسمية,AI View
+Length,الطول,AI View
+Link filters,فلاتر الربط,AI View
+List,القائمة,AI View
+Low risk,خطورة منخفضة,AI View
+Mandatory,إلزامي,AI View
+Mandatory depends on,إلزامي بشرط,AI View
+Mask,إخفاء القيمة,AI View
+Maximum attachments,أقصى عدد للمرفقات,AI View
+Medium risk,خطورة متوسطة,AI View
+New,جديد,AI View
+No copy,لا يُنسخ,AI View
+No findings.,لا ملاحظات.,AI View
+Non negative,غير سالب,AI View
+Open the client script,فتح سكربت العميل,AI View
+Open the custom field,فتح الحقل المخصص,AI View
+Open the form,فتح النموذج,AI View
+Open the property setter,فتح ضبط الخاصية,AI View
+Open the report,فتح التقرير,AI View
+Open the server script,فتح سكربت الخادم,AI View
+Open {0},فتح {0},AI View
+Options,الخيارات,AI View
+Permission level,مستوى الصلاحية,AI View
+Place on the form,مكانه في النموذج,AI View
+Placeholder,نص توضيحي,AI View
+Precision,الدقة,AI View
+Preview rows,صفوف المعاينة,AI View
+Property,الخاصية,AI View
+Purpose,الغرض,AI View
+Query Report,تقرير استعلام,AI View
+Quick entry,إدخال سريع,AI View
+Re-create the field from its saved definition; data left in its column comes back.,إعادة إنشاء الحقل من تعريفه المحفوظ؛ وتعود البيانات الباقية في عموده.,AI View
+Read only,للقراءة فقط,AI View
+Read only depends on,للقراءة فقط بشرط,AI View
+Remember last value,تذكّر آخر قيمة,AI View
+Remove,إزالة,AI View
+Remove the added fields. Data entered in them stays in the database column.,إزالة الحقول المضافة. البيانات المُدخلة فيها تبقى في عمود قاعدة البيانات.,AI View
+Report Builder,منشئ التقارير,AI View
+Report definition,تعريف التقرير,AI View
+Requested,الطلب,AI View
+Restore the previous code.,استعادة الكود السابق.,AI View
+Restore the previous field settings.,استعادة إعدادات الحقل السابقة.,AI View
+Restore the previous values; property setters created by this change are deleted.,استعادة القيم السابقة؛ وتُحذف ضوابط الخصائص التي أنشأها هذا التغيير.,AI View
+Restore the previous version of the report.,استعادة النسخة السابقة من التقرير.,AI View
+Review and approve in ERPNext,المراجعة والاعتماد في ERPNext,AI View
+Script Manager,مدير السكربتات,AI View
+Search fields,حقول البحث,AI View
+Server script,سكربت خادم,AI View
+Set only once,يُضبط مرة واحدة,AI View
+Show title in links,إظهار العنوان في الروابط,AI View
+Sort field,حقل الترتيب,AI View
+Sort order,اتجاه الترتيب,AI View
+System Manager,مدير النظام,AI View
+Target,الهدف,AI View
+"The change is applied under your name, after every check is run again.",يُطبَّق التغيير باسمك بعد إعادة تشغيل كل الفحوص.,AI View
+The form is reloaded from the database to confirm each value took effect.,يُعاد تحميل النموذج من قاعدة البيانات للتأكد من أن كل قيمة طُبّقت.,AI View
+The full code,الكود كاملاً,AI View
+The query,الاستعلام,AI View
+The script ran without stopping the save.,عمل السكربت دون أن يوقف الحفظ.,AI View
+The script stopped the save with this message:,أوقف السكربت الحفظ بهذه الرسالة:,AI View
+This was requested after the assistant read outside content (a file or a web page). Make sure the request is yours.,طُلب هذا بعد أن قرأ المساعد محتوى خارجياً (ملفاً أو صفحة ويب). تأكد أن الطلب منك.,AI View
+Title field,حقل العنوان,AI View
+Track changes,تتبع التغييرات,AI View
+Track views,تتبع المشاهدات,AI View
+Translatable,قابل للترجمة,AI View
+Trial run on a copy,تجربة على نسخة,AI View
+Undo,تراجع,AI View
+Undo customization {0},تراجع عن التخصيص {0},AI View
+Undo plan,خطة التراجع,AI View
+Undo stays available: it creates a new request that you approve the same way.,التراجع متاح دائماً: يُنشئ طلباً جديداً تعتمده بالطريقة نفسها.,AI View
+Unique,فريد,AI View
+Verification,التحقق,AI View
+We confirm the script is saved with exactly this code and the requested state.,نتأكد أن السكربت محفوظ بهذا الكود نفسه وبالحالة المطلوبة.,AI View
+We run the report once with a small sample to confirm it works.,نشغّل التقرير مرة واحدة بعينة صغيرة للتأكد من أنه يعمل.,AI View
+Who and what it affects,من وماذا يتأثر,AI View
+Width,العرض,AI View
+after cancel,بعد الإلغاء,AI View
+after delete,بعد الحذف,AI View
+after insert,بعد الإنشاء,AI View
+after save,بعد الحفظ,AI View
+after saving a submitted document,بعد حفظ مستند معتمد,AI View
+after submit,بعد الاعتماد,AI View
+before cancel,قبل الإلغاء,AI View
+before delete,قبل الحذف,AI View
+before insert,قبل الإنشاء,AI View
+before print,قبل الطباعة,AI View
+before save,قبل الحفظ,AI View
+before saving a submitted document,قبل حفظ مستند معتمد,AI View
+before submit,قبل الاعتماد,AI View
+before validate,قبل التحقق,AI View
+Customization,تخصيص,AI Chat
+Code line {0},السطر {0},AI View
+Open the request in ERPNext,فتح الطلب في ERPNext,AI View

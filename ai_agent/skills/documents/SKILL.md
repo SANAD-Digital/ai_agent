@@ -46,7 +46,7 @@ Typical required inputs (this site; prepare confirms):
 - Purchase Order: supplier, transaction_date, schedule_date, company, currency, items[item_code, qty, rate, schedule_date].
 - Material Request: material_request_type (Purchase, Material Transfer, Material Issue, Manufacture, Customer Provided), company, transaction_date, items[item_code, qty, schedule_date, warehouse].
 - Payment Entry: payment_type "Receive"/"Pay"/"Internal Transfer", posting_date, company, mode_of_payment, party_type, party, paid_from, paid_to, paid_amount, received_amount, references[reference_doctype, reference_name, allocated_amount] to settle invoices (check outstanding first; `erp.invoice_payments` shows what is already allocated).
-- Journal Entry: voucher_type, posting_date, company, accounts[account, debit_in_account_currency | credit_in_account_currency, party_type, party, cost_center]; debits must equal credits.
+- Journal Entry: voucher_type, posting_date, company, accounts[account, debit_in_account_currency | credit_in_account_currency, party_type, party, cost_center]; debits must equal credits. Header note: write it in `remark` with `custom_remark: 1` (ERPNext v16 hides and retires `user_remark` and `title`); a per-line note goes in `accounts[].user_remark`.
 - Stock Entry: stock_entry_type, company, items[item_code, qty, s_warehouse and/or t_warehouse].
 - Customer: customer_name, customer_type (Company/Individual), customer_group, territory. Supplier: supplier_name, supplier_type, supplier_group. Item: item_code, item_name, item_group, stock_uom, is_stock_item.
 

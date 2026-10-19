@@ -31,8 +31,19 @@ def _writable_fieldnames(doctype, user, parent_doctype=None, *, allow_computed=F
     Updates also exclude read-only/hidden fields. Creates keep them
     (``allow_computed``): Frappe recomputes fetched/derived values on insert,
     and mapped payloads legitimately carry them.
+
+    A field hidden only by Customize Form (a "hidden" Property Setter) is still
+    business data the site chose not to show, e.g. Journal Entry ``user_remark``;
+    it stays writable. Fields hidden by the DocType itself stay blocked.
     """
     meta = frappe.get_meta(doctype)
+    hidden_by_customization = set(
+        frappe.get_all(
+            "Property Setter",
+            filters={"doc_type": doctype, "property": "hidden", "value": ("in", ("1", 1))},
+            pluck="field_name",
+        )
+    )
     levels = set(
         meta.get_permlevel_access(
             permission_type="write",
@@ -46,7 +57,7 @@ def _writable_fieldnames(doctype, user, parent_doctype=None, *, allow_computed=F
             continue
         if df.fieldtype in ("Password", "Password Hash"):
             continue
-        if (df.read_only or df.hidden) and not allow_computed:
+        if not allow_computed and (df.read_only or (df.hidden and df.fieldname not in hidden_by_customization)):
             continue
         if (df.permlevel or 0) not in levels:
             continue
@@ -98,3 +109,24 @@ def blocked_fields(doctype, payload, user, *, mode="update", parent_doctype=None
     return sorted(set(problems))
 
 
+
+
+def replacement_hints(doctype, problems, user):
+    """For blocked top-level fields the DocType hides, name writable fields with a shared word.
+
+    ERPNext retires fields by hiding them (e.g. v16 Journal Entry hides ``user_remark``
+    and ``title`` in favour of ``remark``); the model can then retry with the right field
+    instead of dropping the value.
+    """
+    meta = frappe.get_meta(doctype)
+    writable = _writable_fieldnames(doctype, user)
+    hints = []
+    for key in problems:
+        df = meta.get_field(key) if "[" not in key else None
+        if not df or not df.hidden:
+            continue
+        words = [w for w in key.split("_") if len(w) > 2 and w not in ("custom", "user")]
+        alternatives = sorted(f for f in writable if f != key and any(w in f for w in words))
+        if alternatives:
+            hints.append(f"{key} is retired (hidden) on {doctype}; use {' / '.join(alternatives[:3])} instead")
+    return hints

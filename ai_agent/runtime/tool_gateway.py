@@ -1,7 +1,42 @@
+import json
 import hashlib
 import frappe
 from ai_agent.runtime.exceptions import ToolDenied
 from ai_agent.runtime.trace_service import TraceService
+
+
+def coerce_to_schema(schema, values):
+    """Repair the two shapes models often send instead of the schema's, in place: an object or a list
+    written as JSON text ("{...}", "[...]"), and one name where a list of names is expected
+    ("Accounts User" for roles). Anything else is left for the tool to reject."""
+    if not isinstance(schema, dict) or not isinstance(values, dict):
+        return values
+    for key, child in (schema.get("properties") or {}).items():
+        value = values.get(key)
+        if not isinstance(child, dict) or not isinstance(value, str):
+            if isinstance(child, dict) and child.get("type") == "object" and isinstance(value, dict):
+                coerce_to_schema(child, value)
+            continue
+        kind = child.get("type")
+        text = value.strip()
+        if kind == "object" and text.startswith("{"):
+            try:
+                parsed = json.loads(text)
+            except ValueError:
+                continue
+            if isinstance(parsed, dict):
+                values[key] = coerce_to_schema(child, parsed)
+        elif kind == "array":
+            if text.startswith("["):
+                try:
+                    parsed = json.loads(text)
+                except ValueError:
+                    continue
+                if isinstance(parsed, list):
+                    values[key] = parsed
+            elif text and (child.get("items") or {}).get("type") in (None, "string"):
+                values[key] = [part.strip() for part in text.split(",") if part.strip()]
+    return values
 
 
 class ToolGateway:
@@ -172,6 +207,7 @@ class ToolGateway:
 
         tool = self.registry.get_tool(tool_name) or {}
         schema = tool.get("parameters") or {}
+        coerce_to_schema(schema, arguments)
         missing = self._missing_required_arguments(schema, arguments)
         if missing:
             raise ToolDenied(

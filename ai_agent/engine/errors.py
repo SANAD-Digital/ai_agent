@@ -21,6 +21,7 @@ MESSAGES = {
 	"setup": "The assistant is not set up correctly for this request. Ask your administrator.",
 	"limit": "The request needed more steps than allowed. Try asking for a smaller part.",
 	"empty": "The model returned an empty answer. Try again.",
+	"max_tokens": "The reply reached the maximum length before it finished. Ask for a smaller part, or ask your administrator to raise Max Output Tokens for this model.",
 	"error": "The reply could not be completed. Try again, or choose another model.",
 }
 

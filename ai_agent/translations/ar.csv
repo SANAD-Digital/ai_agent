@@ -1978,3 +1978,1205 @@ before validate,قبل التحقق,AI View
 Customization,تخصيص,AI Chat
 Code line {0},السطر {0},AI View
 Open the request in ERPNext,فتح الطلب في ERPNext,AI View
+number card,بطاقة رقمية
+chart,مخطط
+object must be number_card or chart,يجب أن يكون object إما number_card أو chart
+definition must be an object,يجب أن يكون definition كائناً
+Nothing to change,لا يوجد ما يتغير
+filters need definition.document_type,الفلاتر تحتاج definition.document_type
+Every user can pick it when they edit a workspace,يستطيع كل مستخدم اختيارها عند تعديل مساحة عمل
+based_on (the date axis),based_on (محور التاريخ)
+"Frappe's own validation passes (dry run, rolled back)",يجتاز تحقق Frappe نفسه (تشغيل تجريبي تم التراجع عنه)
+"delete takes only object, name and purpose",delete تأخذ object وname وpurpose فقط
+Custom (method) number cards run code and are not offered,البطاقات الرقمية المخصصة (method) تشغّل كوداً وغير متاحة
+type must be Document Type or Report,يجب أن يكون type إما Document Type أو Report
+Custom (source) charts run code and are not offered,المخططات المخصصة (source) تشغّل كوداً وغير متاحة
+A report card or chart takes filters as an object of report filter values,بطاقة أو مخطط التقرير يأخذ filters ككائن بقيم فلاتر التقرير
+"workspace must be a workspace name or {name, label, col}","يجب أن يكون workspace اسم مساحة عمل أو {name, label, col}"
+Frappe requires it to save {0} and the workspaces it sits on,يشترطه Frappe لحفظ {0} ومساحات العمل التي يظهر فيها
+ on {0}, في {0}
+There is no number card or chart {0},لا توجد بطاقة رقمية أو مخطط باسم {0}
+{0} must be a list or an object,يجب أن يكون {0} قائمة أو كائناً
+operation must be one of: {0},يجب أن تكون operation واحدة من: {0}
+Number cards and charts have no disabled flag: delete removes them (the undo recreates them),البطاقات الرقمية والمخططات لا تملك خيار تعطيل: delete يحذفها (والتراجع يعيد إنشاءها)
+There is no {0} {1},لا يوجد {0} {1}
+Use operation create,استخدم عملية create
+Deletes the {0} {1},يحذف {0} {1}
+Runs the report {0} each time it is shown,يشغّل التقرير {0} في كل مرة يُعرض فيها
+Shown on the workspace {0},يظهر في مساحة العمل {0}
+report_field is required for a Report card,report_field مطلوب لبطاقة التقرير
+Count ignores aggregate_function_based_on,العدّ (Count) يتجاهل aggregate_function_based_on
+A Report chart cannot be a Heatmap,مخطط التقرير لا يكون خريطة حرارية (Heatmap)
+"A Report chart needs x_field and y_axis, or use_report_chart: 1",مخطط التقرير يحتاج x_field وy_axis، أو use_report_chart: 1
+Select Date Range needs from_date and to_date,Select Date Range يحتاج from_date وto_date
+A Group By chart cannot be a Heatmap,مخطط التجميع (Group By) لا يكون خريطة حرارية (Heatmap)
+"It can be deleted (dry run, rolled back)",يمكن حذفه (تشغيل تجريبي تم التراجع عنه)
+The chart computes for {0}: {1} point(s),يُحسب المخطط لـ {0}: {1} نقطة
+{0} must be JSON,يجب أن يكون {0} بصيغة JSON
+Filter {0}: {1} is neither {2} nor one of its tables,الفلتر {0}: {1} ليس {2} ولا أحد جداوله
+Filter {0}: {1} has no field {2},الفلتر {0}: لا يوجد في {1} حقل {2}
+Filter {0}: operator {1} is not one of {2},الفلتر {0}: المعامل {1} ليس من {2}
+definition.chart_type is required: one of {0},definition.chart_type مطلوب: واحد من {0}
+chart_type must be one of {0},يجب أن يكون chart_type واحداً من {0}
+col must be one of {0},يجب أن يكون col واحداً من {0}
+A {0} named {1} already exists; use operation update or another name,يوجد {0} باسم {1}؛ استخدم عملية update أو اسماً آخر
+{0} is a standard {1} of the module {2}: it is not edited in place (developer mode exports it into the app). Create a copy under another name,{0} {1} قياسي تابع للوحدة {2}: لا يُعدَّل في مكانه (وضع المطوّر يصدّره إلى التطبيق). أنشئ نسخة باسم آخر
+Removes it from the workspaces {0},يزيله من مساحات العمل {0}
+Computes over {0} with each viewer's permissions,يُحسب على {0} بصلاحيات كل من يعرضه
+"Computes over all of {0}, without permissions (Heatmap)",يُحسب على كل {0} بلا صلاحيات (خريطة حرارية)
+{0} is a Single DocType: Frappe cannot count or chart it,{0} نوع مستند مفرد (Single): لا يستطيع Frappe عدّه أو رسمه
+"{0} controls code, access or settings; cards and charts on it are not allowed",{0} يتحكم في الكود أو الصلاحيات أو الإعدادات؛ لا يُسمح ببطاقات أو مخططات عليه
+{0} cannot read {1},{0} لا يستطيع قراءة {1}
+{0} is required,{0} مطلوب
+{0}: {1} has no field {2},{0}: لا يوجد في {1} حقل {2}
+{0}: {1} is a {2} field; it must be {3},{0}: الحقل {1} من نوع {2}؛ يجب أن يكون {3}
+The report {0} is disabled,التقرير {0} معطّل
+{0} may not run the report {1},لا يحق لـ {0} تشغيل التقرير {1}
+"{0} reads {1}, which controls code, access or settings",{0} يقرأ {1}، وهو يتحكم في الكود أو الصلاحيات أو الإعدادات
+"Heatmap charts count with frappe.get_all (dashboard_chart.py get_heatmap_chart_config): every viewer sees totals over all {0}, whatever their permissions",الخرائط الحرارية تعدّ بـ frappe.get_all (dashboard_chart.py get_heatmap_chart_config): كل من يعرضها يرى مجاميع كل {0} مهما كانت صلاحياته
+"{0} is a Query Report: it reads without row permissions, so the number covers every row",{0} تقرير استعلام (Query Report): يقرأ بلا صلاحيات صفوف، فالرقم يشمل كل الصفوف
+The dashboard {0} shows it: remove it there first,لوحة المعلومات {0} تعرضه: أزله منها أولاً
+The report has no column {0} (columns: {1}),لا يوجد في التقرير عمود {0} (الأعمدة: {1})
+restore {0},استعادة {0}
+{0} {1} does not exist,{0} {1} غير موجود
+"{0}[{1}] must be [fieldname, operator, value] or [doctype, fieldname, operator, value]","يجب أن يكون {0}[{1}] بالشكل [fieldname, operator, value] أو [doctype, fieldname, operator, value]"
+Filter {0}: Timespan takes one of {1},الفلتر {0}: Timespan يأخذ واحداً من {1}
+"Filter {0}: 'is' takes ""set"" or ""not set""","الفلتر {0}: المعامل 'is' يأخذ ""set"" أو ""not set"""
+roles must be a list of role names,يجب أن تكون roles قائمة بأسماء الأدوار
+{0} must be one of {1},يجب أن يكون {0} واحداً من {1}
+There is no DocType {0},لا يوجد نوع مستند {0}
+{0} is a child table: give parent_document_type,{0} جدول فرعي: حدّد parent_document_type
+There is no report {0},لا يوجد تقرير {0}
+report_function is required for a Report card: one of {0},report_function مطلوب لبطاقة التقرير: واحد من {0}
+{0} by {1}: the chart form offers {2},{0} حسب {1}: نموذج المخطط يعرض {2}
+A {0} chart of a time series shows each period as a slice; Line or Bar reads better,مخطط {0} لسلسلة زمنية يعرض كل فترة كشريحة؛ الخطي أو الأعمدة أوضح
+It totals pay or personal data of {0}: the preview is masked; check who will see it,يجمع بيانات رواتب أو بيانات شخصية من {0}: المعاينة محجوبة؛ تحقق ممن سيراه
+"{0} is limited per user (if_owner or User Permissions), but chart data is cached per chart, not per user: a viewer can see the totals of whoever loaded it last",{0} مقيّد لكل مستخدم (if_owner أو صلاحيات المستخدم)، لكن بيانات المخطط تُخزَّن مؤقتاً لكل مخطط لا لكل مستخدم: قد يرى المستخدم مجاميع آخر من حمّله
+There is no workspace {0},لا توجد مساحة عمل {0}
+{0} belongs to the app {1}: copy it first (customize.request_workspace with copy_from) and place the widget on the copy,{0} تابعة للتطبيق {1}: انسخها أولاً (customize.request_workspace مع copy_from) وضع العنصر في النسخة
+{0} is someone else's private workspace,{0} مساحة عمل خاصة بمستخدم آخر
+It is already on {0},موجود مسبقاً في {0}
+The app workspace {0} shows it: it cannot be deleted,مساحة عمل التطبيق {0} تعرضه: لا يمكن حذفه
+Frappe refuses the change: {0},يرفض Frappe التغيير: {0}
+It fails to compute: {0},يفشل حسابه: {0}
+undo of {0},تراجع عن {0}
+{0} still exists,{0} ما زال موجوداً
+{0} is deleted,تم حذف {0}
+"{0} is {1}, not {2}",{0} قيمته {1} لا {2}
+It is not on {0},ليس موجوداً في {0}
+It is still on {0},ما زال موجوداً في {0}
+{0} is saved and computes,تم حفظ {0} ويُحسب
+Filter {0}: {1},الفلتر {0}: {1}
+y_axis must be a list of report column fieldnames,يجب أن يكون y_axis قائمة بأسماء حقول أعمدة التقرير
+{0} has no table of {1},لا يوجد في {0} جدول من {1}
+group_by_based_on: {0} is a {1} field; the chart form offers Link and Select fields,group_by_based_on: الحقل {0} من نوع {1}؛ نموذج المخطط يعرض حقول Link وSelect
+"is_public offers it to every user, but the roles {0} cannot read {1}: Frappe refuses them the {2} (or shows the report's numbers when it is a report)",is_public يعرضه لكل المستخدمين، لكن الأدوار {0} لا تستطيع قراءة {1}: يرفض Frappe عرض {2} لهم (أو يعرض أرقام التقرير إن كان تقريراً)
+card,بطاقة
+"The roles {0} may open this chart (dashboard_chart.py has_permission) but cannot read {1}; chart data is cached per chart (utils/dashboard.py cache_source), so they see totals computed for other users",الأدوار {0} تستطيع فتح هذا المخطط (dashboard_chart.py has_permission) لكنها لا تقرأ {1}؛ بيانات المخطط تُخزَّن مؤقتاً لكل مخطط (utils/dashboard.py cache_source)، فترى مجاميع حُسبت لمستخدمين آخرين
+{0} already has a widget labelled {1}: give another label,في {0} عنصر بعنوان {1}: اختر عنواناً آخر
+The card computes for {0}: {1},تُحسب البطاقة لـ {0}: {1}
+It does not compute: {0},لا يُحسب: {0}
+Unknown role(s): {0},أدوار غير معروفة: {0}
+fields[{0}] must be an object,يجب أن يكون fields[{0}] كائناً
+fields[{0}].fieldname is required,fields[{0}].fieldname مطلوب
+"fields[{0}]: the label is not English, so send an English snake_case fieldname",fields[{0}]: التسمية ليست إنجليزية، فأرسل fieldname إنجليزياً بصيغة snake_case
+"fields[{0}].fieldname {1} must be English snake_case (a-z, 0-9, _)","يجب أن يكون fields[{0}].fieldname {1} إنجليزياً بصيغة snake_case (a-z, 0-9, _)"
+autoname {0} is not a naming rule Frappe knows,autoname {0} ليست قاعدة تسمية يعرفها Frappe
+permissions[{0}] must be an object,يجب أن يكون permissions[{0}] كائناً
+permissions[{0}]: unknown right(s) {1},permissions[{0}]: صلاحية (صلاحيات) غير معروفة {1}
+permissions[{0}]: there is no role {1},permissions[{0}]: لا يوجد دور باسم {1}
+"permissions: one rule per role, level and if_owner",permissions: قاعدة واحدة لكل دور ومستوى وif_owner
+Choose the module: this site has several custom modules,اختر الوحدة (module): في هذا الموقع عدة وحدات مخصصة
+module is required,module مطلوب
+"An existing Module Def, e.g. one of your own app's modules",Module Def موجود، مثل إحدى وحدات تطبيقك
+"operation must be one of: create, update",يجب أن تكون operation واحدة من: create أو update
+Use operation create for a new DocType,استخدم operation create لـ DocType جديد
+{0} is a standard DocType: it cannot be edited as a DocType,{0} DocType قياسي: لا يُعدَّل كـ DocType
+Add fields with customize.request_field and change properties with customize.request_properties,أضف الحقول بـ customize.request_field وغيّر الخصائص بـ customize.request_properties
+delete takes only name,delete يأخذ name فقط
+restore needs the definition of a previous snapshot,restore يحتاج تعريف لقطة سابقة
+The DocType name is limited to {0} characters,اسم الـ DocType محدود بـ {0} حرفاً
+"A DocType name starts with an English letter and has only letters, digits, spaces, - and _",يبدأ اسم الـ DocType بحرف إنجليزي ولا يحوي إلا حروفاً وأرقاماً ومسافات و- و_
+Example: 'Site Visit'; the label users see can be translated later,مثال: 'Site Visit'؛ يمكن ترجمة الاسم الذي يراه المستخدمون لاحقاً
+There is no module {0},لا توجد وحدة باسم {0}
+Leave module empty to use the site's custom module,اترك module فارغاً لاستخدام الوحدة المخصصة في الموقع
+fields must be a non-empty list,يجب أن تكون fields قائمة غير فارغة
+At most {0} fields per DocType request,{0} حقلاً كحد أقصى في طلب DocType واحد
+fields[{0}]: insert_after is for update; on create the list order is the form order,fields[{0}]: insert_after للتعديل فقط؛ عند الإنشاء يكون ترتيب القائمة هو ترتيب النموذج
+fields[{0}].fieldtype {1} is not supported,fields[{0}].fieldtype {1} غير مدعوم
+fields[{0}] needs a label,fields[{0}] يحتاج تسمية (label)
+The same fieldname appears twice in the request,يتكرر اسم الحقل نفسه مرتين في الطلب
+A child table has no permissions of its own: it follows its parent,الجدول الفرعي ليست له صلاحيات خاصة: يتبع الأب
+"Remove permissions, or create a normal DocType (istable 0)",احذف permissions، أو أنشئ DocType عادياً (istable 0)
+{0} cannot change through update,لا يمكن تغيير {0} عبر update
+Permissions change with customize.request_permissions; naming and child-table status are fixed after creation,تتغير الصلاحيات بـ customize.request_permissions؛ والتسمية وكونه جدولاً فرعياً ثابتان بعد الإنشاء
+fields must be a list,يجب أن تكون fields قائمة
+fields[{0}] needs a label (a new field),fields[{0}] يحتاج تسمية (حقل جديد)
+update needs fields or properties to change,update يحتاج حقولاً أو خصائص لتغييرها
+sort_order must be ASC or DESC,يجب أن يكون sort_order إما ASC أو DESC
+Frappe lets only System Managers create DocTypes,لا يسمح Frappe بإنشاء DocType إلا لمديري النظام
+{0} belongs to the assistant and is protected,{0} تابع للمساعد ومحمي
+{0} is a standard DocType; use customize.request_field,{0} DocType قياسي؛ استخدم customize.request_field
+Deletes the DocType {0} and its empty table {1},يحذف الـ DocType {0} وجدوله الفارغ {1}
+{0} has no records and nothing depends on it,{0} بلا سجلات ولا شيء يعتمد عليه
+Frappe cannot read the definition: {0},لا يستطيع Frappe قراءة التعريف: {0}
+custom = 1: kept in the database only; developer mode does not export it to any app's files,custom = 1: يُحفظ في قاعدة البيانات فقط؛ وضع المطور لا يصدّره إلى ملفات أي تطبيق
+Creates the database table {0} (a schema change that cannot be rolled back in a transaction),ينشئ جدول قاعدة البيانات {0} (تغيير في المخطط لا يمكن التراجع عنه داخل معاملة)
+A child table: it shows only inside a Table field of another DocType,جدول فرعي: يظهر فقط داخل حقل Table في DocType آخر
+Appears in the Desk at /app/{0} for: {1},يظهر في المكتب على /app/{0} لـ: {1}
+Adds {0} column(s) to {1},يضيف {0} عموداً (أعمدة) إلى {1}
+Changes the {0} form for everyone who uses it ({1} records),يغيّر نموذج {0} لكل من يستخدمه ({1} سجل)
+Frappe accepts the DocType definition,يقبل Frappe تعريف الـ DocType
+A DocType named {0} already exists,يوجد DocType باسم {0} بالفعل
+A table {0} is left over from a deleted DocType; choose another name,الجدول {0} متبقٍّ من DocType محذوف؛ اختر اسماً آخر
+{0} is a reserved or protected name,{0} اسم محجوز أو محمي
+/app/{0} is already used by a {1}; choose another name,/app/{0} مستخدم بالفعل من {1}؛ اختر اسماً آخر
+Names ending in Settings are treated as system configuration: the assistant cannot change it later,الأسماء المنتهية بـ Settings تُعامل كإعدادات نظام: لن يستطيع المساعد تغييره لاحقاً
+{0} is a reserved name,{0} اسم محجوز
+{0} clashes with a method or property of a document,{0} يتعارض مع دالة أو خاصية في المستند
+A child table cannot be submittable,لا يمكن أن يكون الجدول الفرعي قابلاً للاعتماد (submittable)
+quick_entry has no effect on a child table,quick_entry لا أثر له على الجدول الفرعي
+title_field: there is no field {0},title_field: لا يوجد حقل {0}
+title_field: {0} holds no value,title_field: الحقل {0} لا يحمل قيمة
+search_fields: {0} is not a value field of {1},search_fields: {0} ليس حقل قيمة في {1}
+sort_field: there is no field {0},sort_field: لا يوجد حقل {0}
+autoname: there is no value field {0},autoname: لا يوجد حقل قيمة {0}
+{0} becomes unique: it names each record,يصبح {0} فريداً: به يُسمّى كل سجل
+autoname naming_series: needs a Select field naming_series with the series as options (e.g. VST-.YYYY.-),autoname naming_series: يحتاج حقل Select باسم naming_series خياراته هي السلاسل (مثل VST-.YYYY.-)
+Users must type the name of every new record,على المستخدمين كتابة اسم كل سجل جديد
+{0} would let every desk user change {1}; give it to a specific role,{0} سيتيح لكل مستخدمي المكتب تغيير {1}؛ امنحه لدور محدد
+Administrator has every right anyway,Administrator يملك كل الصلاحيات على أي حال
+"{0}: {1} records hold data, so the type cannot change from {2} to {3}",{0}: في {1} سجل بيانات، لذا لا يمكن تغيير النوع من {2} إلى {3}
+{0} existing {1} records will ask for {2} the next time they are saved,{0} سجل موجود من {1} ستطلب {2} عند حفظها التالي
+{0} values of {1} are already repeated; making it unique will fail,{0} قيمة من {1} مكررة بالفعل؛ جعله فريداً سيفشل
+{0} records exist; changing is_submittable changes how they can be edited,توجد {0} سجلات؛ تغيير is_submittable يغيّر طريقة تعديلها
+{0} leaves the form; its data stays in an unused column,{0} يخرج من النموذج؛ تبقى بياناته في عمود غير مستخدم
+{0} has {1} record(s); it is deleted only while it is empty,في {0} عدد {1} سجل؛ لا يُحذف إلا وهو فارغ
+{0}.{1} ({2}) points to {3},{0}.{1} ({2}) يشير إلى {3}
+Frappe rejects it: {0},يرفضه Frappe: {0}
+{0} is a standard DocType,{0} DocType قياسي
+The table {0} is still there,ما زال الجدول {0} موجوداً
+{0} does not exist,{0} غير موجود
+{0} is not marked custom,{0} غير معلَّم كمخصص (custom)
+The table {0} is missing,الجدول {0} غير موجود
+{0} is not on {1},{0} غير موجود في {1}
+"{0}.{1} is {2}, expected {3}",{0}.{1} قيمته {2}، والمتوقع {3}
+The database column {0} is missing,عمود قاعدة البيانات {0} غير موجود
+Files were written for {0} at {1},كُتبت ملفات لـ {0} في {1}
+{0} is in place with its fields,{0} قائم بحقوله
+child table,جدول فرعي
+Create {0} {1} ({2} fields),إنشاء {0} {1} ({2} حقل)
+Change DocType {0}: {1},تعديل الـ DocType {0}: {1}
+Restore the previous definition of {0},استعادة التعريف السابق لـ {0}
+Delete the empty DocType {0},حذف الـ DocType الفارغ {0}
+Frappe lets only System Managers save List View Settings,لا يسمح Frappe بحفظ إعدادات عرض القائمة إلا لمدير النظام
+operation must be update or reset,يجب أن تكون operation إما update أو reset
+Frappe's defaults,افتراضيات Frappe
+Reset,إعادة ضبط
+Restore,استعادة
+{0} the list settings of {1},{0} إعدادات قائمة {1}
+reset takes only doctype and purpose,reset تأخذ doctype وpurpose فقط
+settings must be an object of flags,يجب أن يكون settings كائناً من الخيارات
+"columns must be a list of fieldnames, in order",يجب أن يكون columns قائمة بأسماء الحقول بالترتيب
+Every user who opens the {0} list,كل مستخدم يفتح قائمة {0}
+"Group-by sidebar fields are chosen by each user (stored per user), not here",حقول التجميع في الشريط الجانبي يختارها كل مستخدم (تُحفظ لكل مستخدم)، لا من هنا
+Find the exact name with schema__search_doctypes,اعثر على الاسم الدقيق بـ schema__search_doctypes
+"Send settings, columns, sort_field or sort_order",أرسل settings أو columns أو sort_field أو sort_order
+"Sets 'In List View' on {0}, as Frappe's own List Settings dialog does",يضبط «In List View» على {0}، كما يفعل حوار إعدادات القائمة في Frappe
+Changes the default sort of {0} for everyone (a user's own sort choice still wins),يغيّر الترتيب الافتراضي لـ {0} للجميع (يبقى اختيار المستخدم لترتيبه هو الغالب)
+The title field (or name) is always the first column,حقل العنوان (أو الاسم) هو العمود الأول دائماً
+At most {0} columns,الحد الأقصى {0} عموداً
+"columns are fieldnames, not labels: {0}",الأعمدة أسماء حقول لا عناوين: {0}
+Read the fieldnames with schema__describe_doctype,اقرأ أسماء الحقول بـ schema__describe_doctype
+{0} is a child table: it has no list,{0} جدول فرعي: ليس له قائمة
+{0} has no List View Settings: it already uses Frappe's defaults,لا توجد إعدادات عرض قائمة لـ {0}: يستخدم افتراضيات Frappe أصلاً
+{0} columns: on a laptop screen only about 6 fit before the list scrolls sideways,{0} عموداً: على شاشة الحاسوب المحمول يتسع نحو 6 فقط قبل أن تتمرر القائمة أفقياً
+Inline editing still needs write permission on each document,التعديل داخل القائمة يظل يحتاج صلاحية الكتابة على كل مستند
+The List View Settings of {0} still exist,إعدادات عرض قائمة {0} ما زالت موجودة
+The stored columns differ from the approved ones,الأعمدة المحفوظة تختلف عن المعتمدة
+The DocType still sorts by {0},نوع المستند ما زال يرتب حسب {0}
+The {0} list settings are in place,إعدادات قائمة {0} مطبقة
+{0} is always shown: the title (or ID) comes first and the status indicator next,{0} يظهر دائماً: العنوان (أو المعرّف) أولاً ثم مؤشر الحالة
+{0} has no field {1},لا يوجد في {0} حقل {1}
+"In List View of {0} is {1}, not {2}",In List View للحقل {0} قيمته {1} لا {2}
+{0} is a {1}: it holds no value to show in a column,{0} من نوع {1}: لا يحمل قيمة تُعرض في عمود
+sort_field: {0} has no field {1} (doctype.py check_sort_field),sort_field: لا يوجد في {0} حقل {1} (doctype.py check_sort_field)
+{0} is a virtual field: the list never shows it (list_view.js),{0} حقل افتراضي (virtual): لا تعرضه القائمة أبداً (list_view.js)
+{0} has permission level {1}: users without that level see an empty column,{0} بمستوى صلاحية {1}: من لا يملك هذا المستوى يرى عموداً فارغاً
+{0} is hidden on the form but will show in the list,{0} مخفي في النموذج لكنه سيظهر في القائمة
+the total count above the list,العدد الإجمالي أعلى القائمة
+the comment count of each row,عدد التعليقات في كل صف
+the group-by counts in the sidebar,أعداد التجميع في الشريط الجانبي
+live refresh when documents change,التحديث المباشر عند تغيّر المستندات
+the automatic 'last 90 days' filter on large tables,فلتر «آخر 90 يوماً» التلقائي في الجداول الكبيرة
+infinite scrolling,التمرير اللانهائي
+the tags column,عمود الوسوم
+editing cells in the list,تعديل الخلايا داخل القائمة
+Frappe lets only System Managers change naming,يسمح Frappe لمديري النظام فقط بتغيير التسمية
+"Nothing to change: send autoname, naming_series_options or both",لا شيء للتغيير: أرسل autoname أو naming_series_options أو كليهما
+"Nothing to change: send prefix, prefix_digits, priority or conditions",لا شيء للتغيير: أرسل prefix أو prefix_digits أو priority أو conditions
+"conditions must be a list of {field, condition, value}","يجب أن تكون conditions قائمة من {field, condition, value}"
+The name is the value of {0},الاسم هو قيمة {0}
+"Amended documents keep Frappe's -1, -2 names; the rule does not apply to them",المستندات المعدّلة تحتفظ بأسماء Frappe ‏-1 و-2؛ ولا تنطبق عليها القاعدة
+{0} naming rule {1} on {2},{0} قاعدة التسمية {1} على {2}
+"naming_series_options must be a list of series such as [""INV-.YYYY.-""]","يجب أن تكون naming_series_options قائمة سلاسل مثل [""INV-.YYYY.-""]"
+create_rule does not take rule; Frappe names the rule itself,create_rule لا تأخذ rule؛ Frappe يسمّي القاعدة بنفسه
+Only new {0} documents are named this way; the {1} existing names do not change,تُسمّى مستندات {0} الجديدة فقط بهذه الطريقة؛ ولا تتغير أسماء المستندات الحالية وعددها {1}
+Frappe accepts this naming,يقبل Frappe هذه التسمية
+Frappe ignores naming rules for {0},يتجاهل Frappe قواعد التسمية في {0}
+{0} is a child table; its rows are not named by rules,{0} جدول فرعي؛ لا تُسمّى صفوفه بالقواعد
+prefix is required,البادئة prefix مطلوبة
+prefix must not contain #: the rule adds its own counter of prefix_digits digits,يجب ألا تحتوي البادئة على #: القاعدة تضيف عدّادها بعدد أرقام prefix_digits
+prefix_digits must be between 1 and 10,يجب أن تكون prefix_digits بين 1 و10
+Frappe accepts this naming rule,يقبل Frappe قاعدة التسمية هذه
+Undo: restore the naming of {0},تراجع: استعادة تسمية {0}
+Name new {0} documents: {1},تسمية مستندات {0} الجديدة: {1}
+set_doctype_naming does not take {0},set_doctype_naming لا تأخذ {0}
+Those belong to a Document Naming Rule: use operation create_rule,هذه تخص قاعدة تسمية مستند: استخدم operation create_rule
+"autoname examples: naming_series:, field:customer_name, format:INV-{YYYY}-{#####}, INV-.YYYY.-.#####, hash, prompt",أمثلة autoname: naming_series:، field:customer_name، format:INV-{YYYY}-{#####}، INV-.YYYY.-.#####، hash، prompt
+{0} does not take autoname or naming_series_options,{0} لا تأخذ autoname أو naming_series_options
+Use operation set_doctype_naming for the DocType's own naming,استخدم operation set_doctype_naming لتسمية نوع المستند نفسه
+There is no Document Naming Rule {0},لا توجد قاعدة تسمية {0}
+Rules are listed in the preview of set_doctype_naming and create_rule for the same DocType,تظهر القواعد في معاينة set_doctype_naming وcreate_rule لنوع المستند نفسه
+The rule {0} belongs to {1},القاعدة {0} تابعة لـ {1}
+Existing {0} documents can still be renamed by hand (Allow Rename is on),ما زال ممكناً إعادة تسمية مستندات {0} الحالية يدوياً (السماح بإعادة التسمية مفعّل)
+New {0} documents: {1} instead of {2},مستندات {0} الجديدة: {1} بدلاً من {2}
+New {0} documents fall back to the next rule or the DocType's own naming ({1}),تعود مستندات {0} الجديدة إلى القاعدة التالية أو تسمية نوع المستند نفسه ({1})
+The series options did not change,لم تتغير خيارات السلاسل
+The name {0} already exists in {1}: saving that document would fail,الاسم {0} موجود في {1}: سيفشل حفظ ذلك المستند
+At most {0} series,{0} سلسلة كحد أقصى
+{0} takes only rule; got {1},{0} تأخذ rule فقط؛ وصلت {1}
+conditions[{0}] must be an object,يجب أن يكون conditions[{0}] كائناً
+conditions[{0}].condition must be one of {1},يجب أن تكون conditions[{0}].condition إحدى القيم: {1}
+"{0} has no naming_series field, so it has no series options",لا يوجد في {0} حقل naming_series، فلا خيارات سلاسل له
+{0} has no naming_series field: naming_series: needs one (validate_series: Field Missing),لا يوجد في {0} حقل naming_series: والقيمة naming_series: تحتاجه (validate_series: حقل مفقود)
+Frappe discourages format: (Expression (old style)); a dotted expression such as INV-.YYYY.-.##### is preferred,لا ينصح Frappe بـ format: (تعبير بالنمط القديم)؛ والأفضل تعبير بالنقاط مثل INV-.YYYY.-.#####
+Enabled Document Naming Rule(s) {0} name {1} first; this naming applies only when no rule matches,قواعد التسمية المفعّلة {0} تسمّي {1} أولاً؛ ولا تنطبق هذه التسمية إلا إذا لم تطابق أي قاعدة
+{0}'s own code (an autoname method) runs before this setting; the setting applies only when the code leaves the name empty,كود {0} نفسه (دالة autoname) يعمل قبل هذا الإعداد؛ ولا ينطبق الإعداد إلا إذا ترك الكود الاسم فارغاً
+{0} is a {1} field and cannot name documents,{0} حقل من نوع {1} ولا يصلح لتسمية المستندات
+{0} is not stored in the database,{0} غير مخزّن في قاعدة البيانات
+"{0} value(s) of {1}.{2} repeat in existing documents (e.g. {3}); Frappe makes the field unique, which fails",{0} من قيم {1}.{2} مكررة في المستندات الحالية (مثل {3})؛ يجعل Frappe الحقل فريداً فيفشل ذلك
+{0} becomes unique (Frappe adds a unique index: a schema change),يصبح {0} فريداً (يضيف Frappe فهرساً فريداً: تغيير في بنية الجدول)
+{0} is optional: a new document without it fails with '{1} is required',{0} اختياري: سيفشل المستند الجديد بدونه برسالة «{1} مطلوب»
+{0} existing documents have no {1},{0} من المستندات الحالية بلا {1}
+{0} is named by {1}; Frappe never applies naming rules to it,{0} يُسمّى بـ {1}؛ ولا يطبق Frappe عليه قواعد التسمية أبداً
+Rule(s) {0} have the same priority {1}: which one runs first is not defined,للقواعد {0} نفس الأولوية {1}: ترتيب تشغيلها غير محدد
+Applies to every new {0} document,تنطبق على كل مستند {0} جديد
+For matching documents the rule replaces the Series the user picks in {0},في المستندات المطابقة تحل القاعدة محل السلسلة التي يختارها المستخدم في {0}
+The rule runs before {0}'s own naming code (autoname method) and replaces its names,تعمل القاعدة قبل كود التسمية الخاص بـ {0} (دالة autoname) وتحل محل أسمائه
+{0} cannot use Customize Form,{0} لا يستطيع استخدام تخصيص النموذج
+Undo: disable the naming rule {0},تراجع: تعطيل قاعدة التسمية {0}
+Document Naming Rule {0} does not exist,قاعدة التسمية {0} غير موجودة
+{0} is not {1},{0} ليس {1}
+disabled,معطلاً
+enabled,مفعّلاً
+{0} is saved as approved,حُفظ {0} كما اعتُمد
+series {0},السلاسل {0}
+Cannot change to/from {0} naming in Customize Form: it changes the name column of {1},لا يمكن التحويل من/إلى تسمية {0} في تخصيص النموذج: فهي تغيّر عمود الاسم في {1}
+format: has no {#####} counter: two documents with the same values get the same name and the second fails,format: بلا عدّاد {#####}: مستندان بالقيم نفسها يأخذان الاسم نفسه فيفشل الثاني
+Series no longer offered: {0}; existing documents keep their names,سلاسل لم تعد معروضة: {0}؛ وتحتفظ المستندات الحالية بأسمائها
+{0} is not named by its naming_series field (autoname {1}): the series options have no effect,{0} لا يُسمّى بحقل naming_series (autoname {1}): فلا أثر لخيارات السلاسل
+Series {0} already used in {1},السلسلة {0} مستخدمة في {1}
+"prefix {0} has characters other than letters, digits and - . / {{ }}",البادئة {0} فيها رموز غير الحروف والأرقام و- . / {{ }}
+{0} is not a field of doctype {1},{0} ليس حقلاً في نوع المستند {1}
+Without conditions this rule names every new {0} before rule(s) {1} are reached,بلا شروط تسمّي هذه القاعدة كل مستند {0} جديد قبل الوصول إلى القواعد {1}
+Undo: restore the naming rule {0},تراجع: استعادة قاعدة التسمية {0}
+autoname did not change: Frappe refused it: {0},لم يتغير autoname: رفضه Frappe: {0}
+{0} shows the new naming,يظهر في {0} التسمية الجديدة
+{0} of {1} differs from the approved value,{0} في {1} يختلف عن القيمة المعتمدة
+{0} has no series options: send naming_series_options,لا خيارات سلاسل في {0}: أرسل naming_series_options
+"Series {0}: only letters, digits and - # . / {{ }} are allowed",السلسلة {0}: المسموح الحروف والأرقام و- # . / {{ }} فقط
+{0} is a table and cannot be compared,{0} جدول ولا يمكن مقارنته
+prefix cannot be evaluated: {0},تعذّر تقييم البادئة: {0}
+{0} of the last {1} {2} documents match the conditions,{0} من آخر {1} من مستندات {2} تطابق الشروط
+format: has a brace that is not a {{part}}: {0},في format: قوس ليس جزءاً {{part}}: {0}
+The conditions cannot be evaluated: {0},تعذّر تقييم الشروط: {0}
+Series {0}: {1},السلسلة {0}: {1}
+"format: {{{0}}} is neither a date part (YY MM DD YYYY JJJ WW), a series {{#####}} nor a field of {1}",format: ‏{{{0}}} ليس جزء تاريخ (YY MM DD YYYY JJJ WW) ولا عدّاداً {{#####}} ولا حقلاً في {1}
+Users must type the name of every new {0}; imports and the agent must send one,على المستخدمين كتابة اسم كل {0} جديد؛ ويجب أن يرسل الاستيراد والوكيل اسماً
+"With no autoname and no naming code, {0} documents get random names",بلا autoname ولا كود تسمية تأخذ مستندات {0} أسماء عشوائية
+{0} has no # counter: Frappe ignores it and names documents randomly. Example: INV-.YYYY.-.#####,{0} بلا عدّاد #: يتجاهله Frappe ويسمّي المستندات عشوائياً. مثال: INV-.YYYY.-.#####
+None of the last {0} documents match the conditions,لا يطابق الشروط أيٌّ من آخر {0} مستند
+format: cannot be evaluated: {0},تعذّر تقييم format: ‏{0}
+{0} is longer than {1} characters,{0} أطول من {1} حرفاً
+{0} uses a double-underscore attribute (Frappe rejects it as an illegal template),{0} يستخدم خاصية تبدأ بشرطتين سفليتين (يرفضها Frappe كقالب غير مسموح)
+"{0} contains JavaScript (<script>, on*= or javascript:); it runs in every browser that opens it",{0} يحتوي JavaScript (<script> أو on*= أو javascript:)، ويعمل في كل متصفح يفتحه
+"{0} calls {1}: templates must not write, send, queue or run code",{0} يستدعي {1}: القوالب لا تكتب ولا ترسل ولا تضيف مهام ولا تشغّل كوداً
+{0}: lambda and := are not allowed by frappe.safe_eval,{0}: لا يسمح frappe.safe_eval بـ lambda ولا :=
+{0} loads {1} from another site: the document's readers' browsers contact it,{0} يحمّل {1} من موقع آخر: متصفحات قرّاء المستند تتصل به
+{0}: Jinja syntax error: {1},{0}: خطأ صياغة Jinja: {1}
+"{0} uses {1}, which reads without permission checks: whoever receives the output sees that data",{0} يستخدم {1} الذي يقرأ بلا فحص صلاحيات: كل من يستلم الناتج يرى تلك البيانات
+{0} is not a valid Python expression: {1},{0} ليس تعبير بايثون صحيحاً: {1}
+"{0} uses the attr filter, which hides what is called; use plain dotted access",{0} يستخدم الفلتر attr الذي يخفي ما يُستدعى؛ استخدم الوصول بالنقطة مباشرة
+{0} uses the private attribute {1},{0} يستخدم الخاصية الخاصة {1}
+{0} calls {1}: a condition must only test values,{0} يستدعي {1}: الشرط يختبر القيم فقط
+{0} indexes frappe; use plain dotted access,{0} يفهرس frappe؛ استخدم الوصول بالنقطة مباشرة
+{0} indexes frappe with a computed key; use plain dotted access,{0} يفهرس frappe بمفتاح محسوب؛ استخدم الوصول بالنقطة مباشرة
+Frappe lets only System Managers write Print Formats,لا يسمح Frappe بكتابة تنسيقات الطباعة إلا لمدير النظام
+The template runs on the server for every print and PDF (also email attachments),يعمل القالب على الخادم في كل طباعة وملف PDF (ومرفقات البريد أيضاً)
+Make default,جعله الافتراضي
+Remove as default,إلغاء كونه الافتراضي
+"name must be 3-140 characters without < > "" ' ` \ / % # ?","الاسم من 3 إلى 140 حرفاً بلا < > "" ' ` \ / % # ?"
+{0} print format {1} ({2}),{0} تنسيق الطباعة {1} ({2})
+Nothing to update,لا شيء للتحديث
+html is required for a Jinja print format,html مطلوب لتنسيق طباعة Jinja
+"default_print_format goes with create, update or enable; use set_default / unset_default alone",default_print_format يُرسل مع create أو update أو enable؛ واستخدم set_default / unset_default وحدهما
+Not shown: {0} holds pay data,لا يُعرض: {0} يحتوي بيانات رواتب
+css must not close the <style> element,يجب ألا يغلق css عنصر <style>
+The template compiles,القالب سليم الصياغة
+The stored template differs from the approved one,القالب المحفوظ يختلف عن المعتمد
+No {0} that {1} can read to render,لا يوجد {0} يستطيع {1} قراءته للتصيير
+The template compiles but was not rendered,القالب سليم الصياغة لكنه لم يُصيَّر
+Renders on {0} {1} ({2} characters),يُصيَّر على {0} {1} ({2} حرفاً)
+Becomes the default print format of {0} for everyone (now: {1}),يصبح تنسيق الطباعة الافتراضي لـ {0} للجميع (الحالي: {1})
+{0} goes back to its own default print format ({1}),يعود {0} إلى تنسيق طباعته الافتراضي الأصلي ({1})
+Removes it as the default of {0},يلغي كونه الافتراضي لـ {0}
+The default print format of {0} becomes {1},يصبح تنسيق الطباعة الافتراضي لـ {0} هو {1}
+the standard one,التنسيق القياسي
+Offered to the {0} user(s) who can read {1} when they print,يظهر لـ {0} مستخدم يستطيعون قراءة {1} عند الطباعة
+A Print Format named {0} already exists,يوجد تنسيق طباعة باسم {0}
+"Use operation update to change it, or choose another name",استخدم operation update لتعديله، أو اختر اسماً آخر
+There is no Print Format {0},لا يوجد تنسيق طباعة {0}
+List the print formats with customize.inspect (include print_formats),اعرض تنسيقات الطباعة بـ customize.inspect (include print_formats)
+{0} belongs to {1}; the DocType of a print format cannot change,{0} يخص {1}؛ ولا يتغير DocType تنسيق الطباعة
+{0} is a report print format; only DocType print formats are supported,{0} تنسيق طباعة لتقرير؛ المدعوم تنسيقات DocType فقط
+{0} is a standard print format and cannot be changed; create a copy under a new name,{0} تنسيق طباعة قياسي لا يُعدَّل؛ أنشئ نسخة باسم جديد
+Read it with customize.get (kind print_format) and create a new one from its html,اقرأه بـ customize.get (kind print_format) وأنشئ تنسيقاً جديداً من الـ html الخاص به
+{0} was made with the Print Format Builder; only custom Jinja (HTML) formats can be changed here,{0} مصمم بمنشئ تنسيقات الطباعة؛ هنا تُعدَّل تنسيقات Jinja (HTML) المخصصة فقط
+Create a new Jinja print format instead,أنشئ تنسيق طباعة Jinja جديداً بدلاً منه
+"Pass html, css, font_size, margins, align_labels_right or default_print_format",أرسل html أو css أو font_size أو الهوامش أو align_labels_right أو default_print_format
+{0} cannot read {1} {2},لا يستطيع {0} قراءة {1} {2}
+{0} is a child table and is printed inside its parent,{0} جدول فرعي ويُطبع داخل المستند الأب
+A Print Format named {0} already exists; use operation update,يوجد تنسيق طباعة باسم {0}؛ استخدم operation update
+{0} is disabled; enable it first (operation enable with default_print_format 1),{0} معطّل؛ فعّله أولاً (operation enable مع default_print_format 1)
+{0} is the default print format of {1}: printing falls back to the standard default; undo restores it,{0} هو تنسيق الطباعة الافتراضي لـ {1}: ستعود الطباعة إلى الافتراضي الأصلي، والتراجع يعيده
+{0} is no longer offered when printing {1},لن يظهر {0} عند طباعة {1}
+Changes what the {0} user(s) who can read {1} get when they print with {2},يغيّر ما يحصل عليه {0} مستخدم يقرؤون {1} عند الطباعة بـ {2}
+Print Format {0} does not exist,تنسيق الطباعة {0} غير موجود
+The default print format of {0} is not what was approved,تنسيق الطباعة الافتراضي لـ {0} ليس ما اعتُمد
+{0} cannot print {1} {2}: {3},لا يستطيع {0} طباعة {1} {2}: {3}
+Rendering on {0} {1} fails: {2},فشل التصيير على {0} {1}: {2}
+{0} is a custom DocType: set its default print format in the DocType itself,{0} DocType مخصص: اضبط تنسيق طباعته الافتراضي في الـ DocType نفسه
+{0} is not the default print format of {1},{0} ليس تنسيق الطباعة الافتراضي لـ {1}
+There is no Print Format {0} to restore as default,لا يوجد تنسيق طباعة {0} لإعادته افتراضياً
+{0} is offered again when printing {1},سيظهر {0} مجدداً عند طباعة {1}
+{0} must be text,{0} يجب أن يكون نصاً
+font_size must be between 6 and 40,font_size بين 6 و40
+Frappe refuses the print format: {0},يرفض Frappe تنسيق الطباعة: {0}
+The saved print format does not render: {0},تنسيق الطباعة المحفوظ لا يُصيَّر: {0}
+{0} must be between 0 and 100 (mm),{0} بين 0 و100 (مم)
+Frappe lets only System Managers write Notifications,لا يسمح Frappe بكتابة الإشعارات إلا لمدير النظام
+each {0} whose date matches (checked daily or every few minutes),كل {0} يطابق تاريخه (يُفحص يومياً أو كل بضع دقائق)
+recipients must be a list of objects,recipients يجب أن تكون قائمة كائنات
+Frappe accepts the notification,يقبل Frappe الإشعار
+everyone assigned to the document,كل المكلّفين بالمستند
+Sends email to,يرسل بريداً إلى
+Notifies in the app,يُشعر داخل النظام
+Sends SMS to,يرسل رسالة SMS إلى
+Posts to Slack,ينشر في Slack
+Also shows a notification in the app,ويُظهر أيضاً إشعاراً داخل النظام
+{0} notification {1} ({2}),{0} الإشعار {1} ({2})
+The DocType of a notification cannot change; create a new one,لا يتغير DocType الإشعار؛ أنشئ إشعاراً جديداً
+message is required,message مطلوب
+SMS is not configured on this site (SMS Settings has no gateway); use Email or System Notification,الرسائل القصيرة غير مضبوطة في هذا الموقع (لا بوابة في إعدادات SMS)؛ استخدم Email أو System Notification
+{0} is not an email field (Data with options Email) nor a User link,{0} ليس حقل بريد (Data بخيار Email) ولا ارتباطاً بمستخدم
+"Nobody would receive it: add recipients (role, document field or cc)",لن يستلمه أحد: أضف مستلمين (دور أو حقل في المستند أو cc)
+System Notification goes to users only; remove the non-user addresses,إشعار النظام يصل للمستخدمين فقط؛ احذف العناوين التي ليست لمستخدمين
+Some cc/bcc addresses are computed from the document; the preview shows them for one document,بعض عناوين cc/bcc تُحسب من المستند؛ والمعاينة تعرضها لمستند واحد
+attach_print only works with the Email channel,attach_print يعمل مع قناة Email فقط
+"Draft documents cannot be printed (Print Settings), so the email fails for drafts",المسودات لا تُطبع (إعدادات الطباعة)، فيفشل البريد للمسودات
+{0} ({1} users),{0} ({1} مستخدم)
+the address in {0},العنوان في {0}
+each new {0},كل {0} جديد
+every save of a {0},كل حفظ لـ {0}
+each submitted {0},كل {0} يُعتمد
+each cancelled {0},كل {0} يُلغى
+each change of {1} on a {0},كل تغيير لـ {1} في {0}
+each {2} call on a {0},كل استدعاء {2} على {0}
+Fires on {0},يعمل عند {0}
+About {0} {1} created per day over the last 30 days: roughly {2} message(s) a day{3},نحو {0} من {1} يُنشأ يومياً خلال آخر 30 يوماً: قرابة {2} رسالة يومياً{3}
+ or more (every save counts), أو أكثر (كل حفظ يُحسب)
+The stored message differs from the approved one,الرسالة المحفوظة تختلف عن المعتمدة
+Custom fires only from code (Notification.queue_send); use a document event,الحدث Custom لا يعمل إلا من الكود (Notification.queue_send)؛ استخدم حدثاً على المستند
+"e.g. [{""receiver_by_role"": ""Accounts Manager""}, {""receiver_by_document_field"": ""owner""}]","مثال: [{""receiver_by_role"": ""Accounts Manager""}, {""receiver_by_document_field"": ""owner""}]"
+days_in_advance cannot be negative,days_in_advance لا يكون سالباً
+slack_webhook_url only goes with the Slack channel,slack_webhook_url لقناة Slack فقط
+"System Notification goes to users: use owner or a User link field, not {0}",إشعار النظام يصل للمستخدمين: استخدم owner أو حقل ارتباط بمستخدم، لا {0}
+"{0} links to a Customer, which is not an email address (Frappe skips it); use the email field, e.g. contact_email",{0} يرتبط بعميل وليس عنوان بريد (يتجاهله Frappe)؛ استخدم حقل البريد مثل contact_email
+print_format is ignored unless attach_print is 1,print_format يُتجاهل ما لم يكن attach_print = 1
+No {0} that {1} can read,لا يوجد {0} يستطيع {1} قراءته
+The templates compile but were not rendered,القوالب سليمة الصياغة لكنها لم تُصيَّر
+Attaches the {0} print ({1}),يرفق طباعة {0} ({1})
+A Notification named {0} already exists,يوجد إشعار باسم {0}
+There is no Notification {0},لا يوجد إشعار {0}
+List them with customize.inspect (include notifications),اعرضها بـ customize.inspect (include notifications)
+{0} is a standard notification and cannot be changed; disable it and create a copy,{0} إشعار قياسي لا يُعدَّل؛ عطّله وأنشئ نسخة
+event must be one of: {0},event يجب أن يكون أحد: {0}
+channel must be one of: {0},channel يجب أن تكون إحدى: {0}
+recipients[{0}] must be an object,recipients[{0}] يجب أن يكون كائناً
+"recipients[{0}] names nobody: give receiver_by_document_field, receiver_by_role, cc or bcc",recipients[{0}] لا يحدد أحداً: أرسل receiver_by_document_field أو receiver_by_role أو cc أو bcc
+A Notification named {0} already exists; use operation update,يوجد إشعار باسم {0}؛ استخدم operation update
+set_property_after_alert ({0}) makes the notification write to the document; it is not allowed through the agent,set_property_after_alert ({0}) يجعل الإشعار يكتب في المستند؛ وهذا غير مسموح عبر الوكيل
+Notifications on {0} are not allowed,الإشعارات على {0} غير مسموحة
+{0} is a child table: only Days Before / Days After work on it (Frappe),{0} جدول فرعي: يعمل عليه Days Before / Days After فقط (Frappe)
+subject is required for the {0} channel,subject مطلوب لقناة {0}
+minutes_offset must be at least 10 (the scheduler runs every few minutes),minutes_offset لا يقل عن 10 (المجدول يعمل كل بضع دقائق)
+{0} has no child table {1},لا يوجد في {0} جدول فرعي {1}
+{0} is not a phone/mobile field nor a User or Customer link,{0} ليس حقل هاتف/جوال ولا ارتباطاً بمستخدم أو عميل
+Notification {0} does not exist,الإشعار {0} غير موجود
+{0} sets a property after sending,{0} يضبط خاصية بعد الإرسال
+{0} stops sending,يتوقف {0} عن الإرسال
+{0} needs date_changed: a Date/Datetime field of {1} (or creation/modified),{0} يحتاج date_changed: حقل Date/Datetime في {1} (أو creation/modified)
+Slack needs slack_webhook_url naming an existing Slack Webhook URL; none is configured for {0},Slack يحتاج slack_webhook_url باسم Slack Webhook URL موجود؛ ولا يوجد مضبوط لـ {0}
+Sent outside the site's users to: {0} (confirmed with allow_external),يُرسل خارج مستخدمي الموقع إلى: {0} (مؤكَّد بـ allow_external)
+"{0} are not users of this site. Ask the user to confirm, then send allow_external: true",{0} ليسوا مستخدمين في هذا الموقع. اطلب تأكيد المستخدم ثم أرسل allow_external: true
+Frappe refuses the notification: {0},يرفض Frappe الإشعار: {0}
+"{0} is stored as {1}, not {2}",{0} محفوظ بالقيمة {1} لا {2}
+{0} needs datetime_changed: a Datetime field of {1} (or creation/modified),{0} يحتاج datetime_changed: حقل Datetime في {1} (أو creation/modified)
+"Method needs method: the document method name, e.g. on_update_after_submit",الحدث Method يحتاج method: اسم دالة المستند، مثل on_update_after_submit
+There is no role {0},لا يوجد دور {0}
+{0} only works with Email or System Notification,{0} يعمل مع Email أو System Notification فقط
+"Print Format {0} is for {1}, not {2}",تنسيق الطباعة {0} لـ {1} لا لـ {2}
+Subject and message render on {0},يُصيَّر العنوان والرسالة على {0}
+Value Change needs value_changed: a field of {0} that holds a value,Value Change يحتاج value_changed: حقلاً في {0} يحمل قيمة
+event is required,event مطلوب
+The role {0} has {1} users: each one receives every message,الدور {0} فيه {1} مستخدم: يستلم كل واحد منهم كل رسالة
+Sent to the address stored in {0} of each document: it can be outside the company,يُرسل إلى العنوان المحفوظ في {0} لكل مستند: وقد يكون خارج الشركة
+{0} is not a valid email address,{0} ليس عنوان بريد صحيحاً
+Print Format {0} is disabled,تنسيق الطباعة {0} معطّل
+The condition evaluates on {0}: {1},نتيجة الشرط على {0}: {1}
+Rendering on {0} fails: {1},فشل التصيير على {0}: {1}
+On {0} the computed cc/bcc reach non-users: {1},على {0} تصل عناوين cc/bcc المحسوبة إلى غير مستخدمين: {1}
+Resolving the recipients fails on {0}: {1},فشل تحديد المستلمين على {0}: {1}
+"{0} is not submittable, so {1} never happens",{0} لا يُعتمد، فلن يقع {1} أبداً
+The condition fails on {0}: {1},فشل الشرط على {0}: {1}
+"{0} controls access, code or system structure; its permissions cannot be changed by the assistant",{0} يتحكم في الوصول أو الكود أو بنية النظام؛ لا يستطيع المساعد تغيير صلاحياته
+"{0} controls code, access or the assistant itself; its permissions cannot be changed by the assistant",{0} يتحكم في الكود أو الوصول أو في المساعد نفسه؛ لا يستطيع المساعد تغيير صلاحياته
+"{0} is system configuration (settings, company, fiscal year…); its permissions cannot be changed by the assistant",{0} من إعدادات النظام (الإعدادات، الشركة، السنة المالية…)؛ لا يستطيع المساعد تغيير صلاحياته
+"operation must be one of: grant, revoke, reset",يجب أن تكون operation واحدة من: grant أو revoke أو reset
+{0} is a child table: it follows the permissions of its parent DocType,{0} جدول فرعي: يتبع صلاحيات الـ DocType الأب
+Change the permissions of the parent DocType instead,غيّر صلاحيات الـ DocType الأب بدلاً منه
+reset takes only doctype: it brings back the standard permissions,reset يأخذ doctype فقط: يعيد الصلاحيات القياسية
+restore needs rows: the Custom DocPerm rows to bring back ([] = standard),restore يحتاج rows: صفوف Custom DocPerm المراد إعادتها ([] = القياسية)
+rows[{0}] must be an object,يجب أن يكون rows[{0}] كائناً
+Administrator already has every right; choose another role,Administrator يملك كل الصلاحيات أصلاً؛ اختر دوراً آخر
+"Roles are matched exactly, e.g. 'Sales User'; list them with data__query on Role",يُطابَق اسم الدور حرفياً، مثل 'Sales User'؛ اعرض الأدوار بـ data__query على Role
+{0} is given automatically to every user (or every visitor); name a specific role,{0} يُمنح تلقائياً لكل مستخدم (أو كل زائر)؛ سمِّ دوراً محدداً
+"Only if the user explicitly asked for {0}, send allow_automatic_role: 1",أرسل allow_automatic_role: 1 فقط إذا طلب المستخدم {0} صراحة
+permlevel must be between 0 and 9,يجب أن يكون permlevel بين 0 و9
+if_owner must be 0 or 1,يجب أن يكون if_owner إما 0 أو 1
+"grant needs rights, e.g. [""read"", ""write""]","grant يحتاج rights، مثل [""read"", ""write""]"
+rights must be a list of: {0},يجب أن تكون rights قائمة من: {0}
+Unknown right(s): {0},صلاحية (صلاحيات) غير معروفة: {0}
+Frappe's Role Permission Manager is for System Managers only,مدير صلاحيات الأدوار في Frappe مخصص لمديري النظام فقط
+{0} has no rule for {1} at level {2}{3}; there is nothing to revoke,لا توجد في {0} قاعدة للدور {1} في المستوى {2}{3}؛ لا شيء لسحبه
+ (only if creator), (لمنشئ المستند فقط)
+"No basic right is left on the rule of {0}, so the whole rule is removed",لم تبقَ صلاحية أساسية في قاعدة {0}، لذا تُحذف القاعدة كلها
+{0} already uses its standard permissions,{0} يستخدم صلاحياته القياسية أصلاً
+The permissions of {0} are already these,صلاحيات {0} هي هذه أصلاً
+Who can do what on {0} stays the same; only the stored rules change,من يستطيع فعل ماذا في {0} يبقى كما هو؛ تتغير القواعد المحفوظة فقط
+The permissions of {0} would not change,لن تتغير صلاحيات {0}
+Report cannot be given on an 'only if creator' rule (Frappe refuses it),لا يمكن منح Report في قاعدة 'لمنشئ المستند فقط' (يرفضها Frappe)
+{0} will be able to {1} {2} records,سيتمكن {0} من {1} سجلات {2}
+No field of {0} uses level {1}; this rule changes nothing visible yet,لا يستخدم أي حقل في {0} المستوى {1}؛ هذه القاعدة لا تغيّر شيئاً ظاهراً بعد
+No enabled user holds {0} yet,لا يحمل أي مستخدم مفعّل الدور {0} بعد
+A second System Manager must approve a permission change; the requester cannot approve it,يجب أن يعتمد تغيير الصلاحيات مدير نظام ثانٍ؛ لا يستطيع مقدم الطلب اعتماده
+Frappe accepts the resulting permission rules,يقبل Frappe قواعد الصلاحيات الناتجة
+Giving rights to {0} opens {1} to every user and website visitor,منح صلاحيات لـ {0} يفتح {1} لكل مستخدم وكل زائر للموقع
+Giving {0} to {1} lets every desk user change {2}; give it to a specific role,منح {0} لـ {1} يتيح لكل مستخدمي المكتب تغيير {2}؛ امنحه لدور محدد
+Every desk user will be able to {0} {1},سيتمكن كل مستخدمي المكتب من {0} {1}
+The role {0} is disabled: the rule has no effect until it is enabled,الدور {0} معطّل: لا أثر للقاعدة حتى يُفعَّل
+{0} would have no permission rule at all,لن تبقى في {0} أي قاعدة صلاحيات
+No role would be left that can {0} {1} (only Administrator),لن يبقى دور يستطيع {0} {1} (سوى Administrator)
+Frappe rejects the rules: {0},يرفض Frappe القواعد: {0}
+Frappe drops {0} from the level {1} rule of {2},يحذف Frappe {0} من قاعدة المستوى {1} للدور {2}
+gains {0},يكسب {0}
+loses {0},يفقد {0}
+{0} {1} on {2},{0} {1} في {2}
+ and , و
+… and {0} more user(s),… و{0} مستخدم (مستخدمين) آخرين
+No enabled user's rights on {0} change today (the rule applies to whoever gets the role later),لا تتغير اليوم صلاحيات أي مستخدم مفعّل في {0} (تنطبق القاعدة على من يُمنح الدور لاحقاً)
+{0} still has custom permissions,ما زالت في {0} صلاحيات مخصصة
+The permissions of {0} are not the restored ones,صلاحيات {0} ليست الصلاحيات المستعادة
+{0} does not have {1} on {2},{0} لا يملك {1} في {2}
+{0} still has the revoked right(s) on {1},ما زال {0} يملك الصلاحية (الصلاحيات) المسحوبة في {1}
+The cached permissions of {0} differ from the saved ones; clear the cache,صلاحيات {0} في الذاكرة المؤقتة تختلف عن المحفوظة؛ امسح الذاكرة المؤقتة
+The permissions of {0} are in effect,صلاحيات {0} سارية
+Reset permissions of {0} to standard,إعادة صلاحيات {0} إلى القياسية
+Restore previous permissions of {0},استعادة صلاحيات {0} السابقة
+ at level {0}, في المستوى {0}
+Give {0} {1} on {2}{3}{4},منح {0} صلاحية {1} في {2}{3}{4}
+every right,كل الصلاحيات
+Take {0} from {1} on {2}{3}{4},سحب {0} من {1} في {2}{3}{4}
+"'return' outside a function: a Script Report runs top to bottom. Set data = [columns, rows] instead of return","'return' خارج دالة: تقرير السكربت يُنفَّذ من أعلى إلى أسفل. اكتب data = [columns, rows] بدلاً من return"
+"'return' outside a function: a Permission Query runs top to bottom. Set conditions = ""..."" instead of return","'return' خارج دالة: استعلام الصلاحيات يُنفَّذ من أعلى إلى أسفل. اكتب conditions = ""..."" بدلاً من return"
+'doc' is not defined in a {0},'doc' غير معرّف في {0}
+frappe.response has no effect in a {0},frappe.response لا أثر له في {0}
+A Permission Query runs on every list read and may not write: {0},استعلام الصلاحيات يعمل مع كل قراءة لقائمة ولا يجوز أن يكتب: {0}
+"A Script Report must set data = [columns, rows] (or result = rows with the report's columns table)","يجب أن يضبط تقرير السكربت data = [columns, rows] (أو result = rows مع جدول أعمدة التقرير)"
+"A Permission Query must set conditions = ""<SQL condition>"" (an empty string means no restriction)","يجب أن يضبط استعلام الصلاحيات conditions = ""<شرط SQL>"" (النص الفارغ يعني بلا تقييد)"
+'user' is put into the SQL text without frappe.db.escape(user); quote it with frappe.db.escape,وُضع 'user' في نص SQL دون frappe.db.escape(user)؛ احمِه بـ frappe.db.escape
+"{0} is a {1}; only Report Builder, Query Report and Script Report reports can be changed",{0} من نوع {1}؛ لا يمكن تعديل إلا تقارير Report Builder وQuery Report وScript Report
+"report_type must be Report Builder, Query Report or Script Report",report_type يجب أن يكون Report Builder أو Query Report أو Script Report
+{0} belongs to a Script Report only,{0} خاص بتقرير السكربت فقط
+"Use report_type Script Report, or builder (Report Builder) / query (Query Report)",استخدم report_type = Script Report، أو builder (Report Builder) / query (Query Report)
+A Script Report with javascript takes its filters from the javascript; the filters table would be ignored,تقرير السكربت الذي فيه javascript يأخذ فلاتره من javascript؛ وجدول الفلاتر سيُتجاهل
+"Put every filter in frappe.query_reports[""{0}""] = {{filters: [...]}} and leave out filters","ضع كل فلتر في frappe.query_reports[""{0}""] = {{filters: [...]}} ولا ترسل filters"
+"A Script Report takes report_script (and javascript for filters), not {0}",تقرير السكربت يأخذ report_script (وjavascript للفلاتر)، لا {0}
+Frappe allows only Script Managers to save Query Reports and Script Reports,لا يسمح Frappe بحفظ تقارير Query وScript إلا لمن يحمل Script Manager
+"Server Scripts are disabled on this server, so a Script Report cannot run (bench set-config -g server_script_enabled 1)",سكربتات الخادم معطلة على هذا الخادم، فلا يمكن تشغيل تقرير السكربت (bench set-config -g server_script_enabled 1)
+"javascript must set frappe.query_reports[""{0}""] = {{filters: [...]}}","يجب أن يضبط javascript القيمة frappe.query_reports[""{0}""] = {{filters: [...]}}"
+"javascript sets frappe.query_reports[""{0}""]; it must use this report's name: {1}","javascript يضبط frappe.query_reports[""{0}""]؛ ويجب أن يستخدم اسم هذا التقرير: {1}"
+Filter {0} has the unknown fieldtype {1},الفلتر {0} له نوع حقل غير معروف {1}
+"Frappe checks a Link filter's value against the viewer's permissions but not the values of the MultiSelectList filter {0}: keep only the {1} the viewer may read, e.g. allowed = frappe.get_list(""{1}"", pluck=""name"")","يتحقق Frappe من قيمة فلتر Link مقابل صلاحيات المستخدم، لكنه لا يتحقق من قيم فلتر الاختيار المتعدد {0}: أبقِ فقط {1} التي يحق للمستخدم قراءتها، مثلاً allowed = frappe.get_list(""{1}"", pluck=""name"")"
+"Runs this Python each time someone opens the report, with that person's permissions: frappe.get_list applies them, frappe.get_all, frappe.db.get_value and frappe.get_doc do not",يُشغَّل هذا الكود كلما فتح أحدٌ التقرير، بصلاحيات ذلك الشخص: frappe.get_list يطبقها، أما frappe.get_all وfrappe.db.get_value وfrappe.get_doc فلا
+Can be run by: {0},يمكن أن يشغّله: {0}
+every role that reads {0},كل دور يقرأ {0}
+"The preview stopped at {0}, which is not run in a preview",توقفت المعاينة عند {0}، ولا يُنفَّذ في المعاينة
+On the sample filters the report stops with: {0}. Give sample_filters to see rows,بفلاتر العينة يتوقف التقرير بالرسالة: {0}. أرسل sample_filters لرؤية صفوف
+The script fails when it runs: {0}: {1},يفشل السكربت عند التشغيل: {0}: {1}
+"data must be [columns, rows] (optionally [columns, rows, message, chart, report_summary])","يجب أن تكون data على الشكل [columns, rows] (أو [columns, rows, message, chart, report_summary])"
+On the sample filters the script set neither data nor result,بفلاتر العينة لم يضبط السكربت data ولا result
+"The script sets result without data and the report has no columns: set data = [columns, rows], or send columns","السكربت يضبط result دون data وليس للتقرير أعمدة: اكتب data = [columns, rows] أو أرسل columns"
+columns and rows must both be lists,يجب أن تكون columns وrows قائمتين
+each row must be a list or a dict,كل صف يجب أن يكون قائمة أو قاموساً
+The rows do not match the columns: {0},الصفوف لا تطابق الأعمدة: {0}
+The script runs with {0}'s permissions: {1} row(s) on the sample filters,يعمل السكربت بصلاحيات {0}: {1} صف بفلاتر العينة
+The stored {0} differs from the approved one,{0} المحفوظ يختلف عن المعتمد
+For {0} the condition is longer than {1} characters,للمستخدم {0} الشرط أطول من {1} حرفاً
+"For {0} the condition contains a comment or ';', which could cut off the rest of Frappe's query",للمستخدم {0} الشرط يحوي تعليقاً أو ';' قد يقطع بقية استعلام Frappe
+For {0} the condition closes a parenthesis it did not open: it would escape into Frappe's query,للمستخدم {0} الشرط يغلق قوساً لم يفتحه: سيهرب إلى استعلام Frappe
+For {0} the condition leaves a parenthesis open,للمستخدم {0} الشرط يترك قوساً مفتوحاً
+For {0} the condition uses a function or INTO that is not allowed,للمستخدم {0} الشرط يستخدم دالة أو INTO غير مسموحة
+For {0} the condition is not valid SQL: {1},للمستخدم {0} الشرط ليس SQL صالحاً: {1}
+For {0} the condition is not one SQL expression,للمستخدم {0} الشرط ليس تعبير SQL واحداً
+For {0} the condition adds {1} to Frappe's query; only a WHERE expression is allowed,للمستخدم {0} الشرط يضيف {1} إلى استعلام Frappe؛ المسموح تعبير WHERE فقط
+"For {0} the condition has a top-level OR: Frappe adds it with AND and no parentheses, so it would widen access. Wrap it: (a or b)",للمستخدم {0} في الشرط OR على المستوى الأعلى: يضيفه Frappe بـ AND دون أقواس فيوسّع الوصول. ضعه بين قوسين: (a or b)
+For {0} the condition reads another database: {1},للمستخدم {0} الشرط يقرأ قاعدة بيانات أخرى: {1}
+For {0} the condition reads the system table {1},للمستخدم {0} الشرط يقرأ جدول النظام {1}
+"For {0} the condition reads {1}, which is not a DocType table",للمستخدم {0} الشرط يقرأ {1}، وليس جدول DocType
+"For {0} the condition reads {1}, which controls code or access",للمستخدم {0} الشرط يقرأ {1}، وهو يتحكم في الكود أو الصلاحيات
+For {0} the condition reads pay data ({1}),للمستخدم {0} الشرط يقرأ بيانات رواتب ({1})
+Name the columns as `tab{0}`.`field`: an unqualified column is ambiguous when Frappe joins a child table,سمِّ الأعمدة بالشكل `tab{0}`.`field`: العمود غير المؤهل يلتبس عندما يربط Frappe جدولاً فرعياً
+For {0} the condition is one expression that can only narrow the list,للمستخدم {0} الشرط تعبير واحد لا يستطيع إلا تضييق القائمة
+"script_type must be DocType Event, API, Scheduler Event or Permission Query",script_type يجب أن يكون DocType Event أو API أو Scheduler Event أو Permission Query
+Workflow Task is not available to the agent,Workflow Task غير متاح للوكيل
+event_frequency {0} is not available,event_frequency {0} غير متاح
+cron_format is used only with event_frequency Cron,cron_format يُستخدم فقط مع event_frequency = Cron
+"event_frequency Cron needs cron_format, e.g. ""30 6 * * *"" (every day at 06:30)","event_frequency = Cron يحتاج cron_format، مثل ""30 6 * * *"" (كل يوم الساعة 06:30)"
+sample_users must be a list of at most {0} user ids,sample_users يجب أن تكون قائمة من {0} مستخدمين على الأكثر
+Unknown user(s): {0},مستخدمون غير معروفين: {0}
+A Scheduler Event runs in the background as Administrator with no user: every read sees every record and every write skips permission checks. Nobody is shown its errors (they go to the Error Log),حدث المجدول يعمل في الخلفية باسم Administrator دون مستخدم: كل قراءة ترى كل السجلات وكل كتابة تتجاوز فحص الصلاحيات. ولا تظهر أخطاؤه لأحد (تذهب إلى Error Log)
+A Scheduler Event needs event_frequency: one of {0},حدث المجدول يحتاج event_frequency: واحداً من {0}
+event_frequency Cron needs cron_format,event_frequency = Cron يحتاج cron_format
+{0} is not a valid cron expression: {1},{0} ليس تعبير cron صالحاً: {1}
+{0} runs more often than every 15 minutes,{0} يعمل أكثر من مرة كل 15 دقيقة
+All runs on every scheduler tick (every few minutes),All يعمل مع كل دورة للمجدول (كل بضع دقائق)
+{0} runs in the long queue,{0} يعمل في الطابور الطويل
+The scheduler is disabled on this site: the script will not run until it is enabled,المجدول معطل على هذا الموقع: لن يعمل السكربت حتى يُفعَّل
+"Runs {0} ({1}) in the background as Administrator with no user, until it is disabled",يعمل {0} ({1}) في الخلفية باسم Administrator دون مستخدم، حتى يُعطَّل
+No reference_doctype given,لم يُحدَّد reference_doctype
+{0} is a child table: Permission Queries apply to the DocType that lists it,{0} جدول فرعي: استعلامات الصلاحيات تُطبَّق على الـ DocType الذي يحويه
+{0} already has the enabled Permission Query {1}; Frappe uses only one per DocType: update that one,لـ {0} استعلام صلاحيات مفعّل هو {1}؛ Frappe يستخدم واحداً فقط لكل DocType: عدّل ذلك
+Apps already restrict {0} with {1}; this condition is added to theirs with AND,التطبيقات تقيّد {0} أصلاً عبر {1}؛ وهذا الشرط يُضاف إلى شروطها بـ AND
+"A Permission Query changes who sees which {0} everywhere (lists, reports, link fields, counts, the REST API). Review the condition for each kind of user",استعلام الصلاحيات يغيّر من يرى أي {0} في كل مكان (القوائم والتقارير وحقول الربط والعدّ وواجهة REST). راجع الشرط لكل نوع من المستخدمين
+"Adds a condition to every list, report, link search and count of {0}, for every user, also in the REST API",يضيف شرطاً إلى كل قائمة وتقرير وبحث ربط وعدّ لـ {0}، لكل المستخدمين، وفي واجهة REST أيضاً
+For {0} the script fails: {1}: {2},للمستخدم {0} يفشل السكربت: {1}: {2}
+For {0} the script sets no condition: nothing changes for them,للمستخدم {0} لا يضع السكربت أي شرط: لا يتغير له شيء
+"For {0} conditions is a {1}, not text",للمستخدم {0} قيمة conditions من نوع {1} وليست نصاً
+cannot read {0},لا يستطيع قراءة {0}
+With the condition the list query of {0} fails for {1}: {2},مع الشرط يفشل استعلام قائمة {0} للمستخدم {1}: {2}
+{0} would see {1} of the {2} {3} they see today,سيرى {0} عدد {1} من أصل {2} من {3} يراها اليوم
+For {0} the list grows from {1} to {2} rows,للمستخدم {0} تكبر القائمة من {1} إلى {2} صفاً
+The list query of {0} was built and run with the condition for {1},بُني استعلام قائمة {0} وشُغِّل مع الشرط للمستخدمين {1}
+{0} has no running Scheduled Job Type with frequency {1},ليس لـ {0} مهمة مجدولة (Scheduled Job Type) عاملة بالتكرار {1}
+The Scheduled Job Type of {0} has another cron expression,المهمة المجدولة لـ {0} لها تعبير cron مختلف
+"{0} in the template runs for every anonymous visitor (reads data, calls the server or echoes the request); only formatting (frappe.utils, frappe.format_value, _) is allowed on a public page",{0} في القالب يعمل لكل زائر مجهول (يقرأ بيانات أو يستدعي الخادم أو يعيد محتوى الطلب)؛ المسموح في صفحة عامة هو التنسيق فقط (frappe.utils وfrappe.format_value و_)
+{0}: a <script> runs code in every visitor's browser ({1}),{0}: وسم <script> يشغّل كوداً في متصفح كل زائر ({1})
+{0}: an inline event handler runs code in every visitor's browser ({1}),{0}: معالج حدث مضمَّن يشغّل كوداً في متصفح كل زائر ({1})
+{0}: a javascript:/data: address runs code when clicked ({1}),{0}: عنوان javascript:/data: يشغّل كوداً عند النقر ({1})
+{0}: {1} embeds another page or plugin inside the site,{0}: {1} يضمّن صفحة أخرى أو إضافة داخل الموقع
+{0}: a form posts what visitors type to another site ({1}),{0}: نموذج يرسل ما يكتبه الزوار إلى موقع آخر ({1})
+{0}: <meta refresh> sends visitors elsewhere ({1}),{0}: وسم <meta refresh> يحوّل الزوار إلى مكان آخر ({1})
+{0}: {1} changes where every link on the page points,{0}: {1} يغيّر وجهة كل رابط في الصفحة
+{0}: {1} asks visitors for a password (phishing pattern),{0}: {1} يطلب من الزوار كلمة مرور (نمط تصيّد)
+content,المحتوى
+No doc_type given,لم يُحدَّد doc_type
+ (published), (منشور)
+Only if the user explicitly wants active content: send allow_scripts: true (the change becomes high risk),فقط إن طلب المستخدم صراحةً محتوى نشطاً: أرسل allow_scripts: true (ويصبح التغيير عالي الخطورة)
+"The template contains '.__', which Frappe refuses to render",القالب يحتوي '.__'، وFrappe يرفض تصييره
+frappe is passed around as a value in the template; use frappe.utils / frappe.format_value directly,يُمرَّر frappe كقيمة داخل القالب؛ استخدم frappe.utils أو frappe.format_value مباشرة
+The Jinja template parses and only formats values,قالب Jinja سليم الصياغة ويقتصر على تنسيق القيم
+doctype must be Web Page or Web Form,يجب أن يكون doctype إما Web Page أو Web Form
+Nothing to update: send the values to change,لا شيء للتحديث: أرسل القيم المطلوب تغييرها
+"content_type must be Rich Text, Markdown or HTML",يجب أن يكون content_type أحد: Rich Text أو Markdown أو HTML
+"form_fields must be a non-empty list of {fieldname, ...} objects","يجب أن يكون form_fields قائمة غير فارغة من كائنات {fieldname, ...}"
+unpublished,غير منشور
+Publish,نشر
+Unpublish,إلغاء النشر
+The title gives no usable name; send name,العنوان لا يعطي اسماً صالحاً؛ أرسل name
+Frappe lets only Website Managers write {0},لا يسمح Frappe بكتابة {0} إلا لمديري الموقع (Website Manager)
+context_script runs Python on the server for every visitor; it is never written by the assistant,context_script يشغّل بايثون على الخادم لكل زائر؛ ولا يكتبه المساعد أبداً
+The content is rendered as Jinja (dynamic_template or '{{' in it),يُصيَّر المحتوى كقالب Jinja (بسبب dynamic_template أو وجود '{{' فيه)
+"The HTML has no scripts, embeds or off-site forms",الـ HTML خالٍ من السكربتات والتضمينات والنماذج المرسلة لمواقع أخرى
+{0} is a child table,{0} جدول فرعي
+The form has no fields,النموذج بلا حقول
+client_script runs in the browser of every visitor of the form,client_script يعمل في متصفح كل زائر للنموذج
+/{0} belongs to Desk or the server (/{1}…),/{0} تابع لواجهة Desk أو للخادم (/{1}…)
+/{0} is a page of an installed app (for example the login or contact page),/{0} صفحة لتطبيق مثبّت (مثل صفحة الدخول أو التواصل)
+/{0} is taken by the route rule of {1},/{0} محجوز بقاعدة مسار {1}
+"{0}: the CSS contains script (expression(), javascript:, behavior)",{0}: الـ CSS يحتوي كوداً (expression() أو javascript: أو behavior)
+{0}: @import loads another stylesheet: {1},{0}: ‏@import يحمّل ملف تنسيق آخر: {1}
+{0}() calls a method of the page document from the template,{0}() يستدعي دالة من مستند الصفحة داخل القالب
+{0} are not arguments of a {1},{0} ليست من وسائط {1}
+"The route {0} is not valid: use ASCII letters, digits, - and _ separated by /",المسار {0} غير صالح: استخدم حروفاً لاتينية وأرقاماً و- و_ مفصولة بـ /
+Page Builder and Slideshow pages are edited in Desk,صفحات Page Builder وSlideshow تُعدَّل من Desk
+At most {0} form fields,الحد الأقصى {0} حقلاً في النموذج
+{0} stops being served at {1},يتوقف عرض {0} على {1}
+Deletes the unpublished {0} {1},يحذف {0} غير المنشور {1}
+Visible to anyone on the internet at {0},مرئي لأي شخص على الإنترنت على {0}
+Saved unpublished: nobody on the internet sees it until it is published at {0},يُحفظ غير منشور: لا يراه أحد على الإنترنت حتى يُنشر على {0}
+Links to other sites: {0},روابط لمواقع أخرى: {0}
+javascript runs in every visitor's browser; send allow_scripts: true only if the user explicitly wants it,javascript يعمل في متصفح كل زائر؛ أرسل allow_scripts: true فقط إن طلبه المستخدم صراحةً
+javascript runs in every visitor's browser,javascript يعمل في متصفح كل زائر
+allow_multiple: one visitor can submit any number of records (only Frappe's rate limit of 10 per minute applies),allow_multiple: يستطيع زائر واحد إرسال أي عدد من السجلات (لا يحدّه إلا حد Frappe البالغ 10 في الدقيقة)
+The internet can create {0} records at {1},يستطيع أي شخص على الإنترنت إنشاء سجلات {0} على {1}
+"Every signed-in user, website users included, can create {0} records at {1}; Frappe saves them with ignore_permissions",كل مستخدم مسجّل، ومنهم مستخدمو الموقع، يستطيع إنشاء سجلات {0} على {1}؛ ويحفظها Frappe متجاوزاً الصلاحيات (ignore_permissions)
+"Sign-up is open on this site, so 'login required' still means anyone who registers",التسجيل مفتوح في هذا الموقع، فـ'يتطلب تسجيل الدخول' يعني عملياً أي شخص يسجّل حساباً
+The page renders for {0} ({1} characters of HTML),الصفحة تُعرض لـ {0} ({1} حرفاً من HTML)
+published at {0},منشور على {0}
+/{0} is already the route of Web Page {1},/{0} هو مسار صفحة الويب {1} بالفعل
+/{0} overlaps Web Form {1} (/{2}/…),/{0} يتداخل مع نموذج الويب {1} (/{2}/…)
+/{0} would hide Web Page {1} under it,/{0} سيحجب صفحة الويب {1} الواقعة تحته
+{0}: the CSS loads a javascript:/data: address,{0}: الـ CSS يحمّل عنوان javascript:/data:
+Jinja syntax error: {0},خطأ صياغة في Jinja: {0}
+There is no {0} named {1},لا يوجد {0} باسم {1}
+"Send route, e.g. offers/summer-2026",أرسل route، مثل offers/summer-2026
+e.g. offers/summer-2026,مثل offers/summer-2026
+This page is built with {0}; its content is edited in Desk,هذه الصفحة مبنية بـ {0}؛ ويُعدَّل محتواها من Desk
+"Send content_type Rich Text, Markdown or HTML to replace it",أرسل content_type بقيمة Rich Text أو Markdown أو HTML لاستبداله
+The content is longer than {0} characters,المحتوى أطول من {0} حرف
+form_fields[{0}] must be an object,يجب أن يكون form_fields[{0}] كائناً
+A {0} named {1} already exists; use operation update,يوجد {0} باسم {1} بالفعل؛ استخدم operation update
+Published: visible to anyone on the internet at {0},منشور: مرئي لأي شخص على الإنترنت على {0}
+The {0} has no route,{0} بلا مسار
+{0} is the site's home page,{0} هي الصفحة الرئيسية للموقع
+The route /{0} is free,المسار /{0} متاح
+"{0} cannot create {1}, so cannot open a form that creates them",{0} لا يستطيع إنشاء {1}، فلا يمكنه فتح نموذج ينشئها
+"{0} requires {1}, which the form does not ask for: submissions fail unless they get a default",{0} يتطلب {1} والنموذج لا يطلبها: سيفشل الإرسال ما لم تكن لها قيمة افتراضية
+Users can edit the {0} records they created through the form,يستطيع المستخدمون تعديل سجلات {0} التي أنشؤوها عبر النموذج
+"After submitting, visitors are sent to another site: {0}",بعد الإرسال يُحوَّل الزوار إلى موقع آخر: {0}
+{0} {1} is deleted,حُذف {0} {1}
+published,منشور
+{0} has a context_script,{0} يحتوي context_script
+{0} is saved as approved ({1}),حُفظ {0} كما اعتُمد ({1})
+/{0} is redirected by the rule {1},/{0} تُعاد توجيهه بالقاعدة {1}
+/{0} is already the page of {1} {2},/{0} هو صفحة {1} {2} بالفعل
+The HTML cannot be read: {0},تعذّرت قراءة الـ HTML: {0}
+Web Page takes: {0},Web Page يقبل: {0}
+Web Form takes: {0},Web Form يقبل: {0}
+customize.get with kind web returns a page by name,customize.get بالنوع web يعيد الصفحة بالاسم
+{0} takes only name (send operation update to change {1}),{0} يقبل name فقط (أرسل operation update لتغيير {1})
+form_fields[{0}] needs a fieldname (or fieldtype {1}),form_fields[{0}] يحتاج fieldname (أو fieldtype {1})
+"{0} has a context_script (server Python); only unpublish is allowed here, change it in Desk",{0} يحتوي context_script (بايثون على الخادم)؛ المسموح هنا إلغاء النشر فقط، وعدّله من Desk
+{0} is a standard Web Form; Frappe changes it only in developer mode,{0} نموذج ويب قياسي؛ لا يغيّره Frappe إلا في وضع المطوّر
+{0} uses anonymous or key-based access; change it in Desk,{0} يستخدم وصولاً مجهولاً أو بمفتاح؛ عدّله من Desk
+{0} is already unpublished,{0} غير منشور أصلاً
+{0} is published; unpublish it first (only unpublished records are deleted),{0} منشور؛ ألغِ نشره أولاً (لا يُحذف إلا غير المنشور)
+The page is built with {0}; its blocks are not reviewed here,الصفحة مبنية بـ {0}؛ ولا تُراجَع كتلها هنا
+{0}: fieldtype {1} is not allowed in a Web Form,{0}: نوع الحقل {1} غير مسموح في نموذج الويب
+"{0} is protected by field permissions (level {1}); Frappe saves web form values with ignore_permissions, which would bypass them",{0} محمي بصلاحيات الحقول (المستوى {1})؛ وFrappe يحفظ قيم نموذج الويب متجاوزاً الصلاحيات، فسيُتجاوز هذا الحماية
+{0} is read only in Desk but the form lets visitors fill it,{0} للقراءة فقط في Desk لكن النموذج يسمح للزوار بتعبئته
+{0} is hidden and mandatory without a default,{0} مخفي وإلزامي بلا قيمة افتراضية
+login_required 0 lets anyone on the internet create {0} records; send allow_guest: true only if the user explicitly wants a public form,login_required = 0 يسمح لأي شخص على الإنترنت بإنشاء سجلات {0}؛ أرسل allow_guest: true فقط إن طلب المستخدم صراحةً نموذجاً عاماً
+"Anyone on the internet, without signing in, can create {0} records",أي شخص على الإنترنت، دون تسجيل دخول، يستطيع إنشاء سجلات {0}
+{0} has sensitive fields ({1}); a public form on it is risky,{0} يحتوي حقولاً حساسة ({1})؛ والنموذج العام عليه خطِر
+A guest form cannot edit or list records: {0} set to 0,نموذج الضيوف لا يعدّل السجلات ولا يعرض قائمتها: ضُبط {0} على 0
+The page redirects to {0},الصفحة تعيد التوجيه إلى {0}
+The page does not render: {0},تعذّر عرض الصفحة: {0}
+{0} {1} still exists,{0} {1} ما زال موجوداً
+{0} links to {1}: the form would list every {1} name to anonymous visitors (web_form.py::get_link_options),{0} يرتبط بـ {1}: سيعرض النموذج أسماء كل سجلات {1} للزوار المجهولين (web_form.py::get_link_options)
+Its name is {0},اسمه {0}
+{0}: every signed-in user sees all {1} names,{0}: كل مستخدم مسجّل يرى أسماء كل سجلات {1}
+Frappe lets only System Managers change workflows,يسمح Frappe لمديري النظام فقط بتغيير مسارات العمل
+"Nothing to change: send states, transitions, send_email_alert or override_status",لا شيء للتغيير: أرسل states أو transitions أو send_email_alert أو override_status
+Activate,تفعيل
+Deactivate,إيقاف
+{0} workflow {1} on {2},{0} مسار العمل {1} على {2}
+{0} must be 1-140 characters without quotes or angle brackets,يجب أن يكون {0} من 1 إلى 140 حرفاً بلا علامات اقتباس أو أقواس زاوية
+states[{0}] must be an object,يجب أن يكون states[{0}] كائناً
+"states[{0}].doc_status must be 0 (draft), 1 (submitted) or 2 (cancelled)",يجب أن تكون states[{0}].doc_status ‏0 (مسودة) أو 1 (معتمد) أو 2 (ملغى)
+states[{0}].style must be one of {1},يجب أن تكون states[{0}].style إحدى القيم: {1}
+states[{0}].update_value needs update_field,states[{0}].update_value تحتاج update_field
+transitions[{0}] must be an object,يجب أن يكون transitions[{0}] كائناً
+update does not change activation,التحديث لا يغيّر التفعيل
+states must be a non-empty list,يجب أن تكون states قائمة غير فارغة
+transitions must be a non-empty list,يجب أن تكون transitions قائمة غير فارغة
+{0} is a child table; workflows run on the parent document,{0} جدول فرعي؛ مسارات العمل تعمل على المستند الأب
+Frappe's workflow rules accept every state and transition,قواعد Frappe لمسار العمل تقبل كل الحالات والانتقالات
+State {0},الحالة {0}
+Transition {0} ({1} -> {2}),الانتقال {0} ({1} -> {2})
+Deletes the workflow {0},يحذف مسار العمل {0}
+The workflow is saved inactive: nothing changes until it is activated,يُحفظ مسار العمل غير مفعّل: لا يتغير شيء حتى يُفعَّل
+Applies at once to every {0} document,يسري فوراً على كل مستندات {0}
+{0} has no documents: conditions were evaluated on a new empty document,لا توجد مستندات في {0}: قُيّمت الشروط على مستند جديد فارغ
+Transitions that submit or cancel ({0}) are turned off for the agent in AI Settings (Allow Submit/Cancel Actions),الانتقالات التي تعتمد أو تلغي ({0}) معطلة للوكيل في إعدادات الذكاء الاصطناعي (السماح بإجراءات الاعتماد/الإلغاء)
+Removes the Workflow State record(s) it created when nothing else uses them: {0},يحذف سجلات حالات مسار العمل التي أنشأها إن لم يستخدمها شيء آخر: {0}
+Removes the Workflow Action record(s) it created when nothing else uses them: {0},يحذف سجلات إجراءات مسار العمل التي أنشأها إن لم يستخدمها شيء آخر: {0}
+The {0} field and the values in existing documents stay,يبقى الحقل {0} وقيمه في المستندات الحالية
+A workflow named {0} already exists,يوجد مسار عمل باسم {0}
+"Use operation update to change it, or pick another workflow_name",استخدم operation update لتعديله، أو اختر workflow_name آخر
+There is no workflow {0},لا يوجد مسار عمل {0}
+List the workflows of a DocType with customize__inspect (include: workflows),اعرض مسارات عمل نوع المستند بـ customize__inspect (include: workflows)
+{0} belongs to {1}; a workflow cannot move to another DocType,{0} تابع لـ {1}؛ لا يمكن نقل مسار العمل إلى نوع مستند آخر
+Create a new workflow for the other DocType,أنشئ مسار عمل جديداً لنوع المستند الآخر
+Use operation activate or deactivate,استخدم operation activate أو deactivate
+At most {0} states,{0} حالة كحد أقصى
+At most {0} transitions,{0} انتقالاً كحد أقصى
+A workflow named {0} already exists; use operation update,يوجد مسار عمل باسم {0}؛ استخدم operation update
+Creates the Workflow State record(s): {0},ينشئ سجلات حالات مسار العمل: {0}
+Creates the Workflow Action record(s): {0},ينشئ سجلات إجراءات مسار العمل: {0}
+Deactivates the active workflow {0} on {1} (one active workflow per DocType),يوقف مسار العمل المفعّل {0} على {1} (مسار مفعّل واحد لكل نوع مستند)
+Frappe adds a hidden field {0} (Link to Workflow State) to {1},يضيف Frappe حقلاً مخفياً {0} (رابط إلى حالة مسار العمل) إلى {1}
+Users submit and cancel {0} only through the workflow actions,يعتمد المستخدمون {0} ويلغونه عبر إجراءات مسار العمل فقط
+{0} documents no longer follow a workflow; their {1} value stays,لم تعد مستندات {0} تتبع مسار عمل؛ وتبقى قيمة {1} فيها
+{0} is already active,{0} مفعّل أصلاً
+{0} is already inactive,{0} غير مفعّل أصلاً
+Conditions were evaluated on {0} {1},قُيّمت الشروط على {0} {1}
+{0}: there is no role {1},{0}: لا يوجد دور {1}
+{0}: Guest cannot be given workflow rights,{0}: لا يمكن منح الزائر صلاحيات مسار العمل
+{0}: no enabled user holds the role {1},{0}: لا يحمل الدور {1} أي مستخدم مفعّل
+"{0}: the role {1} has no {2} permission on {3}, so its users cannot apply it",{0}: الدور {1} لا يملك صلاحية {2} على {3}، فلا يستطيع مستخدموه تنفيذه
+States listed more than once: {0},حالات مكررة: {0}
+New documents start in the first state ({0}); it must have doc_status 0,تبدأ المستندات الجديدة في الحالة الأولى ({0})؛ يجب أن تكون doc_status فيها 0
+No transition leads from {0} to: {1},لا يوجد انتقال يصل من {0} إلى: {1}
+"No transition submits the document: with the workflow active, {0} can never be submitted",لا يوجد انتقال يعتمد المستند: مع تفعيل مسار العمل لن يُعتمد {0} أبداً
+{0} {1} document(s) ({2}) match no state: they show no workflow state,{0} من مستندات {1} ({2}) لا تطابق أي حالة: لن تظهر لها حالة مسار عمل
+{0} {1} document(s) ({2}) without a state are set to {3},{0} من مستندات {1} ({2}) بلا حالة ستُضبط على {3}
+Reactivates the workflow {0},يعيد تفعيل مسار العمل {0}
+{0} cannot change workflows,{0} لا يستطيع تغيير مسارات العمل
+Undo: remove the workflow {0},تراجع: حذف مسار العمل {0}
+{0} is removed,حُذف {0}
+Workflow {0} does not exist,مسار العمل {0} غير موجود
+active,مفعّلاً
+inactive,غير مفعّل
+{0} takes only workflow_name; got {1},{0} يأخذ workflow_name فقط؛ وصلت {1}
+Change states or transitions with operation update,غيّر الحالات أو الانتقالات بـ operation update
+{0} has transition tasks (code that runs on a transition); change its transitions by hand,في {0} مهام انتقال (كود يعمل عند الانتقال)؛ عدّل انتقالاته يدوياً
+{0} has no states,لا حالات في {0}
+{0} {1} does not exist or {2} cannot read it,{0} {1} غير موجود أو لا يستطيع {2} قراءته
+{0}: doc_status {1} needs a submittable DocType; {2} is not,{0}: doc_status {1} تحتاج نوع مستند قابلاً للاعتماد؛ و{2} ليس كذلك
+{0}: the action {1} from {2} for {3} is listed twice; Frappe uses the last one,{0}: الإجراء {1} من {2} للدور {3} مكرر؛ يستخدم Frappe الأخير
+{0} is a draft state with no way out: documents there can never move on (fine for a final Rejected state),{0} حالة مسودة بلا مخرج: لن تنتقل المستندات منها أبداً (مقبول لحالة رفض نهائية)
+The previous workflow {0} no longer exists,مسار العمل السابق {0} لم يعد موجوداً
+Undo: restore the workflow {0},تراجع: استعادة مسار العمل {0}
+Kept because something still uses them: {0},أُبقيت لأن شيئاً ما زال يستخدمها: {0}
+{0} has no {1} field,لا يوجد في {0} حقل {1}
+Other active workflows: {0},مسارات عمل مفعّلة أخرى: {0}
+{0}: update_field cannot be {1},{0}: لا يمكن أن يكون update_field هو {1}
+{0}: {1} is not one of the states,{0}: {1} ليست من الحالات
+{0}: cannot change the state of a cancelled document,{0}: لا يمكن تغيير حالة مستند ملغى
+{0} is a final state,{0} حالة نهائية
+The saved {0} differ from the approved ones,{0} المحفوظة تختلف عن المعتمدة
+{0}: a submitted document cannot go back to draft,{0}: لا يعود المستند المعتمد إلى مسودة
+{0}: the condition is not a Python expression: {1},{0}: الشرط ليس تعبير بايثون: {1}
+{0}: {1} is a {2} and holds no value,{0}: {1} من نوع {2} ولا يحمل قيمة
+{0}: update_value fails: {1},{0}: فشل update_value: {1}
+{0}: cannot cancel before submitting,{0}: لا إلغاء قبل الاعتماد
+{0}: the condition fails: {1},{0}: فشل الشرط: {1}
+{0}: {1} is not 'Allow on Submit'; Frappe refuses to change it on a submitted document,{0}: الحقل {1} ليس «مسموحاً بعد الاعتماد»؛ يرفض Frappe تغييره في مستند معتمد
+{0} and {1} more,{0} و{1} غيرها
+shortcuts must be a list,يجب أن تكون shortcuts قائمة
+cards must be a list,يجب أن تكون cards قائمة
+sidebar.items must be a list,يجب أن تكون sidebar.items قائمة
+content must be a list of blocks,يجب أن يكون content قائمة كتل
+Frappe lets only Workspace Managers save public workspaces and delete sidebars,لا يسمح Frappe بحفظ مساحات العمل العامة وحذف الأشرطة الجانبية إلا لمدير مساحات العمل
+Shown to every desk user,تظهر لكل مستخدمي النظام
+ (private), (خاصة)
+ Close names: {0}, أسماء قريبة: {0}
+{0}: there is no icon named {1} in Frappe's icon set.{2},{0}: لا توجد أيقونة باسم {1} في أيقونات Frappe.{2}
+Your Shortcuts,اختصاراتك
+Reports & Masters,التقارير والبيانات الأساسية
+Number card,بطاقة رقمية
+shortcut,اختصار
+"The workspace can be removed (dry run, rolled back)",يمكن حذف مساحة العمل (تشغيل تجريبي تم التراجع عنه)
+Hide,إخفاء
+Show,إظهار
+{0} workspace {1}{2},{0} مساحة العمل {1}{2}
+"{0} must be a list of names or {{name, label}} objects","يجب أن يكون {0} قائمة أسماء أو كائنات {{name, label}}"
+At most {0} sidebar items per request ({1} sent),الحد الأقصى {0} عنصراً في الشريط الجانبي لكل طلب (أُرسل {1})
+Give the workspace a title,أعطِ مساحة العمل عنواناً
+copy_from is only for operation create,copy_from لعملية create فقط
+The title cannot change; create a new workspace (copy_from) and delete this one,لا يتغير العنوان؛ أنشئ مساحة عمل جديدة (copy_from) واحذف هذه
+"sidebar must be an object {items, header_icon}","يجب أن يكون sidebar كائناً {items, header_icon}"
+A private workspace cannot be hidden; delete it instead,لا يمكن إخفاء مساحة عمل خاصة؛ احذفها بدلاً من ذلك
+The sidebar has no links: Frappe hides a sidebar without a link (boot.get_sidebar_items),الشريط الجانبي بلا روابط: يخفي Frappe كل شريط جانبي لا رابط فيه (boot.get_sidebar_items)
+{0} must be an object,يجب أن يكون {0} كائناً
+{0}.type must be one of {1},يجب أن يكون {0}.type واحداً من {1}
+{0}.doc_view must be one of {1},يجب أن يكون {0}.doc_view واحداً من {1}
+{0}.links must be a list,يجب أن يكون {0}.links قائمة
+{0}[{1}] must be a name or an object,يجب أن يكون {0}[{1}] اسماً أو كائناً
+"content[{0}] must be {{id, type, data}} with type one of {1}","يجب أن يكون content[{0}] بالشكل {{id, type, data}} ونوعه واحد من {1}"
+A private workspace has no sidebar or desktop icon of its own,مساحة العمل الخاصة ليس لها شريط جانبي ولا أيقونة سطح مكتب خاصة بها
+"Send the sections to replace: shortcuts, cards, number_cards, charts, sidebar, icon, roles…",أرسل الأقسام المراد استبدالها: shortcuts وcards وnumber_cards وcharts وsidebar وicon وroles…
+{0} is a sidebar without a workspace: only sidebar can change,{0} شريط جانبي بلا مساحة عمل: لا يتغير فيه إلا sidebar
+There is no workspace {0} to copy,لا توجد مساحة عمل {0} لنسخها
+The left menu {0} shows {1} item(s) on this workspace and on every page it links,القائمة الجانبية {0} تعرض {1} عنصراً في مساحة العمل هذه وفي كل صفحة ترتبط بها
+Adds a desktop icon {0} for every user who can see one of its sidebar links,يضيف أيقونة سطح مكتب {0} لكل مستخدم يرى أحد روابط شريطها الجانبي
+Only {0} sees this private workspace,لا يرى مساحة العمل الخاصة هذه إلا {0}
+Shown to the roles {0},تظهر للأدوار {0}
+{0}: the roles {1} cannot open {2} {3}; Frappe hides it from users who hold only those,{0}: الأدوار {1} لا تستطيع فتح {2} {3}؛ يخفيه Frappe عمّن لا يحمل غيرها
+{0}.link_type must be one of {1},يجب أن يكون {0}.link_type واحداً من {1}
+{0}.items: only a Section Break holds nested items (a list),{0}.items: فاصل القسم (Section Break) وحده يحمل عناصر متداخلة (قائمة)
+indicator_color must be one of {0},يجب أن يكون indicator_color واحداً من {0}
+The sidebar {0} belongs to the app {1}: create a copy (operation create with copy_from) instead of editing it,الشريط الجانبي {0} تابع للتطبيق {1}: أنشئ نسخة (عملية create مع copy_from) بدلاً من تعديله
+Removes the workspace {0}{1},يحذف مساحة العمل {0}{1}
+", its sidebar and desktop icon",، وشريطها الجانبي وأيقونة سطح المكتب
+{0} is {1} for everyone but Workspace Managers,{0} {1} للجميع عدا مديري مساحات العمل
+hidden,مخفية
+shown,ظاهرة
+There is no workspace {0} to nest under,لا توجد مساحة عمل {0} لتكون تحتها
+{0} more links are hidden from some of the audience,{0} روابط أخرى مخفية عن بعض الجمهور
+Workspace icon,أيقونة مساحة العمل
+Sidebar header icon,أيقونة رأس الشريط الجانبي
+Card {0},البطاقة {0}
+Sidebar links share a label: {0},روابط في الشريط الجانبي تتشارك العنوان: {0}
+{0} is in place,{0} في مكانها
+Frappe lists private workspaces in the user's 'My Workspaces' sidebar; send public: 1 for a shared one,يعرض Frappe مساحات العمل الخاصة في شريط «مساحات عملي» للمستخدم؛ أرسل public: 1 لمساحة مشتركة
+{0} takes only name and purpose,{0} تأخذ name وpurpose فقط
+A workspace named {0} already exists; use operation update,توجد مساحة عمل باسم {0}؛ استخدم عملية update
+{0} is already a route of a {1}: pick another title,{0} مسار مستخدم من قبل لـ {1}: اختر عنواناً آخر
+A sidebar named {0} already exists; pick another title or update that sidebar,يوجد شريط جانبي باسم {0}؛ اختر عنواناً آخر أو عدّل ذلك الشريط
+A desktop icon named {0} already exists: it is kept and no new icon is made,توجد أيقونة سطح مكتب باسم {0}: تبقى كما هي ولا تُنشأ أيقونة جديدة
+"{0} belongs to the app {1}: it is not edited in place (developer mode would write the change into the app, migrate would overwrite it). Create a copy: operation create with copy_from {0}",{0} تابعة للتطبيق {1}: لا تُعدَّل في مكانها (وضع المطوّر يكتب التغيير داخل التطبيق، والترحيل يكتب فوقه). أنشئ نسخة: عملية create مع copy_from {0}
+Shortcut {0},الاختصار {0}
+Card {0} › {1},البطاقة {0} › {1}
+Sidebar {0},الشريط الجانبي {0}
+{0}: there is no {1} {2},{0}: لا يوجد {1} {2}
+{0}: {1} cannot open {2} {3}; Frappe hides it,{0}: {1} لا يستطيع فتح {2} {3}؛ يخفيه Frappe
+Two {0}s share the label {1}: blocks find their widget by label,عنصران من نوع {0} يتشاركان العنوان {1}: الكتل تجد عناصرها بالعنوان
+The {0} block {1} has no matching row in {2},الكتلة {0} {1} لا يقابلها صف في {2}
+Workspace {0} does not exist,مساحة العمل {0} غير موجودة
+"Use operation create, or the exact name from the Workspace list",استخدم عملية create، أو الاسم الدقيق من قائمة مساحات العمل
+"{0}: a URL starts with https://, http:// or / ({1})",{0}: الرابط يبدأ بـ https:// أو http:// أو / ({1})
+The sidebar differs from the approved one,الشريط الجانبي يختلف عن المعتمد
+{0} differs from the approved change,{0} يختلف عن التغيير المعتمد
+The workspace is not listed in {0}'s My Workspaces,مساحة العمل غير مدرجة في «مساحات عملي» لدى {0}
+Number card or chart,بطاقة رقمية أو رسم بياني
+Workspace and sidebar,مساحة العمل والقائمة الجانبية
+List settings,إعدادات القائمة
+Web page or form,صفحة أو نموذج ويب
+Role permissions,صلاحيات الأدوار
+New DocType,DocType جديد
+Print format,تنسيق الطباعة
+Notification,الإشعار
+Naming,التسمية
+Reset to standard,إرجاع إلى القياسي
+Grant,منح
+Revoke,سحب
+Stop being default,إلغاء كونه الافتراضي
+Change naming,تغيير التسمية
+Create naming rule,إنشاء قاعدة تسمية
+Change naming rule,تعديل قاعدة التسمية
+Disable naming rule,تعطيل قاعدة التسمية
+Enable naming rule,تفعيل قاعدة التسمية
+Report filters (JavaScript),فلاتر التقرير (جافاسكربت)
+Rendered output (first part),الناتج بعد التصيير (الجزء الأول)
+Subject as it will be sent,الموضوع كما سيُرسَل
+Message as it will be sent,الرسالة كما ستُرسَل
+Styles,التنسيقات
+Definition,التعريف
+The next names,الأسماء القادمة
+Examples,أمثلة
+Series options,خيارات السلسلة
+Other naming rules on this DocType,قواعد التسمية الأخرى على هذا الـ DocType
+Next runs,مرات التشغيل القادمة
+Paths,المسارات
+States,الحالات
+Transitions,الانتقالات
+Recipients,المستلمون
+External links,روابط خارجية
+Sidebar after the change,القائمة الجانبية بعد التغيير
+Placed on,موضوعة في
+List columns before,أعمدة القائمة قبل
+List columns after,أعمدة القائمة بعد
+Form fields,حقول النموذج
+Permission query per user,شرط الصلاحية لكل مستخدم
+Who gains or loses rights,من يكسب أو يفقد صلاحيات
+Rules before,القواعد قبل
+Rules after,القواعد بعد
+Rule changes,تغييرات القواعد
+"Reverse it: a created format is disabled, a change or the default is restored.",للتراجع: التنسيق المُنشأ يُعطَّل، والتعديل أو الافتراضي يُستعاد.
+"Reverse it: a created notification is disabled, a change is restored.",للتراجع: الإشعار المُنشأ يُعطَّل، والتعديل يُستعاد.
+Reverse it: a created workflow is removed and the previous one reactivated; a change is restored. The workflow state field Frappe adds stays.,للتراجع: يُحذف سير العمل المُنشأ ويُعاد تفعيل السابق، والتعديل يُستعاد. حقل حالة سير العمل الذي يضيفه Frappe يبقى.
+Restore the previous naming; a created rule is disabled. Names already given stay.,تُستعاد التسمية السابقة، وتُعطَّل القاعدة المُنشأة. الأسماء التي أُعطيت تبقى.
+"Reverse it: a created card or chart is deleted, a change restored, a deleted one re-created.",للتراجع: تُحذف البطاقة أو الرسم المُنشأ، ويُستعاد التعديل، ويُعاد إنشاء المحذوف.
+"Reverse it: a created workspace is deleted, a change restored, a hidden one shown again.",للتراجع: تُحذف مساحة العمل المُنشأة، ويُستعاد التعديل، وتظهر المخفية من جديد.
+Restore the previous list settings.,تُستعاد إعدادات القائمة السابقة.
+"Reverse it: a created page or form is deleted (it is unpublished first), a change restored.",للتراجع: تُحذف الصفحة أو النموذج المُنشأ (بعد إلغاء نشره)، ويُستعاد التعديل.
+Restore the exact previous permission rules.,تُستعاد قواعد الصلاحيات السابقة كما كانت.
+Delete the new DocType while it has no records; a change is restored from the saved definition.,يُحذف الـ DocType الجديد ما دام بلا سجلات، والتعديل يُستعاد من التعريف المحفوظ.
+Print Formats,تنسيقات الطباعة
+Notifications,الإشعارات
+Workflows,سير العمل
+Dashboards and Workspaces,لوحات المعلومات ومساحات العمل
+Web Pages and Web Forms,صفحات ونماذج الويب
+Role Permissions,صلاحيات الأدوار
+New DocTypes,DocTypes جديدة
+Email and system notifications on documents. Recipients outside the site's users need an explicit confirmation.,إشعارات البريد والنظام على المستندات. المستلمون من خارج مستخدمي الموقع يحتاجون تأكيداً صريحاً.
+"Number cards, dashboard charts, workspaces and the sidebar.",البطاقات الرقمية والرسوم البيانية ومساحات العمل والقائمة الجانبية.
+Public pages and forms. Also needs the Website Manager role.,صفحات ونماذج عامة. تحتاج أيضاً دور مدير الموقع.
+"Always needs a second approver, whatever the setting below says.",تحتاج دائماً معتمِداً ثانياً، مهما كان الإعداد أدناه.
+Report Builder and Query Report; Python (Script) reports also need Script Manager and server scripts enabled.,منشئ التقارير وتقرير الاستعلام؛ تقارير بايثون تحتاج أيضاً دور مدير السكربتات وتفعيل سكربتات الخادم.
+node was not found (set node_path in site_config.json),لم يُعثر على node (اضبط node_path في site_config.json)
+acorn was not found in apps/frappe/node_modules,لم يُعثر على acorn في apps/frappe/node_modules
+a computed address,عنوان محسوب
+JavaScript syntax error: {0},خطأ في صياغة JavaScript: {0}
+frappe.ui.form.on targets {0}; a Form script for this DocType may only target it or its child tables,frappe.ui.form.on يستهدف {0}؛ سكربت النموذج لهذا الـ DocType لا يستهدف إلا هو أو جداوله الفرعية
+"A Form script must call frappe.ui.form.on(""{0}"", {{...}})","يجب أن يستدعي سكربت النموذج frappe.ui.form.on(""{0}"", {{...}})"
+"frappe.listview_settings is set for {0}, not for this DocType",frappe.listview_settings مضبوط لـ {0} وليس لهذا الـ DocType
+"A List script must set frappe.listview_settings[""{0}""] = {{...}}","يجب أن يضبط سكربت القائمة frappe.listview_settings[""{0}""] = {{...}}"
+{0} runs text as code and is blocked,{0} يشغّل نصاً ككود، لذا هو محظور
+{0} is blocked: it exposes the session or the browser's stored data,{0} محظور: يكشف الجلسة أو البيانات المخزّنة في المتصفح
+{0} to {1} is blocked: only relative /api/ calls are allowed (use frappe.call),{0} إلى {1} محظور: المسموح فقط استدعاءات /api/ النسبية (استخدم frappe.call)
+Sending the user to {0} ({1}) is blocked: only relative addresses are allowed,توجيه المستخدم إلى {0} ({1}) محظور: المسموح فقط العناوين النسبية
+{0} with content that is not fixed text can inject HTML; prefer frappe.utils.escape_html,{0} بمحتوى غير ثابت قد يحقن HTML؛ الأفضل استخدام frappe.utils.escape_html
+{0} with a computed method name cannot be reviewed,لا يمكن مراجعة {0} باسم إجراء محسوب
+The script is empty,السكربت فارغ
+JavaScript syntax is valid,صياغة JavaScript سليمة
+the check took longer than {0} seconds,استغرق الفحص أكثر من {0} ثانية
+The script is longer than {0} characters,السكربت أطول من {0} حرف
+The script has {0} lines; long scripts are hard to review,في السكربت {0} سطراً؛ السكربتات الطويلة صعبة المراجعة
+Could not check the JavaScript syntax: {0},تعذّر فحص صياغة JavaScript: {0}
+"Calls {0}, which changes data on the server",يستدعي {0}، وهو يغيّر البيانات على الخادم
+"Calls {0}, which does not exist or is not whitelisted",يستدعي {0}، وهو غير موجود أو غير مسموح (whitelisted)
+Calls the server method {0},يستدعي إجراء الخادم {0}
+"'import' is not available in a Server Script (ImportError: __import__ not found). frappe, json and frappe.utils are already there",'import' غير متاح في سكربت الخادم (ImportError: __import__ not found). frappe وjson وfrappe.utils متاحة أصلاً
+Classes are not supported in a Server Script,الأصناف (classes) غير مدعومة في سكربت الخادم
+Decorators (such as @frappe.whitelist) do not work in a Server Script; the script itself is the endpoint,المزخرفات (مثل @frappe.whitelist) لا تعمل في سكربت الخادم؛ السكربت نفسه هو نقطة الاستدعاء
+'while True' without a break never ends,'while True' بلا break لا ينتهي أبداً
+a DocType,نوع مستند
+Python syntax is valid and it compiles in the Server Script sandbox,صياغة Python سليمة ويُترجَم السكربت داخل بيئة سكربت الخادم المعزولة
+(new {0}),({0} جديد)
+"Unpacking in an assignment (a, b = ...) fails in a Server Script (no _unpack_sequence_). Assign one name and index it: pair = ...; a = pair[0]","فكّ القيم في الإسناد (a, b = ...) يفشل في سكربت الخادم (لا يوجد _unpack_sequence_). أسند إلى اسم واحد ثم استخدم الفهرس: pair = ...; a = pair[0]"
+"'return' outside a function: a Server Script runs top to bottom. For an API set frappe.response[""message""] = ... instead of return","'return' خارج دالة: سكربت الخادم يعمل من أعلى إلى أسفل. في سكربت API اضبط frappe.response[""message""] = ... بدلاً من return"
+'{0}' is not allowed: it can reach anything,'{0}' غير مسموح: يمكنه الوصول إلى أي شيء
+run_script is blocked: it runs another script outside this review,run_script محظور: يشغّل سكربتاً آخر خارج هذه المراجعة
+'.{0}()' is blocked in Server Scripts (unsafe attribute); use an f-string,'.{0}()' محظور في سكربتات الخادم (خاصية غير آمنة)؛ استخدم f-string
+Names starting with '_' are not allowed: {0},الأسماء التي تبدأ بـ '_' غير مسموحة: {0}
+Bypassing permissions ({0}) is blocked,تجاوز الصلاحيات ({0}) محظور
+Network access ({0}) is blocked: data must not leave the system,الوصول إلى الشبكة ({0}) محظور: يجب ألا تخرج البيانات من النظام
+"{0} does not exist inside a Server Script and fails at run time. Read through frappe.get_list (it applies the user's permissions) or call doc.check_permission(""read"") on a loaded document","{0} غير موجود داخل سكربت الخادم ويفشل عند التشغيل. اقرأ عبر frappe.get_list (يطبّق صلاحيات المستخدم) أو استدعِ doc.check_permission(""read"") على المستند المحمَّل"
+'.{0}()' writes a record (side effect outside this document),'.{0}()' يكتب سجلاً (أثر جانبي خارج هذا المستند)
+Messages may not contain scripts or event handlers,لا يجوز أن تحتوي الرسائل على سكربتات أو معالجات أحداث
+"{0} reads {1} without checking permission: in a Server Script it sees every record. Use frappe.get_list (it applies the user's permissions) or call doc.check_permission(""read"") on the loaded document","{0} يقرأ {1} دون فحص الصلاحية: في سكربت الخادم يرى كل السجلات. استخدم frappe.get_list (يطبّق صلاحيات المستخدم) أو استدعِ doc.check_permission(""read"") على المستند المحمَّل"
+.strftime() fails in a Server Script (it imports at run time). Use frappe.utils.formatdate / format_datetime / getdate,.strftime() يفشل في سكربت الخادم (يستورد عند التشغيل). استخدم frappe.utils.formatdate أو format_datetime أو getdate
+Trial run on {0} finished without errors,انتهى التشغيل التجريبي على {0} بلا أخطاء
+Not allowed in a Server Script: {0},غير مسموح في سكربت الخادم: {0}
+'doc' is not defined in an API script; read the request from frappe.form_dict,'doc' غير معرَّف في سكربت API؛ اقرأ الطلب من frappe.form_dict
+{0} is blocked: it sends data out or runs other code outside this review,{0} محظور: يرسل بيانات للخارج أو يشغّل كوداً آخر خارج هذه المراجعة
+"{0} touches {1}, which agent scripts may not read or change",{0} يمسّ {1}، ولا يجوز لسكربتات الوكيل قراءته أو تغييره
+{0} writes to another record outside this document,{0} يكتب في سجل آخر خارج هذا المستند
+"The script names {0}, which agent scripts may not read or change",يذكر السكربت {0}، ولا يجوز لسكربتات الوكيل قراءته أو تغييره
+"The API logic sits inside 'def {0}' that nothing calls. Write the logic at the top level and set frappe.response[""message""]","منطق الـ API موجود داخل 'def {0}' ولا شيء يستدعيها. اكتب المنطق في المستوى الأعلى واضبط frappe.response[""message""]"
+The trial run stopped at {0} (not run in a trial),توقف التشغيل التجريبي عند {0} (لا يُشغَّل في التجربة)
+On {0} the script stops the save with: {1},عند {0} يوقف السكربت الحفظ بالرسالة: {1}
+Invalid Python: {0},كود Python غير صالح: {0}
+"{0} is blocked: it deletes, renames or changes the database schema",{0} محظور: يحذف أو يعيد التسمية أو يغيّر بنية قاعدة البيانات
+{0} is blocked: Frappe commits for you,{0} محظور: Frappe يحفظ (commit) نيابة عنك
+it bypasses row permissions; build a Query Report for SQL,يتجاوز صلاحيات الصفوف؛ أنشئ تقرير استعلام (Query Report) لـ SQL
+it changes who the code runs as,يغيّر المستخدم الذي يعمل الكود باسمه
+Changing frappe.session is blocked,تغيير frappe.session محظور
+{0}() does not exist inside a Server Script and fails at run time; use a list comprehension or a frappe.utils helper instead,{0}() غير موجود داخل سكربت الخادم ويفشل عند التشغيل؛ استخدم list comprehension أو دالة من frappe.utils بدلاً منه
+{0} is blocked: {1},{0} محظور: {1}
+frappe.response has no effect in a DocType Event,frappe.response لا أثر له في سكربت DocType Event
+SELECT ... INTO (file or variable) is not allowed,SELECT ... INTO (إلى ملف أو متغير) غير مسموح
+A literal % must be written %% (the query runs with filter values): LIKE '%%abc%%',علامة % الحرفية تُكتب %% (يعمل الاستعلام بقيم الفلاتر): LIKE '%%abc%%'
+"This can be a Report Builder report, which applies row permissions",يمكن أن يكون هذا تقرير Report Builder، وهو يطبّق صلاحيات الصفوف
+The query is empty,الاستعلام فارغ
+FOR UPDATE / LOCK IN SHARE MODE is not allowed,FOR UPDATE / LOCK IN SHARE MODE غير مسموح
+The function {0}() is not allowed in a report,الدالة {0}() غير مسموحة في التقرير
+One read-only SELECT on {0},استعلام SELECT واحد للقراءة فقط على {0}
+The query uses %({0})s but no filter is named {0} (the report would fail with KeyError),يستخدم الاستعلام %({0})s ولا يوجد فلتر باسم {0} (سيفشل التقرير بخطأ KeyError)
+The query is longer than {0} characters,الاستعلام أطول من {0} حرف
+Exactly one SELECT statement is allowed (found {0}),يُسمح بعبارة SELECT واحدة فقط (وُجد {0})
+Only a read-only SELECT is allowed (found {0}),يُسمح فقط بعبارة SELECT للقراءة (وُجد {0})
+The query contains a write ({0}),يحتوي الاستعلام على عملية كتابة ({0})
+Reading {0} is not allowed: only this site's tab… tables,قراءة {0} غير مسموحة: المسموح فقط جداول tab… في هذا الموقع
+The system table {0} may not be read by a report,لا يجوز للتقرير قراءة جدول النظام {0}
+{0} is not a DocType table (tabName),{0} ليس جدول DocType (tabName)
+There is no DocType {0} (table `tab{0}`),لا يوجد DocType باسم {0} (الجدول `tab{0}`)
+"{0} holds pay data, which reports built by the agent may not read",{0} يحوي بيانات رواتب، ولا يجوز للتقارير التي يبنيها الوكيل قراءتها
+{0} controls code or access and may not be read by a report,{0} يتحكم في الكود أو الوصول، ولا يجوز للتقرير قراءته
+"{0} cannot read {1}, so cannot build a report on it",{0} لا يستطيع قراءة {1}، فلا يمكنه بناء تقرير عليه
+The filter {0} is not used in the query,الفلتر {0} غير مستخدم في الاستعلام
+The filter {0} is used in the query but is optional with no default: when it is left empty the report fails with KeyError (ifnull does not help). Make it mandatory or give it a default,الفلتر {0} مستخدم في الاستعلام لكنه اختياري بلا قيمة افتراضية: إذا تُرك فارغاً يفشل التقرير بخطأ KeyError (ولا تفيد ifnull). اجعله إلزامياً أو أعطه قيمة افتراضية
+User Permissions restrict {0} for some users; a Query Report does not apply them,صلاحيات المستخدم (User Permissions) تقيّد {0} لبعض المستخدمين؛ وتقرير الاستعلام لا يطبّقها
+Reads all ~{0} rows of {1}; add a date filter,يقرأ كل صفوف {1} (نحو {0} صف)؛ أضف فلتر تاريخ
+The query could not be parsed: {0},تعذّر تحليل الاستعلام: {0}
+Role {0} sees only its own {1} in the list but every {1} through this report,الدور {0} يرى في القائمة سجلات {1} الخاصة به فقط، لكنه يرى كل {1} عبر هذا التقرير
+Role {0} cannot read {1} but would see its rows through this report,الدور {0} لا يستطيع قراءة {1} لكنه سيرى صفوفه عبر هذا التقرير
+{0} is a core DocType and cannot be customized,{0} نوع مستند أساسي (core) ولا يمكن تخصيصه
+{0} is a Single (settings) DocType and cannot be customized,{0} نوع مستند مفرد (إعدادات) ولا يمكن تخصيصه
+"{0} is a custom DocType: change it in the DocType itself, not through Customize Form",{0} نوع مستند مخصص: عدّله في الـ DocType نفسه، لا عبر Customize Form
+"{0} controls code, access or system configuration and is protected",{0} يتحكم في الكود أو الوصول أو إعدادات النظام، وهو محمي
+{0} needs the role {1}: {2},{0} يحتاج الدور {1}: {2}
+Unknown argument(s) for {0}: {1},وسائط غير معروفة لـ {0}: {1}
+{0} needs: {1},{0} يحتاج: {1}
+Allowed: {0},المسموح: {0}
+Nothing to update: send the new script or settings,لا شيء للتحديث: أرسل السكربت الجديد أو الإعدادات
+update,تحديث
+The stored script differs from the approved one,السكربت المحفوظ يختلف عن المعتمد
+customize.inspect lists the scripts of a DocType,customize.inspect يعرض سكربتات الـ DocType
+{0} is already {1}d,{0} في الحالة المطلوبة أصلاً ({1})
+Frappe requires it to save Client Scripts,يشترطه Frappe لحفظ سكربتات العميل
+No DocType given,لم يُحدَّد DocType
+view must be Form or List,يجب أن تكون view إما Form أو List
+form,نموذج
+list,قائمة
+"It changes the screen only: imports, REST and other scripts are not affected",يغيّر الشاشة فقط: لا يتأثر الاستيراد ولا REST ولا السكربتات الأخرى
+{0} client script {1},{0} سكربت العميل {1}
+Runs in the browser of everyone who opens the {0} {1} (~{2} users),يعمل في متصفح كل من يفتح {1} {0} (نحو {2} مستخدم)
+Frappe requires it to add custom fields,يشترطه Frappe لإضافة حقول مخصصة
+Add custom field(s),إضافة حقول مخصصة
+Change custom field(s),تعديل حقول مخصصة
+Remove custom field(s),حذف حقول مخصصة
+{0} has no custom field {1},لا يوجد في {0} حقل مخصص باسم {1}
+Standard fields change through customize.request_properties; see customize.inspect,الحقول القياسية تتغير عبر customize.request_properties؛ راجع customize.inspect
+Frappe accepts the field definition(s),يقبل Frappe تعريف الحقول
+At most {0} fields per request,{0} حقلاً كحد أقصى لكل طلب
+fields[{0}].fieldname is required for {1},fields[{0}].fieldname مطلوب لـ {1}
+Shown on every {0} form,يظهر في كل نموذج {0}
+Adds {0} column(s) to the {1} table (a schema change that cannot be rolled back in a transaction),يضيف {0} عموداً إلى جدول {1} (تغيير في بنية قاعدة البيانات لا يمكن التراجع عنه داخل المعاملة)
+Changes how {0} forms show these fields,يغيّر طريقة عرض هذه الحقول في نماذج {0}
+Removes the field(s) from every {0} form; the data stays in an orphan column,يحذف الحقول من كل نماذج {0}؛ وتبقى البيانات في عمود يتيم
+{0}: fetch_from must be link_field.source_field,{0}: يجب أن تكون fetch_from بالشكل link_field.source_field
+{0}: {1} is not a Link field,{0}: {1} ليس حقلاً من نوع Link
+The form of {0} shows the change,نموذج {0} يعرض التغيير
+{0} already has a field {1},يوجد في {0} حقل باسم {1} أصلاً
+{0} clashes with a method or property of {1},{0} يتعارض مع إجراء أو خاصية في {1}
+insert_after: {0} has no field {1},insert_after: لا يوجد في {0} حقل {1}
+{0}: the type cannot change from {1} to {2},{0}: لا يمكن تغيير النوع من {1} إلى {2}
+{0} was created by Administrator and only Administrator can remove it,{0} أنشأه Administrator ولا يحذفه إلا Administrator
+{0}: options must name an existing DocType (got '{1}'),{0}: يجب أن تكون options اسم DocType موجود (وصل '{1}')
+{0}: {1} is not a child table,{0}: {1} ليس جدولاً فرعياً
+{0}: a Link cannot point to the child table {1},{0}: لا يمكن لحقل Link أن يشير إلى الجدول الفرعي {1}
+{0}: Table MultiSelect needs a child table with a Link field,{0}: يحتاج Table MultiSelect جدولاً فرعياً فيه حقل Link
+"Example: {""fieldname"": ""customer_rank"", ""label"": ""ترتيب العميل""}","مثال: {""fieldname"": ""customer_rank"", ""label"": ""ترتيب العميل""}"
+Level {0} is visible to: {1},المستوى {0} مرئي لـ: {1}
+No role has level {0} on {1}: nobody will see {2},لا يملك أي دور المستوى {0} على {1}: لن يرى أحد {2}
+{0} records have a value in {1}; the column stays orphaned in the database,{0} سجلاً فيها قيمة في {1}؛ ويبقى العمود يتيماً في قاعدة البيانات
+{0} refers to {1},{0} يشير إلى {1}
+"{0}: a Select needs options, one per line",{0}: حقل Select يحتاج خيارات، كل خيار في سطر
+{0}.{1}: there is no field {2},{0}.{1}: لا يوجد حقل {2}
+Adding the fields failed at {0}: {1}. Removed the ones created before it: {2},فشلت إضافة الحقول عند {0}: {1}. حُذفت الحقول التي أُنشئت قبله: {2}
+{0} is still on {1},{0} ما زال موجوداً في {1}
+"{0}: Select options go one per line, not comma-separated",{0}: خيارات Select تُكتب كل خيار في سطر، لا مفصولة بفواصل
+{0}.{1}: the expression looks invalid: {2},{0}.{1}: يبدو التعبير غير صالح: {2}
+{0}: options must be a Link-to-DocType field of {1},{0}: يجب أن تكون options حقلاً في {1} من نوع Link إلى DocType
+{0}: options must be the currency field,{0}: يجب أن تكون options حقل العملة
+"{0}: Data options must be one of Email, Phone, URL, Name",{0}: خيارات Data يجب أن تكون واحداً من Email أو Phone أو URL أو Name
+Customize Form needs it,يحتاجه Customize Form
+doctype_properties and field_properties must be objects,يجب أن تكون doctype_properties وfield_properties كائنات
+"Nothing to change: send doctype_properties, field_properties or field_order",لا شيء للتغيير: أرسل doctype_properties أو field_properties أو field_order
+Changes the database column (schema change),يغيّر عمود قاعدة البيانات (تغيير في البنية)
+Change {0} propert(ies) of {1} (fields: {2}),تغيير {0} من خصائص {1} (الحقول: {2})
+field_order must be a list of fieldnames,يجب أن تكون field_order قائمة بأسماء الحقول (fieldnames)
+Changes the {0} form and list for every user,يغيّر نموذج {0} وقائمته لكل المستخدمين
+Customize Form accepts every property,يقبل Customize Form كل الخصائص
+image_field must be an Attach Image field,يجب أن يكون image_field حقلاً من نوع Attach Image
+The field order did not change,لم يتغير ترتيب الحقول
+Every property shows the new value,كل خاصية تعرض القيمة الجديدة
+To change a field type use customize.request_field (custom fields only),لتغيير نوع الحقل استخدم customize.request_field (للحقول المخصصة فقط)
+At most {0} properties per request,{0} خاصية كحد أقصى لكل طلب
+{0} is not a DocType property that can be customized,{0} ليست خاصية DocType قابلة للتخصيص
+field_properties.{0} must be an object of property: value,يجب أن يكون field_properties.{0} كائناً بالشكل property: value
+Frappe's per-property rules could not be replayed for {0},تعذّرت إعادة تطبيق قواعد Frappe الخاصة بكل خاصية على {0}
+not allowed,غير مسموح
+field_order must list exactly the current fields (missing: {0}; unknown: {1}),يجب أن تسرد field_order الحقول الحالية تماماً (الناقصة: {0}؛ غير المعروفة: {1})
+{0} is not a field property that can be customized,{0} ليست خاصية حقل قابلة للتخصيص
+{0} cannot be hidden and mandatory without a default,لا يمكن أن يكون {0} مخفياً وإلزامياً بلا قيمة افتراضية
+Customize Form cannot load {0}: {1},لا يستطيع Customize Form تحميل {0}: {1}
+{0} ({1}) cannot be a list column,{0} ({1}) لا يمكن أن يكون عموداً في القائمة
+{0} did not change: Frappe refused it: {1},لم يتغير {0}: رفضه Frappe: {1}
+{0} existing records will ask for {1} the next time they are saved,{0} سجلاً قائماً ستطلب {1} عند حفظها في المرة القادمة
+search_fields: {0} has no field {1},search_fields: لا يوجد في {0} حقل {1}
+sort_field: {0} has no field {1},sort_field: لا يوجد في {0} حقل {1}
+{0}.{1} did not change: Frappe refused it: {2},لم يتغير {0}.{1}: رفضه Frappe: {2}
+{0}.{1}: Frappe refuses it: {2},{0}.{1}: يرفضه Frappe: {2}
+Frappe requires it,يشترطه Frappe
+report,تقرير
+"operation must be one of: create, update, disable",يجب أن تكون operation واحدة من: create وupdate وdisable
+{0} {1} {2},{0} {1} {2}
+{0} must be a list,يجب أن يكون {0} قائمة
+The report type cannot change; create a new report,لا يمكن تغيير نوع التقرير؛ أنشئ تقريراً جديداً
+sample_filters must be an object,يجب أن يكون sample_filters كائناً
+"builder.fields must list [fieldname, doctype] pairs","يجب أن تسرد builder.fields أزواجاً بالشكل [fieldname, doctype]"
+The stored query differs from the approved one,الاستعلام المحفوظ يختلف عن المعتمد
+{0}[{1}] must be an object,يجب أن يكون {0}[{1}] كائناً
+{0}[{1}].fieldname must be snake_case,يجب أن يكون {0}[{1}].fieldname بصيغة snake_case
+{0}[{1}].fieldtype must be one of {2},يجب أن يكون {0}[{1}].fieldtype واحداً من {2}
+"A Report Builder report takes builder, not query",تقرير Report Builder يأخذ builder وليس query
+"A Query Report takes query, not builder",تقرير الاستعلام (Query Report) يأخذ query وليس builder
+Applies each user's own permissions on {0},يطبّق صلاحيات كل مستخدم على {0}
+Reads {0} without row permissions,يقرأ {0} دون صلاحيات الصفوف
+{0} is neither {1} nor one of its child tables,{0} ليس {1} ولا أحد جداوله الفرعية
+order_by must be `tabDocType`.`field` asc|desc,يجب أن يكون order_by بالشكل `tabDocType`.`field` asc|desc
+group_by must be an object,يجب أن يكون group_by كائناً
+The report runs with {0}'s permissions: {1} row(s) in the preview,يعمل التقرير بصلاحيات {0}: {1} صف في المعاينة
+Not permitted to read report {0},غير مسموح بقراءة التقرير {0}
+{0} is a standard report and cannot be changed; create a copy,{0} تقرير قياسي ولا يمكن تغييره؛ أنشئ نسخة منه
+builder must be an object,يجب أن يكون builder كائناً
+A report named {0} already exists; use operation update,يوجد تقرير باسم {0} أصلاً؛ استخدم operation update
+{0} controls code or access; reports on it are not allowed,{0} يتحكم في الكود أو الوصول؛ التقارير عليه غير مسموحة
+No columns given: they come from the query's column names,لم تُحدَّد أعمدة: تؤخذ من أسماء أعمدة الاستعلام
+group_by.group_by must be `tabDocType`.`field`,يجب أن يكون group_by.group_by بالشكل `tabDocType`.`field`
+"aggregate_function must be count, sum or avg",يجب أن تكون aggregate_function واحدة من count أو sum أو avg
+aggregate_on must be a fieldname,يجب أن يكون aggregate_on اسم حقل (fieldname)
+Report {0} does not exist,التقرير {0} غير موجود
+{0} is saved and runs,{0} محفوظ ويعمل
+{0} the report {1},{0} التقرير {1}
+"The script reads filters {0}, but no filter is named {0}: it is always empty",يقرأ السكربت الفلاتر {0}، ولا يوجد فلتر باسم {0}: ستبقى قيمته فارغة دائماً
+"builder.fields items are [fieldname, doctype]: {0}","عناصر builder.fields بالشكل [fieldname, doctype]: {0}"
+"builder.filters items are [doctype, fieldname, operator, value]: {0}","عناصر builder.filters بالشكل [doctype, fieldname, operator, value]: {0}"
+Operator {0} is not allowed,المعامل {0} غير مسموح
+The report fails: {0},يفشل التقرير: {0}
+The query runs: {0} row(s) in the preview,يعمل الاستعلام: {0} صف في المعاينة
+The report does not run: {0},لا يعمل التقرير: {0}
+The query fails: {0},يفشل الاستعلام: {0}
+Frappe allows only Script Managers to save Server Scripts,لا يسمح Frappe بحفظ سكربتات الخادم إلا لدور مدير السكربتات
+"api_method must match ^[a-z][a-z0-9_.]{2,80}$ (it becomes /api/method/<api_method>)","يجب أن يطابق api_method النمط ^[a-z][a-z0-9_.]{2,80}$ (يصبح /api/method/<api_method>)"
+{0} server script {1},{0} سكربت الخادم {1}
+Server Scripts are disabled on this server (bench set-config -g server_script_enabled 1),سكربتات الخادم معطلة على هذا الخادم (bench set-config -g server_script_enabled 1)
+doctype_event {0} is not available,doctype_event {0} غير متاح
+{0} is not allowed for agent scripts and was set to 0 (only logged-in users),{0} غير مسموح لسكربتات الوكيل وضُبط على 0 (للمستخدمين المسجلين فقط)
+{0} scripts cannot be changed or enabled by the agent,لا يستطيع الوكيل تغيير سكربتات {0} أو تفعيلها
+{0} allows guests and cannot be enabled by the agent,{0} يسمح للزوار، ولا يستطيع الوكيل تفعيله
+{0} is not registered for its event or API path,{0} غير مسجَّل لحدثه أو لمسار الـ API الخاص به
+{0} allows guests,{0} يسمح للزوار
+"Adds /api/method/{0}: any logged-in user can call it, and it runs with their permissions",يضيف /api/method/{0}: يستطيع أي مستخدم مسجّل استدعاءه، ويعمل بصلاحياته
+Consider enable_rate_limit for an API script,فكّر في تفعيل enable_rate_limit لسكربت API
+"Runs on {0} for every {1} (~{2} new in the last 30 days), for every user, also in imports and the REST API",يعمل عند {0} لكل {1} (نحو {2} جديد في آخر 30 يوماً)، ولكل مستخدم، وكذلك في الاستيراد وREST API
+/api/method/{0} is already served by {1},/api/method/{0} يخدمه {1} أصلاً
+The trial run could not start: {0},تعذّر بدء التشغيل التجريبي: {0}
+Other enabled scripts on the same event: {0},سكربتات أخرى مفعّلة على الحدث نفسه: {0}
+Allow Customization,السماح بالتخصيص
+"customize.* tools: custom fields, field and DocType properties, client and server scripts, reports. Every change still waits for a person's approval in Desk.",أدوات customize.*: الحقول المخصصة، وخصائص الحقول والـ DocType، وسكربتات العميل والخادم، والتقارير. كل تغيير ينتظر موافقة شخص في واجهة النظام.
+"Let the assistant request changes to how the system works: fields and form properties, scripts, reports, print formats, notifications, workflows, naming, dashboards and workspaces, web pages and forms, role permissions and new DocTypes. Every change is checked, shown in full on its approval card and runs only after a person with the Frappe roles approves it (never by auto-approval).",اسمح للمساعد بطلب تغييرات في طريقة عمل النظام: الحقول وخصائص النماذج، والسكربتات، والتقارير، وتنسيقات الطباعة، والإشعارات، ومسارات العمل، والتسمية، ولوحات المعلومات ومساحات العمل، وصفحات ونماذج الويب، وصلاحيات الأدوار، وأنواع المستندات الجديدة. كل تغيير يُفحص ويُعرض كاملاً في بطاقة الموافقة، ولا يُنفَّذ إلا بعد موافقة شخص يملك أدوار Frappe المطلوبة (ولا يُعتمد تلقائياً أبداً).
+Allow Customization Requests,السماح بطلبات التخصيص
+Master switch. Only System Managers see the customization tools; server scripts and query reports also need Script Manager.,المفتاح الرئيسي. لا يرى أدوات التخصيص إلا مدير النظام؛ وسكربتات الخادم وتقارير الاستعلام تحتاج أيضاً دور مدير السكربتات.
+Custom Fields and Form Properties,الحقول المخصصة وخصائص النماذج
+Client Scripts,سكربتات العميل
+Server Scripts,سكربتات الخادم
+DocType Event and API scripts for signed-in users. Needs server_script_enabled in common_site_config.,سكربتات DocType Event وAPI للمستخدمين المسجلين. تحتاج تفعيل server_script_enabled في common_site_config.
+Custom Reports,التقارير المخصصة
+Allow Requests from External AI Tools,السماح بالطلبات من أدوات الذكاء الاصطناعي الخارجية
+External AI tools (MCP) may request customizations. They are still approved in ERPNext only.,يمكن لأدوات الذكاء الاصطناعي الخارجية (MCP) طلب التخصيصات، ولا تُعتمد إلا من داخل ERPNext.
+Require a Second Approver,اشتراط معتمِد ثانٍ
+The person who requested a customization cannot approve it. Recommended when the site has two or more administrators.,لا يستطيع من طلب التخصيص أن يعتمده بنفسه. يُنصح به إذا كان في الموقع مديران أو أكثر.
+Customization Requests per Hour (per User),طلبات التخصيص في الساعة (لكل مستخدم)
+"The reply reached the maximum length before it finished. Ask for a smaller part, or ask your administrator to raise Max Output Tokens for this model.",وصل الرد إلى أقصى طول قبل أن يكتمل. اطلب جزءاً أصغر، أو اطلب من المسؤول رفع «أقصى طول للرد» لهذا النموذج.,
+Writing {0}… ({1} characters),يكتب {0}… ({1} حرف),
+Preparing {0}…,يجهّز {0}…,
+Running {0}…,ينفّذ {0}…,
+Writing the answer…,يكتب الرد…,

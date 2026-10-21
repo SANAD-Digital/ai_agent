@@ -73,6 +73,17 @@ def job_id(message):
     return f"{JOB_PREFIX}{message}"
 
 
+def job_is_alive(message):
+    """True while the message's queue job can still run (queued or started); True when Redis cannot say."""
+    try:
+        from frappe.utils.background_jobs import get_job_status
+
+        status = get_job_status(job_id(message))
+    except Exception:
+        return True
+    return str(getattr(status, "value", status) or "").lower() in ("queued", "started", "deferred", "scheduled")
+
+
 def enqueue(message, user, resume=False):
     run = frappe.db.get_value("AI Chat Message", message, "run")
     agent_name = frappe.db.get_value("AI Run", run, "agent") if run else None
@@ -189,7 +200,9 @@ class Runner:
         run_name = self.run_doc.name if self.run_doc else None
 
         def check():
-            if cache.get_value(key):
+            # use_local_cache=False: the first miss is otherwise kept in frappe.local.cache for the whole job,
+            # and the Stop button's flag (set by the web worker) is never seen.
+            if cache.get_value(key, use_local_cache=False):
                 return True
             return bool(run_name and frappe.db.get_value("AI Run", run_name, "cancel_requested"))
 
@@ -268,12 +281,14 @@ class Runner:
             provider_name=provider_name,
             max_steps=cint(self.agent.maximum_steps) or cint(self.settings.maximum_steps) or 20,
             max_tool_calls=cint(self.agent.maximum_tool_calls) or cint(self.settings.maximum_tool_calls) or 40,
-            max_tokens=min(caps.max_output_tokens or 8192, 16000),
+            # The model row's Max Output Tokens (AI Provider > Models), else the family default.
+            max_tokens=cint(caps.max_output_tokens) or 8192,
             thinking=thinking,
             thinking_budget=cint(self.agent.get("thinking_budget_tokens")),
             effort=(self.agent.reasoning_effort or self.settings.get("default_reasoning_effort") or ""),
         )
-        budget = budget_for(caps.context_window, config.max_tokens)
+        # A long possible reply must not starve the history: reserve at most a quarter of the window for it.
+        budget = budget_for(caps.context_window, min(config.max_tokens, (caps.context_window or 0) // 4 or config.max_tokens))
         compactor = Compactor(budget, summarize=summarizer(provider, model, cancel))
         loop = Loop(provider, executor, compactor, cancel, config, static, dynamic)
         self.caps = caps

@@ -620,11 +620,13 @@ def stop_message(message):
     runner.request_cancel(doc.name)
     if doc.run:
         frappe.db.set_value("AI Run", doc.run, "cancel_requested", 1, update_modified=False)
-    if doc.status == "pending":
-        # Not started yet: settle it here, the job will see the terminal status and return.
+    if doc.status == "pending" or not runner.job_is_alive(doc.name):
+        # Not started yet, or its job is gone (worker restarted, crashed): no runner will ever read the
+        # flag, so settle it here. A job that starts later sees the terminal status and returns.
         doc.db_set({"status": "cancelled", "completed_at": now_datetime()}, update_modified=False)
         if doc.run:
             frappe.db.set_value("AI Run", doc.run, {"status": "Cancelled", "completed_at": now_datetime()}, update_modified=False)
+        frappe.db.set_value("AI Message Block", {"message": doc.name, "status": "streaming"}, "status", "completed", update_modified=False)
         frappe.db.commit()
         pub = runner.Publisher(doc.session, doc.name, doc.user, start_seq=cint(doc.event_seq))
         from ai_agent.engine.events import MessageCancelled

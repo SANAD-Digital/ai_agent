@@ -60,6 +60,14 @@ from ai_agent.engine.types import (
 EXTRA_EVENTS = {SKILL: SkillLoaded, ARTIFACT: ArtifactCreated, MEMORY: MemoryNote, APPROVAL: ApprovalAutoExecuted, QUESTION: QuestionAsked, SUGGESTIONS: SuggestionsShown}
 
 
+TOOL_CUT_NOTE = ("Your call to {tools} was cut off at the output limit ({limit} tokens) and was NOT run. "
+    "Send it again shorter: less code and no comments, or split the work into several smaller requests.")
+TOOL_CUT_FAILED = ("The reply was cut off twice at the output limit ({limit} tokens) while writing a tool call. "
+    "Ask for a smaller piece, or raise Max Output Tokens for this model in AI Provider.")
+TEXT_CUT_FAILED = ("The reply was cut off at the output limit ({limit} tokens) before any answer was written. "
+    "Ask for a smaller piece, or raise Max Output Tokens for this model in AI Provider.")
+
+
 @dataclass
 class LoopConfig:
     model: str = ""
@@ -195,6 +203,20 @@ class Loop:
                 yield MessageFailed(error="The model returned an empty response.", kind="empty", usage=self.usage.to_dict())
                 return
 
+            if stop == MAX_TOKENS and any(b.kind == TOOL_USE for b in response):
+                # A tool call cut by the output limit has incomplete arguments and is never run. "Continue"
+                # cannot resume it: drop it, tell the model, and let it send a shorter call once.
+                cut = [b.name for b in response if b.kind == TOOL_USE]
+                if continued >= 1:
+                    yield MessageFailed(error=TOOL_CUT_FAILED.format(limit=self.config.max_tokens), kind="max_tokens", usage=self.usage.to_dict())
+                    return
+                continued += 1
+                kept = [b for b in response if b.kind == TEXT and (b.text or "").strip()]
+                if kept:
+                    messages = messages + [Message(role="assistant", blocks=kept)]
+                messages = messages + [Message(role="user", blocks=[Block(kind=TEXT, text=TOOL_CUT_NOTE.format(tools=", ".join(cut), limit=self.config.max_tokens))])]
+                continue
+
             messages = messages + [Message(role="assistant", blocks=response)]
             tool_uses = [b for b in response if b.kind == TOOL_USE]
 
@@ -246,6 +268,10 @@ class Loop:
                 messages = messages + [Message(role="user", blocks=[Block(kind=TEXT, text="You stopped because of the output limit. Continue exactly where you stopped, without repeating.")])]
                 continue
 
+            if stop == MAX_TOKENS and not any(b.kind == TEXT and (b.text or "").strip() for b in response):
+                # Cut again with nothing to show: say so instead of ending silently with an empty reply.
+                yield MessageFailed(error=TEXT_CUT_FAILED.format(limit=self.config.max_tokens), kind="max_tokens", usage=self.usage.to_dict())
+                return
             yield MessageDone(status="completed", stop_reason=stop or END_TURN, usage=self.usage.to_dict(), steps=self.steps, tool_calls=self.tool_calls)
             return
 

@@ -311,6 +311,25 @@
             }
         }
 
+        /** What the reply is doing right now, for the live line under it: the model can think or write a
+            long tool call (a report's code) for minutes with nothing else on screen. Blocks are kept in seq order. */
+        function activity(m) {
+            const blocks = m.blocks || [];
+            const last = blocks[blocks.length - 1];
+            if (m.status === "pending" || !last) return __("Working…");
+            if (last.kind === "tool_use") {
+                const label = AIChat.toolLabel(last.name || "");
+                if (last.status === "streaming") {
+                    const n = (last._json || "").length;
+                    return n ? __("Writing {0}… ({1} characters)", [label, n.toLocaleString()]) : __("Preparing {0}…", [label]);
+                }
+                if (!blocks.some((b) => b.kind === "tool_result" && b.id === last.id)) return __("Running {0}…", [label]);
+            }
+            if (last.kind === "thinking" && last.status === "streaming") return __("Thinking…");
+            if (last.kind === "text" && last.status === "streaming") return __("Writing the answer…");
+            return __("Working…");
+        }
+
         function update(m) {
             current = m;
             root.dataset.status = m.status;
@@ -320,7 +339,7 @@
             const awaiting = m.status === "awaiting_approval";
             const done = !live && !awaiting;
             working.hidden = !live;
-            workingLabel.textContent = m.status === "pending" ? __("Working…") : __("Working…");
+            workingLabel.textContent = activity(m);
             setTimer(live);
             root.classList.toggle("is-live", live);
             root.classList.toggle("is-awaiting", awaiting);

@@ -33,6 +33,9 @@ CACHE = {"type": "ephemeral"}
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
+
+THINKING_BINDING_BETA = "thinking-binding-controls-2026-08-01"
+
 class AnthropicProvider(Provider):
     name = "anthropic"
 
@@ -69,7 +72,17 @@ class AnthropicProvider(Provider):
             tools[-1]["cache_control"] = CACHE
             payload["tools"] = tools
         if request.thinking == "adaptive":
-            payload["thinking"] = {"type": "adaptive"}
+            # Newer Claude models omit the thinking text unless asked: the chat would show nothing
+            # while the model thinks. "summarized" streams a readable summary.
+            payload["thinking"] = {
+                "type": "adaptive",
+                "display": "summarized",
+                # A thinking block is bound to the tools it was made with; the tool list changes inside a
+                # reply (tools enabled on demand, none on the last step) and between replies. Without this
+                # the next request fails with "Invalid `signature` in `thinking` block".
+                "block_binding": {"prefix_mismatch_behavior": "drop_block"},
+            }
+            payload["extra_headers"] = {"anthropic-beta": THINKING_BINDING_BETA}
         elif request.thinking == "on":
             budget = max(1024, int(request.thinking_budget or 4096))
             payload["thinking"] = {"type": "enabled", "budget_tokens": budget}

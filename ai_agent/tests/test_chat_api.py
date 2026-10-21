@@ -164,6 +164,35 @@ class TestChatApi(IntegrationTestCase):
         self.assertIsInstance(token, CancelToken)
 
 
+    def test_cancel_token_sees_a_flag_set_by_another_process(self):
+        """The job reads the flag before Stop is pressed; the web worker then sets it in Redis only."""
+        import pickle
+
+        out = self._send("slow")
+        name = out["assistant_message"]["name"]
+        doc = frappe.get_doc("AI Chat Message", name)
+        token = runner.Runner(doc).cancel_token()
+        self.assertFalse(token.cancelled)   # first read: a miss
+        cache = frappe.cache()
+        cache.set(cache.make_key(runner.CANCEL_KEY.format(name)), pickle.dumps("1"))   # no local cache update
+        token._last = 0.0
+        self.assertTrue(token.cancelled)
+
+    def test_stop_settles_a_streaming_message_whose_job_is_gone(self):
+        out = self._send("slow")
+        name = out["assistant_message"]["name"]
+        frappe.db.set_value("AI Chat Message", name, "status", "streaming")
+        with patch.object(runner, "job_is_alive", return_value=False):
+            self.assertEqual(api.stop_message(name)["status"], "cancelled")
+        self.assertEqual(frappe.db.get_value("AI Chat Message", name, "status"), "cancelled")
+
+    def test_stop_waits_for_a_live_job(self):
+        out = self._send("slow")
+        name = out["assistant_message"]["name"]
+        frappe.db.set_value("AI Chat Message", name, "status", "streaming")
+        with patch.object(runner, "job_is_alive", return_value=True):
+            self.assertEqual(api.stop_message(name)["status"], "cancelling")
+
 class TestChatViewHost(IntegrationTestCase):
     """The Desk chat renders tool results with the same MCP App view as ChatGPT."""
 
@@ -271,3 +300,19 @@ class TestChatAttachments(IntegrationTestCase):
         read = handle_read({"file": "note.txt"}, ctx)
         self.assertIn("12743", read["content"])
         self.assertIn("error", handle_read({"file": "other.png"}, ctx))
+
+
+class TestCoerceToSchema(IntegrationTestCase):
+    """Models send JSON text for objects and one name for a list of names; the gateway repairs both."""
+
+    def test_repairs(self):
+        from ai_agent.runtime.tool_gateway import coerce_to_schema
+
+        schema = {"type": "object", "properties": {
+            "arguments": {"type": "object", "properties": {"roles": {"type": "array", "items": {"type": "string"}}}},
+            "roles": {"type": "array", "items": {"type": "string"}},
+            "fields": {"type": "array"},
+        }}
+        out = coerce_to_schema(schema, {"arguments": '{"roles": "A, B"}', "roles": "Accounts User", "fields": '["a"]'})
+        self.assertEqual(out, {"arguments": {"roles": ["A", "B"]}, "roles": ["Accounts User"], "fields": ["a"]})
+        self.assertEqual(coerce_to_schema(schema, {"arguments": "not json"}), {"arguments": "not json"})

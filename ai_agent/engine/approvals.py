@@ -133,3 +133,32 @@ class _ApprovalDecided:
 
     def to_dict(self):
         return {"type": "approval.decided", "block_seq": self.seq, "block": self.block}
+
+
+def settle_waiting(message_name, stop_reason):
+    """Close a message that stopped at an approval without waiting for it any longer: its approval expired, or the
+    user went on with a new message. The card stays; a later decision executes it without resuming this reply
+    (a resumed reply would land above the newer turns)."""
+    msg = frappe.db.get_value("AI Chat Message", message_name, ["name", "status", "run", "session", "user", "event_seq"], as_dict=True)
+    if not msg or msg.status != "awaiting_approval":
+        return False
+    frappe.db.set_value("AI Chat Message", msg.name, {"status": "completed", "stop_reason": stop_reason, "completed_at": now_datetime()}, update_modified=False)
+    if msg.run:
+        frappe.db.set_value("AI Run", msg.run, {"status": "Completed", "completed_at": now_datetime()}, update_modified=False)
+    from ai_agent.engine.events import MessageDone
+
+    pub = runner.Publisher(msg.session, msg.name, msg.user, start_seq=frappe.utils.cint(msg.event_seq))
+    pub.publish(MessageDone(status="completed", stop_reason=stop_reason))
+    frappe.db.set_value("AI Chat Message", msg.name, "event_seq", pub.seq, update_modified=False)
+    return True
+
+
+def on_approval_expired(approval_name):
+    """The expiry job: refresh the card (no live Approve button on an expired request) and settle its message."""
+    block = frappe.db.get_value("AI Message Block", {"approval": approval_name, "block_type": "approval"}, ["name", "message", "content_json"], as_dict=True)
+    if not block:
+        return
+    approval = frappe.get_doc("AI Approval Request", approval_name)
+    snapshot = approval_snapshot(approval)
+    frappe.db.set_value("AI Message Block", block.name, {"content_json": json.dumps(snapshot, ensure_ascii=False, default=str), "status": "failed"}, update_modified=False)
+    settle_waiting(block.message, "approval_expired")

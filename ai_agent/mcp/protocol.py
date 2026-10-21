@@ -170,6 +170,10 @@ def dispatch(payload, service, protocol_version=None):
                 raise MCPProtocolError(-32602, "tools/call requires a tool name")
             if not isinstance(arguments, dict):
                 raise MCPProtocolError(-32602, "tool arguments must be an object")
+            from ai_agent.mcp.hosts import APP_ONLY_TOOLS
+
+            if tool_name not in APP_ONLY_TOOLS and hasattr(service, "check_tool_rate_limit"):
+                service.check_tool_rate_limit()
             result = service.call_tool(tool_name, arguments)
             from ai_agent.mcp.hosts import APP_ONLY_TOOLS
 

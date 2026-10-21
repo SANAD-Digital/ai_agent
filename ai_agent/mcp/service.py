@@ -688,12 +688,18 @@ class MCPService:
         allowed_roles = set(mcp_allowed_roles(self.settings))
         if allowed_roles and not allowed_roles.intersection(frappe.get_roles(self.user)):
             raise MCPProtocolError(-32003, "The authenticated user is not allowed to use MCP")
-        self._check_rate_limit()
+        # Every request (handshakes, view loads, resource reads) only against a wide flood guard; the
+        # configured per-minute limit counts the model's tool calls (check_tool_rate_limit). Views made ~10
+        # requests per real tool call and used up the limit on their own.
+        self._check_rate_limit(bucket="all", factor=10)
 
-    def _check_rate_limit(self):
-        limit = max(1, cint(self.settings.get("mcp_max_requests_per_minute")) or 60)
+    def check_tool_rate_limit(self):
+        self._check_rate_limit(bucket="tools")
+
+    def _check_rate_limit(self, bucket="tools", factor=1):
+        limit = max(1, cint(self.settings.get("mcp_max_requests_per_minute")) or 60) * factor
         window = int(time.time()) // 60
-        key = frappe.cache.make_key(f"ai-agent-mcp-rate:{self.user}:{window}")
+        key = frappe.cache.make_key(f"ai-agent-mcp-rate:{bucket}:{self.user}:{window}")
         count = frappe.cache.incrby(key, 1)
         if count == 1:
             frappe.cache.expire(key, 120)

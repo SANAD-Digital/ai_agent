@@ -193,6 +193,15 @@ class TestChatApi(IntegrationTestCase):
         with patch.object(runner, "job_is_alive", return_value=True):
             self.assertEqual(api.stop_message(name)["status"], "cancelling")
 
+    def test_a_new_message_settles_the_reply_waiting_for_approval(self):
+        out = self._send("first")
+        waiting = out["assistant_message"]["name"]
+        frappe.db.set_value("AI Chat Message", waiting, "status", "awaiting_approval")
+        self._send("go on", session=out["session"]["name"])
+        status, reason = frappe.db.get_value("AI Chat Message", waiting, ["status", "stop_reason"])
+        self.assertEqual((status, reason), ("completed", "superseded"))
+
+
 class TestChatViewHost(IntegrationTestCase):
     """The Desk chat renders tool results with the same MCP App view as ChatGPT."""
 

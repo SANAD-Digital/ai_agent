@@ -515,6 +515,11 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
     _assert_agent(sdoc.agent)
     if frappe.db.exists("AI Chat Message", {"session": sdoc.name, "status": ("in", ("pending", "streaming"))}):
         frappe.throw(_("Wait for the current reply to finish, or stop it first."))
+    # Going on while an approval card waits: that reply stops waiting (the card can still be decided).
+    from ai_agent.engine.approvals import settle_waiting
+
+    for waiting in frappe.get_all("AI Chat Message", filters={"session": sdoc.name, "status": "awaiting_approval"}, pluck="name"):
+        settle_waiting(waiting, "superseded")
 
     seq = cint(sdoc.last_seq)
     user_msg = frappe.get_doc({

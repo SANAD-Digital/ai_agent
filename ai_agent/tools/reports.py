@@ -163,7 +163,8 @@ def _declared_report_filters(report):
                 "fieldtype": f.fieldtype,
                 "options": f.options,
                 "default": f.default,
-                "reqd": f.reqd,
+                # Report Filter calls it "mandatory"; JSON filters use "reqd".
+                "reqd": f.get("mandatory") or f.get("reqd"),
             }
             for f in report.filters
         ]

@@ -6,6 +6,8 @@ turn, and typed stop reasons.
 
 from __future__ import annotations
 
+import re
+
 from ai_agent.engine.events import MessageStop, UsageEvent
 from ai_agent.engine.providers.base import (
     BlockAssembler,
@@ -31,6 +33,12 @@ from ai_agent.engine.types import (
 
 CACHE = {"type": "ephemeral"}
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
+# Claude models that think only adaptively (no fixed budget_tokens): Opus/Sonnet 4.6+, the 5 family, Fable.
+_ADAPTIVE_ONLY = re.compile(r"claude-(?:fable|(?:opus|sonnet|haiku)-(?:[5-9]|4-[6-9]))", re.I)
+
+
+def adaptive_only(model):
+    return bool(_ADAPTIVE_ONLY.search(model or ""))
 
 
 
@@ -71,7 +79,12 @@ class AnthropicProvider(Provider):
             tools = [{"name": t.name, "description": t.description, "input_schema": t.parameters or {"type": "object", "properties": {}}} for t in request.tools]
             tools[-1]["cache_control"] = CACHE
             payload["tools"] = tools
-        if request.thinking == "adaptive":
+        thinking = request.thinking
+        if thinking == "on" and adaptive_only(model):
+            # "Thinking on" with a fixed budget is rejected by current Claude models
+            # ("thinking.type.enabled is not supported for this model"): they think adaptively.
+            thinking = "adaptive"
+        if thinking == "adaptive":
             # Newer Claude models omit the thinking text unless asked: the chat would show nothing
             # while the model thinks. "summarized" streams a readable summary.
             payload["thinking"] = {
@@ -83,12 +96,12 @@ class AnthropicProvider(Provider):
                 "block_binding": {"prefix_mismatch_behavior": "drop_block"},
             }
             payload["extra_headers"] = {"anthropic-beta": THINKING_BINDING_BETA}
-        elif request.thinking == "on":
+        elif thinking == "on":
             budget = max(1024, int(request.thinking_budget or 4096))
             payload["thinking"] = {"type": "enabled", "budget_tokens": budget}
             payload["max_tokens"] = max(payload["max_tokens"], budget + 2048)
-        elif request.temperature is not None:
-            payload["temperature"] = request.temperature
+        # No temperature: the Anthropic SDK in use (1.x) and current Claude models no longer accept it
+        # (memory extraction failed with "unexpected keyword argument 'temperature'").
         effort = (request.effort or "").lower()
         if effort in EFFORTS:
             payload["output_config"] = {"effort": effort}

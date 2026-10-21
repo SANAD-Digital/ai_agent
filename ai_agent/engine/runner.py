@@ -73,6 +73,20 @@ def job_id(message):
     return f"{JOB_PREFIX}{message}"
 
 
+def stored_kind(kind):
+    """The block type as the site's schema knows it. Code deployed before `bench migrate` may emit a type the
+    Select field does not list yet; storing it would fail the whole reply ("Block Type cannot be ..."), so it is
+    kept as a status block and logged once per type instead."""
+    options = (frappe.get_meta("AI Message Block").get_field("block_type").options or "").split("\n")
+    if kind in options:
+        return kind
+    key = f"ai_agent:unknown_block_type:{kind}"
+    if not frappe.cache().get_value(key):
+        frappe.cache().set_value(key, 1, expires_in_sec=3600)
+        frappe.log_error(f"Block type '{kind}' is not in AI Message Block.block_type on this site: run bench migrate.", "AI Chat schema behind code")
+    return "status"
+
+
 def job_is_alive(message):
     """True while the message's queue job can still run (queued or started); True when Redis cannot say."""
     try:
@@ -432,10 +446,9 @@ class Runner:
             self.cancelled()
 
     def summary_through_seq(self, event):
-        # The compactor folded everything before the recent window; persist the
-        # highest seq of a completed message older than the last 4 turns.
-        rows = frappe.get_all("AI Chat Message", filters={"session": self.session.name, "status": "completed"}, fields=["seq"], order_by="seq desc", limit=6)
-        return rows[-1].seq if len(rows) >= 6 else 0
+        # The compactor reports the last message it folded into the summary; never move the point back.
+        current = cint(frappe.db.get_value("AI Chat Session", self.session.name, "summary_through_seq"))
+        return max(current, cint(getattr(event, "summary_through_seq", 0)))
 
     # -- block persistence ----------------------------------------------------------------
 
@@ -444,7 +457,7 @@ class Runner:
             "doctype": "AI Message Block",
             "message": self.msg.name,
             "seq": seq,
-            "block_type": kind,
+            "block_type": stored_kind(kind),
             "status": "streaming",
             "tool_call_id": id or None,
             "tool_name": name or None,
@@ -486,7 +499,7 @@ class Runner:
             "doctype": "AI Message Block",
             "message": self.msg.name,
             "seq": seq,
-            "block_type": block.get("kind"),
+            "block_type": stored_kind(block.get("kind")),
             "status": "failed" if block.get("is_error") else "completed",
             "tool_call_id": block.get("id") or None,
             "tool_name": block.get("name") or None,

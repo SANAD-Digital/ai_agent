@@ -26,6 +26,21 @@ def _approved_methods():
     return {messaging.METHOD: (messaging.assert_email_allowed, messaging.send_email)}
 
 
+
+def failure_text(exc):
+    """Never an empty reason: some Frappe errors carry their text only in message_log (msgprint before raise)."""
+    text = frappe.utils.strip_html(str(exc) or "").strip()
+    if not text:
+        for entry in reversed(getattr(frappe.local, "message_log", None) or []):
+            try:
+                message = json.loads(entry).get("message") if isinstance(entry, str) else (entry or {}).get("message")
+            except ValueError:
+                message = entry
+            if message:
+                text = frappe.utils.strip_html(str(message)).strip()
+                break
+    return text or type(exc).__name__
+
 class ApprovalEngine:
     """Manages the approval lifecycle for write operations."""
 
@@ -222,7 +237,7 @@ class ApprovalEngine:
             return
         approval.status = "Failed"
         approval.executed_at = frappe.utils.now_datetime()
-        result = {"error": frappe.utils.strip_html(str(exc))[:500]}
+        result = {"error": failure_text(exc)[:500]}
         created = getattr(exc, "created_before_compensation", None)
         if created is not None:
             # A multi-record change failed part-way: what was created and then removed again.
@@ -589,6 +604,12 @@ class ApprovalEngine:
         )
         for name in pending:
             frappe.db.set_value("AI Approval Request", name, "status", "Expired", update_modified=False)
+            try:
+                from ai_agent.engine.approvals import on_approval_expired
+
+                on_approval_expired(name)
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), f"AI approval expiry: chat update failed for {name}")
         if pending:
             frappe.db.commit()
         return len(pending)

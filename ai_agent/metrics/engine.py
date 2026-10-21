@@ -73,9 +73,18 @@ def parse_filters(raw):
 	return [list(row) for row in value]
 
 
+def unknown_metric_message():
+	"""Name the metrics that exist: the model guessed names and retried the same call up to 7 times."""
+	keys = frappe.get_all("AI Metric", filters={"enabled": 1}, pluck="name", order_by="name asc", limit=60)
+	keys += frappe.get_all("AI Metric Composite", filters={"enabled": 1}, pluck="name", order_by="name asc", limit=20)
+	if not keys:
+		return "Unknown or disabled metric. No metrics are defined on this site: use data.query or reports.run."
+	return f"Unknown or disabled metric. Available metrics: {', '.join(keys)}."
+
+
 def assert_can_use(definition, user):
 	if not definition or not definition.enabled:
-		raise MetricError("Unknown or disabled metric.")
+		raise MetricError(unknown_metric_message())
 	if definition.roles and not set(definition.roles) & set(frappe.get_roles(user)):
 		raise MetricError(f"Metric '{definition.key}' is restricted to other roles.")
 
@@ -162,7 +171,7 @@ def _period_output(definition, period_info):
 def query_composite(key, period, compare=None, company=None, user=None):
 	doc = frappe.get_cached_doc("AI Metric Composite", key)
 	if not cint(doc.enabled):
-		raise MetricError("Unknown or disabled metric.")
+		raise MetricError(unknown_metric_message())
 	period_info = periods.resolve_period(period or "this_month", company)
 	values, parts = {}, []
 	for item in doc.items:

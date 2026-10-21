@@ -244,7 +244,11 @@ def handle_count(arguments, permission_context):
                     validate_filter_value(operator, flt.get("value"))
                 except QueryValidationError as exc:
                     return {"error": str(exc)}
-                filters.append([flt.get("field"), operator, flt.get("value")])
+                if operator in ("is set", "is not set"):
+                    # frappe.get_list spells these ["field", "is", "set" | "not set"].
+                    filters.append([flt.get("field"), "is", "set" if operator == "is set" else "not set"])
+                else:
+                    filters.append([flt.get("field"), operator, flt.get("value")])
             elif isinstance(flt, (list, tuple)) and len(flt) in (3, 4):
                 filters.append(list(flt))
             else:

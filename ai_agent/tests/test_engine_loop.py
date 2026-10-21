@@ -181,6 +181,43 @@ class TestLoop(TestCase):
         self.assertIn("compaction", types(events))
         self.assertIn("SUMMARY", provider.requests[0].messages[0].blocks[0].text)
 
+    def test_compaction_reports_the_last_message_it_folded(self):
+        big = Message(role="user", blocks=[Block(kind=TEXT, text="x" * 30000)], seq=1)
+        old_assistant = Message(role="assistant", blocks=[Block(kind=TEXT, text="ok")], seq=2)
+        current = Message(role="user", blocks=[Block(kind=TEXT, text="now?")], seq=3)
+        provider, events = run_loop([[("text", "short")]], messages=[big, old_assistant, current], budget=3000, summarize=lambda msgs, prompt: "SUMMARY")
+        compaction = next(e for e in events if e.type == "compaction")
+        self.assertEqual(compaction.summary_through_seq, 2)
+
+    def test_repeated_identical_error_is_flagged_then_blocked(self):
+        class Failing(FakeExecutor):
+            def execute(self, call):
+                self.calls.append(call)
+                return Outcome(result=Block(kind=TOOL_RESULT, id=call.id, name=call.name, text='{"error": "same"}', is_error=True))
+
+        executor = Failing()
+        call = [("tool", "customize__check", {"kind": "report"}), ("stop", "tool_use")]
+        provider, events = run_loop([list(call), list(call), list(call), list(call), [("text", "giving up"), ("stop", "end_turn")]], executor=executor)
+        self.assertEqual(len(executor.calls), 3)   # the 4th identical call is not run
+        results = [m for m in provider.requests[-1].messages if m.role == "user" and m.blocks and m.blocks[0].kind == TOOL_RESULT]
+        self.assertIn("same error", results[1].blocks[0].text)
+        self.assertIn("Not run", results[3].blocks[0].text)
+
+    def test_tools_then_no_answer_is_nudged_once(self):
+        provider, events = run_loop([
+            [("tool", "data__query", {}), ("stop", "tool_use")],
+            [("thinking", "done"), ("stop", "end_turn")],
+            [("text", "Here is the answer"), ("stop", "end_turn")],
+        ])
+        self.assertEqual(len(provider.requests), 3)
+        self.assertIn("wrote nothing", provider.requests[2].messages[-1].blocks[0].text)
+        self.assertEqual(events[-1].status, "completed")
+
+    def test_retry_only_before_anything_streamed(self):
+        provider, events = run_loop([[("text", "half an answer"), ("error", "connection reset", "server", True)], [("text", "whole")]])
+        self.assertEqual(len(provider.requests), 1)
+        self.assertIsInstance(events[-1], MessageFailed)
+
 
 class TestLoopResilience(TestCase):
     def test_context_overflow_compacts_and_retries(self):

@@ -16,7 +16,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import get_first_day, nowdate
+from frappe.utils import cint, get_first_day, nowdate
 
 from ai_agent.customization.contract import Check
 
@@ -296,7 +296,8 @@ def explain(query, values):
 	except Exception:
 		return out
 	for row in plan:
-		if str(row.get("type")).upper() == "ALL" and (row.get("rows") or 0) > LARGE_TABLE_ROWS:
+		# MariaDB returns "rows" as text in some versions: compare it as a number.
+		if str(row.get("type")).upper() == "ALL" and cint(row.get("rows")) > LARGE_TABLE_ROWS:
 			out.append(Check("sql.full_scan", "warning",
 				_("Reads all ~{0} rows of {1}; add a date filter").format(row.get("rows"), row.get("table"))))
 	return out

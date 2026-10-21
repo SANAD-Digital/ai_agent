@@ -324,6 +324,7 @@ class ToolExecutor:
         args = block.data if isinstance(block.data, dict) else {}
         args = drop_nulls({k: v for k, v in args.items() if not str(k).startswith("_")})
         started = time.monotonic()
+        frappe.db.savepoint("ai_tool_call")
         try:
             if name not in ("tools.enable", "ui.ask", "ui.suggest") and not access.tool_allowed(name, self.ctx.user):
                 raise ToolDenied(f"Tool '{name}' belongs to a plugin this user is not allowed to use.")
@@ -338,7 +339,12 @@ class ToolExecutor:
         except (ToolDenied, PermissionDenied, SkillDenied, SkillNotFound) as exc:
             outcome = ToolOutcome(result=self._error_block(block, str(exc)))
         except Exception as exc:
-            frappe.log_error(frappe.get_traceback(), f"AI tool {name}")
+            # Half-done writes of a crashed tool must not ride along with the runner's next commit.
+            try:
+                frappe.db.rollback(save_point="ai_tool_call")
+            except Exception:
+                pass   # the tool committed already (approval requests do): nothing left to undo
+            frappe.log_error(frappe.get_traceback(), f"AI tool {name} (message {getattr(self, 'message_name', '') or self.run_name or ''})")
             outcome = ToolOutcome(result=self._error_block(block, f"The tool failed: {frappe.utils.cstr(exc)[:300]}"))
         outcome.duration_ms = int((time.monotonic() - started) * 1000)
         return outcome

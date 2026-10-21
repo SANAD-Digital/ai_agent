@@ -59,7 +59,8 @@ class ApprovalEngine:
         target = self.assert_action_allowed(
             action_type, doctype_name, document_name, payload, self.ctx.user
         )
-        if action_type == "Update" and not expected_modified and target is not None:
+        # The document the person approves is the one executed: Submit/Cancel/Workflow act on its state too.
+        if action_type in ("Update", "Submit", "Cancel", "Workflow") and not expected_modified and target is not None:
             expected_modified = str(target.modified)
 
         if idempotency_key:
@@ -82,6 +83,17 @@ class ApprovalEngine:
 
         now = frappe.utils.now_datetime()
         expires_at = frappe.utils.add_to_date(now, minutes=ttl)
+
+        if getattr(self.ctx, "surface", None) == "MCP" and not idempotency_key:
+            # External hosts retry a tool call they think timed out: the same request from the same user
+            # within two minutes is the pending one, not a second card (or, in direct mode, a second document).
+            duplicate = frappe.db.get_value("AI Approval Request", {
+                "requested_by": frappe.session.user, "action_type": action_type, "doctype_name": doctype_name,
+                "document_name": document_name or ("is", "not set"), "payload_hash": payload_hash, "status": "Pending",
+                "creation": (">=", frappe.utils.add_to_date(now, minutes=-2)),
+            }, "name")
+            if duplicate:
+                return frappe.get_doc("AI Approval Request", duplicate)
 
         approval = frappe.get_doc({
             "doctype": "AI Approval Request",
@@ -325,13 +337,15 @@ class ApprovalEngine:
                 doc = frappe.get_doc(document["payload"])
                 doc.insert(ignore_permissions=False)
                 created.append({"doctype": doc.doctype, "document_name": doc.name})
-        except Exception:
+        except Exception as exc:
+            # The traceback goes to the Error Log only; the user and the model get the reason.
+            frappe.log_error(frappe.get_traceback(), f"AI Approval bulk create failed: {approval.name}")
             frappe.db.rollback()
             approval.status = "Failed"
             approval.executed_at = frappe.utils.now_datetime()
             approval.execution_result = json.dumps(
                 {
-                    "error": frappe.get_traceback(),
+                    "error": failure_text(exc)[:500],
                     "created_before_rollback": created,
                     "rolled_back": True,
                 },
@@ -373,9 +387,15 @@ class ApprovalEngine:
 
         return {"document_name": doc.name, "doctype": approval.doctype_name}
 
+    @staticmethod
+    def _assert_unchanged(approval, doc):
+        if approval.expected_modified and str(doc.modified) != str(approval.expected_modified):
+            raise ConcurrencyConflict("The document was changed after the approval was requested; ask for a new request.")
+
     def _execute_submit(self, approval):
         """Execute a submit action."""
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        self._assert_unchanged(approval, doc)
         doc.submit()
 
         approval.status = "Executed"
@@ -389,6 +409,7 @@ class ApprovalEngine:
     def _execute_cancel(self, approval):
         """Execute a cancel action."""
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        self._assert_unchanged(approval, doc)
         doc.cancel()
 
         approval.status = "Executed"
@@ -405,6 +426,7 @@ class ApprovalEngine:
         from frappe.model.workflow import apply_workflow
 
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        self._assert_unchanged(approval, doc)
         updated = apply_workflow(doc, payload.get("action"))
 
         approval.status = "Executed"

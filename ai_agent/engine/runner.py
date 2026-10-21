@@ -53,6 +53,7 @@ from ai_agent.runtime.run_control import run_timeout_seconds
 REALTIME_EVENT = "ai_agent:chat"
 JOB_PREFIX = "ai-chat-msg-"
 CANCEL_KEY = "ai:chat:cancel:{}"
+TAIL_SECONDS = 0.3
 # Provider failures that say the chosen model cannot be used now; anything else (a bug, a timeout) still fails.
 FALLBACK_KINDS = frozenset({"auth", "quota", "model", "not_chat", "no_tools", "rate_limit"})
 TAIL_KEY = "ai:chat:tail:{}"
@@ -568,6 +569,13 @@ class Runner:
             frappe.db.commit()
 
     def tail_write(self, seq, text):
+        """The live text a reconnecting browser reads. It is the whole block each time, so it is written at most
+        every TAIL_SECONDS: per delta it grew quadratically with long answers (128K-token replies)."""
+        now = time.monotonic()
+        stamps = self.__dict__.setdefault("tail_at", {})
+        if now - stamps.get(seq, 0) < TAIL_SECONDS:
+            return
+        stamps[seq] = now
         try:
             frappe.cache().hset(self.tail, str(seq), text)
         except Exception:

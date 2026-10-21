@@ -46,6 +46,11 @@ def handle_describe(arguments, permission_context):
         report = frappe.get_doc("Report", report_name)
     except frappe.DoesNotExistError:
         return {"error": f"Report '{report_name}' not found"}
+    # Same gate as running it: a report the user may not open is not described either.
+    if report.ref_doctype and not permission_context.has_doctype_permission(report.ref_doctype, "read"):
+        return {"error": f"No permission to run report on '{report.ref_doctype}'"}
+    if not report.is_permitted():
+        return {"error": f"No permission to run report '{report_name}'"}
 
     filters = _declared_report_filters(report)
 

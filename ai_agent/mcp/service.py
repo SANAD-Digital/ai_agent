@@ -770,7 +770,7 @@ class MCPService:
                 "user": self.user,
                 "company": self.company,
                 "prompt": f"MCP tool call: {tool_name}",
-                "plan_summary": json.dumps(arguments, ensure_ascii=False, default=str)[:2000],
+                "plan_summary": json.dumps(mask_arguments(tool_name, arguments), ensure_ascii=False, default=str)[:2000],
                 "status": "Running",
                 "started_at": frappe.utils.now_datetime(),
             }
@@ -832,3 +832,10 @@ class MCPService:
             "idempotentHint": read_only,
             "openWorldHint": False,
         }
+
+
+def mask_arguments(tool_name, arguments):
+    """Arguments go into the AI Run audit row: the same masking as results (a filter value can be an IBAN)."""
+    from ai_agent.runtime.masking import mask_tool_result
+
+    return mask_tool_result(tool_name, arguments, arguments)

@@ -187,6 +187,12 @@ class TestChatApproval(LifecycleCase):
 		self.assertTrue(out["isError"])
 		self.assertFalse(frappe.db.exists("Note", {"title": ["like", f"{title}%"]}))
 
+	def test_a_retried_request_returns_the_pending_one(self):
+		svc, title = service(), self.note("retry")
+		first = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
+		second = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
+		self.assertEqual(first, second)
+
 	def test_someone_elses_request_is_invisible(self):
 		svc, title = service(), self.note("other")
 		approval_id = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]

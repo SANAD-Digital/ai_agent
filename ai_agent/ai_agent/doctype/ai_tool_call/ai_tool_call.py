@@ -10,3 +10,8 @@ class AIToolCall(Document):
         """Log Settings retention (hooks.default_log_clearing_doctypes)."""
         table = frappe.qb.DocType("AI Tool Call")
         frappe.db.delete(table, filters=(table.creation < (Now() - Interval(days=days))))
+
+
+def on_doctype_update():
+    # Read after every chat tool call (latest audit row of a run) and by retention.
+    frappe.db.add_index("AI Tool Call", ["run", "creation"])

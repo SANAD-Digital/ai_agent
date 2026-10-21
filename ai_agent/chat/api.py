@@ -324,19 +324,16 @@ def _content_hits(term, limit=300):
 
 
 def _previews(session_names):
+    """The last completed answer of each session: one row per session (it read every answer of 50 sessions)."""
     if not session_names:
         return {}
-    rows = frappe.get_all(
-        "AI Chat Message",
-        filters={"session": ("in", session_names), "role": "assistant", "status": "completed"},
-        fields=["session", "text", "seq"],
-        order_by="seq desc",
-    )
-    out = {}
-    for r in rows:
-        if r.session not in out and r.text:
-            out[r.session] = " ".join(r.text.split())[:120]
-    return out
+    rows = frappe.db.sql(
+        """select m.session, left(m.text, 400) text from `tabAI Chat Message` m
+        join (select session, max(seq) seq from `tabAI Chat Message`
+              where session in %(names)s and role = 'assistant' and status = 'completed' and ifnull(text, '') != ''
+              group by session) last on last.session = m.session and last.seq = m.seq""",
+        {"names": tuple(session_names)}, as_dict=True)
+    return {r.session: " ".join((r.text or "").split())[:120] for r in rows}
 
 
 @frappe.whitelist()

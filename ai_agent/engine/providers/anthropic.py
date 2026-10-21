@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from ai_agent.engine.events import MessageStop, UsageEvent
+from ai_agent.engine.events import MessageStop, ProviderError, UsageEvent
 from ai_agent.engine.providers.base import (
     BlockAssembler,
     CancelToken,
@@ -186,6 +186,13 @@ class AnthropicProvider(Provider):
         for ev in asm.close_all():
             yield ev
         yield UsageEvent(usage=usage.to_dict(), context_tokens=usage.context_size(), model=payload["model"])
+        if stop_reason == "refusal":
+            # A safety classifier declined: say so instead of ending as a normal (often empty) answer.
+            yield ProviderError(message="The model declined this request (stop_reason: refusal).", kind="refusal", retryable=False)
+            return
+        if stop_reason == "model_context_window_exceeded":
+            yield ProviderError(message="The conversation exceeds the model's context window.", kind="context_overflow", retryable=False)
+            return
         stop = {"tool_use": TOOL_USE_STOP, "max_tokens": MAX_TOKENS}.get(stop_reason or "end_turn", END_TURN)
         yield MessageStop(stop_reason=stop)
 

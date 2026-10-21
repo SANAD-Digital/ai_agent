@@ -151,15 +151,20 @@ def _preview(action_type, doctype, payload):
     if action_type != "Create" or not doctype or not isinstance(payload, dict):
         return empty
     doc, valid = None, True
+    # Validate hooks can write (other apps' controllers): whatever they do is rolled back.
+    frappe.db.savepoint("ai_card_preview")
     try:
         doc = frappe.get_doc({**payload, "doctype": doctype})
-        for method in ("set_missing_values", "calculate_taxes_and_totals"):
-            if hasattr(doc, method):
-                getattr(doc, method)()
+        if doc.meta.get_field("items"):
+            for method in ("set_missing_values", "calculate_taxes_and_totals"):
+                if hasattr(doc, method):
+                    getattr(doc, method)()
         doc.run_method("validate")
     except Exception as exc:
         valid = False
         warnings.append(schema.warning("critical", _plain_error(exc), "validation"))
+    finally:
+        frappe.db.rollback(save_point="ai_card_preview")
     source = doc.as_dict() if doc else payload
     currency = source.get("currency") or source.get("default_currency")
     for idx, row in enumerate(source.get("items") or [], start=1):

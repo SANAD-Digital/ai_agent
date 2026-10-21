@@ -164,6 +164,13 @@ MCP_DESCRIPTION_NOTES = {
 
 # Only the final result gets a view (table, chart, approval card). Lookups made while the
 # model works stay plain text, so the host does not draw a card for every intermediate step.
+
+def _customize_request_tools():
+    from ai_agent.customization import registry
+
+    return (*registry.REQUEST_TOOLS, registry.UNDO_TOOL)
+
+
 VIEW_TOOLS = {
     "artifacts.create_table",
     "artifacts.create_chart",
@@ -174,12 +181,7 @@ VIEW_TOOLS = {
     "actions.request_submit",
     "actions.request_update",
     "actions.request_workflow_action",
-    "customize.request_field",
-    "customize.request_properties",
-    "customize.request_client_script",
-    "customize.request_server_script",
-    "customize.request_report",
-    "customize.request_undo",
+    *_customize_request_tools(),
 }
 
 

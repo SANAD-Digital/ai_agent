@@ -195,6 +195,7 @@
       })), c.layout.title ? h("span", { class: "cz-sub", text: "· " + c.layout.title }) : null));
       (c.lists || []).forEach(function (l) { out.push(czSection("filter", l.title, h("div", { class: "cz-tags" }, l.items.map(function (x) { return h("span", { class: "chip static", text: x }); })))); });
       if (code) out.push(czSection("file", c.code.title || L.code, code));
+      (c.codes || []).forEach(function (x) { out.push(czSection("file", x.title || L.code, CodeBlock(x, {}, L))); });
       if (c.dry_run) out.push(czSection("refresh", L.dry_run, h("div", null,
         h("div", { class: "cz-pad" }, h("div", { class: "note " + (c.dry_run.threw ? "warning" : "info") }, icon(c.dry_run.threw ? "alert" : "checkCircle", 16), h("span", null, rich(c.dry_run.threw ? (L.threw + " " + c.dry_run.message) : L.passed)))),
         c.dry_run.changed.length ? FieldGrid(c.dry_run.changed.map(function (x) { return { label: x.label, d: x.before + " → " + x.after }; })) : null), c.dry_run.document ? h("span", { class: "cz-sub ltr", text: "· " + c.dry_run.document }) : null));

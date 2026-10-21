@@ -34,7 +34,7 @@ class TestPythonAnalyzer(IntegrationTestCase):
 		("c = FrappeClient('https://x.io')", "py.network"),
 		("frappe.sendmail(recipients=['a@b.c'], message='x')", "py.outbound"),
 		("frappe.enqueue('x.y')", "py.outbound"),
-		("frappe.call('frappe.client.delete', doctype='ToDo', name='x')", "py.outbound"),
+		("frappe.call(m)", "py.call_dynamic"),
 		("run_script('other')", "py.outbound"),
 		("frappe.delete_doc('ToDo', doc.name)", "py.destructive"),
 		("frappe.db.commit()", "py.transaction"),
@@ -67,6 +67,22 @@ class TestPythonAnalyzer(IntegrationTestCase):
 	def test_called_helper_def_is_fine(self):
 		src = "def count(rows):\n    return len(rows)\nfrappe.response['message'] = count(frappe.get_list('ToDo', fields=['name']))"
 		self.assertNotIn("py.api_def", critical(python_code.analyze(src, "API")))
+
+	def test_frappe_apis_missing_from_the_sandbox(self):
+		for call in ('frappe.get_cached_value("Company", "x", "abbr")', 'frappe.get_single("Selling Settings")', 'frappe.db.no_such_helper()'):
+			checks = python_code.analyze(f"x = {call}\ndata = [[], []]", "Script Report")
+			self.assertIn("py.not_available", critical(checks), call)
+		ok = python_code.analyze('x = frappe.db.get_value("Company", "x", "abbr")\ndata = [[], []]', "Script Report")
+		self.assertNotIn("py.not_available", critical(ok))
+
+	def test_frappe_call_whitelisted_method(self):
+		ok = python_code.analyze('r = frappe.call("frappe.desk.query_report.run", report_name="Trial Balance", filters={})\ndata = [[], []]', "Script Report")
+		self.assertIn("py.call", [c.code for c in ok])
+		self.assertFalse(critical(ok))
+		self.assertIn("py.call_missing", critical(python_code.analyze('frappe.call("ai_agent.no_such.method")\ndata = [[], []]', "Script Report")))
+		self.assertIn("py.call_dynamic", critical(python_code.analyze('frappe.call(m)\ndata = [[], []]', "Script Report")))
+		writes = python_code.analyze('frappe.call("frappe.client.delete", doctype="ToDo", name="x")', "API")
+		self.assertIn("py.write", [c.code for c in writes if c.level == "warning"])
 
 	def test_sandbox_runtime_traps(self):
 		"""Each compiles under RestrictedPython but fails inside safe_exec on Frappe v16."""

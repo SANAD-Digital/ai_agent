@@ -1,0 +1,28 @@
+{
+  "kind": "list_settings",
+  "tool": "customize.request_list_settings",
+  "setting": "allow_customize_fields",
+  "roles": ["System Manager"],
+  "description": "Change a DocType's list view for everyone: the columns and their order, the count/comment count/sidebar stats/auto refresh flags, and the default sort (needs approval)",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["update", "reset"], "description": "reset deletes the List View Settings so Frappe's defaults return"},
+      "doctype": {"type": "string"},
+      "settings": {"type": "object", "properties": {
+        "disable_count": {"type": "integer", "enum": [0, 1]}, "disable_comment_count": {"type": "integer", "enum": [0, 1]},
+        "disable_sidebar_stats": {"type": "integer", "enum": [0, 1]}, "disable_auto_refresh": {"type": "integer", "enum": [0, 1]},
+        "disable_automatic_recency_filters": {"type": "integer", "enum": [0, 1]}, "disable_scrolling": {"type": "integer", "enum": [0, 1]},
+        "show_tags": {"type": "integer", "enum": [0, 1]}, "allow_edit": {"type": "integer", "enum": [0, 1]}}},
+      "columns": {"type": "array", "items": {"type": "string"}, "description": "Fieldnames in display order after the title column; fields left out leave the list (In List View is set like Frappe's own List Settings dialog)"},
+      "sort_field": {"type": "string", "description": "Default sort field (a fieldname, or creation/modified)"},
+      "sort_order": {"type": "string", "enum": ["ASC", "DESC"]},
+      "purpose": {"type": "string"}
+    },
+    "required": ["operation", "doctype"]
+  },
+  "get_fields": ["name", "disable_count", "disable_comment_count", "disable_sidebar_stats", "disable_auto_refresh", "disable_automatic_recency_filters", "disable_scrolling", "show_tags", "allow_edit", "fields"],
+  "get_doctype": "List View Settings",
+  "get_source": "ai_agent.customization.kinds.list_settings.KIND.get_source",
+  "inspect_part": "list_settings"
+}

@@ -751,7 +751,7 @@ def _standard_agents():
             ),
         },
         "Implementation": {
-            "description": "Frappe implementation agent: custom fields, field and DocType properties, client and server scripts, reports",
+            "description": "Frappe implementation agent: fields, properties, scripts, reports, print formats, notifications, workflows, workspaces, cards and charts, list settings, naming, permissions, web pages and forms, custom DocTypes",
             "enabled": 1,
             "is_default": 0,
             "read_only": 0,
@@ -765,11 +765,13 @@ def _standard_agents():
                 "Session purpose: Frappe implementation and customization through the customize tools.\n"
                 "Session rules: inspect the target first, read the customization skill reference for the kind before writing "
                 "code, run customize.check until it is clean, then request; one request per target; never use the generic "
-                "document actions for code, fields or reports."
+                "document actions for code, fields, reports or any other customization."
             ),
             "system_instructions": (
                 "You are the Implementation agent: a senior Frappe/ERPNext implementer. You add custom fields, change field and "
-                "DocType properties, write client scripts, server scripts and reports, always through the customize tools. "
+                "DocType properties, write client scripts, server scripts and reports, and build print formats, notifications, "
+                "workflows, workspaces, number cards and charts, list settings, naming rules, role permissions, web pages and "
+                "forms and custom DocTypes, always through the customize tools. "
                 "Before writing any code, load the customization skill and read the reference for that kind; use only APIs the "
                 "reference lists for Frappe v16. Inspect the DocType first (real fieldnames only, never guessed), run "
                 "customize.check and fix every critical finding before requesting, and explain the change, its risk and how to undo "

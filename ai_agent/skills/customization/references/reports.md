@@ -5,8 +5,9 @@ Verified against `frappe/core/doctype/report/report.py`, `frappe/desk/query_repo
 passes the checker and runs read-only on a live site.
 
 Arguments: `operation` (`create` | `update` | `disable` | `enable`), `report_name`, `ref_doctype`, `report_type`
-(`Report Builder` | `Query Report`), `builder` (Report Builder), `query` (Query Report), `filters`, `columns`,
-`roles`, `sample_filters` (values for the preview run), `purpose`. `is_standard` is always "No"; `module` is the
+(`Report Builder` | `Query Report` | `Script Report`), `builder` (Report Builder), `query` (Query Report),
+`report_script` + `javascript` (Script Report), `filters`, `columns`, `roles`, `sample_filters` (values for the
+preview run), `purpose`. `is_standard` is always "No"; `module` is the
 module of `ref_doctype`. The report type cannot change on update: create a new report.
 
 ## 1. Builder, Query or Script?
@@ -15,7 +16,7 @@ module of `ref_doctype`. The report type cannot change on update: create a new r
 |---|---|---|
 | rows of one DocType (+ its child tables), filters, sort, totals row | **Report Builder** (first choice) | runs through `frappe.get_list(..., user=viewer)`: every viewer sees only rows they may read; no Script Manager |
 | a JOIN with another (non-child) DocType, grouped totals (count/sum per group), CTEs, UNION | **Query Report** | raw `frappe.db.sql(query, filters)`: **row permissions are not applied**; saving needs Script Manager |
-| optional filters, computed columns, charts, logic | Script Report | not offered yet (see §6) |
+| multi-select filters, a filter limited by another (`get_query`), permission-respecting reads across DocTypes, computed columns, optional filters | **Script Report** (§6) | Python run as the viewer (`frappe.get_list` applies their permissions) + JavaScript filters; saving needs Script Manager |
 
 The checker says (info) when a query could have been a Builder report.
 
@@ -145,38 +146,203 @@ order by 4 desc
 - A Query Report ignores row permissions, so the checker warns for every role that would see rows it cannot see in
   the list (no read on a joined table, only `if_owner`, or User Permissions on the DocType). Without `roles`, this
   tool defaults to the roles that can read **every** table used. Name a narrower audience explicitly.
-- Saving a Query Report needs **Script Manager** (`Report.validate` → `frappe.only_for("Script Manager")` for every
-  non-standard report that is not Report Builder). **(docs differ: they say "only a System Manager can create
+- Saving a Query Report or a Script Report needs **Script Manager** (`Report.validate` → `frappe.only_for("Script
+  Manager")` for every non-standard report that is not Report Builder). **(docs differ: they say "only a System Manager can create
   query reports")**
 
 ## 5. Undo
 
-create → the report is disabled (kept for review); update → the previous version; disable ↔ enable.
+create → the report is disabled (kept for review); update → the previous version (query, builder, `report_script`,
+`javascript`, filters, columns, roles); disable ↔ enable.
 
-## 6. Script Report (later phase — not offered by these tools)
+## 6. Script Report
 
-A non-standard Script Report (`is_standard: "No"`) stores Python in `report_script`, run by `safe_exec` (the same
-language rules as server scripts) with the locals `filters` (a dict of the filters that have a value), `data` and
+A non-standard Script Report (`is_standard: "No"`) keeps Python in `report_script` and, optionally, its filters as
+JavaScript in `javascript`. Frappe runs the Python with `safe_exec` (`Report.execute_script`) every time someone
+opens the report, **as that person**, with the locals `filters` (the filters that have a value), `data` and
 `result`: set `data = [columns, rows]` (optionally `[columns, rows, message, chart, report_summary]`), or set
-`result = rows` and define the columns in the Report's `columns` table. A top-level `return` does **not** work.
+`result = rows` and send `columns` (the Report's columns table). A top-level `return` does **not** work.
 **(docs differ: the Script Report page shows `return frappe.db.get_all(...)` and says only Administrators in
 developer mode can create them; in v16 a non-standard one needs Script Manager, and `return` is a syntax error)**
 
+### When to pick it
+
+| The user wants | Why a Script Report |
+|---|---|
+| a **multi-select** filter (several companies, warehouses, customers), a Link filter limited by another filter (`get_query`), a date range | only the `javascript` filters can do it: the `filters` table of Builder and Query reports has no MultiSelectList, no `get_query` |
+| a report that **respects permissions** across a join or a total | `frappe.get_list` applies the viewer's role permissions *and* User Permissions; a Query Report reads raw SQL for everyone |
+| **computed columns** (a full name from another DocType, a ratio, a status from several fields), optional filters | plain Python over the rows; an empty filter is simply missing from `filters` (no `KeyError`) |
+| one DocType's rows, sorted and filtered | not this: a **Report Builder** report |
+
+### The language
+
+The same rules as server scripts (`server-scripts.md` §4–5): no `import`, no top-level `return`, no `.format()`, no
+`a, b = ...`, no `frappe.db.sql` / `frappe.qb`, no network, mail or queues. **Read with `frappe.get_list`** (it applies
+the viewer's permissions); `frappe.get_all`, `frappe.db.get_value` and `frappe.get_doc` see every record and are
+warned. `frappe.get_list` is also the one call allowed on Company, Fiscal Year and Accounting Period (read only,
+permission-checked). Aggregates use the dict form: `{"SUM": "base_net_total", "as": "net_sales"}`, `{"COUNT": "*", "as": "n"}`.
+
+### Filters (`javascript`)
+
+```
+frappe.query_reports["<exactly the report_name>"] = { filters: [ {fieldname, label, fieldtype, options, default, reqd, get_data, get_query, on_change}, ... ] };
+```
+
+- `fieldtype`: `Link`, `MultiSelectList` (value = a list), `Select`, `Date`, `DateRange` (value = [from, to]), `Check`,
+  `Data`, `Int`, `Float`, `Currency`, `Autocomplete`, `Dynamic Link`.
+- `MultiSelectList` with `get_data: (txt) => frappe.db.get_link_options("<DocType>", txt)` lists only what the viewer
+  may read. **Frappe checks a Link filter's value against the viewer's permissions (`validate_filters_permissions`)
+  but not a MultiSelectList's values**: the script must keep only the allowed ones (the checker warns otherwise).
+- With `javascript`, do not send `filters` (the table is ignored when the script declares filters; the tool refuses
+  both). Without `javascript`, the `filters` table works as in a Query Report.
+- `__("Label")` translates labels; `frappe.datetime.month_start()` / `frappe.datetime.get_today()` for date defaults;
+  `frappe.defaults.get_user_default("Company")` for the user's company.
+
+### Worked example: sales per company, multi-select Company, full names, company permissions respected
+
+The owner's case: choose **several companies**, see each company's **full name**, and never see a company the user
+has no permission for — even if they type it into the filter.
+
+The Python (`report_script`):
+
 ```python script-report
-company = filters.get("company")
-rows = frappe.get_list(
-    "Sales Invoice",
-    filters={"docstatus": 1, "company": company} if company else {"docstatus": 1},
-    fields=["customer", {"SUM": "base_net_total", "as": "net_sales"}],
-    group_by="customer",
-    order_by="customer asc",
-)
+allowed = frappe.get_list("Company", fields=["name", "company_name"], order_by="name asc")
+full_name = {c.name: c.company_name or c.name for c in allowed}
+
+chosen = filters.get("company") or []
+if isinstance(chosen, str):
+    chosen = [chosen]
+companies = [c for c in chosen if c in full_name] if chosen else list(full_name)
+
 columns = [
-    {"fieldname": "customer", "label": _("Customer"), "fieldtype": "Link", "options": "Customer", "width": 200},
-    {"fieldname": "net_sales", "label": _("Net Sales"), "fieldtype": "Currency", "width": 140},
+    {"fieldname": "company", "label": _("Company"), "fieldtype": "Link", "options": "Company", "width": 200},
+    {"fieldname": "company_name", "label": _("Company Name"), "fieldtype": "Data", "width": 260},
+    {"fieldname": "invoices", "label": _("Invoices"), "fieldtype": "Int", "width": 100},
+    {"fieldname": "net_sales", "label": _("Net Sales"), "fieldtype": "Currency", "width": 160},
+]
+
+rows = []
+if companies:
+    conditions = {"docstatus": 1, "company": ["in", companies]}
+    if filters.get("from_date") and filters.get("to_date"):
+        conditions["posting_date"] = ["between", [filters.get("from_date"), filters.get("to_date")]]
+    totals = frappe.get_list(
+        "Sales Invoice",
+        filters=conditions,
+        fields=["company", {"COUNT": "*", "as": "invoices"}, {"SUM": "base_net_total", "as": "net_sales"}],
+        group_by="company",
+        order_by="company asc",
+    )
+    for t in totals:
+        rows.append({"company": t.company, "company_name": full_name.get(t.company), "invoices": t.invoices, "net_sales": t.net_sales})
+
+data = [columns, rows]
+```
+
+The filters (`javascript`; the name inside must equal `report_name`):
+
+```js
+frappe.query_reports["Sales per Company (AI example)"] = {
+	filters: [
+		{
+			fieldname: "company",
+			label: __("Company"),
+			fieldtype: "MultiSelectList",
+			options: "Company",
+			get_data: function (txt) {
+				return frappe.db.get_link_options("Company", txt);
+			},
+		},
+		{ fieldname: "from_date", label: __("From Date"), fieldtype: "Date", default: frappe.datetime.month_start(), reqd: 1 },
+		{ fieldname: "to_date", label: __("To Date"), fieldtype: "Date", default: frappe.datetime.get_today(), reqd: 1 },
+	],
+};
+```
+
+The request:
+
+```
+{"operation": "create", "report_name": "Sales per Company (AI example)", "ref_doctype": "Sales Invoice",
+ "report_type": "Script Report", "purpose": "Net sales per chosen company, full names, only permitted companies",
+ "report_script": "<the Python above>", "javascript": "<the JavaScript above>",
+ "roles": ["Accounts Manager", "Accounts User"],
+ "sample_filters": {"company": ["<a company>"], "from_date": "2026-01-01", "to_date": "2026-12-31"}}
+```
+
+Why it respects company permissions three times: the filter's `get_data` lists only companies the viewer may read;
+the script drops any chosen company not in `frappe.get_list("Company")` (MultiSelectList values are not checked by
+Frappe); and `frappe.get_list("Sales Invoice")` applies the viewer's User Permissions on `company` itself. Frappe
+then also drops rows whose Link columns the viewer's User Permissions exclude (`query_report.get_filtered_data`).
+The full name comes from `company_name`; an empty filter means "every company I may see".
+
+### Reusing a standard report: `frappe.call("frappe.desk.query_report.run", ...)`
+
+Do not rewrite a report ERPNext already has (Trial Balance, General Ledger, Accounts Receivable…). Call it and
+reshape its rows. `frappe.desk.query_report.run` is whitelisted, runs as the viewer and applies the report's own
+roles and permissions. Verified on Frappe v16 inside `safe_exec`:
+
+```python
+companies = filters.get("company") or []
+if isinstance(companies, str):
+    companies = [companies]
+allowed = frappe.get_list("Company", pluck="name")
+companies = [c for c in companies if c in allowed] or allowed
+
+rows = []
+for company in companies:
+    r = frappe.call(
+        "frappe.desk.query_report.run",
+        report_name="Trial Balance",
+        filters={"company": company, "fiscal_year": filters.get("fiscal_year"),
+                 "from_date": filters.get("from_date"), "to_date": filters.get("to_date")},
+        ignore_prepared_report=True,
+    )
+    for row in r.get("result") or []:
+        if isinstance(row, dict) and row.get("account"):
+            line = dict(row)
+            line["company"] = company
+            rows.append(line)
+
+columns = [
+    {"fieldname": "company", "label": _("Company"), "fieldtype": "Link", "options": "Company", "width": 160},
+    {"fieldname": "account", "label": _("Account"), "fieldtype": "Link", "options": "Account", "width": 260},
+    {"fieldname": "opening_debit", "label": _("Opening (Dr)"), "fieldtype": "Currency", "width": 130},
+    {"fieldname": "opening_credit", "label": _("Opening (Cr)"), "fieldtype": "Currency", "width": 130},
+    {"fieldname": "debit", "label": _("Debit"), "fieldtype": "Currency", "width": 130},
+    {"fieldname": "credit", "label": _("Credit"), "fieldtype": "Currency", "width": 130},
+    {"fieldname": "closing_debit", "label": _("Closing (Dr)"), "fieldtype": "Currency", "width": 130},
+    {"fieldname": "closing_credit", "label": _("Closing (Cr)"), "fieldtype": "Currency", "width": 130},
 ]
 data = [columns, rows]
 ```
+
+- `r` is `{"result": [...], "columns": [...], ...}`; rows of most ERPNext reports are dicts, some are lists —
+  check `isinstance(row, dict)`. Total/blank rows have no key field: skip them.
+- Pass every filter the called report marks `reqd` (Trial Balance needs `company`, `fiscal_year`, `from_date`,
+  `to_date`), or it throws. `ignore_prepared_report=True` returns rows instead of queueing a prepared report.
+- The method name must be literal text; a computed name is refused (`py.call_dynamic`).
+
+### Checks it will hit
+
+| Code | Level | Fix |
+|---|---|---|
+| `roles.missing` | critical | requester and approver need System Manager **and Script Manager** |
+| `script.server_scripts_disabled` | critical | `server_script_enabled` in common_site_config (a Script Report runs through `safe_exec`) |
+| `py.*` | as for server scripts | see `server-scripts.md` §4–5 |
+| `py.call_missing` / `py.call_dynamic` | critical | `frappe.call` to a method that is not whitelisted, or a computed name |
+| `py.report_output` | critical | set `data = [columns, rows]` (or `result` plus `columns`) |
+| `report.js_target` | critical | `frappe.query_reports["<report_name>"] = {...}` with the exact name |
+| `js.*` | critical | JavaScript syntax, no `eval`, no network, no `localStorage` |
+| `report.multiselect_permission` | warning | intersect the chosen values with `frappe.get_list("<DocType>", pluck="name")` |
+| `report.filter_undeclared` | warning | the script reads a filter the javascript does not declare |
+| `py.unchecked_read` | warning | `frappe.get_all`/`get_value`/`get_doc` see every record: use `frappe.get_list` |
+| `report.preview` | ok / critical | the script ran on the sample filters as the requester (first 5 rows shown); critical on any exception |
+| `report.preview_throw` | warning | `frappe.throw` on the sample filters: send `sample_filters` that make sense |
+| `report.output` / `report.columns` | critical | `data` must be `[columns, rows]`; `result` alone needs `columns` |
+
+The preview runs the script once on `sample_filters` (or defaults: the default company — as a list for a
+MultiSelectList —, the first of this month, today) inside a rolled-back savepoint, with writes, mail and network
+stubbed, and masks the rows.
 
 ## 7. Mistakes seen on real sites (acc.dev "تقرير بصمات الموظفين", three versions)
 

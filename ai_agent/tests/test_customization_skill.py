@@ -11,7 +11,8 @@ from ai_agent.runtime.skill_registry import SKILLS_DIR, SkillRegistry
 from ai_agent.runtime.tool_registry import ToolRegistry
 
 SKILL = "customization"
-REFERENCES = ("client-scripts", "fields", "print-formats-notifications", "properties", "reports", "server-scripts")
+REFERENCES = ("client-scripts", "dashboards", "doctypes", "fields", "list-settings", "naming", "permissions",
+	"print-formats-notifications", "properties", "reports", "server-scripts", "web", "workflow", "workspaces")
 
 
 def _frontmatter():

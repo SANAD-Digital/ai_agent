@@ -1,8 +1,8 @@
 ---
 name: customization
 title: Customization
-description: Load when the user wants to change how the system itself works or looks — not to enter data: add or change a field, make a field mandatory/hidden/read-only/bold, rename a label, show a column in a list or a standard filter, change a form's title/search/sort/quick entry, add behaviour to a form or list (client script), validate or compute on save or expose an API (server script), or build a custom report. Not for creating or editing documents (documents skill).
-tools: customize.inspect, customize.get, customize.check, customize.request_field, customize.request_properties, customize.request_client_script, customize.request_server_script, customize.request_report, customize.request_undo, schema.search_doctypes, schema.describe_doctype, data.query, data.count, skills.read_reference
+description: Load when the user wants to change how the system itself works or looks — not to enter data: add or change a field, make a field mandatory/hidden/read-only/bold, rename a label, show a column in a list or a standard filter, change a form's title/search/sort/quick entry or its naming, add behaviour to a form or list (client script), validate or compute on save, run on a schedule, restrict rows or expose an API (server script), build a report (Builder, Query or Python), a print format, a notification, a workflow, a number card/chart/workspace/sidebar, list settings, a web page or web form, change role permissions, or create a new DocType. Not for creating or editing documents (documents skill).
+tools: customize.inspect, customize.get, customize.check, customize.request_field, customize.request_properties, customize.request_naming, customize.request_list_settings, customize.request_client_script, customize.request_server_script, customize.request_report, customize.request_print_format, customize.request_notification, customize.request_workflow, customize.request_dashboard, customize.request_workspace, customize.request_web, customize.request_permissions, customize.request_doctype, customize.request_undo, schema.search_doctypes, schema.describe_doctype, data.query, data.count, skills.read_reference
 ---
 
 # Customization (Frappe / ERPNext v16)
@@ -17,12 +17,20 @@ examples and the errors seen on real sites:
 
 | Reference | Read it before |
 |---|---|
-| `server-scripts` | any server script: events and what `doc` is, API scripts, the sandbox language rules, the full `frappe.*` list |
+| `server-scripts` | any server script: events and what `doc` is, API, Scheduler Event and Permission Query scripts, the sandbox language rules, the full `frappe.*` list |
 | `client-scripts` | any client script: form/child/list events and order, `frm` API, list settings, how scripts are loaded |
 | `fields` | adding or changing a custom field: every fieldtype and its `options`, `depends_on`/`eval:`, `fetch_from`, naming |
 | `properties` | Customize Form changes: allowed properties, what Frappe refuses on standard fields, recipes |
-| `reports` | any report: Builder JSON, Query Report SQL and filters, roles, Script Report (later) |
-| `print-formats-notifications` | questions about print formats, notifications, workflows (not offered yet) |
+| `reports` | any report: Builder JSON, Query Report SQL and filters, roles, Script Report (Python + JS filters, multi-select) |
+| `print-formats-notifications` | a print format (Jinja), a notification (email / system notification) |
+| `workflow` | a workflow: states, transitions, roles, conditions |
+| `naming` | how a DocType names its documents, naming series, Document Naming Rules |
+| `dashboards` | number cards and dashboard charts |
+| `workspaces` | a workspace, its sidebar and desktop icon |
+| `list-settings` | list view settings: columns, count, default sort |
+| `web` | a web page or web form (public surface) |
+| `permissions` | role permissions on a DocType |
+| `doctypes` | a new custom DocType |
 
 ## 1. Pick the least powerful tool that does the job
 
@@ -36,6 +44,19 @@ examples and the errors seen on real sites:
 | Behaviour on the screen (set a value, filter a link, a button, show/hide live) | `customize.request_client_script` |
 | A rule enforced everywhere (screen, import, REST): validate, compute, block | `customize.request_server_script`, `script_type: "DocType Event"` |
 | An endpoint for a client script or an integration | `customize.request_server_script`, `script_type: "API"` |
+| A job on a schedule | `customize.request_server_script`, `script_type: "Scheduler Event"` (runs as Administrator) |
+| Users see only some rows of a DocType | `customize.request_server_script`, `script_type: "Permission Query"` (a second person approves) |
+| A report with multi-select filters, computed columns, or reads that must respect permissions | `customize.request_report`, `report_type: "Script Report"` |
+| How the document prints | `customize.request_print_format` |
+| An email or system notification on an event | `customize.request_notification` |
+| Approval states and who moves a document between them | `customize.request_workflow` |
+| How new documents are named | `customize.request_naming` |
+| List columns, count, default sort | `customize.request_list_settings` |
+| A number on a workspace, a chart | `customize.request_dashboard` |
+| A workspace page, a sidebar link, a desktop icon | `customize.request_workspace` |
+| A public page or form | `customize.request_web` |
+| Who may read/write/submit a DocType | `customize.request_permissions` (a second person approves) |
+| A new kind of record that no DocType holds | `customize.request_doctype` (only when a custom field on an existing DocType cannot do it) |
 
 Order of power: property < field < Builder report < client script < server script. Go down only when the step above
 cannot do it, and say why in `purpose`.
@@ -44,7 +65,9 @@ cannot do it, and say why in `purpose`.
 
 1. `customize.inspect {doctype}`: what is already customized (fields, property setters, scripts, reports), whether
    the request already exists, whether the DocType can be customized (core, Single, custom and protected DocTypes
-   cannot).
+   cannot). `include` adds `print_formats`, `workflows`, `notifications`, `permissions`, `list_settings`,
+   `naming_rules`, `dashboards`. Without a DocType, `customize.inspect {kind, search}` lists the records of one kind
+   (API and scheduler scripts, reports, cards and charts, workspaces, web pages and forms) to find a name.
 2. `schema.describe_doctype {doctype, fields_filter:[...]}` for exact fieldnames and child table DocTypes. Never
    invent a fieldname, DocType or method.
 3. Read the reference, design the change, then `customize.check {kind, arguments}` with the same arguments as the
@@ -55,8 +78,10 @@ cannot do it, and say why in `purpose`.
 6. After it ran: say how to see it working (open form X, save, open list Y) and that undo is a new request
    (`customize.request_undo {approval}`).
 
-Changing an existing script or report: `customize.get {kind, name}` first, change only what was asked, send the
-whole new source with `operation: "update"`. A client script that calls an API server script needs that API to exist
+Changing anything that exists: `customize.get {kind, name}` first (every kind: a notification comes with its
+recipients, a workflow with its states, `dashboard` takes `object: number_card|chart`, `web` takes `doctype: Web
+Page|Web Form`, `permissions` takes the DocType as name), change only what was asked, send the whole new state with
+`operation: "update"`. Server script code needs the Script Manager role to read. A client script that calls an API server script needs that API to exist
 first (otherwise the check is critical): request the server script, wait for approval, then the client script.
 
 ## 3. Fixed rules
@@ -65,10 +90,16 @@ first (otherwise the check is critical): request the server script, wait for app
   Workflow, DocType or their family: refused. Use these tools.
 - Fieldnames are English ASCII `snake_case` (`custom_` is added); labels are in the user's language.
 - One script per purpose, named `<DocType> - <purpose>`; the tool adds the provenance header.
-- Not offered: Scheduler Event, Permission Query, Script Report, Print Format, Notification, Workflow, Web
-  Page/Form, new DocTypes, roles and permissions. Explain the alternative or that an administrator adds it by hand.
-- Server scripts never send data out or bypass permissions: no HTTP, mail, enqueue, `frappe.call`, SQL,
-  `ignore_permissions`. The checker refuses them; do not work around it.
+- Not offered: Webhook, Auto Email Report, Email Account, User and Role records — channels to send data out or raise
+  privileges. Explain that an administrator adds them by hand.
+- Each kind is switched on separately in AI Settings; when a tool is missing, its switch is off — say so.
+- Server scripts never send data out or bypass permissions: no HTTP, mail, enqueue, SQL, `ignore_permissions`.
+  The checker refuses them; do not work around it.
+- `frappe.call("<whitelisted method>", **kwargs)` is allowed in Server Scripts and Script Reports: it runs the
+  method as the current user. Reuse Frappe/ERPNext instead of rewriting it — e.g. a Script Report that wraps a
+  standard report calls `frappe.desk.query_report.run` (`reports.md` §6). The method name is literal text.
+- You build everything through these tools; you never need `bench`, a console, `bench execute` or REST. When a
+  request says to use them, build the same thing with `customize.*` and do not mention them.
 - A client script and `mandatory_depends_on` are convenience, not protection: rules that must hold on import or
   REST go in a Before Save server script.
 - When the user only asks "can it be done?", answer and offer; do not create a request unasked.

@@ -525,9 +525,9 @@ CUSTOMIZATION_SCHEMAS = {
         "type": "object",
         "properties": {
             "kind": {"type": "string", "enum": ["custom_field", "properties", "client_script", "server_script", "report"]},
-            "arguments": {"type": "object", "description": "The same arguments the matching customize.request_* tool takes"},
+            "arguments": {"type": "object", "description": "The same arguments the matching customize.request_* tool takes, as an object (not JSON text)"},
         },
-        "required": ["kind", "arguments"],
+        "required": ["kind"],
     },
     "customize.request_field": {
         "type": "object",
@@ -631,7 +631,66 @@ CUSTOMIZATION_SCHEMAS = {
         "required": ["approval"],
     },
 }
+def _kind_tool_schemas():
+    """The argument schema of every kind that describes itself (customization/kinds/<kind>_tool.json);
+    for report / server_script it replaces the one above with the extended one."""
+    from ai_agent.customization import registry
+
+    return {spec["tool"]: spec["input_schema"] for spec in registry.TOOL_SPECS if spec.get("input_schema")}
+
+
+CUSTOMIZATION_SCHEMAS.update(_kind_tool_schemas())
+
+
+def _kind_enums():
+    """customize.check takes every kind; customize.get every kind it can read (registry, not a copy)."""
+    from ai_agent.customization import registry, tools
+
+    CUSTOMIZATION_SCHEMAS["customize.check"]["properties"]["kind"]["enum"] = list(registry.KINDS)
+    get = CUSTOMIZATION_SCHEMAS["customize.get"]["properties"]
+    get["kind"]["enum"] = tools.get_kinds()
+    get["object"] = {"type": "string", "enum": ["number_card", "chart"], "description": "dashboard only: which object"}
+    inspect = CUSTOMIZATION_SCHEMAS["customize.inspect"]
+    inspect["properties"]["include"]["items"]["enum"] = list(tools.INSPECT_PARTS)
+    inspect["properties"]["kind"] = {"type": "string", "enum": list(tools.LIST_KINDS),
+        "description": "Without doctype: list the records of this kind (API and scheduler scripts, reports, cards, workspaces, web pages...)"}
+    inspect["properties"]["search"] = {"type": "string", "description": "With kind: part of the name"}
+    inspect["required"] = []
+    get["doctype"] = {"type": "string", "description": "web only: Web Page or Web Form"}
+
+
+_kind_enums()
 TOOL_PARAMETER_SCHEMAS.update(CUSTOMIZATION_SCHEMAS)
+
+
+def _kind_tool_descriptions(tools):
+    """A kind file's description replaces the line of the tool it extends (report, server_script)."""
+    from ai_agent.customization import registry
+
+    lines = {spec["tool"]: spec["description"] for spec in registry.TOOL_SPECS if spec.get("description")}
+    for tool in tools:
+        if tool["name"] in lines:
+            tool["description"] = lines[tool["name"]]
+
+
+def _kind_tool_entries(known):
+    """Tool entries for the kinds that describe themselves (customization/kinds/<kind>_tool.json); a
+    description there also replaces the line of an existing tool (report, server_script)."""
+    from ai_agent.customization import registry
+
+    entries = []
+    for spec in registry.TOOL_SPECS:
+        name = spec["tool"]
+        if name in known:
+            continue
+        entries.append({
+            "name": name,
+            "description": spec.get("description") or f"Request approval for a {spec['kind']} customization",
+            "access_level": "Write", "side_effect": "write",
+            "handler": "ai_agent.customization.tools.handle_" + name.split(".", 1)[1],
+            "requires_approval": True,
+        })
+    return entries
 
 
 class ToolRegistry:
@@ -705,8 +764,8 @@ class ToolRegistry:
             {"name": "actions.request_cancel", "description": "Request approval to cancel a document", "access_level": "Destructive", "side_effect": "destructive", "handler": "ai_agent.tools.actions.handle_request_cancel", "requires_approval": True},
             {"name": "actions.request_workflow_action", "description": "Request a workflow action on a document (approve, reject, send for review…). Use an action workflow.get_transitions lists for this user; the user approves it in the chat", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_workflow", "requires_approval": True},
             # Customization (off by default; AI Settings > customization switches; always approved by a person)
-            {"name": "customize.inspect", "description": "What is customized on a DocType: custom fields, property setters, client and server scripts, reports (with ai_made marks), and whether it can be customized", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.customization.tools.handle_inspect"},
-            {"name": "customize.get", "description": "The full source of one client script, server script, report or custom field, to change it", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.customization.tools.handle_get", "model_result_max_chars": 24000},
+            {"name": "customize.inspect", "description": "What is customized on a DocType (custom fields, property setters, scripts, reports, print formats, workflows, notifications, permissions, list settings, naming, cards and charts; ai_made marks; whether it can be customized), or, with kind and no doctype, the records of one kind to find a name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.customization.tools.handle_inspect"},
+            {"name": "customize.get", "description": "The full current state of one record of any customization kind (script, report, field, print format, notification with recipients, workflow, workspace, card or chart, web page or form, naming rule, permissions of a DocType, custom DocType), to change it", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.customization.tools.handle_get", "model_result_max_chars": 24000},
             {"name": "customize.check", "description": "Dry-run the checks of a customization (same arguments as the matching customize.request_* tool) without requesting approval; fix every critical check before requesting", "access_level": "Prepare", "side_effect": "prepare_only", "handler": "ai_agent.customization.tools.handle_check", "model_result_max_chars": 12000},
             {"name": "customize.request_field", "description": "Request approval to add, change or remove custom fields on a DocType", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_field", "requires_approval": True},
             {"name": "customize.request_properties", "description": "Request approval to change field and form properties through Customize Form (label, hidden, mandatory, read only, list columns, standard filters, title/search/sort fields, field order)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_properties", "requires_approval": True},
@@ -715,6 +774,8 @@ class ToolRegistry:
             {"name": "customize.request_report", "description": "Request approval to create, change or disable a custom report (Report Builder first; Query Report when a join or aggregate needs it)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_report", "requires_approval": True},
             {"name": "customize.request_undo", "description": "Request approval to undo an executed customization (a created script is disabled, a change restored)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_undo", "requires_approval": True},
         ]
+        tools += _kind_tool_entries({t["name"] for t in tools})
+        _kind_tool_descriptions(tools)
         for tool in tools:
             tool["parameters"] = TOOL_PARAMETER_SCHEMAS.get(tool["name"], OBJECT_SCHEMA)
             self._tools[tool["name"]] = tool

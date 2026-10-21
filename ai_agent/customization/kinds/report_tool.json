@@ -1,0 +1,151 @@
+{
+ "kind": "report",
+ "tool": "customize.request_report",
+ "setting": "allow_customize_reports",
+ "roles": [
+  "System Manager"
+ ],
+ "roles_note": "Query Report and Script Report also need Script Manager (KIND.roles_for(spec)); disable needs System Manager only",
+ "description": "Request approval to create, change or disable a custom report (Report Builder first; Query Report for a join or aggregate; Script Report for multi-select filters, permission-respecting reads and computed columns)",
+ "input_schema": {
+  "type": "object",
+  "properties": {
+   "operation": {
+    "type": "string",
+    "enum": [
+     "create",
+     "update",
+     "disable",
+     "enable"
+    ]
+   },
+   "report_name": {
+    "type": "string"
+   },
+   "ref_doctype": {
+    "type": "string"
+   },
+   "report_type": {
+    "type": "string",
+    "enum": [
+     "Report Builder",
+     "Query Report",
+     "Script Report"
+    ]
+   },
+   "builder": {
+    "type": "object",
+    "description": "Report Builder: {fields:[[fieldname, doctype]], filters:[[doctype, fieldname, operator, value]], order_by:'`tabX`.`f` desc', group_by:{group_by:'`tabX`.`f`', aggregate_function:'count|sum|avg', aggregate_on:'f'}, add_totals_row:0|1}"
+   },
+   "query": {
+    "type": "string",
+    "maxLength": 20000,
+    "description": "Query Report: one SELECT; filters as %(fieldname)s"
+   },
+   "report_script": {
+    "type": "string",
+    "maxLength": 20000,
+    "description": "Script Report: Python run as the viewer with the local `filters`; set data = [columns, rows] (or result = rows with columns). Read with frappe.get_list. Server Script language rules: no import, no return"
+   },
+   "javascript": {
+    "type": "string",
+    "maxLength": 20000,
+    "description": "Script Report filters: frappe.query_reports[\"<report_name>\"] = {filters: [{fieldname, label, fieldtype (Link, MultiSelectList, Date, Select...), options, default, reqd, get_data, get_query}]}. Do not send `filters` with it"
+   },
+   "filters": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "fieldname": {
+       "type": "string"
+      },
+      "label": {
+       "type": "string"
+      },
+      "fieldtype": {
+       "type": "string"
+      },
+      "options": {
+       "type": "string"
+      },
+      "mandatory": {
+       "type": "integer"
+      },
+      "default": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "fieldname",
+      "label",
+      "fieldtype"
+     ]
+    },
+    "description": "Query Report filters, or Script Report filters when there is no javascript"
+   },
+   "columns": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "fieldname": {
+       "type": "string"
+      },
+      "label": {
+       "type": "string"
+      },
+      "fieldtype": {
+       "type": "string"
+      },
+      "options": {
+       "type": "string"
+      },
+      "width": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "fieldname",
+      "label",
+      "fieldtype"
+     ]
+    }
+   },
+   "roles": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "Who may run it; default: roles that can read ref_doctype"
+   },
+   "sample_filters": {
+    "type": "object",
+    "description": "Values for the preview run (a MultiSelectList value is a list)"
+   },
+   "purpose": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "operation",
+   "report_name"
+  ]
+ },
+ "get_fields": [
+  "name",
+  "report_type",
+  "ref_doctype",
+  "is_standard",
+  "disabled",
+  "module",
+  "query",
+  "json",
+  "report_script",
+  "javascript",
+  "prepared_report",
+  "add_total_row"
+ ],
+ "get_doctype": "Report",
+ "inspect_part": "reports"
+}

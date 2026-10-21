@@ -24,7 +24,9 @@ class TestRegistration(CustomizationTestCase):
 	def test_tools_group_and_routing(self):
 		tools = ToolRegistry()
 		names = TOOL_GROUPS["customization"]["tools"]
-		self.assertEqual(len(names), 9)
+		# every read tool, one request tool per kind, and undo — taken from the registry, not a copy
+		self.assertEqual(len(names), len(registry.READ_TOOLS) + len(registry.REQUEST_TOOLS) + 1)
+		self.assertEqual(len(registry.REQUEST_TOOLS), len(registry.KINDS))  # one request tool per kind
 		for name in names:
 			tool = tools.get_tool(name)
 			self.assertIsNotNone(tool, name)
@@ -47,6 +49,10 @@ class TestRegistration(CustomizationTestCase):
 		wrong = ctools.handle_check({"kind": "client_script", "arguments": {"name": "c", "code": "x"}}, _ctx("Administrator"))
 		self.assertFalse(wrong["valid"])
 		self.assertIn("Unknown arguments: code", wrong["error"])
+		as_text = ctools.handle_check({"kind": "client_script", "arguments": '{"name": "c", "value": "ok"}'}, _ctx("Administrator"))
+		self.assertTrue(as_text["valid"], as_text)   # arguments sent as JSON text
+		flat = ctools.handle_check({"kind": "client_script", "name": "c", "value": "ok"}, _ctx("Administrator"))
+		self.assertTrue(flat["valid"], flat)   # arguments sent next to kind
 		self.assertEqual(frappe.db.count("AI Approval Request"), before)
 		self.assertEqual(self.client.store, {})
 

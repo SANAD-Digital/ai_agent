@@ -1,0 +1,1095 @@
+"""Workspaces and their sidebars (Frappe 16): ``customize.request_workspace``.
+
+Frappe 16 splits the desk into three records, all read here from Frappe's own code:
+
+- **Workspace** (``frappe/desk/doctype/workspace``): the page. ``content`` is a JSON list of blocks
+  (``{"id", "type": "shortcut|card|number_card|chart|header|spacer|…", "data": {"<type>_name": <label>, "col"}}``)
+  whose names point at the *labels* of the child rows ``shortcuts``, ``links`` (Card Break + Link rows),
+  ``number_cards`` and ``charts`` (``public/js/frappe/views/workspace/blocks/*.js``).
+- **Workspace Sidebar** (``frappe/desk/doctype/workspace_sidebar``): the left menu. Items are ``Link`` /
+  ``Section Break`` / ``Spacer`` rows; a Section Break with ``indent=1`` is a collapsible group and the rows
+  after it with ``child=1`` belong to it. ``boot.get_sidebar_items`` drops every item the user cannot open
+  (``DeskViews.is_item_allowed``) and the whole sidebar when no Link survives (boot.py:485-497).
+  ``sidebar.js resolve_sidebar`` shows the sidebar whose title is the route's workspace, else one that links
+  the current DocType/Report/Page.
+- **Desktop Icon** (``frappe/desk/doctype/desktop_icon``): the tile on /desk; a non-standard icon is listed
+  only for its owner and Administrator-owned icons (``get_desktop_icons`` desktop_icon.py:155-163).
+
+Files in app folders: with ``developer_mode`` (acc.dev has it) Frappe writes JSON into the app when a
+*public Workspace with a module* is saved (workspace.py:123-125), a *standard Sidebar with an app*
+(workspace_sidebar.py:53-63) or a *standard Desktop Icon with an app* (desktop_icon.py:71-81). This kind only
+writes records without ``module``/``app`` and with ``standard=0``, so none of those branches can run, and it
+refuses to edit app-owned records in place (copy them with ``copy_from``). It never relies on
+``frappe.flags.in_import`` (that flag also skips validations).
+"""
+
+from __future__ import annotations
+
+import contextlib
+import difflib
+import json
+import os
+import re
+
+import frappe
+from frappe import _
+from frappe.utils import cint, cstr
+
+from ai_agent.customization.contract import Check, CustomizationError
+from ai_agent.customization.kinds import _base
+
+TOP_KEYS = ("operation", "name", "title", "public", "icon", "indicator_color", "parent_page", "roles",
+	"shortcuts", "cards", "number_cards", "charts", "content", "sidebar", "desktop_icon", "copy_from", "purpose")
+OPERATIONS = ("create", "update", "disable", "enable", "delete")
+SECTIONS = ("shortcuts", "cards", "number_cards", "charts")
+META_KEYS = ("icon", "indicator_color", "parent_page", "roles")
+SHORTCUT_KEYS = ("label", "type", "link_to", "doc_view", "url", "color", "stats_filter", "format", "icon", "kanban_board")
+SHORTCUT_TYPES = ("DocType", "Report", "Page", "Dashboard", "URL")
+DOC_VIEWS = ("", "List", "Report Builder", "Dashboard", "Tree", "New", "Calendar", "Kanban", "Image")
+CARD_KEYS = ("label", "icon", "description", "hidden", "links")
+LINK_KEYS = ("label", "link_type", "link_to", "onboard", "dependencies", "only_for", "is_query_report", "hidden")
+LINK_TYPES = ("DocType", "Page", "Report")
+WIDGET_KEYS = ("name", "label")
+SIDEBAR_KEYS = ("items", "header_icon", "remove")
+ITEM_KEYS = ("type", "label", "link_type", "link_to", "url", "icon", "child", "indent", "collapsible", "keep_closed",
+	"show_arrow", "filters", "route_options", "items")
+ITEM_TYPES = ("Link", "Section Break", "Spacer")
+ITEM_LINK_TYPES = ("DocType", "Page", "Report", "Workspace", "Dashboard", "URL")
+ITEM_FIELDS = ("type", "label", "link_type", "link_to", "url", "icon", "child", "indent", "collapsible", "keep_closed",
+	"show_arrow", "filters", "route_options")
+BLOCK_TYPES = ("header", "paragraph", "spacer", "shortcut", "card", "number_card", "chart", "quick_list",
+	"custom_block", "onboarding")
+# block type -> (section, data key, default col)
+BLOCKS = {"shortcut": ("shortcuts", "shortcut_name", 3), "card": ("cards", "card_name", 4),
+	"number_card": ("number_cards", "number_card_name", 4), "chart": ("charts", "chart_name", 12)}
+ROLES = ("System Manager", "Workspace Manager")
+IGNORED_AUDIENCE_ROLES = {"Administrator", "Guest", "All", "Desk User"}
+EVERYONE_ROLES = {"All", "Desk User"}  # every desk user holds them
+MAX_ITEMS = 120
+URL_RE = re.compile(r"^(https?://[^\s<>\"']+|/[^\s<>\"']*)$", re.I)
+SAVEPOINT = "ai_customize_workspace"
+
+
+# -- shared helpers (also used by the dashboard kind) ------------------------------------------
+
+
+@contextlib.contextmanager
+def dry_run():
+	"""Run Frappe's own insert/save validation and roll it back: a savepoint, with ``frappe.db.commit``
+	disabled meanwhile so nothing the controllers do can become permanent."""
+	point = f"{SAVEPOINT}_{frappe.generate_hash(length=6)}"
+	frappe.db.savepoint(point)
+	commit = frappe.db.commit
+	frappe.db.commit = lambda *args, **kwargs: None
+	flags = frappe.flags.get("ai_customize_dry_run")
+	frappe.flags.ai_customize_dry_run = True
+	try:
+		yield
+	finally:
+		frappe.db.commit = commit
+		frappe.flags.ai_customize_dry_run = flags
+		try:
+			frappe.db.rollback(save_point=point)
+		except Exception:
+			frappe.db.rollback()  # the error ended the transaction (deadlock, lost connection): nothing survives
+
+
+def frappe_error(exc, messages=None):
+	text = frappe.utils.strip_html(cstr(getattr(exc, "message", None) or exc or ""))
+	extra = [m for m in (messages or []) if m and m not in text]
+	return "; ".join([t for t in [text.strip()] + extra if t])[:400] or exc.__class__.__name__
+
+
+_ICONS = {}
+
+
+def icon_names():
+	"""Every symbol id the desk can draw: the sprites in ``app_include_icons`` (lucide, timeless, espresso,
+	app sprites; frappe/hooks.py:41-57), as ``frappe.utils.icon`` resolves them (utils.js:1398-1420):
+	``es-…`` ids as they are, the others without their ``icon-`` prefix."""
+	key = tuple(frappe.get_hooks("app_include_icons") or ())
+	if key in _ICONS:
+		return _ICONS[key]
+	names = set()
+	for path in key:
+		full = os.path.join(frappe.local.sites_path, cstr(path).lstrip("/"))
+		if not os.path.exists(full):
+			continue
+		with open(full, encoding="utf-8") as handle:
+			for symbol in re.findall(r"<symbol[^>]*\bid=\"([^\"]+)\"", handle.read()):
+				names.add(symbol[5:] if symbol.startswith("icon-") else symbol)
+	_ICONS.clear()
+	_ICONS[key] = names
+	return names
+
+
+def is_emoji(text):
+	text = cstr(text)
+	return bool(text) and len(text) <= 8 and all(ord(ch) > 0x2000 for ch in text)
+
+
+def icon_check(icon, where):
+	if not icon or is_emoji(icon) or icon in icon_names():
+		return None
+	close = difflib.get_close_matches(icon, sorted(icon_names()), n=4, cutoff=0.6)
+	hint = _(" Close names: {0}").format(", ".join(close)) if close else ""
+	return Check("workspace.icon", "critical", _("{0}: there is no icon named {1} in Frappe's icon set.{2}").format(where, icon, hint))
+
+
+def desk_roles():
+	"""Roles held by enabled desk (System) users: the audience of a workspace without roles."""
+	rows = frappe.db.sql(
+		"""select distinct hr.role from `tabHas Role` hr join `tabUser` u on u.name = hr.parent
+		where hr.parenttype = 'User' and u.enabled = 1 and u.user_type = 'System User'""",
+		pluck=True,
+	)
+	return sorted(set(rows) - IGNORED_AUDIENCE_ROLES)
+
+
+def roles_that_open(link_type, link_to):
+	"""Roles that can open a target, or None when every desk user can (Frappe's own rules:
+	DocType read perms, Report/Page ``roles`` tables, Workspace ``roles``)."""
+	from ai_agent.customization.analyzers import sql as sql_analyzer
+
+	if link_type == "DocType":
+		plain, owner_only = sql_analyzer.read_roles(link_to)
+		roles = plain | owner_only
+		return None if roles & EVERYONE_ROLES else roles
+	if link_type == "Report":
+		roles = set(frappe.get_all("Has Role", filters={"parenttype": "Report", "parent": link_to}, pluck="role"))
+		if roles:
+			return None if roles & EVERYONE_ROLES else roles
+		ref = frappe.db.get_value("Report", link_to, "ref_doctype")
+		return roles_that_open("DocType", ref) if ref and frappe.db.exists("DocType", ref) else None
+	if link_type == "Page":
+		roles = set(frappe.get_all("Has Role", filters={"parenttype": "Page", "parent": link_to}, pluck="role"))
+		return None if not roles or roles & EVERYONE_ROLES else roles
+	if link_type == "Workspace":
+		roles = set(frappe.get_all("Has Role", filters={"parenttype": "Workspace", "parent": link_to}, pluck="role"))
+		return None if not roles or roles & EVERYONE_ROLES else roles
+	return None
+
+
+def short_list(values, limit=6):
+	values = sorted(values)
+	if len(values) <= limit:
+		return ", ".join(values)
+	return _("{0} and {1} more").format(", ".join(values[:limit]), len(values) - limit)
+
+
+def target_exists(link_type, link_to):
+	if link_type == "URL":
+		return True
+	doctype = {"Dashboard": "Dashboard", "Workspace": "Workspace", "Page": "Page", "Report": "Report", "DocType": "DocType"}.get(link_type)
+	return bool(doctype and link_to and frappe.db.exists(doctype, link_to))
+
+
+def is_standard_workspace(row):
+	"""App-owned: it has a module/app (saving it in developer mode exports it into the app, and migrate
+	re-imports it over local edits)."""
+	return bool(row.get("module") or row.get("app"))
+
+
+def is_standard_sidebar(row):
+	return bool(cint(row.get("standard")) or row.get("app"))
+
+
+def block_id():
+	return frappe.generate_hash(length=10)
+
+
+def place_blocks(content, block_type, labels, col=None):
+	"""Blocks of ``block_type`` become exactly ``labels`` in that order: existing blocks keep their slots
+	(and their width), new ones go right after the last slot of that type (or at the end), missing ones go."""
+	_section, key, default_col = BLOCKS[block_type]
+	existing = {}
+	for block in content:
+		if block.get("type") == block_type:
+			existing.setdefault(cstr((block.get("data") or {}).get(key)), block)
+	wanted = [existing.get(label) or {"id": block_id(), "type": block_type, "data": {key: label, "col": col or default_col}}
+		for label in labels]
+	slots = [i for i, block in enumerate(content) if block.get("type") == block_type]
+	if not slots:
+		return list(content) + wanted
+	out, queue = [], list(wanted)
+	for i, block in enumerate(content):
+		if block.get("type") == block_type:
+			if queue:
+				out.append(queue.pop(0))
+		else:
+			out.append(block)
+		if i == slots[-1]:
+			out.extend(queue)
+			queue = []
+	return out
+
+
+def section_labels(section, rows):
+	if section in ("number_cards", "charts"):
+		return [r.get("label") or r.get("name") for r in rows]
+	return [r.get("label") for r in rows]
+
+
+# -- reading a workspace ---------------------------------------------------------------------------
+
+
+def _cards_from_links(rows):
+	cards, current = [], None
+	for row in rows:
+		if row.type == "Card Break":
+			current = {"label": row.label, "icon": row.icon or "", "description": row.description or "",
+				"hidden": cint(row.hidden), "links": []}
+			cards.append(current)
+		elif current is not None:
+			link = {"label": row.label, "link_type": row.link_type, "link_to": row.link_to}
+			for key in ("onboard", "is_query_report", "hidden"):
+				if cint(row.get(key)):
+					link[key] = 1
+			for key in ("dependencies", "only_for"):
+				if row.get(key):
+					link[key] = row.get(key)
+			current["links"].append(link)
+	return cards
+
+
+def _sidebar_state(title):
+	if not title or not frappe.db.exists("Workspace Sidebar", title):
+		return None
+	doc = frappe.get_doc("Workspace Sidebar", title)
+	items = []
+	for row in sorted(doc.items, key=lambda r: r.idx):
+		item = {"type": row.type or "Link", "label": row.label or ""}
+		for key in ("link_type", "link_to", "url", "icon", "filters", "route_options"):
+			if row.get(key) and not (key == "link_type" and item["type"] != "Link"):
+				item[key] = row.get(key)
+		for key in ("child", "indent", "keep_closed", "show_arrow"):
+			if cint(row.get(key)):
+				item[key] = 1
+		if not cint(row.collapsible):
+			item["collapsible"] = 0
+		items.append(item)
+	return {"title": doc.name, "standard": cint(doc.standard), "app": doc.app or "", "for_user": doc.for_user or "",
+		"header_icon": doc.header_icon or "", "items": items}
+
+
+def _icon_state(label):
+	if not label or not frappe.db.exists("Desktop Icon", label):
+		return None
+	row = frappe.db.get_value("Desktop Icon", label, ["name", "standard", "app", "icon", "hidden", "link_type", "link_to",
+		"icon_type", "owner"], as_dict=True)
+	return {k: (cint(v) if k in ("standard", "hidden") else cstr(v)) for k, v in row.items()}
+
+
+def current(name):
+	"""Everything this kind manages for ``name``, as comparable JSON (also the snapshot)."""
+	state = {"name": name, "exists": bool(name and frappe.db.exists("Workspace", name))}
+	if state["exists"]:
+		doc = frappe.get_doc("Workspace", name)
+		try:
+			content = json.loads(doc.content or "[]")
+		except ValueError:
+			content = []
+		state.update({
+			"title": doc.title, "public": cint(doc.public), "for_user": doc.for_user or "", "module": doc.module or "",
+			"app": doc.app or "", "icon": doc.icon or "", "indicator_color": doc.indicator_color or "",
+			"parent_page": doc.parent_page or "", "roles": sorted(r.role for r in doc.roles), "is_hidden": cint(doc.is_hidden),
+			"shortcuts": [{k: cstr(s.get(k)) for k in SHORTCUT_KEYS if s.get(k)} for s in doc.shortcuts],
+			"cards": _cards_from_links(doc.links),
+			"number_cards": [{"name": r.number_card_name, "label": r.label or r.number_card_name} for r in doc.number_cards],
+			"charts": [{"name": r.chart_name, "label": r.label or r.chart_name} for r in doc.charts],
+			"content": content,
+		})
+	title = state.get("title") or name
+	state["sidebar"] = _sidebar_state(title) if state.get("public", 1) else None
+	state["desktop_icon"] = _icon_state(title) if state.get("public", 1) else None
+	return json.loads(json.dumps(state, default=str))
+
+
+def workspace_name(title, public, user):
+	return title if public else f"{title}-{user}"
+
+
+# -- normalize helpers -----------------------------------------------------------------------------------
+
+
+def _bit(value):
+	return 1 if cint(value) else 0
+
+
+def _norm_shortcuts(value):
+	if not isinstance(value, list):
+		raise CustomizationError(_("shortcuts must be a list"))
+	out = []
+	for i, row in enumerate(value, 1):
+		where = f"shortcuts[{i}]"
+		if not isinstance(row, dict):
+			raise CustomizationError(_("{0} must be an object").format(where))
+		_base.reject_unknown(row, SHORTCUT_KEYS, where)
+		_base.require(row, ("label", "type"), where)
+		if row["type"] not in SHORTCUT_TYPES:
+			raise CustomizationError(_("{0}.type must be one of {1}").format(where, ", ".join(SHORTCUT_TYPES)))
+		if row["type"] == "URL":
+			_base.require(row, ("url",), where)
+		else:
+			_base.require(row, ("link_to",), where)
+		if cstr(row.get("doc_view")) not in DOC_VIEWS:
+			raise CustomizationError(_("{0}.doc_view must be one of {1}").format(where, ", ".join(v for v in DOC_VIEWS if v)))
+		clean = {k: cstr(v) for k, v in row.items() if v not in (None, "")}
+		if isinstance(row.get("stats_filter"), (list, dict)):
+			clean["stats_filter"] = json.dumps(row["stats_filter"])
+		out.append(clean)
+	return out
+
+
+def _norm_cards(value):
+	if not isinstance(value, list):
+		raise CustomizationError(_("cards must be a list"))
+	out = []
+	for i, card in enumerate(value, 1):
+		where = f"cards[{i}]"
+		if not isinstance(card, dict):
+			raise CustomizationError(_("{0} must be an object").format(where))
+		_base.reject_unknown(card, CARD_KEYS, where)
+		_base.require(card, ("label",), where)
+		links = card.get("links") or []
+		if not isinstance(links, list):
+			raise CustomizationError(_("{0}.links must be a list").format(where))
+		clean_links = []
+		for j, link in enumerate(links, 1):
+			lw = f"{where}.links[{j}]"
+			if not isinstance(link, dict):
+				raise CustomizationError(_("{0} must be an object").format(lw))
+			_base.reject_unknown(link, LINK_KEYS, lw)
+			_base.require(link, ("label", "link_type", "link_to"), lw)
+			if link["link_type"] not in LINK_TYPES:
+				raise CustomizationError(_("{0}.link_type must be one of {1}").format(lw, ", ".join(LINK_TYPES)))
+			clean = {"label": cstr(link["label"]), "link_type": link["link_type"], "link_to": cstr(link["link_to"])}
+			for key in ("onboard", "is_query_report", "hidden"):
+				if cint(link.get(key)):
+					clean[key] = 1
+			for key in ("dependencies", "only_for"):
+				if link.get(key):
+					clean[key] = cstr(link[key])
+			clean_links.append(clean)
+		out.append({"label": cstr(card["label"]), "icon": cstr(card.get("icon")), "description": cstr(card.get("description")),
+			"hidden": _bit(card.get("hidden")), "links": clean_links})
+	return out
+
+
+def _norm_widgets(value, where):
+	if not isinstance(value, list):
+		raise CustomizationError(_("{0} must be a list of names or {{name, label}} objects").format(where))
+	out = []
+	for i, row in enumerate(value, 1):
+		if isinstance(row, str):
+			row = {"name": row}
+		if not isinstance(row, dict):
+			raise CustomizationError(_("{0}[{1}] must be a name or an object").format(where, i))
+		_base.reject_unknown(row, WIDGET_KEYS, f"{where}[{i}]")
+		_base.require(row, ("name",), f"{where}[{i}]")
+		out.append({"name": cstr(row["name"]), "label": cstr(row.get("label") or row["name"])})
+	return out
+
+
+def _norm_items(value):
+	"""Sidebar items, flat (Frappe's storage) or nested (a Section Break with ``items``)."""
+	if not isinstance(value, list):
+		raise CustomizationError(_("sidebar.items must be a list"))
+	out = []
+
+	def add(row, where, in_section):
+		if not isinstance(row, dict):
+			raise CustomizationError(_("{0} must be an object").format(where))
+		_base.reject_unknown(row, ITEM_KEYS, where)
+		kind = row.get("type") or "Link"
+		if kind not in ITEM_TYPES:
+			raise CustomizationError(_("{0}.type must be one of {1}").format(where, ", ".join(ITEM_TYPES)))
+		item = {"type": kind, "label": cstr(row.get("label"))}
+		if kind == "Link":
+			_base.require(row, ("label",), where)
+			link_type = row.get("link_type") or ("URL" if row.get("url") else "DocType")
+			if link_type not in ITEM_LINK_TYPES:
+				raise CustomizationError(_("{0}.link_type must be one of {1}").format(where, ", ".join(ITEM_LINK_TYPES)))
+			item["link_type"] = link_type
+			if link_type == "URL":
+				_base.require(row, ("url",), where)
+				item["url"] = cstr(row["url"]).strip()
+			else:
+				_base.require(row, ("link_to",), where)
+				item["link_to"] = cstr(row["link_to"])
+			for key in ("filters", "route_options"):
+				if row.get(key) not in (None, "", [], {}):
+					item[key] = row[key] if isinstance(row[key], str) else json.dumps(row[key])
+		elif kind == "Section Break":
+			_base.require(row, ("label",), where)
+			item["indent"] = 1 if row.get("indent") is None else _bit(row.get("indent"))
+		if row.get("icon"):
+			item["icon"] = cstr(row["icon"])
+		for key in ("child", "keep_closed", "show_arrow"):
+			if cint(row.get(key)):
+				item[key] = 1
+		if kind == "Link" and in_section:
+			item["child"] = 1
+		if row.get("collapsible") is not None and not cint(row.get("collapsible")):
+			item["collapsible"] = 0
+		if kind == "Section Break" and item.get("indent") == 0:
+			item.pop("indent")
+		out.append(item)
+		nested = row.get("items")
+		if nested is not None:
+			if kind != "Section Break" or not isinstance(nested, list):
+				raise CustomizationError(_("{0}.items: only a Section Break holds nested items (a list)").format(where))
+			for j, child in enumerate(nested, 1):
+				add(child, f"{where}.items[{j}]", True)
+
+	for i, row in enumerate(value, 1):
+		add(row, f"sidebar.items[{i}]", False)
+	if len(out) > MAX_ITEMS:
+		raise CustomizationError(_("At most {0} sidebar items per request ({1} sent)").format(MAX_ITEMS, len(out)))
+	return out
+
+
+def _norm_content(value):
+	if not isinstance(value, list):
+		raise CustomizationError(_("content must be a list of blocks"))
+	out = []
+	for i, block in enumerate(value, 1):
+		if not isinstance(block, dict) or block.get("type") not in BLOCK_TYPES or not isinstance(block.get("data", {}), dict):
+			raise CustomizationError(_("content[{0}] must be {{id, type, data}} with type one of {1}").format(i, ", ".join(BLOCK_TYPES)))
+		out.append({"id": cstr(block.get("id")) or block_id(), "type": block["type"], "data": block.get("data") or {}})
+	return out
+
+
+def sidebar_text(items, header=None):
+	"""The sidebar as an indented list (the card preview)."""
+	lines = [f"[{header}]"] if header else []
+	for item in items or []:
+		kind = item.get("type") or "Link"
+		icon = f" ({item['icon']})" if item.get("icon") else ""
+		if kind == "Section Break":
+			lines.append(f"▾ {item.get('label')}{icon}")
+		elif kind == "Spacer":
+			lines.append("  ·")
+		else:
+			target = item.get("url") if item.get("link_type") == "URL" else item.get("link_to")
+			indent = "    " if cint(item.get("child")) else ""
+			lines.append(f"{indent}- {item.get('label')} → {item.get('link_type')}: {target}{icon}")
+	return "\n".join(lines)
+
+
+# -- the kind --------------------------------------------------------------------------------------------
+
+
+class WorkspaceKind:
+	name = "workspace"
+	setting = "allow_customize_dashboards"
+	required_roles = ROLES
+
+	def roles_for(self, spec):
+		return ROLES
+
+	# -- normalize ---------------------------------------------------------------------------
+	def normalize(self, args, user):
+		args = dict(args or {})
+		_base.reject_unknown(args, TOP_KEYS, "customize.request_workspace")
+		_base.require(args, ("operation", "name"), "customize.request_workspace")
+		operation = args["operation"]
+		if operation not in OPERATIONS:
+			raise CustomizationError(_("operation must be one of: {0}").format(", ".join(OPERATIONS)))
+		title = re.sub(r"\s+", " ", cstr(args.get("title") or args["name"])).strip()[:140]
+		spec = {"operation": operation, "requested_by": user}
+		if args.get("purpose"):
+			spec["purpose"] = re.sub(r"\s+", " ", cstr(args["purpose"])).strip()[:140]
+
+		if operation == "create":
+			if not title:
+				raise CustomizationError(_("Give the workspace a title"))
+			public = _bit(1 if args.get("public") is None else args.get("public"))
+			spec.update({"name": workspace_name(title, public, user), "title": title, "public": public})
+			if not public:
+				spec["for_user"] = user
+				if args.get("sidebar") or cint(args.get("desktop_icon")):
+					raise CustomizationError(_("A private workspace has no sidebar or desktop icon of its own"),
+						hints=[_("Frappe lists private workspaces in the user's 'My Workspaces' sidebar; send public: 1 for a shared one")])
+			else:
+				spec["desktop_icon"] = _bit(1 if args.get("desktop_icon") is None else args.get("desktop_icon"))
+			if args.get("copy_from"):
+				self._copy(spec, cstr(args["copy_from"]))
+		else:
+			name = cstr(args["name"]).strip()
+			if not frappe.db.exists("Workspace", name):
+				private = workspace_name(name, 0, user)
+				if frappe.db.exists("Workspace", private):
+					name = private
+				elif not (operation == "update" and frappe.db.exists("Workspace Sidebar", name)):
+					raise CustomizationError(_("There is no workspace {0}").format(name),
+						hints=[_("Use operation create, or the exact name from the Workspace list")])
+			spec["name"] = name
+			if args.get("copy_from"):
+				raise CustomizationError(_("copy_from is only for operation create"))
+			if args.get("title") and args["title"] != frappe.db.get_value("Workspace", name, "title"):
+				raise CustomizationError(_("The title cannot change; create a new workspace (copy_from) and delete this one"))
+			if operation in ("disable", "enable", "delete"):
+				extra = set(args) - {"operation", "name", "purpose", "title"}
+				if extra:
+					raise CustomizationError(_("{0} takes only name and purpose").format(operation))
+				return spec
+
+		if args.get("icon") is not None:
+			spec["icon"] = cstr(args["icon"])
+		if args.get("indicator_color") is not None:
+			options = (frappe.get_meta("Workspace").get_field("indicator_color").options or "").split("\n")
+			if args["indicator_color"] and args["indicator_color"] not in options:
+				raise CustomizationError(_("indicator_color must be one of {0}").format(", ".join(o for o in options if o)))
+			spec["indicator_color"] = cstr(args["indicator_color"])
+		if args.get("parent_page") is not None:
+			spec["parent_page"] = cstr(args["parent_page"])
+		if args.get("roles") is not None:
+			roles = args["roles"]
+			if not isinstance(roles, list) or not all(isinstance(r, str) for r in roles):
+				raise CustomizationError(_("roles must be a list of role names"))
+			missing = [r for r in roles if not frappe.db.exists("Role", r)]
+			if missing:
+				raise CustomizationError(_("Unknown role(s): {0}").format(", ".join(missing)))
+			spec["roles"] = sorted(set(roles))
+		if args.get("shortcuts") is not None:
+			spec["shortcuts"] = _norm_shortcuts(args["shortcuts"])
+		if args.get("cards") is not None:
+			spec["cards"] = _norm_cards(args["cards"])
+		for key in ("number_cards", "charts"):
+			if args.get(key) is not None:
+				spec[key] = _norm_widgets(args[key], key)
+		if args.get("content") is not None:
+			spec["content"] = _norm_content(args["content"])
+		if args.get("sidebar") is not None:
+			sidebar = args["sidebar"]
+			if not isinstance(sidebar, dict):
+				raise CustomizationError(_("sidebar must be an object {items, header_icon}"))
+			_base.reject_unknown(sidebar, SIDEBAR_KEYS, "sidebar")
+			if cint(sidebar.get("remove")):
+				spec["sidebar"] = {"remove": 1}
+			else:
+				_base.require(sidebar, ("items",), "sidebar")
+				spec["sidebar"] = {"items": _norm_items(sidebar["items"]), "header_icon": cstr(sidebar.get("header_icon"))}
+		if operation == "update" and args.get("desktop_icon") is not None:
+			spec["desktop_icon"] = _bit(args["desktop_icon"])
+		if operation == "update" and not (set(spec) & set(SECTIONS + META_KEYS + ("content", "sidebar", "desktop_icon"))):
+			raise CustomizationError(_("Nothing to change"), hints=[_("Send the sections to replace: shortcuts, cards, number_cards, charts, sidebar, icon, roles…")])
+		if not frappe.db.exists("Workspace", spec["name"]) and operation == "update" and (set(spec) & set(SECTIONS + META_KEYS + ("content",))):
+			raise CustomizationError(_("{0} is a sidebar without a workspace: only sidebar can change").format(spec["name"]))
+		return spec
+
+	def _copy(self, spec, source):
+		if not frappe.db.exists("Workspace", source):
+			raise CustomizationError(_("There is no workspace {0} to copy").format(source))
+		state = current(source)
+		for key in SECTIONS + ("content",):
+			spec[key] = state.get(key) or []
+		for key in ("icon", "indicator_color"):
+			spec[key] = state.get(key) or ""
+		spec["roles"] = state.get("roles") or []
+		sidebar = _sidebar_state(state.get("title"))
+		if spec.get("public") and sidebar:
+			items = [dict(i) for i in sidebar["items"]]
+			for item in items:  # the copied Home link must open the copy
+				if item.get("link_type") == "Workspace" and item.get("link_to") == source:
+					item["link_to"] = spec["name"]
+			spec["sidebar"] = {"items": items, "header_icon": sidebar.get("header_icon") or ""}
+		spec["copied_from"] = source
+
+	# -- snapshot ------------------------------------------------------------------------------
+	def snapshot(self, spec):
+		return current(spec["name"])
+
+	# -- the effective record ---------------------------------------------------------------------
+	def merged(self, spec, state=None):
+		state = state or current(spec["name"])
+		out = {k: state.get(k) for k in ("title", "public", "for_user", "module", "app", "icon", "indicator_color",
+			"parent_page", "roles", "is_hidden") + SECTIONS}
+		out["content"] = list(state.get("content") or [])
+		out["public"] = state.get("public", 1)
+		if spec["operation"] == "create":
+			out.update({"title": spec["title"], "public": spec["public"], "for_user": spec.get("for_user") or "",
+				"module": "", "app": "", "icon": "", "indicator_color": "", "parent_page": "", "roles": [], "is_hidden": 0})
+			for key in SECTIONS:
+				out[key] = []
+			out["content"] = []
+		for key in META_KEYS + SECTIONS:
+			if key in spec:
+				out[key] = spec[key]
+		for key in SECTIONS:
+			out[key] = out.get(key) or []
+		if "content" in spec:
+			out["content"] = list(spec["content"])
+		elif spec["operation"] == "create":
+			out["content"] = self._fresh_content(out)
+		# blocks follow the sections (a no-op when the content already matches them)
+		for block_type, (section, _key, _col) in BLOCKS.items():
+			if section in spec:
+				out["content"] = place_blocks(out["content"], block_type, section_labels(section, out[section]))
+		sidebar = state.get("sidebar")
+		if "sidebar" in spec:
+			sidebar = None if spec["sidebar"].get("remove") else {"title": out.get("title") or spec["name"], "standard": 0, "app": "",
+				"header_icon": spec["sidebar"].get("header_icon") or (sidebar or {}).get("header_icon") or out.get("icon") or "",
+				"items": spec["sidebar"]["items"]}
+		elif spec["operation"] == "create" and out["public"] and not sidebar:
+			sidebar = {"title": spec["title"], "standard": 0, "app": "", "header_icon": out.get("icon") or "",
+				"items": [{"type": "Link", "label": "Home", "link_type": "Workspace", "link_to": spec["name"], "icon": "home"}]}
+		out["sidebar"] = sidebar
+		out["desktop_icon"] = spec.get("desktop_icon", 1 if state.get("desktop_icon") else 0)
+		return out
+
+	def _fresh_content(self, out):
+		content = []
+
+		def header(text):
+			content.append({"id": block_id(), "type": "header", "data": {"text": f'<span class="h4"><b>{frappe.utils.escape_html(text)}</b></span>', "col": 12}})
+
+		for block_type, title in (("number_card", None), ("chart", None), ("shortcut", _("Your Shortcuts")), ("card", _("Reports & Masters"))):
+			section, key, col = BLOCKS[block_type]
+			labels = section_labels(section, out[section])
+			if not labels:
+				continue
+			if title:
+				header(title)
+			for label in labels:
+				content.append({"id": block_id(), "type": block_type, "data": {key: label, "col": col}})
+		return content
+
+	# -- check -----------------------------------------------------------------------------------
+	def check(self, spec, user):
+		checks = _base.role_checks(user, ROLES, _("Frappe lets only Workspace Managers save public workspaces and delete sidebars"))
+		state = current(spec["name"])
+		op = spec["operation"]
+		preview = {"name": spec["name"], "operation": op}
+		impact = []
+
+		if op == "create":
+			if state["exists"]:
+				checks.append(Check("workspace.name_taken", "critical", _("A workspace named {0} already exists; use operation update").format(spec["name"])))
+			from frappe.desk.utils import slug
+
+			taken = [dt for dt in ("Page", "DocType", "Workspace") if any(slug(n) == slug(spec["name"])
+				for n in frappe.get_all(dt, filters={"name": ("like", spec["name"].replace("-", "_").replace(" ", "_"))}, pluck="name"))]
+			if taken and not state["exists"]:
+				checks.append(Check("workspace.route_conflict", "critical", _("{0} is already a route of a {1}: pick another title").format(spec["name"], ", ".join(taken))))
+			if spec["public"] and state.get("sidebar"):
+				checks.append(Check("workspace.sidebar_taken", "critical", _("A sidebar named {0} already exists; pick another title or update that sidebar").format(spec["title"])))
+			if spec.get("desktop_icon") and state.get("desktop_icon"):
+				checks.append(Check("workspace.icon_taken", "warning", _("A desktop icon named {0} already exists: it is kept and no new icon is made").format(spec["title"])))
+		elif state["exists"] and is_standard_workspace(state) and (op in ("delete", "disable", "enable") or set(spec) & set(SECTIONS + META_KEYS + ("content",))):
+			checks.append(Check("workspace.standard", "critical",
+				_("{0} belongs to the app {1}: it is not edited in place (developer mode would write the change into the app, migrate would overwrite it). Create a copy: operation create with copy_from {0}").format(
+					spec["name"], state.get("app") or state.get("module"))))
+		if op == "update" and "sidebar" in spec and state.get("sidebar") and is_standard_sidebar(state["sidebar"]):
+			checks.append(Check("workspace.standard", "critical",
+				_("The sidebar {0} belongs to the app {1}: create a copy (operation create with copy_from) instead of editing it").format(
+					state["sidebar"]["title"], state["sidebar"].get("app") or "-")))
+		if op in ("disable", "enable") and state["exists"] and not state.get("public"):
+			checks.append(Check("workspace.private", "critical", _("A private workspace cannot be hidden; delete it instead")))
+
+		if op in ("disable", "enable", "delete"):
+			if op == "delete":
+				checks += self._dry_delete(spec, state)
+				impact.append(_("Removes the workspace {0}{1}").format(spec["name"],
+					_(", its sidebar and desktop icon") if state.get("sidebar") and not is_standard_sidebar(state["sidebar"]) else ""))
+			else:
+				impact.append(_("{0} is {1} for everyone but Workspace Managers").format(spec["name"], _("hidden") if op == "disable" else _("shown")))
+			preview["sidebar"] = {"before": sidebar_text((state.get("sidebar") or {}).get("items"))}
+			return _base.build_report(checks, impact=impact, preview=preview, risk="low")
+
+		merged = self.merged(spec, state)
+		audience, audience_label = self._audience(merged, spec)
+		checks += self._check_targets(merged, spec, audience, audience_label)
+		checks += self._check_icons(merged, spec)
+		checks += self._check_labels(merged)
+		if merged.get("parent_page") and not frappe.db.exists("Workspace", merged["parent_page"]):
+			checks.append(Check("workspace.parent_page", "critical", _("There is no workspace {0} to nest under").format(merged["parent_page"])))
+		if merged.get("sidebar") and not any(i.get("type") == "Link" for i in merged["sidebar"]["items"]):
+			checks.append(Check("workspace.sidebar_empty", "warning", _("The sidebar has no links: Frappe hides a sidebar without a link (boot.get_sidebar_items)")))
+		if not any(c.level == "critical" for c in checks):
+			checks += self._dry_save(spec, merged, state, user)
+
+		preview.update({
+			"title": merged.get("title"), "public": merged.get("public"), "roles": merged.get("roles") or [],
+			"shortcuts": section_labels("shortcuts", merged["shortcuts"]),
+			"cards": {c["label"]: [l["label"] for l in c["links"]] for c in merged["cards"]},
+			"number_cards": section_labels("number_cards", merged["number_cards"]),
+			"charts": section_labels("charts", merged["charts"]),
+			"blocks": [f"{b['type']}:{(b.get('data') or {}).get(BLOCKS.get(b['type'], (0, 'text'))[1], '')}"[:80] for b in merged["content"]],
+		})
+		if merged.get("sidebar") or state.get("sidebar"):
+			preview["sidebar"] = {"before": sidebar_text((state.get("sidebar") or {}).get("items")),
+				"after": sidebar_text((merged.get("sidebar") or {}).get("items"))}
+		if spec.get("copied_from"):
+			preview["copied_from"] = spec["copied_from"]
+		impact.append(audience_label)
+		if merged.get("sidebar") and ("sidebar" in spec or op == "create"):
+			impact.append(_("The left menu {0} shows {1} item(s) on this workspace and on every page it links").format(
+				merged["sidebar"]["title"], len(merged["sidebar"]["items"])))
+		if op == "create" and merged.get("public") and spec.get("desktop_icon") and not state.get("desktop_icon"):
+			impact.append(_("Adds a desktop icon {0} for every user who can see one of its sidebar links").format(spec["title"]))
+		return _base.build_report(checks, impact=impact, preview=preview, risk="low")
+
+	def _audience(self, merged, spec):
+		if not merged.get("public"):
+			owner = merged.get("for_user") or spec.get("requested_by")
+			return {"user": owner}, _("Only {0} sees this private workspace").format(owner)
+		roles = merged.get("roles") or []
+		if roles:
+			return {"roles": set(roles)}, _("Shown to the roles {0}").format(short_list(roles))
+		return {"roles": set(desk_roles())}, _("Shown to every desk user")
+
+	def _targets(self, merged):
+		out = []
+		for s in merged["shortcuts"]:
+			if s["type"] != "URL":
+				out.append((_("Shortcut {0}").format(s["label"]), s["type"], s["link_to"]))
+			else:
+				out.append((_("Shortcut {0}").format(s["label"]), "URL", s.get("url")))
+		for card in merged["cards"]:
+			for link in card["links"]:
+				out.append((_("Card {0} › {1}").format(card["label"], link["label"]), link["link_type"], link["link_to"]))
+		for item in (merged.get("sidebar") or {}).get("items") or []:
+			if item.get("type") == "Link":
+				target = item.get("url") if item.get("link_type") == "URL" else item.get("link_to")
+				out.append((_("Sidebar {0}").format(item.get("label")), item.get("link_type"), target))
+		return out
+
+	def _check_targets(self, merged, spec, audience, audience_label):
+		checks = []
+		seen = set()
+		for where, link_type, link_to in self._targets(merged):
+			if link_type == "URL":
+				if not URL_RE.match(cstr(link_to)):
+					checks.append(Check("workspace.url", "critical", _("{0}: a URL starts with https://, http:// or / ({1})").format(where, link_to)))
+				continue
+			if link_type == "Workspace" and link_to == spec["name"]:
+				continue  # the workspace itself (created in this request)
+			if not target_exists(link_type, link_to):
+				checks.append(Check("workspace.link_missing", "critical", _("{0}: there is no {1} {2}").format(where, link_type, link_to)))
+				continue
+			if (link_type, link_to) in seen:
+				continue
+			seen.add((link_type, link_to))
+			checks += self._audience_check(where, link_type, link_to, audience)
+		for section, doctype, widget in (("number_cards", "Number Card", _("Number card")), ("charts", "Dashboard Chart", _("Chart"))):
+			for row in merged[section]:
+				if not frappe.db.exists(doctype, row["name"]):
+					checks.append(Check("workspace.link_missing", "critical", _("{0}: there is no {1} {2}").format(widget, doctype, row["name"])))
+					continue
+				source = frappe.db.get_value(doctype, row["name"], ["document_type", "report_name"], as_dict=True)
+				if source.document_type and frappe.db.exists("DocType", source.document_type):
+					checks += self._audience_check(_("{0} {1}").format(widget, row["name"]), "DocType", source.document_type, audience)
+				elif source.report_name and frappe.db.exists("Report", source.report_name):
+					checks += self._audience_check(_("{0} {1}").format(widget, row["name"]), "Report", source.report_name, audience)
+		return self._cap_audience(checks)
+
+	def _cap_audience(self, checks, limit=8):
+		audience = [c for c in checks if c.code == "workspace.link_audience"]
+		if len(audience) <= limit:
+			return checks
+		others = [c for c in checks if c.code != "workspace.link_audience"]
+		return others + audience[:limit] + [Check("workspace.link_audience", "warning",
+			_("{0} more links are hidden from some of the audience").format(len(audience) - limit))]
+
+	def _audience_check(self, where, link_type, link_to, audience):
+		if audience.get("user"):
+			user = audience["user"]
+			ok = True
+			if link_type == "DocType":
+				ok = frappe.has_permission(link_to, "read", user=user)
+			elif link_type in ("Report", "Page"):
+				allowed = roles_that_open(link_type, link_to)
+				ok = allowed is None or user == "Administrator" or bool(allowed & set(frappe.get_roles(user)))
+			if not ok:
+				return [Check("workspace.link_audience", "warning", _("{0}: {1} cannot open {2} {3}; Frappe hides it").format(where, user, link_type, link_to))]
+			return []
+		allowed = roles_that_open(link_type, link_to)
+		if allowed is None:
+			return []
+		blocked = set(audience.get("roles") or ()) - allowed - {"System Manager"}
+		if not blocked:
+			return []
+		return [Check("workspace.link_audience", "warning", _("{0}: the roles {1} cannot open {2} {3}; Frappe hides it from users who hold only those").format(
+			where, short_list(blocked), link_type, link_to))]
+
+	def _check_icons(self, merged, spec):
+		checks = []
+		for where, icon in [(_("Workspace icon"), spec.get("icon")), (_("Sidebar header icon"), ((spec.get("sidebar") or {}).get("header_icon")))] + \
+				[(_("Sidebar {0}").format(i.get("label")), i.get("icon")) for i in ((spec.get("sidebar") or {}).get("items") or [])] + \
+				[(_("Shortcut {0}").format(s["label"]), s.get("icon")) for s in spec.get("shortcuts") or []] + \
+				[(_("Card {0}").format(c["label"]), c.get("icon")) for c in spec.get("cards") or []]:
+			found = icon_check(icon, where)
+			if found:
+				checks.append(found)
+		return checks
+
+	def _check_labels(self, merged):
+		checks = []
+		for section, what in (("shortcuts", _("shortcut")), ("cards", _("card")), ("number_cards", _("number card")), ("charts", _("chart"))):
+			labels = section_labels(section, merged[section])
+			dupes = sorted({x for x in labels if labels.count(x) > 1})
+			if dupes:
+				checks.append(Check("workspace.duplicate", "critical", _("Two {0}s share the label {1}: blocks find their widget by label").format(what, ", ".join(dupes))))
+		for block in merged["content"]:
+			spec_ = BLOCKS.get(block.get("type"))
+			if not spec_:
+				continue
+			label = (block.get("data") or {}).get(spec_[1])
+			if label not in section_labels(spec_[0], merged[spec_[0]]):
+				checks.append(Check("workspace.block", "critical", _("The {0} block {1} has no matching row in {2}").format(block["type"], label, spec_[0])))
+		items = (merged.get("sidebar") or {}).get("items") or []
+		labels = [i.get("label") for i in items if i.get("type") == "Link"]
+		dupes = sorted({x for x in labels if labels.count(x) > 1})
+		if dupes:
+			checks.append(Check("workspace.duplicate", "warning", _("Sidebar links share a label: {0}").format(", ".join(dupes))))
+		return checks
+
+	def _dry_save(self, spec, merged, state, user):
+		collect = _base.capture_messages()
+		try:
+			with dry_run(), _base.as_user(user):
+				self._write(spec, merged, state, approval=None)
+		except Exception as exc:
+			return [Check("workspace.frappe", "critical", _("Frappe refuses the change: {0}").format(frappe_error(exc, collect())))]
+		collect()
+		return [Check("workspace.frappe", "ok", _("Frappe's own validation passes (dry run, rolled back)"))]
+
+	def _dry_delete(self, spec, state):
+		if not state["exists"]:
+			return [Check("workspace.missing", "critical", _("There is no workspace {0}").format(spec["name"]))]
+		collect = _base.capture_messages()
+		try:
+			with dry_run():
+				self._delete(spec, state)
+		except Exception as exc:
+			return [Check("workspace.frappe", "critical", _("Frappe refuses the change: {0}").format(frappe_error(exc, collect())))]
+		collect()
+		return [Check("workspace.frappe", "ok", _("The workspace can be removed (dry run, rolled back)"))]
+
+	# -- writing ------------------------------------------------------------------------------------
+	def _write(self, spec, merged, state, approval=None):
+		op = spec["operation"]
+		touches_workspace = op == "create" or bool(set(spec) & set(SECTIONS + META_KEYS + ("content",)))
+		if touches_workspace:
+			if op == "create":
+				doc = frappe.new_doc("Workspace")
+				doc.update({"label": spec["name"], "title": merged["title"], "public": merged["public"],
+					"for_user": merged.get("for_user") or "", "type": "Workspace"})
+				from frappe.desk.doctype.workspace.workspace import last_sequence_id
+
+				doc.sequence_id = last_sequence_id(doc) + 1
+			else:
+				doc = frappe.get_doc("Workspace", spec["name"])
+			doc.icon = merged.get("icon") or ("grid" if op == "create" else doc.icon)
+			doc.indicator_color = merged.get("indicator_color") or None
+			doc.parent_page = merged.get("parent_page") or ""
+			doc.set("roles", [{"role": r} for r in merged.get("roles") or []])
+			doc.set("shortcuts", [dict(s) for s in merged["shortcuts"]])
+			links = []
+			for card in merged["cards"]:
+				links.append({"type": "Card Break", "label": card["label"], "icon": card.get("icon") or None,
+					"description": card.get("description") or None, "hidden": card.get("hidden") or 0, "link_count": len(card["links"])})
+				links += [{"type": "Link", **link} for link in card["links"]]
+			doc.set("links", links)
+			doc.set("number_cards", [{"number_card_name": r["name"], "label": r.get("label") or r["name"]} for r in merged["number_cards"]])
+			doc.set("charts", [{"chart_name": r["name"], "label": r.get("label") or r["name"]} for r in merged["charts"]])
+			doc.content = json.dumps(merged["content"])
+			if op == "create":
+				doc.insert()
+				if not merged["public"]:
+					self._add_to_my_workspaces(doc)
+			else:
+				doc.save()
+		if merged.get("public"):
+			if "sidebar" in spec or op == "create":
+				self._write_sidebar(merged.get("sidebar"), state.get("sidebar"))
+			if "desktop_icon" in spec:
+				self._write_icon(spec, merged, state)
+
+	def _write_sidebar(self, wanted, before):
+		if wanted is None:
+			if before and not is_standard_sidebar(before):
+				frappe.delete_doc("Workspace Sidebar", before["title"], ignore_missing=True)
+			return
+		if frappe.db.exists("Workspace Sidebar", wanted["title"]):
+			doc = frappe.get_doc("Workspace Sidebar", wanted["title"])
+		else:
+			doc = frappe.new_doc("Workspace Sidebar")
+			doc.title = wanted["title"]
+		# standard=0 and no app: never exported into an app folder (workspace_sidebar.py:53-63)
+		doc.standard = 0
+		doc.app = None
+		doc.header_icon = wanted.get("header_icon") or None
+		doc.set("items", [])
+		for item in wanted["items"]:
+			row = {k: item.get(k) for k in ITEM_FIELDS if item.get(k) not in (None, "")}
+			row.setdefault("collapsible", 1)
+			doc.append("items", row)
+		doc.save() if not doc.is_new() else doc.insert()
+
+	def _write_icon(self, spec, merged, state):
+		label = merged.get("title") or spec["name"]
+		existing = state.get("desktop_icon")
+		if not spec.get("desktop_icon"):
+			if existing and not existing.get("standard") and not existing.get("app"):
+				frappe.delete_doc("Desktop Icon", label, ignore_missing=True)
+			return
+		if existing:
+			return
+		icon = frappe.new_doc("Desktop Icon")
+		icon.update({"label": label, "icon_type": "Link", "link_type": "Workspace Sidebar", "link_to": label,
+			"icon": merged.get("icon") or None, "standard": 0, "app": None})
+		icon.insert()
+		# A non-standard icon is listed only for its owner and for Administrator-owned icons
+		# (desktop_icon.py get_desktop_icons): own it by Administrator, as Frappe's own non-standard icons are,
+		# so every user who can see the sidebar gets the tile. The approval keeps who made it.
+		frappe.db.set_value("Desktop Icon", icon.name, "owner", "Administrator", update_modified=False)
+		from frappe.desk.doctype.desktop_icon.desktop_icon import clear_desktop_icons_cache
+
+		clear_desktop_icons_cache()
+
+	def _add_to_my_workspaces(self, doc):
+		"""Frappe's ``add_to_my_workspace`` (workspace_sidebar.py:200-235) clones the standard 'My Workspaces'
+		sidebar with standard=1/app=frappe, which in developer mode writes a JSON file into apps/frappe; this
+		does the same with standard=0 and no app."""
+		user = doc.for_user
+		name = f"My Workspaces-{user}"
+		if frappe.db.exists("Workspace Sidebar", name):
+			sidebar = frappe.get_doc("Workspace Sidebar", name)
+		else:
+			sidebar = frappe.new_doc("Workspace Sidebar")
+			sidebar.title = name
+			sidebar.for_user = user
+			sidebar.header_icon = frappe.db.get_value("Workspace Sidebar", "My Workspaces", "header_icon")
+		sidebar.standard = 0
+		sidebar.app = None
+		sidebar.append("items", {"label": doc.title, "type": "Link", "link_to": doc.name, "link_type": "Workspace",
+			"icon": doc.icon, "collapsible": 1})
+		sidebar.save() if not sidebar.is_new() else sidebar.insert()
+		if sidebar.owner != user:
+			frappe.db.set_value("Workspace Sidebar", sidebar.name, "owner", user, update_modified=False)
+
+	def _delete(self, spec, state):
+		name = spec["name"]
+		if not state.get("public") and state.get("for_user"):
+			mine = f"My Workspaces-{state['for_user']}"
+			if frappe.db.exists("Workspace Sidebar", mine):
+				sidebar = frappe.get_doc("Workspace Sidebar", mine)
+				keep = [r for r in sidebar.items if not (r.link_type == "Workspace" and r.link_to == name)]
+				if len(keep) != len(sidebar.items):
+					sidebar.set("items", keep)
+					sidebar.save()
+		icon = state.get("desktop_icon")
+		if icon and not icon.get("standard") and not icon.get("app"):
+			frappe.delete_doc("Desktop Icon", icon["name"], ignore_missing=True)
+		sidebar = state.get("sidebar")
+		if sidebar and not is_standard_sidebar(sidebar):
+			frappe.delete_doc("Workspace Sidebar", sidebar["title"], ignore_missing=True)
+		# ignore_on_trash: Workspace.on_trash deletes any sidebar/icon titled like the workspace (even someone
+		# else's public one for a private workspace) and the *session* user's My Workspaces row; done above instead.
+		frappe.delete_doc("Workspace", name, ignore_on_trash=True)
+
+	# -- execute / verify ---------------------------------------------------------------------------
+	def execute(self, spec, user, approval=None):
+		state = current(spec["name"])
+		op = spec["operation"]
+		with _base.as_user(user):
+			if op == "create":
+				self._write(spec, self.merged(spec, state), state, approval)
+				undo = {"operation": "delete", "name": spec["name"]}
+			elif op == "delete":
+				self._delete(spec, state)
+				undo = self.restore_spec(state)
+			elif op in ("disable", "enable"):
+				frappe.db.set_value("Workspace", spec["name"], "is_hidden", 1 if op == "disable" else 0)
+				icon = state.get("desktop_icon")
+				if icon and not icon.get("standard"):
+					frappe.db.set_value("Desktop Icon", icon["name"], "hidden", 1 if op == "disable" else 0)
+				from frappe.desk.doctype.desktop_icon.desktop_icon import clear_desktop_icons_cache
+
+				clear_desktop_icons_cache()
+				undo = {"operation": "enable" if op == "disable" else "disable", "name": spec["name"]}
+			else:
+				merged = self.merged(spec, state)
+				self._write(spec, merged, state, approval)
+				undo = self._update_undo(spec, state)
+		frappe.cache.delete_key("bootinfo")
+		return {"targets": [{"doctype": "Workspace", "name": spec["name"]}], "undo": undo}
+
+	def _update_undo(self, spec, state):
+		undo = {"operation": "update", "name": spec["name"], "purpose": _("undo of {0}").format(_base.approval_name() or "")}
+		for key in META_KEYS + SECTIONS:
+			if key in spec:
+				undo[key] = state.get(key) if state.get(key) is not None else ([] if key in SECTIONS + ("roles",) else "")
+		if set(spec) & set(SECTIONS + ("content",)):
+			undo["content"] = state.get("content") or []
+		if "sidebar" in spec:
+			before = state.get("sidebar")
+			undo["sidebar"] = {"items": before["items"], "header_icon": before.get("header_icon") or ""} if before else {"remove": 1}
+		if "desktop_icon" in spec:
+			undo["desktop_icon"] = 1 if state.get("desktop_icon") else 0
+		return undo
+
+	def restore_spec(self, state):
+		"""A create spec that rebuilds ``state`` (the undo of a delete)."""
+		spec = {"operation": "create", "name": state["name"], "title": state.get("title") or state["name"],
+			"public": state.get("public", 1), "requested_by": state.get("for_user") or frappe.session.user,
+			"purpose": _("restore {0}").format(state["name"])}
+		if not spec["public"]:
+			spec["for_user"] = state.get("for_user")
+		for key in META_KEYS + SECTIONS + ("content",):
+			spec[key] = state.get(key) if state.get(key) is not None else ""
+		if state.get("sidebar") and spec["public"] and not is_standard_sidebar(state["sidebar"]):
+			spec["sidebar"] = {"items": state["sidebar"]["items"], "header_icon": state["sidebar"].get("header_icon") or ""}
+		spec["desktop_icon"] = 1 if state.get("desktop_icon") and spec["public"] else 0
+		return spec
+
+	def verify(self, spec, result):
+		state = current(spec["name"])
+		op = spec["operation"]
+		checks = []
+		needs_page = op in ("create", "disable", "enable") or bool(set(spec) & set(SECTIONS + META_KEYS + ("content",)))
+		if op == "delete":
+			if state["exists"]:
+				checks.append(Check("verify.deleted", "critical", _("{0} still exists").format(spec["name"])))
+		elif needs_page and not state["exists"]:
+			checks.append(Check("verify.exists", "critical", _("Workspace {0} does not exist").format(spec["name"])))
+		elif op in ("disable", "enable"):
+			if state.get("is_hidden") != (1 if op == "disable" else 0):
+				checks.append(Check("verify.hidden", "critical", _("{0} is not {1}").format(spec["name"], _("hidden") if op == "disable" else _("shown"))))
+		else:
+			for key in SECTIONS + ("roles",):
+				if key in spec and json.dumps(state.get(key), sort_keys=True) != json.dumps(spec[key] if key != "roles" else sorted(spec[key]), sort_keys=True):
+					checks.append(Check("verify.section", "critical", _("{0} differs from the approved change").format(key)))
+			if "sidebar" in spec:
+				wanted = None if spec["sidebar"].get("remove") else spec["sidebar"]["items"]
+				got = (state.get("sidebar") or {}).get("items")
+				if json.dumps(wanted, sort_keys=True) != json.dumps(got, sort_keys=True):
+					checks.append(Check("verify.sidebar", "critical", _("The sidebar differs from the approved one")))
+			if op == "create" and not spec.get("public") and spec.get("for_user"):
+				mine = _sidebar_state(f"My Workspaces-{spec['for_user']}")
+				if not mine or not any(i.get("link_to") == spec["name"] for i in mine["items"]):
+					checks.append(Check("verify.my_workspaces", "warning", _("The workspace is not listed in {0}'s My Workspaces").format(spec["for_user"])))
+		if not checks:
+			checks.append(Check("verify.workspace", "ok", _("{0} is in place").format(spec["name"])))
+		return checks
+
+	def summary(self, spec):
+		verb = {"create": _("Create"), "update": _("Update"), "disable": _("Hide"), "enable": _("Show"), "delete": _("Delete")}[spec["operation"]]
+		private = "" if spec.get("public", 1) else _(" (private)")
+		return _("{0} workspace {1}{2}").format(verb, spec["name"], private)
+
+	def get_source(self, name, user=None):
+		if not frappe.db.exists("Workspace", name) and not frappe.db.exists("Workspace Sidebar", name):
+			raise frappe.DoesNotExistError(_("There is no workspace {0}").format(name))
+		state = current(name)
+		state["kind"] = self.name
+		state["standard"] = is_standard_workspace(state) if state["exists"] else False
+		if state.get("sidebar"):
+			state["sidebar"]["preview"] = sidebar_text(state["sidebar"]["items"])
+		return state
+
+
+KIND = WorkspaceKind()

@@ -1,0 +1,59 @@
+{
+  "kind": "web",
+  "tool": "customize.request_web",
+  "setting": "allow_customize_web",
+  "roles": ["System Manager", "Website Manager"],
+  "description": "Create, update, publish or unpublish a public Web Page or Web Form (website visitors see it; created unpublished, needs approval)",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["create", "update", "publish", "unpublish", "delete"], "description": "delete only for an unpublished record (it is the undo of a create); disable = unpublish"},
+      "doctype": {"type": "string", "enum": ["Web Page", "Web Form"]},
+      "name": {"type": "string", "description": "Record name; required except for create (default: the title in lower-case-with-dashes)"},
+      "title": {"type": "string"},
+      "route": {"type": "string", "description": "URL path without the leading slash, ASCII: offers/summer-2026. Must not be a Desk/API path, an app page (login, contact…) or another page's route"},
+      "published": {"type": "boolean", "description": "Default false. true makes it visible to anyone on the internet (high risk); only when the user asked to publish"},
+      "meta_title": {"type": "string"},
+      "meta_description": {"type": "string"},
+      "allow_scripts": {"type": "boolean", "description": "Only when the user explicitly wants active content (<script>, event handlers, iframes, javascript field): turns those criticals into high-risk warnings"},
+      "content_type": {"type": "string", "enum": ["Rich Text", "Markdown", "HTML"], "description": "Web Page only"},
+      "content": {"type": "string", "maxLength": 100000, "description": "Web Page only: the body in content_type. Jinja ({{ }}) is rendered for anonymous visitors: formatting only (frappe.utils.*, frappe.format_value, _())"},
+      "css": {"type": "string", "maxLength": 20000, "description": "Web Page only"},
+      "javascript": {"type": "string", "maxLength": 20000, "description": "Web Page only; needs allow_scripts: true"},
+      "show_title": {"type": "boolean", "description": "Web Page only"},
+      "dynamic_template": {"type": "boolean", "description": "Web Page only: render the content as Jinja"},
+      "doc_type": {"type": "string", "description": "Web Form only: the DocType the form creates records of"},
+      "form_fields": {
+        "type": "array", "maxItems": 60,
+        "description": "Web Form only: fields of doc_type in order ({fieldname} is enough: label, type and options come from the DocType). Layout rows: {fieldtype: 'Section Break'|'Column Break'|'Page Break', label}",
+        "items": {"type": "object", "properties": {
+          "fieldname": {"type": "string"}, "label": {"type": "string"}, "fieldtype": {"type": "string"},
+          "options": {"type": "string"}, "reqd": {"type": "integer", "enum": [0, 1]}, "hidden": {"type": "integer", "enum": [0, 1]},
+          "read_only": {"type": "integer", "enum": [0, 1]}, "default": {"type": "string"}, "description": {"type": "string"},
+          "placeholder": {"type": "string"}, "depends_on": {"type": "string"}, "mandatory_depends_on": {"type": "string"},
+          "read_only_depends_on": {"type": "string"}, "max_length": {"type": "integer"}, "max_value": {"type": "integer"},
+          "precision": {"type": "string"}, "allow_read_on_all_link_options": {"type": "integer", "enum": [0, 1]},
+          "show_in_filter": {"type": "integer", "enum": [0, 1]}
+        }}
+      },
+      "login_required": {"type": "boolean", "description": "Web Form only; default true. false = a public form anyone on the internet can submit (needs allow_guest)"},
+      "allow_guest": {"type": "boolean", "description": "Web Form only: explicit consent to login_required false (edit and list are then forced off)"},
+      "allow_edit": {"type": "boolean"},
+      "allow_multiple": {"type": "boolean"},
+      "show_list": {"type": "boolean"},
+      "apply_document_permissions": {"type": "boolean"},
+      "introduction_text": {"type": "string"},
+      "success_title": {"type": "string"},
+      "success_message": {"type": "string"},
+      "success_url": {"type": "string", "description": "Relative path; another site is warned"},
+      "button_label": {"type": "string"},
+      "client_script": {"type": "string", "maxLength": 20000, "description": "Web Form only: checked by the JavaScript analyzer"},
+      "custom_css": {"type": "string", "maxLength": 20000},
+      "purpose": {"type": "string", "description": "One line: why the user wants it (shown on the card)"}
+    },
+    "required": ["operation", "doctype"]
+  },
+  "get_fields": ["title", "route", "published", "content_type", "main_section", "main_section_md", "main_section_html", "css", "javascript", "dynamic_template", "context_script", "meta_title", "meta_description"],
+  "get_doctype": "Web Page",
+  "inspect_part": null
+}

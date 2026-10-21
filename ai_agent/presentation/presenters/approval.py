@@ -5,11 +5,16 @@ import frappe
 from ai_agent.presentation.registry import register
 
 
+def _customize_request_tools():
+    from ai_agent.customization import registry
+
+    return (*registry.REQUEST_TOOLS, registry.UNDO_TOOL)
+
+
 @register("actions.request_create_draft", "actions.request_bulk_create", "actions.request_mapped_draft",
           "actions.request_update", "actions.request_submit", "actions.request_cancel",
           "actions.request_workflow_action",
-          "customize.request_field", "customize.request_properties", "customize.request_client_script",
-          "customize.request_server_script", "customize.request_report", "customize.request_undo")
+          *_customize_request_tools())
 def present_request(tool, arguments, result, ctx):
     from ai_agent.mcp import approvals
 

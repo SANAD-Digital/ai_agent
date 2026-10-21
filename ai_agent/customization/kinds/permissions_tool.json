@@ -1,0 +1,25 @@
+{
+  "kind": "permissions",
+  "tool": "customize.request_permissions",
+  "setting": "allow_customize_permissions",
+  "roles": ["System Manager"],
+  "four_eyes_required": true,
+  "description": "Request a change to who can do what on a DocType (role permissions, like the Role Permission Manager): grant or revoke rights for a role, or reset to standard; shows which users gain or lose which rights; always needs a second approver",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["grant", "revoke", "reset"], "description": "grant: add rights (the rule is created when missing). revoke: remove the listed rights, or the whole rule when rights is empty. reset: back to the DocType's standard permissions"},
+      "doctype": {"type": "string", "description": "Exact DocType name (not a child table, not User/Role/permission/code/settings DocTypes)"},
+      "role": {"type": "string", "description": "Exact Role name; grant/revoke only. Never Administrator"},
+      "rights": {"type": "array", "items": {"type": "string", "enum": ["select", "read", "write", "create", "delete", "submit", "cancel", "amend", "print", "email", "report", "import", "export", "share"]}, "description": "grant: rights to give. revoke: rights to take (empty = remove the role's rule)"},
+      "permlevel": {"type": "integer", "minimum": 0, "maximum": 9, "description": "Field level the rule applies to; default 0 (the document). Level > 0 needs a level 0 rule for the role and only takes read/write"},
+      "if_owner": {"type": "integer", "enum": [0, 1], "description": "1 = only documents the user created (Frappe's 'Only If Creator')"},
+      "allow_automatic_role": {"type": "integer", "enum": [0, 1], "description": "Set 1 only when the user explicitly named Guest, All or Desk User"},
+      "purpose": {"type": "string", "description": "One line: why the user wants it (shown on the card)"}
+    },
+    "required": ["operation", "doctype"]
+  },
+  "get_fields": [],
+  "get_doctype": null,
+  "inspect_part": "permissions"
+}

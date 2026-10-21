@@ -49,6 +49,13 @@
   "allow_customize_client_scripts",
   "allow_customize_server_scripts",
   "allow_customize_reports",
+  "allow_customize_print_formats",
+  "allow_customize_notifications",
+  "allow_customize_workflows",
+  "allow_customize_dashboards",
+  "allow_customize_web",
+  "allow_customize_permissions",
+  "allow_customize_doctypes",
   "cb_customization",
   "customization_allow_mcp",
   "customization_require_four_eyes",
@@ -323,7 +330,7 @@
   },
   {
    "collapsible": 1,
-   "description": "Let the assistant request changes to how the system works: custom fields, form properties, client and server scripts, custom reports. Every change is checked, shown in full on its approval card and runs only after a person with the Frappe roles approves it (never by auto-approval).",
+   "description": "Let the assistant request changes to how the system works: fields and form properties, scripts, reports, print formats, notifications, workflows, naming, dashboards and workspaces, web pages and forms, role permissions and new DocTypes. Every change is checked, shown in full on its approval card and runs only after a person with the Frappe roles approves it (never by auto-approval).",
    "fieldname": "section_customization",
    "fieldtype": "Section Break",
    "label": "Customization"
@@ -340,7 +347,8 @@
    "depends_on": "allow_customization_actions",
    "fieldname": "allow_customize_fields",
    "fieldtype": "Check",
-   "label": "Custom Fields and Form Properties"
+   "label": "Fields, Form Properties, List Views and Naming",
+   "description": "Custom fields, field and form properties, list view columns and settings, and how new documents are named (naming rules and series)."
   },
   {
    "default": "0",
@@ -362,7 +370,61 @@
    "depends_on": "allow_customization_actions",
    "fieldname": "allow_customize_reports",
    "fieldtype": "Check",
-   "label": "Custom Reports"
+   "label": "Custom Reports",
+   "description": "Report Builder and Query Report; Python (Script) reports also need Script Manager and server scripts enabled."
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_print_formats",
+   "fieldtype": "Check",
+   "label": "Print Formats"
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_notifications",
+   "fieldtype": "Check",
+   "label": "Notifications",
+   "description": "Email and system notifications on documents. Recipients outside the site's users need an explicit confirmation."
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_workflows",
+   "fieldtype": "Check",
+   "label": "Workflows"
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_dashboards",
+   "fieldtype": "Check",
+   "label": "Dashboards and Workspaces",
+   "description": "Number cards, dashboard charts, workspaces and the sidebar."
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_web",
+   "fieldtype": "Check",
+   "label": "Web Pages and Web Forms",
+   "description": "Public pages and forms. Also needs the Website Manager role."
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_permissions",
+   "fieldtype": "Check",
+   "label": "Role Permissions",
+   "description": "Always needs a second approver, whatever the setting below says."
+  },
+  {
+   "default": "0",
+   "depends_on": "allow_customization_actions",
+   "fieldname": "allow_customize_doctypes",
+   "fieldtype": "Check",
+   "label": "New DocTypes"
   },
   {
    "fieldname": "cb_customization",
@@ -641,7 +703,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-19 20:00:00.000000",
+ "modified": "2026-10-19 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

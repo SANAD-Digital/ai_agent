@@ -229,6 +229,11 @@ class TestCustomizationSkillExamples(IntegrationTestCase):
 		from ai_agent.customization.kinds import custom_field, properties, report
 
 		kinds = {"custom_field": custom_field.KIND, "properties": properties.KIND, "report": report.KIND}
+		# every other kind an example may be tagged with, through the registry
+		from ai_agent.customization import registry as kind_registry
+
+		for name in kind_registry.KINDS:
+			kinds.setdefault(name, kind_registry.get(name))
 		for file, _lang, _tag, attrs, code, previous_sql in of("customize"):
 			label = f"{file}: {code[:80]}"
 			with self.subTest(example=label):

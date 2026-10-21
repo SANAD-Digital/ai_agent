@@ -34,10 +34,24 @@ KIND_LABELS = {
 	"client_script": "Client script",
 	"server_script": "Server script",
 	"report": "Report",
+	"print_format": "Print format",
+	"notification": "Notification",
+	"workflow": "Workflow",
+	"naming": "Naming",
+	"dashboard": "Number card or chart",
+	"workspace": "Workspace and sidebar",
+	"list_settings": "List settings",
+	"web": "Web page or form",
+	"permissions": "Role permissions",
+	"doctype": "New DocType",
 }
 OPERATION_LABELS = {
 	"add": "Add", "create": "Create", "update": "Change", "remove": "Remove",
-	"enable": "Enable", "disable": "Disable",
+	"enable": "Enable", "disable": "Disable", "delete": "Delete", "restore": "Restore", "reset": "Reset to standard",
+	"publish": "Publish", "unpublish": "Unpublish", "grant": "Grant", "revoke": "Revoke",
+	"activate": "Activate", "deactivate": "Deactivate", "set_default": "Make default", "unset_default": "Stop being default",
+	"set_doctype_naming": "Change naming", "create_rule": "Create naming rule", "update_rule": "Change naming rule",
+	"disable_rule": "Disable naming rule", "enable_rule": "Enable naming rule",
 }
 RISK_LABELS = {"low": "Low risk", "medium": "Medium risk", "high": "High risk"}
 CODE_LANGUAGES = {"client_script": "javascript", "server_script": "python"}
@@ -64,6 +78,16 @@ UNDO_TEXT = {
 	("report", "create"): "Disable the report (it is kept for review).",
 	("report", "update"): "Restore the previous version of the report.",
 	("report", "disable"): "Enable the report again.",
+	("print_format", None): "Reverse it: a created format is disabled, a change or the default is restored.",
+	("notification", None): "Reverse it: a created notification is disabled, a change is restored.",
+	("workflow", None): "Reverse it: a created workflow is removed and the previous one reactivated; a change is restored. The workflow state field Frappe adds stays.",
+	("naming", None): "Restore the previous naming; a created rule is disabled. Names already given stay.",
+	("dashboard", None): "Reverse it: a created card or chart is deleted, a change restored, a deleted one re-created.",
+	("workspace", None): "Reverse it: a created workspace is deleted, a change restored, a hidden one shown again.",
+	("list_settings", None): "Restore the previous list settings.",
+	("web", None): "Reverse it: a created page or form is deleted (it is unpublished first), a change restored.",
+	("permissions", None): "Restore the exact previous permission rules.",
+	("doctype", None): "Delete the new DocType while it has no records; a change is restored from the saved definition.",
 }
 PROPERTY_LABELS = {
 	"label": "Label", "hidden": "Hidden", "reqd": "Mandatory", "read_only": "Read only", "bold": "Bold",
@@ -142,8 +166,9 @@ def section(approval, user=None):
 		"diff": _diff(kind, operation, spec, before, preview),
 		"fields": _new_fields(kind, operation, spec) if not preview.get("diff") else [],
 		"layout": _layout(preview.get("layout")),
-		"lists": _lists(preview),
+		"lists": _lists(preview) + _more_lists(preview),
 		"code": _code(kind, operation, spec, before, preview),
+		"codes": _codes(kind, spec, preview),
 		"rows": _rows(preview.get("rows")),
 		"dry_run": _dry_run(preview.get("dry_run")),
 		"undo": t(UNDO_TEXT.get((kind, operation)) or UNDO_TEXT.get((kind, None)) or "Reverse this change with a new request."),
@@ -373,6 +398,71 @@ def _layout(raw):
 	return {"title": title, "fields": fields} if fields else None
 
 
+# Rendered output and second sources the newer kinds put in their preview, drawn as text blocks
+# (never inserted as HTML): key -> (title, language)
+EXTRA_CODES = (
+	("javascript", "Report filters (JavaScript)", "javascript"),
+	("html", "Rendered output (first part)", "html"),
+	("subject_rendered", "Subject as it will be sent", "text"),
+	("message_rendered", "Message as it will be sent", "html"),
+	("css", "Styles", "css"),
+	("definition", "Definition", "json"),
+)
+# Lists and tables the newer kinds compute: key -> title. A list of objects becomes one line per object.
+EXTRA_LISTS = (
+	("next_names", "The next names"), ("examples", "Examples"), ("series_options", "Series options"),
+	("other_rules", "Other naming rules on this DocType"), ("next_runs", "Next runs"), ("paths", "Paths"),
+	("states", "States"), ("transitions", "Transitions"), ("resolved", "Recipients"),
+	("external_links", "External links"), ("sidebar", "Sidebar after the change"), ("placements", "Placed on"),
+	("columns_before", "List columns before"), ("columns_after", "List columns after"), ("fields", "Form fields"),
+	("permission_query", "Permission query per user"), ("users", "Who gains or loses rights"),
+	("matrix_before", "Rules before"), ("matrix_after", "Rules after"), ("changes", "Rule changes"),
+)
+
+
+def _codes(kind, spec, preview):
+	out = []
+	for key, title, language in EXTRA_CODES:
+		value = preview.get(key)
+		if key == "javascript" and not value and kind == "report":
+			value = spec.get("javascript")
+		if isinstance(value, (dict, list)):
+			value = json.dumps(value, ensure_ascii=False, indent=2, default=str)
+		if not value or not isinstance(value, str):
+			continue
+		out.append({"language": language, "text": value, "lines": value.count("\n") + 1, "diff": None, "title": t(title)})
+	return out
+
+
+def _line(value):
+	if isinstance(value, dict):
+		parts = []
+		for k, v in value.items():
+			if v in (None, "", [], {}):
+				continue
+			if isinstance(v, (dict, list)):
+				v = json.dumps(v, ensure_ascii=False, default=str)
+			parts.append(f"{k}: {v}")
+		return " · ".join(parts)
+	if isinstance(value, (list, tuple)):
+		return " · ".join(str(v) for v in value)
+	return str(value)
+
+
+def _more_lists(preview):
+	out = []
+	for key, title in EXTRA_LISTS:
+		value = preview.get(key)
+		if isinstance(value, dict) and value:
+			items = [f"{k}: {_line(v)}" for k, v in value.items()]
+		elif isinstance(value, list) and value:
+			items = [_line(v) for v in value[:MAX_PREVIEW_ROWS * 2]]
+		else:
+			continue
+		out.append({"key": key, "title": t(title), "items": [i for i in items if i]})
+	return out
+
+
 def _lists(preview):
 	"""Named lists the kind computed, e.g. list columns and sidebar filters after a properties change."""
 	out = []
@@ -409,7 +499,9 @@ def _code(kind, operation, spec, before, preview):
 		if kind in CODE_LANGUAGES:
 			text = spec.get("script")
 		elif kind == "report":
-			if _is_query(spec):
+			if spec.get("report_script"):
+				text, language = spec.get("report_script"), "python"
+			elif _is_query(spec):
 				text = spec.get("query")
 			elif spec.get("builder"):
 				text = json.dumps(spec.get("builder"), ensure_ascii=False, indent=2)
@@ -418,7 +510,8 @@ def _code(kind, operation, spec, before, preview):
 	if not language:
 		language = CODE_LANGUAGES.get(kind) or ("sql" if _is_query(spec) else "json")
 	if diff is None and operation == "update":
-		old = before.get("script") if kind in CODE_LANGUAGES else (before.get("query") if _is_query(spec) else before.get("json"))
+		old = before.get("script") if kind in CODE_LANGUAGES else (
+			before.get("report_script") if spec.get("report_script") else (before.get("query") if _is_query(spec) else before.get("json")))
 		if isinstance(old, str) and old != text:
 			diff = "\n".join(difflib.unified_diff(old.splitlines(), str(text).splitlines(), "before", "after", lineterm="", n=3))
 	text = str(text)
@@ -474,7 +567,7 @@ def _approval_gate(approval, user, kind, spec):
 	except Exception:
 		return {"allowed": True, "reason": None}
 	try:
-		if policy.four_eyes() and approval.get("requested_by") == user:
+		if policy.four_eyes(kind, spec) and approval.get("requested_by") == user:
 			return {"allowed": False, "reason": t("Customization needs a second person: you cannot approve your own change. A colleague with the required roles approves it.")}
 		try:
 			kind_obj = registry.get(kind)

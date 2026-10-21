@@ -84,7 +84,9 @@
                    expired: "The request expired before a decision was made. Request the operation again.",
                    failed: "The operation did not complete and nothing was saved.", approved: "Approved; execution is in progress." }[p.state];
       text = text ? T(text) : "";
-      var docs = p.result && p.result.documents ? p.result.documents : (p.result && p.result.document_name ? [{ doctype: p.result.doctype, document_name: p.result.document_name }] : []);
+      var cz = p.customization;
+      if (cz && cz.result && cz.result.text && ok) text = cz.result.text;
+      var docs = cz ? [] : p.result && p.result.documents ? p.result.documents : (p.result && p.result.document_name ? [{ doctype: p.result.doctype, document_name: p.result.document_name }] : []);
       return h("div", { class: "outcome " + (ok ? "ok" : p.state === "failed" ? "bad" : "off"), role: "status" },
         h("div", { class: "outcome-head" }, icon(ok ? "checkCircle" : p.state === "failed" ? "alert" : "info", 18), h("b", { text: text })),
         docs.length ? h("div", { class: "finding-docs" }, docs.map(function (d) {
@@ -158,8 +160,71 @@
         } }, icon("check", 16), st.busy ? T("Verifying…") : T("Save and re-check"))]));
       return form;
     }
+    /* ---------- customization request: what changes, the full code, the findings, who it affects, how to undo ---------- */
+    function czSection(glyph, title, content, extra) {
+      return h("section", { class: "cz-sec" }, h("h2", { class: "ag-block-title" }, icon(glyph, 16), title, extra || null), content);
+    }
+    function CustomizationBody(c) {
+      var L = c.labels || {}, code = null, marks = {};
+      (c.checks || []).forEach(function (k) { if (k.line && (!marks[k.line] || k.level === "critical")) marks[k.line] = k.level; });
+      if (c.code) code = CodeBlock(c.code, marks, L);
+      function goTo(n) { if (code) code.goTo(n); }
+      var out = [];
+      var who = c.provenance && c.provenance.requested_by;
+      out.push(h("div", { class: "cz-meta" },
+        h("span", { class: "badge " + (c.risk_tone || "neutral"), text: c.risk_label }),
+        h("span", { class: "cz-chip", text: [c.kind_label, c.operation_label].filter(Boolean).join(" · ") }),
+        who ? h("span", { class: "cz-who" }, icon("user", 14), h("span", { class: "ltr", text: who + (c.provenance.surface ? " · " + c.provenance.surface : "") })) : null));
+      if (c.approve_hidden_reason && p.state === "pending") out.push(Notes([{ level: c.has_critical ? "critical" : "info", text: c.approve_hidden_reason }], "cz-notes"));
+      var counts = c.counts || {};
+      var tally = h("span", { class: "cz-tally" }, ["critical", "warning", "info"].filter(function (l) { return counts[l]; }).map(function (l) { return h("span", { class: "cz-count lvl-" + l, text: String(counts[l]) }); }));
+      out.push(czSection("shield", L.checks || T("Checks"), CheckList(c.checks, code ? goTo : null, L), tally));
+      if (c.impact && c.impact.length) out.push(czSection("users", L.impact, h("ul", { class: "cz-bullets" }, c.impact.map(function (x) { return h("li", null, rich(x)); }))));
+      if (c.diff && c.diff.length) out.push(czSection("layers", L.diff, h("div", { class: "tablewrap" }, h("table", { class: "compact cz-diff-table" },
+        h("thead", null, h("tr", null, [L.field, L.property, L.before, L.after].map(function (x) { return h("th", { scope: "col", text: x || "" }); }))),
+        h("tbody", null, c.diff.map(function (r) {
+          return h("tr", null, h("td", { class: "primary" }, r.field_label || r.field || "—", r.field && r.field_label && r.field !== r.field_label ? h("div", { class: "cz-fn ltr", text: r.field }) : null),
+            h("td", { text: r.label }), h("td", { class: "cz-before" }, rich(r.before)), h("td", { class: "cz-after" }, rich(r.after)));
+        }))))));
+      if (c.fields && c.fields.length) out.push(czSection("plus", L.fields, h("div", { class: "docs" }, c.fields.map(function (f) {
+        return h("div", { class: "docblock" + (f.removed ? " cz-removed" : "") }, h("div", { class: "dochead" }, icon(f.removed ? "x" : "edit", 16), h("b", { text: f.label }), h("span", { class: "k ltr", text: f.fieldname })),
+          h("div", { class: "facts" }, f.facts.map(function (x) { return h("div", { class: "fact" }, h("div", { class: "k", text: x.label }), h("div", { class: "val" }, rich(x.d))); })));
+      }))));
+      if (c.layout && c.layout.fields) out.push(czSection("layers", L.layout, h("ol", { class: "cz-layout" }, c.layout.fields.map(function (f) {
+        return h("li", { class: f.new ? "new" : "" }, h("span", { class: "grow", text: f.label }), f.fieldtype ? h("span", { class: "cz-ft", text: f.fieldtype }) : null, f.new ? h("span", { class: "badge info", text: L.new || "New" }) : null);
+      })), c.layout.title ? h("span", { class: "cz-sub", text: "· " + c.layout.title }) : null));
+      (c.lists || []).forEach(function (l) { out.push(czSection("filter", l.title, h("div", { class: "cz-tags" }, l.items.map(function (x) { return h("span", { class: "chip static", text: x }); })))); });
+      if (code) out.push(czSection("file", c.code.title || L.code, code));
+      if (c.dry_run) out.push(czSection("refresh", L.dry_run, h("div", null,
+        h("div", { class: "cz-pad" }, h("div", { class: "note " + (c.dry_run.threw ? "warning" : "info") }, icon(c.dry_run.threw ? "alert" : "checkCircle", 16), h("span", null, rich(c.dry_run.threw ? (L.threw + " " + c.dry_run.message) : L.passed)))),
+        c.dry_run.changed.length ? FieldGrid(c.dry_run.changed.map(function (x) { return { label: x.label, d: x.before + " → " + x.after }; })) : null), c.dry_run.document ? h("span", { class: "cz-sub ltr", text: "· " + c.dry_run.document }) : null));
+      if (c.rows && c.rows.columns && c.rows.columns.length) out.push(czSection("layers", c.rows.title || L.rows, h("div", { class: "tablewrap" }, h("table", { class: "compact" },
+        h("thead", null, h("tr", null, c.rows.columns.map(function (x) { return h("th", { scope: "col", text: x }); }))),
+        h("tbody", null, c.rows.rows.map(function (r) { return h("tr", null, r.map(function (v) { return h("td", null, rich(v)); })); }))))));
+      if (c.result && c.result.checks && c.result.checks.length) out.push(czSection("checkCircle", L.verification, CheckList(c.result.checks, null, L)));
+      if (c.purpose) out.push(czSection("info", L.purpose, h("p", { class: "cz-p" }, rich(c.purpose))));
+      out.push(czSection("refresh", L.undo, h("p", { class: "cz-p" }, rich(c.undo))));
+      return h("div", { class: "cz" }, out);
+    }
+    function CzFooter() {
+      var acts = (p.actions || []).filter(function (a) { return a.kind === "link" || a.kind === "message"; });
+      if (!acts.length && !byKey.cancel) return null;
+      return footer([p.state === "pending" ? cancelBtn() : null].concat(acts.map(function (a) {
+        return h("button", { class: "btn " + (a.style === "primary" ? "primary" : a.style === "soft" ? "soft" : ""), type: "button", onclick: function () { runAction(a, {}); } }, icon(a.icon || "external", 16), a.label);
+      })));
+    }
     function draw() {
       clear(box);
+      if (p.customization) {
+        var czParts = [head(), steps(), Outcome(), Notes(p.warnings), CustomizationBody(p.customization)];
+        if (p.state === "pending" && p.next_steps && p.next_steps.length) czParts.push(Impact());
+        if (st.error) czParts.push(ErrorState(st.error, null));
+        czParts.push(st.confirmCancel && byKey.cancel ? ConfirmReject() : CzFooter());
+        czParts.push(Developer(p.developer));
+        box.appendChild(Card(czParts, "cz-card"));
+        setTimeout(reportSize, 0);
+        return;
+      }
       var blocked = !!(p.blocked && p.state === "pending");
       var pending = p.state === "pending";
       var parts = [head(), steps(), Outcome(), Notes(blocked ? [] : p.warnings)];

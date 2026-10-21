@@ -170,7 +170,15 @@ def dispatch(payload, service, protocol_version=None):
                 raise MCPProtocolError(-32602, "tools/call requires a tool name")
             if not isinstance(arguments, dict):
                 raise MCPProtocolError(-32602, "tool arguments must be an object")
+            from ai_agent.mcp.hosts import APP_ONLY_TOOLS
+
+            if tool_name not in APP_ONLY_TOOLS and hasattr(service, "check_tool_rate_limit"):
+                service.check_tool_rate_limit()
             result = service.call_tool(tool_name, arguments)
+            from ai_agent.mcp.hosts import APP_ONLY_TOOLS
+
+            if tool_name not in APP_ONLY_TOOLS:
+                result = mark_untrusted(result, tool_name)
         else:
             raise MCPProtocolError(-32601, f"Method not found: {method}")
 
@@ -196,6 +204,17 @@ def error_response(request_id, code, message, data=None):
     if data is not None:
         error["data"] = data
     return {"jsonrpc": "2.0", "id": request_id, "error": error}
+
+
+def mark_untrusted(result, tool_name):
+    """Tool results reach an external model: their text is data (records, files, emails), never instructions.
+    The view's structuredContent stays as is; the instructions' rule covers it."""
+    from ai_agent.runtime.untrusted import wrap
+
+    for item in (result or {}).get("content") or []:
+        if isinstance(item, dict) and item.get("type") == "text" and item.get("text"):
+            item["text"] = wrap(item["text"], f"tool {tool_name}")
+    return result
 
 
 def tool_result(value, *, is_error=False):

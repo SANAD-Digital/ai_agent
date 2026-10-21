@@ -67,6 +67,11 @@ def peek(approval_name):
 
 def take(approval_name):
     """Claim the next step exactly once. Marks it consumed before it runs so a repeated approval cannot run it twice."""
+    # Two concurrent approvals (double click, host retry) both read "not consumed": only the one that sets
+    # this key first may take the step.
+    cache = frappe.cache()
+    if not cache.set(cache.make_key(f"ai_agent:continuation:{approval_name}"), 1, ex=600, nx=True):
+        return None
     name, data = _find(approval_name)
     if not data or data.get("consumed"):
         return None

@@ -126,3 +126,35 @@ class TestDateBucketGroupBy(IntegrationTestCase):
 				"fields": ["name"],
 				"group_by": [{"field": "status", "bucket": "month"}],
 			})
+
+
+class TestProtectedFieldsAndChildTables(IntegrationTestCase):
+	"""Wave 1 security: masking keys on output names, so protected fields are only read as is."""
+
+	def setUp(self):
+		self.validator = QueryValidator(PermissionContext("Administrator"))
+
+	def _refused(self, spec, text):
+		with self.assertRaises(QueryValidationError) as cm:
+			self.validator.validate(spec)
+		self.assertIn(text, str(cm.exception))
+
+	def test_renaming_or_aggregating_a_salary_field_is_refused(self):
+		self._refused({"doctype": "Salary Slip", "fields": [{"field": "net_pay", "alias": "x"}]}, "protected field")
+		self._refused({"doctype": "Salary Slip", "fields": [{"field": "net_pay", "aggregate": "sum", "alias": "total"}]}, "protected field")
+
+	def test_reserved_alias_in_a_pay_document_is_refused(self):
+		self._refused({"doctype": "Salary Slip", "fields": [{"field": "payment_days", "aggregate": "sum", "alias": "count"}]}, "reserved")
+
+	def test_filter_group_and_sort_on_a_protected_field_are_refused(self):
+		self._refused({"doctype": "Salary Slip", "fields": ["name"], "filters": [{"field": "net_pay", "operator": ">", "value": 1000}]}, "protected field")
+		self._refused({"doctype": "Salary Slip", "fields": ["name"], "order_by": [{"field": "net_pay", "direction": "desc"}]}, "protected field")
+
+	def test_plain_protected_field_is_still_allowed(self):
+		self.validator.validate({"doctype": "Salary Slip", "fields": ["name", "net_pay"]})   # comes back masked
+
+	def test_child_table_needs_a_readable_parent(self):
+		self._refused({"doctype": "Sales Taxes and Charges", "fields": ["account_head", {"field": "tax_amount", "aggregate": "sum", "alias": "t"}], "group_by": ["account_head"]}, "parent_doctype")
+		spec = self.validator.validate({"doctype": "Sales Taxes and Charges", "parent_doctype": "Sales Invoice", "fields": ["account_head"]})
+		self.assertEqual(spec["parent_doctype"], "Sales Invoice")
+		self._refused({"doctype": "Sales Taxes and Charges", "parent_doctype": "ToDo", "fields": ["account_head"]}, "No read access")

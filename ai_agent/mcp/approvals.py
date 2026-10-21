@@ -30,7 +30,9 @@ from ai_agent.runtime.permission_context import PermissionContext
 STEPS = (("prepare", "Prepare"), ("validate", "Validate"), ("preview", "Review"),
          ("approval", "Approval"), ("execute", "Execute"), ("verify", "Confirm"))
 ACTION_LABELS = {"Create": "Create", "Bulk Create": "Create several documents", "Update": "Edit", "Submit": "Submit",
-                 "Cancel": "Cancel", "Workflow": "Workflow action"}
+                 "Cancel": "Cancel", "Workflow": "Workflow action", "Customize": "Customization"}
+# Customization is approved in ERPNext only (design D4): never by a model-driven approvals__decide, never by a card button.
+DESK_ONLY_TYPES = {"Customize"}
 EDITABLE_TOP = {
     "company": ("Company", "link"), "posting_date": ("Date", "date"), "due_date": ("Due date", "date"),
     "transaction_date": ("Date", "date"), "delivery_date": ("Delivery date", "date"), "set_warehouse": ("Warehouse", "link"),
@@ -149,15 +151,20 @@ def _preview(action_type, doctype, payload):
     if action_type != "Create" or not doctype or not isinstance(payload, dict):
         return empty
     doc, valid = None, True
+    # Validate hooks can write (other apps' controllers): whatever they do is rolled back.
+    frappe.db.savepoint("ai_card_preview")
     try:
         doc = frappe.get_doc({**payload, "doctype": doctype})
-        for method in ("set_missing_values", "calculate_taxes_and_totals"):
-            if hasattr(doc, method):
-                getattr(doc, method)()
+        if doc.meta.get_field("items"):
+            for method in ("set_missing_values", "calculate_taxes_and_totals"):
+                if hasattr(doc, method):
+                    getattr(doc, method)()
         doc.run_method("validate")
     except Exception as exc:
         valid = False
         warnings.append(schema.warning("critical", _plain_error(exc), "validation"))
+    finally:
+        frappe.db.rollback(save_point="ai_card_preview")
     source = doc.as_dict() if doc else payload
     currency = source.get("currency") or source.get("default_currency")
     for idx, row in enumerate(source.get("items") or [], start=1):
@@ -372,6 +379,8 @@ def _steps(state, valid=True):
 
 
 def build_card(approval, user, *, state=None, result=None, error=None):
+    if approval.action_type in DESK_ONLY_TYPES:
+        return _customize_card(approval, user, state=state, error=error)
     payload = json.loads(approval.payload_json or "{}")
     stored = _stored_result(approval)
     if not state:
@@ -471,6 +480,62 @@ def build_card(approval, user, *, state=None, result=None, error=None):
     }
 
 
+def _customize_card(approval, user, *, state=None, error=None):
+    """A customization request: diffs, the full code, the analyzers' findings, the impact and the undo plan
+    (customization.presenter). Approval happens in ERPNext only, so the card carries no approve button; it links
+    to the request in the desk. After execution it offers the created record and an undo follow-up."""
+    from ai_agent.customization import presenter
+
+    stored = _stored_result(approval)
+    section = presenter.section(approval, user) or {}
+    if state and state != section.get("state") and state in ("executed", "verified", "failed", "rejected", "expired", "approved"):
+        section["state"] = state
+    state = section.get("state") or "pending"
+    desk = doc_href("AI Approval Request", approval.name)
+    warnings = []
+    if section.get("tainted"):
+        warnings.append(schema.warning("warning", section["tainted_text"], "tainted"))
+    if error or (state == "failed" and stored.get("error")):
+        warnings.append(schema.warning("critical", error or stored.get("error"), "execution"))
+    if state == "pending":
+        warnings.append(schema.warning("info", t("Customization requests are approved in ERPNext only. Open the request there to review and approve it."), "desk_only"))
+    actions = []
+    if state == "pending":
+        label = t("Open the request in ERPNext") if section.get("has_critical") else t("Review and approve in ERPNext")
+        actions.append(schema.action("open_request", label, href=desk, style="primary", icon="external"))
+        if app_approval_enabled() and frappe.flags.get("mcp_ui_supported") is True:
+            actions.append(schema.action("cancel", t("Cancel"), kind="tool", style="danger", tool="approvals__decide",
+                                         arguments={"approval_id": approval.name, "token": issue_token(approval.name, approval.payload_hash, user, "reject"), "decision": "reject"},
+                                         confirm=True, icon="x"))
+    result = section.get("result") or {}
+    for target in (result.get("targets") or [])[:3]:
+        actions.append(schema.action("open", target["label"], href=target["href"], style="primary" if not actions else "secondary", icon="external"))
+    if result.get("undo_prompt"):
+        actions.append(schema.action("undo", result["undo_label"], kind="message", style="soft", arguments={"text": result["undo_prompt"]}, icon="refresh"))
+    title = " — ".join(x for x in (section.get("kind_label"), section.get("target")) if x) or t("Customization")
+    first = (result.get("targets") or [{}])[0] if result else {}
+    return {
+        "type": "approval", "state": state, "approval_id": approval.name,
+        "title": title, "subtitle": section.get("purpose") or approval.action_summary or t("Request {0}", approval.name),
+        "status_label": t("Needs approval") if state == "pending" else None,
+        "fields": [], "items": [], "kpis": [], "photo": None, "documents": None,
+        "warnings": warnings, "impact": None, "blocked": None,
+        "operation": {"action": t("Customization"), "doctype": section.get("kind_label"), "document": section.get("name"), "requested_by": approval.requested_by},
+        "impact_financial": [], "impact_stock": [],
+        "next_steps": section.get("next_steps") or [],
+        "details": [], "expires_at": str(approval.expires_at) if approval.expires_at else None,
+        "steps": _steps(state, not section.get("has_critical")),
+        "actions": actions, "insights": [], "editable": None,
+        "result": {"document_name": first.get("name"), "doctype": first.get("doctype"), "href": first.get("href"),
+                   "documents": [{"doctype": x["doctype"], "document_name": x["name"]} for x in result.get("targets") or []]} if result and state != "failed" else None,
+        "fallback": {"desk_url": desk, "text": t("Customization requests are approved in ERPNext only: open request {0}: {1}", approval.name, desk)},
+        "currency": None,
+        "customization": section,
+        "developer": {"approval_id": approval.name, "action_type": approval.action_type, "kind": section.get("kind"),
+                      "payload_hash": approval.payload_hash, "run": approval.run, "requested_by": approval.requested_by},
+    }
+
+
 def _next_steps(approval, steps):
     from ai_agent.mcp import continuation
 
@@ -504,7 +569,9 @@ def card_envelope(approval, user, *, tool="approvals", state=None, result=None, 
     text = f"{card['title']} — {approval.name}: {state_text}"
     for k in card["kpis"][-1:]:
         text = t("{0}, {1}", text, f"{k['label']} {k['d']}")
-    if card["state"] == "pending":
+    if card["state"] == "pending" and approval.action_type in DESK_ONLY_TYPES:
+        text += ". " + card["fallback"]["text"]
+    elif card["state"] == "pending":
         # Text hosts (and the model) need to know the request can be decided right here in the chat.
         text += t(". To approve reply \"approve\", to cancel reply \"cancel\" (request {0})", approval.name)
     return schema.envelope(
@@ -556,6 +623,13 @@ def decide(user, approval_id, decision, token=None, reason=None):
         raise ApprovalUiError(t("Approval is not required in the current settings; requests run directly."))
     approval = _load(approval_id, user)
     events.log("approval_loaded", user=user, approval_id=approval.name, doctype=approval.doctype_name, status=approval.status)
+    if decision == "approve" and approval.action_type in DESK_ONLY_TYPES and approval.status != "Executed":
+        # D4: an outside model must never approve code or schema changes; a person approves them in ERPNext.
+        raise ApprovalUiError(t("Customization requests are approved in ERPNext only: open request {0}: {1}", approval.name, doc_href("AI Approval Request", approval.name)))
+    if decision == "approve" and not token and approval.status not in ("Executed", "Rejected"):
+        # The external model cannot approve on the user's behalf (a word in the chat, or text inside a record the
+        # model read, could trigger it): approval is a click on the card's signed button, or in ERPNext.
+        raise ApprovalUiError(t("Approve by clicking Approve on the approval card, or in ERPNext: {0}", doc_href("AI Approval Request", approval.name)))
     if token:
         if not app_approval_enabled():
             raise ApprovalUiError(t("Approving from the card is turned off. Approve in the chat or approve the request in ERPNext."))
@@ -611,7 +685,7 @@ def _outcome(user, approval_name):
 def record_verification(user, approval, result, *, via=None, mode=None):
     """Re-read what the action claims it changed and keep the verdict with the execution result."""
     events.log("approval_verify_started", user=user, approval_id=approval.name, doctype=approval.doctype_name)
-    ok = _verify(result)
+    ok = _verify(result, approval.action_type)
     stored = _stored_result(approval) or (result if isinstance(result, dict) else {})
     stored = {**stored, "verified": ok, "verified_at": str(frappe.utils.now_datetime()), "approved_via": via}
     if mode:
@@ -622,10 +696,13 @@ def record_verification(user, approval, result, *, via=None, mode=None):
     return ok
 
 
-def _verify(result):
-    """Re-read what the approval claims it created."""
+def _verify(result, action_type=None):
+    """Re-read what the approval claims it created. A customization verifies itself (kind.verify re-reads the meta,
+    the script or the report) and records the verdict in execution_result.verified."""
     if not isinstance(result, dict):
         return False
+    if action_type in DESK_ONLY_TYPES:
+        return result.get("verified") is True
     if result.get("document_name") and result.get("doctype"):
         return bool(frappe.db.exists(result["doctype"], result["document_name"]))
     docs = result.get("documents") or []

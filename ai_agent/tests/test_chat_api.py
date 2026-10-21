@@ -114,7 +114,9 @@ class TestChatApi(IntegrationTestCase):
     def test_provider_failure_marks_message_failed(self):
         out = self._send("hi")
         provider, provider_for = fake_provider([[("error", "invalid api key", "auth", False)]])
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+        # No other model to fall back to (the default is the one that failed).
+        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None), \
+                patch.object(runner.Runner, "can_fall_back", return_value=False):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
         self.assertEqual(msg.status, "failed")
@@ -162,6 +164,80 @@ class TestChatApi(IntegrationTestCase):
         token = runner.Runner(doc).cancel_token()
         self.assertTrue(token.cancelled)
         self.assertIsInstance(token, CancelToken)
+
+
+    def test_cancel_token_sees_a_flag_set_by_another_process(self):
+        """The job reads the flag before Stop is pressed; the web worker then sets it in Redis only."""
+        import pickle
+
+        out = self._send("slow")
+        name = out["assistant_message"]["name"]
+        doc = frappe.get_doc("AI Chat Message", name)
+        token = runner.Runner(doc).cancel_token()
+        self.assertFalse(token.cancelled)   # first read: a miss
+        cache = frappe.cache()
+        cache.set(cache.make_key(runner.CANCEL_KEY.format(name)), pickle.dumps("1"))   # no local cache update
+        token._last = 0.0
+        self.assertTrue(token.cancelled)
+
+    def test_stop_settles_a_streaming_message_whose_job_is_gone(self):
+        out = self._send("slow")
+        name = out["assistant_message"]["name"]
+        frappe.db.set_value("AI Chat Message", name, "status", "streaming")
+        with patch.object(runner, "job_is_alive", return_value=False):
+            self.assertEqual(api.stop_message(name)["status"], "cancelled")
+        self.assertEqual(frappe.db.get_value("AI Chat Message", name, "status"), "cancelled")
+
+    def test_stop_waits_for_a_live_job(self):
+        out = self._send("slow")
+        name = out["assistant_message"]["name"]
+        frappe.db.set_value("AI Chat Message", name, "status", "streaming")
+        with patch.object(runner, "job_is_alive", return_value=True):
+            self.assertEqual(api.stop_message(name)["status"], "cancelling")
+
+    def test_unusable_model_falls_back_to_the_default(self):
+        out = self._send("hello")
+        broken = FakeProvider([[("error", "invalid x-api-key", "auth", False)]])
+        default = FakeProvider([[("text", "answered by the default"), ("stop", "end_turn")]])
+
+        def provider_for(provider_name=None, model=None):
+            if provider_name is None and model is None:
+                return default, "Default", "default-model"
+            return (broken, "Broken", "bad-model") if model != "default-model" else (default, "Default", "default-model")
+
+        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+            runner.execute_message(out["assistant_message"]["name"], user="Administrator")
+        msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
+        self.assertEqual(msg.status, "completed")
+        self.assertEqual(msg.text, "answered by the default")
+        self.assertEqual(msg.model, "default-model")
+        kinds = frappe.get_all("AI Message Block", filters={"message": msg.name}, pluck="block_type", order_by="seq asc")
+        self.assertEqual(kinds[0], "status")
+
+    def test_search_finds_words_inside_messages(self):
+        word = "zqx" + frappe.generate_hash(length=6)
+        out = self._send(f"please look at invoice {word} again")
+        frappe.db.set_value("AI Chat Session", out["session"]["name"], "title", "untitled")
+        found = api.list_sessions(search=word)["sessions"]
+        hit = next(s for s in found if s["name"] == out["session"]["name"])
+        self.assertIn(word, hit["preview"])
+        self.assertFalse([s for s in api.list_sessions(search=word + "-none")["sessions"] if s["name"] == out["session"]["name"]])
+
+    def test_export_is_markdown_of_the_conversation(self):
+        out = self._send("سؤال التصدير")
+        frappe.db.set_value("AI Chat Message", out["assistant_message"]["name"], {"status": "completed", "text": "جواب التصدير"})
+        exported = api.export_session(out["session"]["name"])
+        self.assertTrue(exported["filename"].endswith(".md"))
+        self.assertIn("سؤال التصدير", exported["content"])
+        self.assertIn("جواب التصدير", exported["content"])
+
+    def test_a_new_message_settles_the_reply_waiting_for_approval(self):
+        out = self._send("first")
+        waiting = out["assistant_message"]["name"]
+        frappe.db.set_value("AI Chat Message", waiting, "status", "awaiting_approval")
+        self._send("go on", session=out["session"]["name"])
+        status, reason = frappe.db.get_value("AI Chat Message", waiting, ["status", "stop_reason"])
+        self.assertEqual((status, reason), ("completed", "superseded"))
 
 
 class TestChatViewHost(IntegrationTestCase):
@@ -271,3 +347,19 @@ class TestChatAttachments(IntegrationTestCase):
         read = handle_read({"file": "note.txt"}, ctx)
         self.assertIn("12743", read["content"])
         self.assertIn("error", handle_read({"file": "other.png"}, ctx))
+
+
+class TestCoerceToSchema(IntegrationTestCase):
+    """Models send JSON text for objects and one name for a list of names; the gateway repairs both."""
+
+    def test_repairs(self):
+        from ai_agent.runtime.tool_gateway import coerce_to_schema
+
+        schema = {"type": "object", "properties": {
+            "arguments": {"type": "object", "properties": {"roles": {"type": "array", "items": {"type": "string"}}}},
+            "roles": {"type": "array", "items": {"type": "string"}},
+            "fields": {"type": "array"},
+        }}
+        out = coerce_to_schema(schema, {"arguments": '{"roles": "A, B"}', "roles": "Accounts User", "fields": '["a"]'})
+        self.assertEqual(out, {"arguments": {"roles": ["A", "B"]}, "roles": ["Accounts User"], "fields": ["a"]})
+        self.assertEqual(coerce_to_schema(schema, {"arguments": "not json"}), {"arguments": "not json"})

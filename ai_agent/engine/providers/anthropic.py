@@ -6,7 +6,9 @@ turn, and typed stop reasons.
 
 from __future__ import annotations
 
-from ai_agent.engine.events import MessageStop, UsageEvent
+import re
+
+from ai_agent.engine.events import MessageStop, ProviderError, UsageEvent
 from ai_agent.engine.providers.base import (
     BlockAssembler,
     CancelToken,
@@ -31,7 +33,16 @@ from ai_agent.engine.types import (
 
 CACHE = {"type": "ephemeral"}
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
+# Claude models that think only adaptively (no fixed budget_tokens): Opus/Sonnet 4.6+, the 5 family, Fable.
+_ADAPTIVE_ONLY = re.compile(r"claude-(?:fable|(?:opus|sonnet|haiku)-(?:[5-9]|4-[6-9]))", re.I)
 
+
+def adaptive_only(model):
+    return bool(_ADAPTIVE_ONLY.search(model or ""))
+
+
+
+THINKING_BINDING_BETA = "thinking-binding-controls-2026-08-01"
 
 class AnthropicProvider(Provider):
     name = "anthropic"
@@ -68,14 +79,29 @@ class AnthropicProvider(Provider):
             tools = [{"name": t.name, "description": t.description, "input_schema": t.parameters or {"type": "object", "properties": {}}} for t in request.tools]
             tools[-1]["cache_control"] = CACHE
             payload["tools"] = tools
-        if request.thinking == "adaptive":
-            payload["thinking"] = {"type": "adaptive"}
-        elif request.thinking == "on":
+        thinking = request.thinking
+        if thinking == "on" and adaptive_only(model):
+            # "Thinking on" with a fixed budget is rejected by current Claude models
+            # ("thinking.type.enabled is not supported for this model"): they think adaptively.
+            thinking = "adaptive"
+        if thinking == "adaptive":
+            # Newer Claude models omit the thinking text unless asked: the chat would show nothing
+            # while the model thinks. "summarized" streams a readable summary.
+            payload["thinking"] = {
+                "type": "adaptive",
+                "display": "summarized",
+                # A thinking block is bound to the tools it was made with; the tool list changes inside a
+                # reply (tools enabled on demand, none on the last step) and between replies. Without this
+                # the next request fails with "Invalid `signature` in `thinking` block".
+                "block_binding": {"prefix_mismatch_behavior": "drop_block"},
+            }
+            payload["extra_headers"] = {"anthropic-beta": THINKING_BINDING_BETA}
+        elif thinking == "on":
             budget = max(1024, int(request.thinking_budget or 4096))
             payload["thinking"] = {"type": "enabled", "budget_tokens": budget}
             payload["max_tokens"] = max(payload["max_tokens"], budget + 2048)
-        elif request.temperature is not None:
-            payload["temperature"] = request.temperature
+        # No temperature: the Anthropic SDK in use (1.x) and current Claude models no longer accept it
+        # (memory extraction failed with "unexpected keyword argument 'temperature'").
         effort = (request.effort or "").lower()
         if effort in EFFORTS:
             payload["output_config"] = {"effort": effort}
@@ -160,6 +186,13 @@ class AnthropicProvider(Provider):
         for ev in asm.close_all():
             yield ev
         yield UsageEvent(usage=usage.to_dict(), context_tokens=usage.context_size(), model=payload["model"])
+        if stop_reason == "refusal":
+            # A safety classifier declined: say so instead of ending as a normal (often empty) answer.
+            yield ProviderError(message="The model declined this request (stop_reason: refusal).", kind="refusal", retryable=False)
+            return
+        if stop_reason == "model_context_window_exceeded":
+            yield ProviderError(message="The conversation exceeds the model's context window.", kind="context_overflow", retryable=False)
+            return
         stop = {"tool_use": TOOL_USE_STOP, "max_tokens": MAX_TOKENS}.get(stop_reason or "end_turn", END_TURN)
         yield MessageStop(stop_reason=stop)
 

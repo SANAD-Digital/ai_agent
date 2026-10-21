@@ -1,0 +1,17 @@
+{
+ "add_total_row": 1,
+ "columns": [],
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "module": "AI Agent",
+ "name": "AI Agent Health",
+ "prepared_report": 0,
+ "ref_doctype": "AI Chat Message",
+ "report_name": "AI Agent Health",
+ "report_type": "Script Report",
+ "roles": [{"role": "System Manager"}]
+}

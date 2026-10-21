@@ -3,6 +3,10 @@
 - No submit / cancel unless AI Settings.allow_submit_cancel_actions is on.
 - No create/update of system configuration: Single DocTypes, *Settings,
   Company, and default-account fields.
+- No create/update of code, access and customization DocTypes (Server Script,
+  Webhook, User, Role, Custom Field, Report, AI Skill Grant...) through the generic
+  document actions: they run code, change who can do what, send data out, or
+  change the agent itself. Customization goes through dedicated, checked tools.
 - Model providers: Managed mode = Anthropic only; other providers only in
   Own Key mode with explicit consent.
 """
@@ -15,6 +19,28 @@ THIRD_PARTY_TYPES = ("OpenAI", "OpenAI Compatible", "Ollama", "Gemini OCR")
 SUBMIT_CANCEL_TOOLS = ("actions.request_submit", "actions.request_cancel")
 PROTECTED_DOCTYPES = frozenset({"Company", "Party Account", "Mode of Payment Account", "Fiscal Year", "Accounting Period"})
 PROTECTED_CHILD_TABLES = frozenset({"Party Account", "Mode of Payment Account"})
+# Code, access, outbound data and the agent's own configuration (docs/customization/01, §3.6.4).
+CODE_AND_ACCESS_DOCTYPES = frozenset({
+	# code and customization
+	"Server Script", "Client Script", "Custom Field", "Property Setter", "Customize Form", "Report",
+	"Print Format", "Print Format Field Template", "Web Page", "Web Form", "Web Template", "Website Script",
+	"Website Theme", "Notification", "Workflow", "Workflow State", "Workflow Action Master", "DocType",
+	"DocField", "DocPerm", "Custom DocPerm", "Page", "Workspace", "Workspace Sidebar", "Desktop Icon", "Number Card",
+	"Dashboard Chart", "Dashboard",
+	"List View Settings", "Document Naming Rule", "Scheduled Job Type", "Translation", "System Console",
+	# render Jinja, evaluate conditions or act on a schedule
+	"Letter Head", "Email Template", "Print Style", "Custom HTML Block", "Assignment Rule", "Auto Repeat",
+	"Energy Point Rule",
+	"Package", "Package Release", "Module Def", "Patch Log", "Installed Application",
+	# data leaving the system
+	"Webhook", "Auto Email Report", "Email Account", "Email Domain", "Data Import", "Data Export",
+	"Deleted Document",
+	# identity and access
+	"OAuth Client", "OAuth Provider Settings", "Social Login Key", "Connected App", "Token Cache", "User", "Role",
+	"Role Profile", "Module Profile", "Has Role", "User Permission", "User Group",
+	# the agent itself
+	"AI Settings", "AI Agent", "AI Skill", "AI Skill Grant", "AI Access Rule", "AI Plugin", "AI Provider",
+})
 
 
 class PolicyViolation(frappe.ValidationError):
@@ -31,6 +57,13 @@ def _settings():
 # cancel, workflow changes and email (Approved Method) always wait for a person.
 AUTO_APPROVE_TYPES = frozenset({"Create", "Bulk Create", "Update"})
 APPROVAL_MODES = ("Ask", "Auto")
+# Never executed without a person deciding, by any path: auto mode, "approve always", MCP with
+# mcp_require_approval off, or execute_direct. Customize runs code or changes the system; Approved Method sends email.
+ALWAYS_HUMAN_TYPES = frozenset({"Customize", "Approved Method"})
+
+
+def requires_human(action_type):
+	return action_type in ALWAYS_HUMAN_TYPES
 
 
 def auto_approval_available():
@@ -40,7 +73,12 @@ def auto_approval_available():
 
 
 def auto_approves(session_mode, action_type):
-	return session_mode == "Auto" and action_type in AUTO_APPROVE_TYPES and auto_approval_available()
+	return (
+		session_mode == "Auto"
+		and action_type in AUTO_APPROVE_TYPES
+		and not requires_human(action_type)
+		and auto_approval_available()
+	)
 
 
 # -- submit / cancel ---------------------------------------------------------
@@ -112,6 +150,11 @@ def protected_payload_fields(doctype, payload):
 
 
 def assert_write_target_allowed(doctype, payload):
+	if doctype in CODE_AND_ACCESS_DOCTYPES:
+		raise PolicyViolation(
+			f"{doctype} runs code, controls access or configures the agent; it cannot be created or changed "
+			"through the generic document actions. Customization uses the customize tools when they are enabled."
+		)
 	if is_protected_doctype(doctype):
 		raise PolicyViolation(f"{doctype} is system configuration; it cannot be created or changed through the agent.")
 	fields = protected_payload_fields(doctype, payload)

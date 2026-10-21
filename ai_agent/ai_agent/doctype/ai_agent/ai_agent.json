@@ -25,6 +25,7 @@
   "read_only",
   "section_actions",
   "allow_actions",
+  "allow_customization",
   "disable_memory",
   "column_break_actions",
   "require_approval_for_all_writes",
@@ -127,6 +128,14 @@
    "fieldname": "allow_actions",
    "fieldtype": "Check",
    "label": "Allow Actions"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.allow_actions && !doc.read_only",
+   "fieldname": "allow_customization",
+   "fieldtype": "Check",
+   "label": "Allow Customization",
+   "description": "customize.* tools: custom fields, field and DocType properties, client and server scripts, reports. Every change still waits for a person's approval in Desk."
   },
   {
    "fieldname": "disable_memory",

@@ -9,6 +9,8 @@ from the provider record (for example DeepSeek's `thinking` switch).
 
 from __future__ import annotations
 
+import re
+
 import json
 
 from ai_agent.engine.events import MessageStop, UsageEvent
@@ -34,6 +36,10 @@ from ai_agent.engine.types import (
     Usage,
 )
 
+
+
+# OpenAI reasoning models by their own id (a "vendor/model" id goes through a router that maps max_tokens).
+OPENAI_REASONING = re.compile(r"^(?:o\d|gpt-5)", re.I)
 
 class OpenAICompatProvider(Provider):
     name = "openai"
@@ -66,6 +72,9 @@ class OpenAICompatProvider(Provider):
             "max_tokens": int(request.max_tokens or 4096),
             "stream": True,
         }
+        if OPENAI_REASONING.match(model or ""):
+            # o-series and gpt-5 on the OpenAI API reject max_tokens ("use max_completion_tokens instead").
+            payload["max_completion_tokens"] = payload.pop("max_tokens")
         if include_usage:
             payload["stream_options"] = {"include_usage": True}
         if request.temperature is not None:

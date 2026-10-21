@@ -86,7 +86,17 @@ TOOL_GROUPS = {
         "description": "Document workflow: the state of a document and the workflow actions this user may take (approve, reject, send for review…), and requesting one",
         "tools": ("workflow.get_transitions", "actions.request_workflow_action"),
     },
+    "customization": {
+        "description": "Change how the system works: custom fields, field and form properties, list columns and filters, client and server scripts, custom reports (each change needs approval)",
+        "tools": ("customize.inspect", "customize.get", "customize.check",
+                  "customize.request_field", "customize.request_properties",
+                  "customize.request_client_script", "customize.request_server_script",
+                  "customize.request_report", "customize.request_undo"),
+    },
 }
+# Results that bring outside text into the conversation: a customization requested after one of
+# these carries context.tainted (the card warns that the request may come from that content).
+TAINTING_TOOLS = {"web.fetch", "web.search"}
 # Chat-only tools that draw UI instead of reading data (Desk page and support window).
 UI_SURFACES = ("Desk", "Chatbot")
 ASK_TOOL = ToolSpec(
@@ -171,6 +181,11 @@ class ToolExecutor:
             update_status=lambda *a, **k: None,
             trace=_NoTrace(),
         )
+        self.surface = self._session_surface()
+        self.tainted = False
+        # customization gates read these from the permission context (gateway and customization.tools)
+        self.ctx.surface = self.surface
+        self.ctx.tainted = False
         self.loaded_skills = {}
         self.enabled = set(CORE_TOOLS)
         self.enabled_groups = set()
@@ -192,6 +207,25 @@ class ToolExecutor:
     def group_available(self, group):
         return any(self.allowed(n) for n in TOOL_GROUPS[group]["tools"])
 
+    def _unavailable_reason(self, group):
+        """Say why a group is closed, so the model tells the user the real fix instead of "turned off"."""
+        tools = TOOL_GROUPS[group]["tools"]
+        writes = any(n.startswith(("customize.", "actions.")) for n in tools)
+        if writes and (self.agent.get("read_only") or not self.agent.get("allow_actions")):
+            return (f"Tool group '{group}' changes the system, and this assistant ({self.agent.get('name')}) is read-only. "
+                    "Tell the user to start the conversation with an assistant that may act (allow actions in AI Agent).")
+        if group == "customization" and not self.agent.get("allow_customization"):
+            return (f"Customization belongs to the Implementation assistant, not {self.agent.get('name')}. "
+                    "Tell the user to start a new conversation with the Implementation assistant for this change.")
+        if group == "customization":
+            from ai_agent.customization import policy as customize_policy
+
+            if not customize_policy.enabled():
+                return "Customization through the assistant is turned off in AI Settings (an administrator can turn it on)."
+            return ("Customization is on, but this user lacks the role it needs (System Manager; Script Manager for "
+                    "server-side code) or this channel may not request it.")
+        return f"Tool group '{group}' is turned off on this site."
+
     def groups_for_prompt(self):
         return [{"name": k, "description": v["description"]} for k, v in TOOL_GROUPS.items()
                 if k not in self.enabled_groups and self.group_available(k)]
@@ -212,6 +246,13 @@ class ToolExecutor:
             return False
         if name.startswith("web.") and not self.settings.get("enable_web_browsing"):
             return False
+        if name.startswith("customize."):
+            if self.agent.get("read_only") or not self.agent.get("allow_actions") or not self.agent.get("allow_customization"):
+                return False
+            from ai_agent.customization import policy as customization_policy
+
+            if not customization_policy.tool_available(name, self.ctx.user, self.surface):
+                return False
         # a plugin's tool needs that plugin allowed for this user (AI Settings access rules)
         if not access.tool_allowed(name, self.ctx.user):
             return False
@@ -240,6 +281,38 @@ class ToolExecutor:
             return False
         return (frappe.db.get_value("AI Chat Session", self.session, "surface") or "Desk") in UI_SURFACES
 
+    def _session_surface(self):
+        """Desk / Chatbot / WhatsApp / MCP / API, or None outside a conversation (customization refuses None)."""
+        if not self.session:
+            return None
+        return frappe.db.get_value("AI Chat Session", self.session, "surface") or "Desk"
+
+    def _note_taint(self, name, args, result):
+        """Untrusted outside text entered the conversation: web pages, or a file that is not this chat's own upload."""
+        if name in TAINTING_TOOLS:
+            self.tainted = True
+        elif name == "files.read" and args.get("file") and isinstance(result, dict) and not result.get("error"):
+            try:
+                from ai_agent.tools.chat_files import _attachments
+
+                own = {f["file"] for f in _attachments(self.session)} if self.session else set()
+            except Exception:
+                own = set()
+            if result.get("file") not in own:
+                self.tainted = True
+        self.ctx.tainted = self.tainted
+
+    def _run_tainted(self):
+        """A resumed reply has a new executor: the run's earlier calls count too."""
+        if self.tainted or not self.run_name:
+            return self.tainted
+        try:
+            self.tainted = bool(frappe.db.exists("AI Tool Call", {"run": self.run_name, "tool_name": ("in", list(TAINTING_TOOLS))}))
+        except Exception:
+            pass
+        self.ctx.tainted = self.tainted
+        return self.tainted
+
     def is_read_only(self, wire):
         tool = self.registry.get_tool(registry_name(wire)) or {}
         return tool.get("side_effect") in ("read_only", "prepare_only")
@@ -251,6 +324,7 @@ class ToolExecutor:
         args = block.data if isinstance(block.data, dict) else {}
         args = drop_nulls({k: v for k, v in args.items() if not str(k).startswith("_")})
         started = time.monotonic()
+        frappe.db.savepoint("ai_tool_call")
         try:
             if name not in ("tools.enable", "ui.ask", "ui.suggest") and not access.tool_allowed(name, self.ctx.user):
                 raise ToolDenied(f"Tool '{name}' belongs to a plugin this user is not allowed to use.")
@@ -265,7 +339,12 @@ class ToolExecutor:
         except (ToolDenied, PermissionDenied, SkillDenied, SkillNotFound) as exc:
             outcome = ToolOutcome(result=self._error_block(block, str(exc)))
         except Exception as exc:
-            frappe.log_error(frappe.get_traceback(), f"AI tool {name}")
+            # Half-done writes of a crashed tool must not ride along with the runner's next commit.
+            try:
+                frappe.db.rollback(save_point="ai_tool_call")
+            except Exception:
+                pass   # the tool committed already (approval requests do): nothing left to undo
+            frappe.log_error(frappe.get_traceback(), f"AI tool {name} (message {getattr(self, 'message_name', '') or self.run_name or ''})")
             outcome = ToolOutcome(result=self._error_block(block, f"The tool failed: {frappe.utils.cstr(exc)[:300]}"))
         outcome.duration_ms = int((time.monotonic() - started) * 1000)
         return outcome
@@ -298,7 +377,7 @@ class ToolExecutor:
         if group not in TOOL_GROUPS:
             return ToolOutcome(result=self._error_block(block, f"Unknown tool group '{group}'. Groups: {', '.join(TOOL_GROUPS)}"))
         if not self.group_available(group):
-            return ToolOutcome(result=self._error_block(block, f"Tool group '{group}' is turned off on this site."))
+            return ToolOutcome(result=self._error_block(block, self._unavailable_reason(group)))
         fresh = self.enable_group(group)
         names = [wire_name(n) for n in TOOL_GROUPS[group]["tools"] if self.allowed(n)]
         result = {"enabled": group, "tools": names, "note": "These tools are available from your next step." if fresh else "Group was already enabled."}
@@ -307,6 +386,7 @@ class ToolExecutor:
     def _plain_call(self, block, name, args):
         result = self.gateway.authorize_and_execute(name, args, run_name=self.run_name, step_name=None, agent_doc=self.agent)
         result = mask_tool_result(name, args, result)
+        self._note_taint(name, args, result)
         outcome = ToolOutcome()
         outcome.tool_call = self._latest_audit(name)
         if not isinstance(result, dict):
@@ -357,6 +437,8 @@ class ToolExecutor:
 
     def _approval_call(self, block, name, args):
         # Gateway validates, budgets and audits ("Requested"); the interceptor creates the approval.
+        if name.startswith("customize."):
+            self._run_tainted()
         self.gateway.create_approval(name, args, run_name=self.run_name, step_name=None, agent_doc=self.agent)
         response = self.interceptor.handle_action_tool(name, args)
         outcome = ToolOutcome(tool_call=self._latest_audit(name))
@@ -365,7 +447,7 @@ class ToolExecutor:
             outcome.result = self._error_block(block, str(message or "approval could not be created"))
             return outcome
         approval = frappe.get_doc("AI Approval Request", response["approval_id"])
-        if self._auto_mode() and policy.auto_approves("Auto", approval.action_type):
+        if not policy.requires_human(approval.action_type) and self._auto_mode() and policy.auto_approves("Auto", approval.action_type):
             return self._auto_execute(block, name, approval, outcome)
         outcome.approval = approval.name
         outcome.approval_block = Block(kind=APPROVAL, id=block.id, name=name, data=approval_snapshot(approval))
@@ -500,7 +582,21 @@ def approval_snapshot(approval):
         "payload": payload,
         "expires_at": str(approval.expires_at or ""),
         "requested_by": approval.requested_by,
+        **_customization_section(approval),
     }
+
+
+def _customization_section(approval):
+    """The card's "customization" part (customization.presenter, group C), only for Customize requests."""
+    if approval.action_type != "Customize":
+        return {}
+    try:
+        from ai_agent.customization import presenter
+
+        return {"customization": presenter.section(approval, frappe.session.user)}
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), f"AI customization card {approval.name}")
+        return {}
 
 
 def artifact_block(artifact_name):

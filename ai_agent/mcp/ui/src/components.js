@@ -31,7 +31,8 @@
   function rich(text) {
     var s = String(text == null ? "" : text), out = [], re = /(\d[\d,\.]*(?:\s?[A-Za-z]{2,5})?)/g, last = 0, m;
     // A value with no Arabic in it (an id, "1 USD = 530 YER") is one left-to-right run, never reordered piece by piece.
-    if (s && !/[\u0600-\u06FF]/.test(s)) return [h("span", { class: "num", text: s })];
+    // A long Latin sentence (an English warning) keeps its order too but must still wrap.
+    if (s && !/[\u0600-\u06FF]/.test(s)) return [h("span", { class: s.length > 40 && /\s/.test(s) ? "ltr" : "num", text: s })];
     while ((m = re.exec(s))) {
       if (m.index > last) out.push(s.slice(last, m.index));
       out.push(h("span", { class: "num", text: m[1] }));
@@ -195,3 +196,85 @@
       ActionRow(headerActions, {})) : null);
   }
   function Card(children, cls) { return h("section", { class: "ag-card" + (cls ? " " + cls : "") }, children); }
+
+  /* ---------- code: the full source with line numbers, light token colouring and an optional unified diff ----------
+     Built from text nodes only (never innerHTML), so code shown for approval cannot run inside the view. */
+  var CODE_KEYWORDS = {
+    python: "and as assert break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return True try while with yield",
+    javascript: "async await break case catch class const continue default delete do else export extends false finally for function if import in instanceof let new null return super switch this throw true try typeof undefined var void while yield",
+    sql: "select from where and or not in is null like between group by order having limit offset join left right inner outer on as union all distinct case when then else end with asc desc count sum avg min max ifnull coalesce exists",
+    json: "true false null"
+  };
+  var CODE_RES = {};
+  function codeRe(lang) {
+    if (CODE_RES[lang]) return CODE_RES[lang];
+    var com = lang === "python" ? "#.*$" : lang === "sql" ? "--.*$" : lang === "javascript" ? "\\/\\/.*$" : "(?!)";
+    var str = lang === "javascript" ? "`(?:\\\\.|[^`\\\\])*`|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'" : "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'";
+    var kw = (CODE_KEYWORDS[lang] || "").split(" ").join("|");
+    var src = "(" + com + ")|(" + str + ")|(%\\(\\w+\\)s)|(\\b\\d+(?:\\.\\d+)?\\b)" + (kw ? "|(\\b(?:" + kw + ")\\b)" : "");
+    return (CODE_RES[lang] = new RegExp(src, lang === "sql" ? "gi" : "g"));
+  }
+  function codeLine(text, lang) {
+    var out = [], re = codeRe(lang), last = 0, m, cls = ["c-com", "c-str", "c-var", "c-num", "c-kw"];
+    re.lastIndex = 0;
+    while ((m = re.exec(text))) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      if (m.index > last) out.push(text.slice(last, m.index));
+      for (var g = 1; g <= 5; g++) if (m[g] !== undefined) { out.push(h("span", { class: cls[g - 1], text: m[0] })); break; }
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push(text.slice(last));
+    return out;
+  }
+  /* code: {language, text, lines, diff, title}; marks: {line: level} from the checks. */
+  function CodeBlock(code, marks, labels) {
+    var L = labels || {};
+    var st = { view: code.diff ? "diff" : "full" };
+    var body = h("div", { class: "cz-code-body", tabindex: "0", role: "region", "aria-label": code.title || "" });
+    var tabs = code.diff ? h("div", { class: "cz-tabs", role: "tablist" },
+      [["diff", L.diff_view || T("Changes")], ["full", L.full_view || T("Full code")]].map(function (x) {
+        return h("button", { class: "cz-tab", type: "button", role: "tab", "data-view": x[0], onclick: function () { show(x[0]); } }, x[1]);
+      })) : null;
+    var copy = h("button", { class: "btn ghost sm", type: "button", onclick: function () { copyText(code.text); flash(L.copied || T("Copied")); } }, icon("copy", 14), L.copy || T("Copy code"));
+    var box = h("div", { class: "cz-code", dir: "ltr" },
+      h("div", { class: "cz-code-head" }, h("span", { class: "cz-lang", text: code.language }), h("span", { class: "cz-lines num", text: String(code.lines || "") }), tabs, h("span", { class: "grow" }), copy),
+      body);
+    function full() {
+      return h("ol", { class: "cz-src" }, String(code.text).split("\n").map(function (line, i) {
+        var n = i + 1, lvl = marks && marks[n];
+        return h("li", { class: "cz-line" + (lvl ? " mark-" + lvl : ""), "data-line": n }, h("span", { class: "cz-ln", "aria-hidden": "true", text: String(n) }), h("span", { class: "cz-tx" }, codeLine(line, code.language)));
+      }));
+    }
+    function diff() {
+      return h("ol", { class: "cz-src cz-diff" }, String(code.diff).split("\n").map(function (line) {
+        var k = line.slice(0, 3) === "+++" || line.slice(0, 3) === "---" ? "meta" : line[0] === "@" ? "hunk" : line[0] === "+" ? "add" : line[0] === "-" ? "del" : "ctx";
+        return h("li", { class: "cz-line d-" + k }, h("span", { class: "cz-ln", "aria-hidden": "true", text: k === "add" ? "+" : k === "del" ? "−" : "" }),
+          h("span", { class: "cz-tx" }, k === "add" || k === "del" || k === "ctx" ? codeLine(line.slice(1), code.language) : line));
+      }));
+    }
+    function show(view) {
+      st.view = view; clear(body); body.appendChild(view === "diff" ? diff() : full());
+      if (tabs) Array.prototype.forEach.call(tabs.children, function (b) { b.setAttribute("aria-selected", String(b.getAttribute("data-view") === view)); });
+      setTimeout(reportSize, 0);
+    }
+    show(st.view);
+    box.goTo = function (n) {
+      if (st.view !== "full") show("full");
+      var el = body.querySelector('[data-line="' + n + '"]');
+      if (!el) return;
+      body.scrollTop = el.offsetTop - body.clientHeight / 3;
+      el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    };
+    return box;
+  }
+  /* Analyzer findings, most serious first; a finding with a line jumps to it in the code. */
+  function CheckList(checks, onLine, labels) {
+    var L = labels || {};
+    if (!checks || !checks.length) return h("div", { class: "msg", text: L.no_checks || T("No findings.") });
+    var glyph = { ok: "checkCircle", info: "info", warning: "alert", critical: "circleAlert" };
+    return h("ul", { class: "cz-checks" }, checks.map(function (c) {
+      return h("li", { class: "cz-check lvl-" + c.level, role: c.level === "critical" ? "alert" : null },
+        icon(glyph[c.level] || "info", 16), h("span", { class: "grow" }, rich(c.message)),
+        c.line && onLine ? h("button", { class: "cz-lineref", type: "button", onclick: function () { onLine(c.line); } }, h("span", { class: "num", text: (L.line || T("Line {0}")).replace("{0}", c.line) })) : null);
+    }));
+  }

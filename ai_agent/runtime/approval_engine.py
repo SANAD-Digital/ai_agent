@@ -6,7 +6,7 @@ from ai_agent.runtime.exceptions import (
     ApprovalRequired, ApprovalExpired, ApprovalAlreadyExecuted,
     PermissionDenied, IdempotencyConflict, ConcurrencyConflict,
 )
-from ai_agent.runtime.write_guard import blocked_fields
+from ai_agent.runtime.write_guard import blocked_fields, foreign_child_rows, replacement_hints
 
 PERMTYPE_BY_ACTION = {
     "Create": "create",
@@ -16,6 +16,7 @@ PERMTYPE_BY_ACTION = {
     "Workflow": "write",
 }
 TARGET_NOT_ACCESSIBLE = "Target document not found or not accessible."
+CUSTOMIZE = "Customize"
 
 
 def _approved_methods():
@@ -24,6 +25,21 @@ def _approved_methods():
 
     return {messaging.METHOD: (messaging.assert_email_allowed, messaging.send_email)}
 
+
+
+def failure_text(exc):
+    """Never an empty reason: some Frappe errors carry their text only in message_log (msgprint before raise)."""
+    text = frappe.utils.strip_html(str(exc) or "").strip()
+    if not text:
+        for entry in reversed(getattr(frappe.local, "message_log", None) or []):
+            try:
+                message = json.loads(entry).get("message") if isinstance(entry, str) else (entry or {}).get("message")
+            except ValueError:
+                message = entry
+            if message:
+                text = frappe.utils.strip_html(str(message)).strip()
+                break
+    return text or type(exc).__name__
 
 class ApprovalEngine:
     """Manages the approval lifecycle for write operations."""
@@ -43,7 +59,8 @@ class ApprovalEngine:
         target = self.assert_action_allowed(
             action_type, doctype_name, document_name, payload, self.ctx.user
         )
-        if action_type == "Update" and not expected_modified and target is not None:
+        # The document the person approves is the one executed: Submit/Cancel/Workflow act on its state too.
+        if action_type in ("Update", "Submit", "Cancel", "Workflow") and not expected_modified and target is not None:
             expected_modified = str(target.modified)
 
         if idempotency_key:
@@ -56,12 +73,27 @@ class ApprovalEngine:
 
         settings = frappe.get_cached_doc("AI Settings")
         ttl = settings.default_approval_ttl_minutes or 30
+        if action_type == CUSTOMIZE:
+            from ai_agent.customization import policy as customization_policy
+
+            ttl = customization_policy.approval_ttl_minutes()
 
         payload_json = json.dumps(payload, sort_keys=True, default=str)
         payload_hash = hashlib.sha256(payload_json.encode()).hexdigest()
 
         now = frappe.utils.now_datetime()
         expires_at = frappe.utils.add_to_date(now, minutes=ttl)
+
+        if getattr(self.ctx, "surface", None) == "MCP" and not idempotency_key:
+            # External hosts retry a tool call they think timed out: the same request from the same user
+            # within two minutes is the pending one, not a second card (or, in direct mode, a second document).
+            duplicate = frappe.db.get_value("AI Approval Request", {
+                "requested_by": frappe.session.user, "action_type": action_type, "doctype_name": doctype_name,
+                "document_name": document_name or ("is", "not set"), "payload_hash": payload_hash, "status": "Pending",
+                "creation": (">=", frappe.utils.add_to_date(now, minutes=-2)),
+            }, "name")
+            if duplicate:
+                return frappe.get_doc("AI Approval Request", duplicate)
 
         approval = frappe.get_doc({
             "doctype": "AI Approval Request",
@@ -126,6 +158,12 @@ class ApprovalEngine:
             if "System Manager" not in roles and (not approver_role or approver_role not in roles):
                 raise PermissionDenied("You are not authorized to approve this action.")
 
+        if approval.action_type == CUSTOMIZE:
+            # Its own four-eyes switch, and the approver must hold the kind's roles: they execute it.
+            from ai_agent.customization import policy as customization_policy
+
+            customization_policy.assert_can_approve(approval, user)
+
         approval.status = "Approved"
         approval.approved_by = user
         approval.decided_at = frappe.utils.now_datetime()
@@ -172,12 +210,18 @@ class ApprovalEngine:
         # Re-check against the approver (who executes it) at execution time:
         # permissions or the target document may have changed since the request.
         user = approval.approved_by
+        if approval.action_type == CUSTOMIZE and approval.payload_hash != self._compute_hash(approval.payload_json or ""):
+            # Ends Failed (never left Approved): a changed payload is never retried.
+            exc = PermissionDenied("Payload has been tampered with.")
+            self._mark_failed(approval_name, exc)
+            raise exc
         self.assert_action_allowed(
             approval.action_type,
             approval.doctype_name,
             approval.document_name,
             json.loads(approval.payload_json or "{}"),
             user,
+            phase="execute",
         )
 
         try:
@@ -205,7 +249,12 @@ class ApprovalEngine:
             return
         approval.status = "Failed"
         approval.executed_at = frappe.utils.now_datetime()
-        approval.execution_result = json.dumps({"error": frappe.utils.strip_html(str(exc))[:500]}, ensure_ascii=False)
+        result = {"error": failure_text(exc)[:500]}
+        created = getattr(exc, "created_before_compensation", None)
+        if created is not None:
+            # A multi-record change failed part-way: what was created and then removed again.
+            result.update({"created_before_compensation": list(created), "compensated": True})
+        approval.execution_result = json.dumps(result, ensure_ascii=False, default=str)
         approval.save(ignore_permissions=True)
         frappe.db.commit()
 
@@ -214,7 +263,11 @@ class ApprovalEngine:
 
         Same validation and the same executor as an approved request; only the human step is skipped.
         """
+        from ai_agent.runtime import policy
+
         approval = frappe.get_doc("AI Approval Request", approval_name, for_update=True)
+        if policy.requires_human(approval.action_type):
+            raise PermissionDenied(f"A {approval.action_type} request is never run without a person approving it.")
         if approval.status != "Pending":
             raise ApprovalAlreadyExecuted(f"Request is already {approval.status}.")
         if approval.requested_by != user:
@@ -247,6 +300,10 @@ class ApprovalEngine:
         elif approval.action_type == "Approved Method":
             _check, execute = _approved_methods()[payload.get("method")]
             return execute(payload, approval)
+        elif approval.action_type == CUSTOMIZE:
+            from ai_agent.customization import executor
+
+            return executor.run(approval, approval.approved_by)
         else:
             raise ApprovalRequired(f"Action type '{approval.action_type}' not yet implemented.")
 
@@ -280,13 +337,15 @@ class ApprovalEngine:
                 doc = frappe.get_doc(document["payload"])
                 doc.insert(ignore_permissions=False)
                 created.append({"doctype": doc.doctype, "document_name": doc.name})
-        except Exception:
+        except Exception as exc:
+            # The traceback goes to the Error Log only; the user and the model get the reason.
+            frappe.log_error(frappe.get_traceback(), f"AI Approval bulk create failed: {approval.name}")
             frappe.db.rollback()
             approval.status = "Failed"
             approval.executed_at = frappe.utils.now_datetime()
             approval.execution_result = json.dumps(
                 {
-                    "error": frappe.get_traceback(),
+                    "error": failure_text(exc)[:500],
                     "created_before_rollback": created,
                     "rolled_back": True,
                 },
@@ -311,6 +370,9 @@ class ApprovalEngine:
 
         if approval.expected_modified and str(doc.modified) != str(approval.expected_modified):
             raise ConcurrencyConflict("Document was modified since the approval was requested.")
+        foreign = foreign_child_rows(doc, payload)
+        if foreign:
+            raise PermissionDenied(f"These rows do not belong to {doc.doctype} {doc.name}: {', '.join(foreign)}.")
 
         for key, val in payload.items():
             doc.set(key, val)
@@ -325,9 +387,15 @@ class ApprovalEngine:
 
         return {"document_name": doc.name, "doctype": approval.doctype_name}
 
+    @staticmethod
+    def _assert_unchanged(approval, doc):
+        if approval.expected_modified and str(doc.modified) != str(approval.expected_modified):
+            raise ConcurrencyConflict("The document was changed after the approval was requested; ask for a new request.")
+
     def _execute_submit(self, approval):
         """Execute a submit action."""
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        self._assert_unchanged(approval, doc)
         doc.submit()
 
         approval.status = "Executed"
@@ -341,6 +409,7 @@ class ApprovalEngine:
     def _execute_cancel(self, approval):
         """Execute a cancel action."""
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        self._assert_unchanged(approval, doc)
         doc.cancel()
 
         approval.status = "Executed"
@@ -357,6 +426,7 @@ class ApprovalEngine:
         from frappe.model.workflow import apply_workflow
 
         doc = frappe.get_doc(approval.doctype_name, approval.document_name)
+        self._assert_unchanged(approval, doc)
         updated = apply_workflow(doc, payload.get("action"))
 
         approval.status = "Executed"
@@ -412,12 +482,17 @@ class ApprovalEngine:
     def _compute_hash(self, payload_json):
         return hashlib.sha256(payload_json.encode()).hexdigest()
 
-    def assert_action_allowed(self, action_type, doctype_name, document_name, payload, user):
+    def assert_action_allowed(self, action_type, doctype_name, document_name, payload, user, phase="request"):
         """Raise PermissionDenied unless ``user`` may perform this action.
 
-        Returns the loaded target document for document-level actions.
+        Returns the loaded target document for document-level actions. ``phase`` is "request" for the
+        requester and "execute" for the approver at execution time.
         """
         from ai_agent.runtime import policy
+
+        if action_type == CUSTOMIZE:
+            self._assert_customize_allowed(payload, user, phase)
+            return None
 
         if action_type in ("Submit", "Cancel") and not policy.submit_cancel_allowed():
             raise PermissionDenied(
@@ -477,11 +552,37 @@ class ApprovalEngine:
         if action_type == "Update":
             problems = blocked_fields(doctype_name, payload, user, mode="update")
             if problems:
+                hints = replacement_hints(doctype_name, problems, user)
                 raise PermissionDenied(
                     f"These fields cannot be changed on {doctype_name} through the agent: "
-                    f"{', '.join(problems)}"
+                    f"{', '.join(problems)}" + (f". {'; '.join(hints)}." if hints else "")
+                )
+            foreign = foreign_child_rows(doc, payload)
+            if foreign:
+                raise PermissionDenied(
+                    f"These rows do not belong to {doctype_name} {document_name}: {', '.join(foreign)}. "
+                    "Leave out 'name' to add a new row, or use the name of one of its own rows."
                 )
         return doc
+
+    def _assert_customize_allowed(self, payload, user, phase):
+        """Settings and Frappe roles of the kind, for the requester and again for the approver. The
+        surface, rate and pending limits were checked by customization.tools.request; the snapshot
+        comparison and the full re-check run in customization.executor."""
+        from ai_agent.customization import policy as customization_policy
+        from ai_agent.customization import registry
+        from ai_agent.customization.contract import CustomizationError
+
+        if not isinstance(payload, dict) or not payload.get("kind") or not isinstance(payload.get("spec"), dict):
+            raise PermissionDenied("A Customize request needs a kind and a spec.")
+        try:
+            kind = registry.get(payload["kind"])
+        except CustomizationError as exc:
+            raise PermissionDenied(str(exc))
+        # "request" here is the engine's own re-check of the requester (no surface: tools.request did that).
+        customization_policy.assert_allowed(
+            payload["kind"], payload["spec"], user, "execute" if phase == "execute" else "requester", kind=kind
+        )
 
     def _assert_create_allowed(self, doctype_name, payload, user):
         if not doctype_name or not frappe.db.exists("DocType", doctype_name):
@@ -523,8 +624,18 @@ class ApprovalEngine:
             filters={"status": "Pending", "expires_at": ("<", now)},
             pluck="name",
         )
+        from ai_agent.ai_agent.doctype.ai_approval_request.ai_approval_request import settle_tool_call
+
         for name in pending:
-            frappe.db.set("AI Approval Request", name, "status", "Expired", update_modified=False)
+            frappe.db.set_value("AI Approval Request", name, "status", "Expired", update_modified=False)
+            run, created = frappe.db.get_value("AI Approval Request", name, ["run", "creation"])
+            settle_tool_call(name, run, "Expired", created)
+            try:
+                from ai_agent.engine.approvals import on_approval_expired
+
+                on_approval_expired(name)
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), f"AI approval expiry: chat update failed for {name}")
         if pending:
             frappe.db.commit()
         return len(pending)

@@ -15,6 +15,14 @@ from ai_agent.tests.utils import delete_docs
 USER = "Administrator"
 
 
+def approve_args(approval_id, user=USER):
+	"""What the card's Approve button sends: approval from MCP needs its signed token."""
+	from ai_agent.mcp.approvals import issue_token
+
+	payload_hash = frappe.db.get_value("AI Approval Request", approval_id, "payload_hash")
+	return {"approval_id": approval_id, "decision": "approve", "token": issue_token(approval_id, payload_hash, user, "approve")}
+
+
 def service(ui=True):
 	svc = MCPService.__new__(MCPService)
 	svc.user, svc.company, svc.ui_supported = USER, None, ui
@@ -121,14 +129,18 @@ class TestToolsList(LifecycleCase):
 
 
 class TestChatApproval(LifecycleCase):
-	def test_pending_then_approve_in_chat_creates_and_verifies_the_document(self):
+	def test_chat_cannot_approve_the_card_does_and_verifies_the_document(self):
 		svc, title = service(), self.note("chat")
 		pending = self.request_note(svc, title)
 		approval_id = pending["structuredContent"]["data"]["approval_id"]
 		self.assertEqual(pending["structuredContent"]["summary"]["state"], "pending")
 		self.assertFalse(frappe.db.exists("Note", {"title": title}))
 
-		done = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})   # no token: typed in chat
+		typed = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})   # no token: typed in chat
+		self.assertTrue(typed["isError"], "the model cannot approve from chat")
+		self.assertFalse(frappe.db.exists("Note", {"title": title}))
+
+		done = svc.call_tool("approvals__decide", approve_args(approval_id))   # the card's button
 		self.assertFalse(done["isError"], done["content"])
 		self.assertEqual(done["structuredContent"]["summary"]["state"], "verified")
 		self.assertTrue(frappe.db.exists("Note", {"title": title}))
@@ -136,13 +148,13 @@ class TestChatApproval(LifecycleCase):
 		self.assertEqual(record.status, "Executed")
 		stored = json.loads(record.execution_result)
 		self.assertTrue(stored["verified"])
-		self.assertEqual(stored["approved_via"], "chat")
+		self.assertEqual(stored["approved_via"], "app")
 		self.assertIn(stored["document_name"], done["content"][0]["text"] + json.dumps(done["structuredContent"], default=str))
 
 	def test_approving_twice_never_creates_a_second_document(self):
 		svc, title = service(), self.note("twice")
 		approval_id = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
-		first = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
+		first = svc.call_tool("approvals__decide", approve_args(approval_id))
 		second = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
 		self.assertEqual(frappe.db.count("Note", {"title": title}), 1)
 		self.assertFalse(second["isError"])
@@ -163,7 +175,7 @@ class TestChatApproval(LifecycleCase):
 		svc, title = service(), self.note("expired")
 		approval_id = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
 		frappe.db.set_value("AI Approval Request", approval_id, "expires_at", frappe.utils.add_to_date(None, minutes=-5))
-		out = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
+		out = svc.call_tool("approvals__decide", approve_args(approval_id))
 		self.assertTrue(out["isError"])
 		self.assertFalse(frappe.db.exists("Note", {"title": title}))
 
@@ -171,9 +183,15 @@ class TestChatApproval(LifecycleCase):
 		svc, title = service(), self.note("tamper")
 		approval_id = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
 		frappe.db.set_value("AI Approval Request", approval_id, "payload_json", json.dumps({"doctype": "Note", "title": title + " evil", "content": "y"}))
-		out = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
+		out = svc.call_tool("approvals__decide", approve_args(approval_id))
 		self.assertTrue(out["isError"])
 		self.assertFalse(frappe.db.exists("Note", {"title": ["like", f"{title}%"]}))
+
+	def test_a_retried_request_returns_the_pending_one(self):
+		svc, title = service(), self.note("retry")
+		first = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
+		second = self.request_note(svc, title)["structuredContent"]["data"]["approval_id"]
+		self.assertEqual(first, second)
 
 	def test_someone_elses_request_is_invisible(self):
 		svc, title = service(), self.note("other")
@@ -190,7 +208,7 @@ class TestChatApproval(LifecycleCase):
 		from ai_agent.runtime.approval_engine import ApprovalEngine
 
 		with patch.object(ApprovalEngine, "_execute_by_type", side_effect=frappe.ValidationError("الحقل مطلوب")):
-			out = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
+			out = svc.call_tool("approvals__decide", approve_args(approval_id))
 		self.assertEqual(out["structuredContent"]["summary"]["state"], "failed")
 		self.assertEqual(frappe.db.get_value("AI Approval Request", approval_id, "status"), "Failed")
 		self.assertIn("الحقل مطلوب", json.dumps(out["_meta"], ensure_ascii=False))
@@ -291,7 +309,7 @@ class TestOriginalGoal(LifecycleCase):
 		self.assertEqual(continuation.peek(approval_id)["goal"], "إنشاء المستند الرئيسي")
 
 		with _summary_patch():
-			out = svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
+			out = svc.call_tool("approvals__decide", approve_args(approval_id))
 		self.assertFalse(out["isError"], out["content"])
 		created = frappe.db.get_value("Note", {"title": first}, "name")
 		self.assertTrue(created)
@@ -304,7 +322,7 @@ class TestOriginalGoal(LifecycleCase):
 		self.assertEqual(payload["content"], created, "placeholder replaced by the record just created")
 		self.assertEqual(out["_meta"]["ai_agent/presentation"]["approval_id"], next_id, "the card shown is the next step's")
 
-		final = svc.call_tool("approvals__decide", {"approval_id": next_id, "decision": "approve"})
+		final = svc.call_tool("approvals__decide", approve_args(next_id))
 		self.assertEqual(final["structuredContent"]["summary"]["state"], "verified")
 		self.assertTrue(frappe.db.exists("Note", {"title": second}))
 
@@ -313,8 +331,8 @@ class TestOriginalGoal(LifecycleCase):
 		then = {"goal": "g", "tool": "actions__request_create_draft", "arguments": {"doctype": "Note", "payload": {"title": second, "content": "c"}}}
 		approval_id = self.request_note(svc, first, then=then)["structuredContent"]["data"]["approval_id"]
 		with _summary_patch():
-			svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
-			svc.call_tool("approvals__decide", {"approval_id": approval_id, "decision": "approve"})
+			svc.call_tool("approvals__decide", approve_args(approval_id))
+			svc.call_tool("approvals__decide", approve_args(approval_id))
 		pending = frappe.get_all("AI Approval Request", filters={"payload_json": ["like", f"%{second}%"]}, pluck="name")
 		self.assertEqual(len(pending), 1)
 
@@ -363,3 +381,28 @@ class TestSafeDefaults(IntegrationTestCase):
 		for value, expected in ((None, True), ("", True), (1, True), ("1", True), (0, False), ("0", False)):
 			with patch("frappe.get_cached_doc", return_value=frappe._dict(mcp_require_approval=value)):
 				self.assertIs(approvals.approval_required(), expected, repr(value))
+
+
+class TestDirectModeLimits(IntegrationTestCase):
+	"""With mcp_require_approval off, only Create / Bulk Create / Update run without the card."""
+
+	def test_only_auto_types_run_directly(self):
+		for action_type, human in (("Create", False), ("Bulk Create", False), ("Update", False), ("Submit", True),
+				("Cancel", True), ("Workflow", True), ("Approved Method", True), ("Customize", True)):
+			with patch.object(frappe.db, "get_value", return_value=action_type):
+				self.assertEqual(MCPService._always_human("x"), human, action_type)
+
+
+class TestMCPCompany(IntegrationTestCase):
+	"""Each MCP user works in their own default company; AI Settings' MCP company is the fallback."""
+
+	def test_user_default_company_wins(self):
+		company = frappe.get_all("Company", pluck="name", limit=1)
+		if not company:
+			self.skipTest("no company on this site")
+		svc = MCPService.__new__(MCPService)
+		svc.user, svc.settings = "Administrator", frappe._dict(mcp_company="Fallback Co")
+		with patch.object(frappe.defaults, "get_user_default", return_value=company[0]):
+			self.assertEqual(svc._company(), company[0])
+		with patch.object(frappe.defaults, "get_user_default", return_value=None):
+			self.assertEqual(svc._company(), "Fallback Co")

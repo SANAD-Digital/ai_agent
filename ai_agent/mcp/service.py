@@ -19,6 +19,7 @@ from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.tool_gateway import ToolGateway
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.tool_registry import ToolRegistry
+from ai_agent.runtime.untrusted import RULE as UNTRUSTED_RULE
 
 
 ACTION_PREFIX = "actions.request_"
@@ -114,15 +115,15 @@ SYNTHETIC_TOOLS = {
         "properties": {"approval_id": {"type": "string"}}, "required": ["approval_id"], "app_only": False, "read_only": True,
     },
     "approvals__list_pending": {
-        "description": "The user's own pending approval requests. Call it when the user says 'موافق' / 'اعتمد' / 'نفذ' / 'yes go ahead' without naming a "
-        "request: one pending request → decide on it; several → the result asks the user which one; none → say so.",
+        "description": "The user's own pending approval requests, with their cards and ERPNext links. Call it when the user asks what is "
+        "waiting, or says 'موافق' / 'نفذ' without naming a request, then point them to the card's Approve button or the link.",
         "properties": {}, "required": [], "app_only": False, "read_only": True,
     },
     "approvals__decide": {
-        "description": "Approve or reject a pending approval request. Use it when the user explicitly approves in chat ('موافق', 'اعتمد', 'نعم نفذ') "
-        "or rejects ('ألغِ', 'لا'). Approving executes the action, verifies the created/changed document and returns its link; "
-        "when the request carried a next step (`then`) the server prepares it and returns that next request too. Never call it "
-        "without an explicit decision from the user. The card's buttons call the same tool with a signed token.",
+        "description": "Reject a pending approval request when the user rejects it in chat ('ألغِ', 'لا'). Approving needs the "
+        "signed token that only the card's Approve button carries: you cannot approve from chat. When the user says 'موافق', "
+        "ask them to click Approve on the card (or open the request link in ERPNext). An approval executes the action, verifies "
+        "the document and, when the request carried a next step (`then`), prepares it too.",
         "properties": {"approval_id": {"type": "string"}, "decision": {"type": "string", "enum": ["approve", "reject"]},
                        "reason": {"type": "string", "maxLength": 300}, "token": {"type": "string", "description": "Set by the approval card only; leave empty from chat."}},
         "required": ["approval_id", "decision"], "app_only": False, "read_only": False, "destructive": True,
@@ -173,6 +174,12 @@ VIEW_TOOLS = {
     "actions.request_submit",
     "actions.request_update",
     "actions.request_workflow_action",
+    "customize.request_field",
+    "customize.request_properties",
+    "customize.request_client_script",
+    "customize.request_server_script",
+    "customize.request_report",
+    "customize.request_undo",
 }
 
 
@@ -182,7 +189,7 @@ class MCPService:
         self.settings = frappe.get_cached_doc("AI Settings")
         self._assert_access()
         self.agent = self._get_agent()
-        self.company = self.settings.get("mcp_company") or None
+        self.company = self._company()
         self.registry = ToolRegistry()
 
     def instructions(self):
@@ -196,14 +203,14 @@ class MCPService:
             "documents directly; they create a pending approval. Lookup tools (queries, reports, "
             "documents) are your working steps and are not shown to the user as views. "
             + self._final_result_instructions() +
-            "When an approval is pending, the user may click the card's button OR approve in chat: if they say "
-            "'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you "
-            "just received) and approve; never approve without the user's explicit word. approvals__decide "
-            "executes, verifies and returns the document link. If the request needs prerequisite records "
+            "A pending approval is approved only by the user clicking Approve on its card (or in ERPNext through "
+            "the request link); you cannot approve it. If the user says 'موافق' / 'نفذ', ask them to click Approve "
+            "on the card. If the request needs prerequisite records "
             "(a customer or item that does not exist), put them in ONE bulk request, and once the user "
             "approves it continue with the main document (for example the invoice) in the same task "
             "instead of presenting the prerequisites as the final result. Ask with app__choose when "
-            "a choice is ambiguous (which company, which warehouse) instead of guessing."
+            "a choice is ambiguous (which company, which warehouse) instead of guessing. "
+            + UNTRUSTED_RULE
         ) + self._memory_instructions()
 
     def _final_result_instructions(self):
@@ -211,7 +218,7 @@ class MCPService:
             # This host shows no views: the reply itself carries the result.
             return ("Give the final answer in your reply as a short markdown table. For a trend or "
                     "comparison also call artifacts__create_chart and give the user its chart_url as a "
-                    "link. For a pending approval, summarise it and ask the user to reply 'موافق'. ")
+                    "link. For a pending approval, summarise it and give the user the request link to approve it in ERPNext. ")
         return ("When you have the final answer, show it once with artifacts__create_table (rows) or "
                 "artifacts__create_chart (trend or comparison); the host renders that view, so do not "
                 "re-print the table or repeat its numbers, add analysis and the next step instead. ")
@@ -347,11 +354,15 @@ class MCPService:
 
         run = self._create_run(internal_name, arguments)
         ctx = PermissionContext(self.user, self.agent.name, self.company)
+        # Customization gates: the MCP surface, and every MCP request counts as tainted (the host reads
+        # the web and files with its own tools, out of our sight).
+        ctx.surface = "MCP"
+        ctx.tainted = True
         gateway = ToolGateway(ctx, self.registry)
 
         then = None
         try:
-            if internal_name.startswith(ACTION_PREFIX):
+            if registered.get("requires_approval"):
                 then = arguments.pop("then", None)
                 if then is not None:
                     then = continuation.clean(then)
@@ -365,7 +376,7 @@ class MCPService:
                     if then:
                         continuation.store(result["approval_id"], self.user, then)
                         events.log("continuation_stored", user=self.user, approval_id=result["approval_id"], goal=then["goal"])
-                    if not approvals.approval_required():
+                    if not approvals.approval_required() and not self._always_human(result["approval_id"]):
                         return self._direct_execute(result["approval_id"], internal_name, run.name)
             else:
                 events.log("tool_called", user=self.user, tool=internal_name)
@@ -508,10 +519,13 @@ class MCPService:
             elif name == "approvals__list_pending":
                 envelope = approvals.list_pending(self.user)
             elif name == "approvals__decide":
+                if arguments.get("decision") != "reject":
+                    self._assert_decidable_here(arguments.get("approval_id"))
                 envelope = approvals.decide(self.user, arguments.get("approval_id"), arguments.get("decision"),
                                             arguments.get("token") or None, arguments.get("reason"))
                 envelope = self._continue_after(envelope, arguments.get("approval_id"))
             elif name == "approvals__revise":
+                self._assert_decidable_here(arguments.get("approval_id"))
                 envelope = approvals.revise(self.user, arguments.get("approval_id"), arguments.get("token"), arguments.get("changes"))
             elif name == "view__load":
                 envelope, tool, load_args = self._load(arguments)
@@ -548,6 +562,28 @@ class MCPService:
             raise approvals.ApprovalUiError(t("There are no options to choose from."))
         return choice.build(arguments.get("title") or title, options, subtitle=arguments.get("subtitle") or subtitle, icon=icon,
                             reply_template=arguments.get("reply_template") or reply)
+
+    @staticmethod
+    def _always_human(approval_id):
+        """With mcp_require_approval off, only what Desk auto mode runs without a person (Create, Bulk Create,
+        Update) runs directly; Submit, Cancel, Workflow, email and Customize still wait for the card."""
+        from ai_agent.runtime import policy
+
+        action_type = frappe.db.get_value("AI Approval Request", approval_id, "action_type")
+        return policy.requires_human(action_type) or action_type not in policy.AUTO_APPROVE_TYPES
+
+    def _assert_decidable_here(self, approval_id):
+        """A Customize request is approved from Desk only (D4): never by approvals__decide, which an external
+        model calls, nor by the card's buttons. Rejecting from here stays allowed."""
+        if not approval_id:
+            return
+        action_type = frappe.db.get_value("AI Approval Request", approval_id, "action_type")
+        if action_type == "Customize":
+            url = frappe.utils.get_url(f"/app/ai-approval-request/{approval_id}")
+            raise PermissionDenied(
+                f"Customization changes are approved in ERPNext only, not from an external AI tool. Open {url} to review "
+                "and approve it, or ask the user to approve it in the ERPNext chat."
+            )
 
     def _direct_execute(self, approval_id, internal_name, run_name):
         """Approval not required: run the requester's own request now, verify, and continue its `then`."""
@@ -652,12 +688,26 @@ class MCPService:
         allowed_roles = set(mcp_allowed_roles(self.settings))
         if allowed_roles and not allowed_roles.intersection(frappe.get_roles(self.user)):
             raise MCPProtocolError(-32003, "The authenticated user is not allowed to use MCP")
-        self._check_rate_limit()
+        # Every request (handshakes, view loads, resource reads) only against a wide flood guard; the
+        # configured per-minute limit counts the model's tool calls (check_tool_rate_limit). Views made ~10
+        # requests per real tool call and used up the limit on their own.
+        self._check_rate_limit(bucket="all", factor=10)
 
-    def _check_rate_limit(self):
-        limit = max(1, cint(self.settings.get("mcp_max_requests_per_minute")) or 60)
+    def check_tool_rate_limit(self):
+        self._check_rate_limit(bucket="tools")
+
+    def _company(self):
+        """The user's own default company when they may read it (multi-company sites: each user works in theirs),
+        else the site-wide MCP company from AI Settings."""
+        own = frappe.defaults.get_user_default("Company", self.user)
+        if own and frappe.has_permission("Company", "read", own, user=self.user):
+            return own
+        return self.settings.get("mcp_company") or None
+
+    def _check_rate_limit(self, bucket="tools", factor=1):
+        limit = max(1, cint(self.settings.get("mcp_max_requests_per_minute")) or 60) * factor
         window = int(time.time()) // 60
-        key = frappe.cache.make_key(f"ai-agent-mcp-rate:{self.user}:{window}")
+        key = frappe.cache.make_key(f"ai-agent-mcp-rate:{bucket}:{self.user}:{window}")
         count = frappe.cache.incrby(key, 1)
         if count == 1:
             frappe.cache.expire(key, 120)
@@ -680,10 +730,21 @@ class MCPService:
     def _is_exposed(self, tool):
         from ai_agent.runtime import policy
 
-        if tool["name"].startswith("actions.") and (
+        if (tool["name"].startswith("actions.") or tool["name"].startswith("customize.")) and (
             cint(self.agent.get("read_only")) or not cint(self.agent.get("allow_actions"))
         ):
             return False
+        if tool["name"].startswith("customize.") and not cint(self.agent.get("allow_customization")):
+            return False
+        if tool["name"].startswith("customize."):
+            # Off unless AI Settings allows customization over MCP (customization_allow_mcp) and the user holds
+            # the roles; requests also need action requests enabled for MCP. Approval is from Desk only.
+            from ai_agent.customization import policy as customization_policy
+
+            if not customization_policy.tool_available(tool["name"], self.user, customization_policy.MCP):
+                return False
+            if tool.get("requires_approval") and not self._action_requests_enabled():
+                return False
         if tool["name"] in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
             return False
         if tool["name"] in ("tools.request_more", "files.read"):   # files.read reads Desk chat attachments only
@@ -697,6 +758,8 @@ class MCPService:
         side_effect = tool.get("side_effect") or "read_only"
         if side_effect in SAFE_SIDE_EFFECTS:
             return True
+        if tool["name"].startswith("customize."):
+            return True   # checked above
         return tool["name"].startswith(ACTION_PREFIX) and self._action_requests_enabled()
 
     def _create_run(self, tool_name, arguments):
@@ -707,7 +770,7 @@ class MCPService:
                 "user": self.user,
                 "company": self.company,
                 "prompt": f"MCP tool call: {tool_name}",
-                "plan_summary": json.dumps(arguments, ensure_ascii=False, default=str)[:2000],
+                "plan_summary": json.dumps(mask_arguments(tool_name, arguments), ensure_ascii=False, default=str)[:2000],
                 "status": "Running",
                 "started_at": frappe.utils.now_datetime(),
             }
@@ -769,3 +832,10 @@ class MCPService:
             "idempotentHint": read_only,
             "openWorldHint": False,
         }
+
+
+def mask_arguments(tool_name, arguments):
+    """Arguments go into the AI Run audit row: the same masking as results (a filter value can be an IBAN)."""
+    from ai_agent.runtime.masking import mask_tool_result
+
+    return mask_tool_result(tool_name, arguments, arguments)

@@ -47,7 +47,7 @@ Monthly movement of an account: same filters with a date range, `group_by:[{fiel
 
 Chart of accounts lookup: Account, fields `name, account_name, account_number, root_type, account_type, parent_account, is_group, account_currency, freeze_account`; filter `company`, `account_name like_normalized`. root_type: Asset, Liability, Income, Expense, Equity. account_type examples: Bank, Cash, Receivable, Payable, Stock, Cost of Goods Sold, Tax, Income Account, Expense Account.
 
-Journal entries: Journal Entry `voucher_type, posting_date, title, total_debit, user_remark, cheque_no, is_opening`, `docstatus=1`; lines: Journal Entry Account (`parent_doctype:"Journal Entry"`) `account, party_type, party, debit, credit, reference_type, reference_name, cost_center`. JE voucher_type values: Journal Entry, Bank Entry, Cash Entry, Credit Note, Debit Note, Contra Entry, Write Off Entry, Opening Entry, Depreciation Entry, Exchange Rate Revaluation, …
+Journal entries: Journal Entry `voucher_type, posting_date, title, total_debit, remark, cheque_no, is_opening`, `docstatus=1` (on ERPNext v16 the header note is `remark`; `title` and `user_remark` are hidden legacy fields: read them, never write them); lines: Journal Entry Account (`parent_doctype:"Journal Entry"`) `account, party_type, party, debit, credit, reference_type, reference_name, cost_center`. JE voucher_type values: Journal Entry, Bank Entry, Cash Entry, Credit Note, Debit Note, Contra Entry, Write Off Entry, Opening Entry, Depreciation Entry, Exchange Rate Revaluation, …
 
 ## Key fields
 

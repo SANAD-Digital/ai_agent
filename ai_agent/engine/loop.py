@@ -60,6 +60,21 @@ from ai_agent.engine.types import (
 EXTRA_EVENTS = {SKILL: SkillLoaded, ARTIFACT: ArtifactCreated, MEMORY: MemoryNote, APPROVAL: ApprovalAutoExecuted, QUESTION: QuestionAsked, SUGGESTIONS: SuggestionsShown}
 
 
+REPEAT_ERROR_BLOCK = 3
+ANSWER_NUDGE = ("You used tools but wrote nothing to the user. Write your answer now, in the user's language: what you "
+    "found or did, and anything still open.")
+REPEAT_NOTE = ("This is the same error as your previous call ({n} times in a row). Repeating the call will fail again: "
+    "change the arguments, use another tool, or tell the user what is blocking you.")
+REPEAT_BLOCKED = ("Not run: {tool} failed {n} times in a row with the same error ({error}). It will not run again in "
+    "this reply. Change the approach or explain the problem to the user.")
+TOOL_CUT_NOTE = ("Your call to {tools} was cut off at the output limit ({limit} tokens) and was NOT run. "
+    "Send it again shorter: less code and no comments, or split the work into several smaller requests.")
+TOOL_CUT_FAILED = ("The reply was cut off twice at the output limit ({limit} tokens) while writing a tool call. "
+    "Ask for a smaller piece, or raise Max Output Tokens for this model in AI Provider.")
+TEXT_CUT_FAILED = ("The reply was cut off at the output limit ({limit} tokens) before any answer was written. "
+    "Ask for a smaller piece, or raise Max Output Tokens for this model in AI Provider.")
+
+
 @dataclass
 class LoopConfig:
     model: str = ""
@@ -108,6 +123,9 @@ class Loop:
         base_tokens = self.base_tokens(tools)
         continued = 0
         nudged = False
+        self.error_streaks = {}   # tool name -> (error text, identical failures in a row)
+        self.wrote_text = False   # any answer text in this message so far
+        answer_nudged = False
         attempts = 0
         overflowed = False
 
@@ -122,7 +140,7 @@ class Loop:
             result = self.compactor.ensure_fits(messages, base_tokens=base_tokens)
             if result.changed:
                 messages = result.messages
-                yield Compaction(before_tokens=result.before_tokens, after_tokens=result.after_tokens, summary=result.summary, dropped_messages=result.dropped_messages)
+                yield Compaction(before_tokens=result.before_tokens, after_tokens=result.after_tokens, summary=result.summary, dropped_messages=result.dropped_messages, summary_through_seq=result.summary_through_seq)
 
             last_step = self.steps + 1 >= self.config.max_steps
             request = ModelRequest(
@@ -172,9 +190,11 @@ class Loop:
                     result = self.compactor.force(messages, base_tokens=base_tokens)
                     if result.changed:
                         messages = result.messages
-                        yield Compaction(before_tokens=result.before_tokens, after_tokens=result.after_tokens, summary=result.summary, dropped_messages=result.dropped_messages)
+                        yield Compaction(before_tokens=result.before_tokens, after_tokens=result.after_tokens, summary=result.summary, dropped_messages=result.dropped_messages, summary_through_seq=result.summary_through_seq)
                         continue
-                if error.retryable and attempts < self.config.retries and not self.cancel.cancelled:
+                # Retry only when nothing reached the user yet: blocks already streamed are saved, so a retry
+                # would show half an answer followed by the whole one (and replay the half in later turns).
+                if error.retryable and attempts < self.config.retries and not self.cancel.cancelled and not local_to_global:
                     attempts += 1
                     self.sleep(self.config.backoff_seconds * attempts)
                     continue
@@ -195,8 +215,24 @@ class Loop:
                 yield MessageFailed(error="The model returned an empty response.", kind="empty", usage=self.usage.to_dict())
                 return
 
+            if stop == MAX_TOKENS and any(b.kind == TOOL_USE for b in response):
+                # A tool call cut by the output limit has incomplete arguments and is never run. "Continue"
+                # cannot resume it: drop it, tell the model, and let it send a shorter call once.
+                cut = [b.name for b in response if b.kind == TOOL_USE]
+                if continued >= 1:
+                    yield MessageFailed(error=TOOL_CUT_FAILED.format(limit=self.config.max_tokens), kind="max_tokens", usage=self.usage.to_dict())
+                    return
+                continued += 1
+                kept = [b for b in response if b.kind == TEXT and (b.text or "").strip()]
+                if kept:
+                    messages = messages + [Message(role="assistant", blocks=kept)]
+                messages = messages + [Message(role="user", blocks=[Block(kind=TEXT, text=TOOL_CUT_NOTE.format(tools=", ".join(cut), limit=self.config.max_tokens))])]
+                continue
+
             messages = messages + [Message(role="assistant", blocks=response)]
             tool_uses = [b for b in response if b.kind == TOOL_USE]
+            if tool_uses and any(b.kind == TEXT and (b.text or "").strip() for b in response):
+                self.wrote_text = True
 
             if stop == TOOL_USE_STOP and tool_uses:
                 results = []
@@ -207,6 +243,15 @@ class Loop:
                         return
                     if self.tool_calls >= self.config.max_tool_calls:
                         block = Block(kind=TOOL_RESULT, id=call.id, name=call.name, text="Tool call budget for this message is exhausted; answer with what you have.", is_error=True)
+                        block.seq = self._next_seq()
+                        results.append(block)
+                        yield ToolResultEvent(block_seq=block.seq, block=block.to_dict())
+                        continue
+                    streak = self.error_streaks.get(call.name)
+                    if streak and streak[1] >= REPEAT_ERROR_BLOCK:
+                        # The same call failed the same way again and again (customize.check 23x in one reply):
+                        # stop running it and make the model change course.
+                        block = Block(kind=TOOL_RESULT, id=call.id, name=call.name, is_error=True, text=REPEAT_BLOCKED.format(tool=call.name, n=streak[1], error=streak[0]))
                         block.seq = self._next_seq()
                         results.append(block)
                         yield ToolResultEvent(block_seq=block.seq, block=block.to_dict())
@@ -223,6 +268,7 @@ class Loop:
                         yield MessageDone(status="awaiting_approval", stop_reason=TOOL_USE_STOP, usage=self.usage.to_dict(), steps=self.steps, tool_calls=self.tool_calls)
                         return
                     block = outcome.result
+                    self._note_repeat(call.name, block)
                     block.seq = self._next_seq()
                     results.append(block)
                     yield ToolResultEvent(block_seq=block.seq, block=block.to_dict(), duration_ms=outcome.duration_ms, tool_call=outcome.tool_call)
@@ -246,10 +292,35 @@ class Loop:
                 messages = messages + [Message(role="user", blocks=[Block(kind=TEXT, text="You stopped because of the output limit. Continue exactly where you stopped, without repeating.")])]
                 continue
 
+            if stop == MAX_TOKENS and not any(b.kind == TEXT and (b.text or "").strip() for b in response):
+                # Cut again with nothing to show: say so instead of ending silently with an empty reply.
+                yield MessageFailed(error=TEXT_CUT_FAILED.format(limit=self.config.max_tokens), kind="max_tokens", usage=self.usage.to_dict())
+                return
+            has_text = any(b.kind == TEXT and (b.text or "").strip() for b in response)
+            self.wrote_text = self.wrote_text or has_text
+            if not self.wrote_text and self.tool_calls and not answer_nudged:
+                # Tools ran but the reply ended with no word to the user (7 "completed" empty replies): ask once.
+                answer_nudged = True
+                if messages and messages[-1].role == "assistant":
+                    messages = messages[:-1]   # thinking only; nothing the next request needs
+                messages = messages + [Message(role="user", blocks=[Block(kind=TEXT, text=ANSWER_NUDGE)])]
+                continue
             yield MessageDone(status="completed", stop_reason=stop or END_TURN, usage=self.usage.to_dict(), steps=self.steps, tool_calls=self.tool_calls)
             return
 
     # -- internals ---------------------------------------------------------------
+
+    def _note_repeat(self, name, block):
+        """Count identical consecutive errors per tool; from the second one the result says so."""
+        if block is None or not getattr(block, "is_error", False):
+            self.error_streaks.pop(name, None)
+            return
+        error = " ".join(str(block.text or "").split())[:300]
+        previous = self.error_streaks.get(name)
+        count = previous[1] + 1 if previous and previous[0] == error else 1
+        self.error_streaks[name] = (error, count)
+        if count >= 2:
+            block.text = f"{block.text}\n\n{REPEAT_NOTE.format(n=count)}"
 
     def _next_seq(self):
         value = self.seq

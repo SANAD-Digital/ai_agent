@@ -71,6 +71,16 @@ def render(presentation, summary_text=None, *, max_rows=15):
         if blocked:
             out.append(f"⛔ {blocked['title']}: {blocked['message']} "
                        + t("Available: {0} of the {1} requested.", fmt.number(blocked["available"]), fmt.number(blocked["requested"])))
+        cz = presentation.get("customization")
+        if cz:
+            # A customization request: what, how risky, what the checks found, how to undo. The code is reviewed in ERPNext.
+            out.append(f"- {cz['kind_label']} · {cz['operation_label']}: {cz['target']} ({cz['risk_label']})")
+            for c in cz.get("checks") or []:
+                if c["level"] in ("critical", "warning"):
+                    out.append(f"{LEVEL_MARK.get(c['level'], '')} {c['message']}" + (f" ({cz['labels']['line'].format(c['line'])})" if c.get("line") else ""))
+            for line in cz.get("impact") or []:
+                out.append(f"- {line}")
+            out.append(f"- {cz['labels']['undo']}: {cz['undo']}")
         for f in presentation.get("fields") or []:
             out.append(f"- {f['label']}: {f['d']}")
         for f in (presentation.get("impact_financial") or []) + (presentation.get("impact_stock") or []):

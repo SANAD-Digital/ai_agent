@@ -28,7 +28,7 @@ ActionInterceptor كان ينشئ طلبات Update/Submit/Cancel/Workflow **ب�
 
 ### A-06: التحديث يرفض الحقول المحظورة ولا يحذفها بصمت
 عند وجود حقل محظور يُرفض الطلب كاملاً برسالة تسمّي الحقول، فيفهم النموذج السبب ويعيد المحاولة بدونها. الحذف الصامت كان سيُنتج مستنداً مختلفاً عما وافق عليه المستخدم.
-المحظور في التحديث: `docstatus`، `name`، `owner`، `creation`، `modified`، `modified_by`، `amended_from`، `idx`، `doctype`، حقول الأب، أي حقل `read_only` أو `hidden`، أي حقل خارج permlevel الكتابة للمستخدم، وأي حقل غير موجود في الـ DocType. تُطبَّق نفس القواعد على صفوف الجداول الفرعية (يُسمح فيها بـ `name` لتحديد الصف).
+المحظور في التحديث: `docstatus`، `name`، `owner`، `creation`، `modified`، `modified_by`، `amended_from`، `idx`، `doctype`، حقول الأب، أي حقل `read_only`، أي حقل `hidden` في تعريف الـ DocType نفسه (الحقل الذي أخفاه Customize Form عبر Property Setter يبقى قابلاً للتعديل: بيانات عمل أخفاها الموقع من الشاشة فقط، مثل `user_remark` في قيد اليومية؛ قرار 2026-10-19)، أي حقل خارج permlevel الكتابة للمستخدم، وأي حقل غير موجود في الـ DocType. تُطبَّق نفس القواعد على صفوف الجداول الفرعية (يُسمح فيها بـ `name` لتحديد الصف).
 
 ### A-07: الإنشاء أخف من التحديث في فحص الحقول
 في الإنشاء يُرفض: `docstatus` ≠ 0 (مسودة فقط)، حقول التدقيق/دورة الحياة، الحقول خارج permlevel، و`payload.doctype` المختلف عن الـ DocType المعتمد. هذا الأخير كان ثغرة: الفحص يتم على `doctype_name` بينما يُنشأ المستند من `payload["doctype"]`.
@@ -247,3 +247,52 @@ DocType `AI Run` يمنح دور `User` قراءة كل التشغيلات، و`
 - **Gemini:** يرسل المفتاح في ترويسة وليس في الرابط.
 - **Anthropic:** رسائل أخطائه بلا ترويسات أصلاً (B-08).
 - **الاختبار:** يتحقق أن مفاتيح المزودين الحقيقية على الموقع لا تظهر في Error Log ولا في AI Run Step.
+
+## 2026-10-19 — Code, access and agent DocTypes are closed to the generic document actions (customization phase 0)
+
+`policy.CODE_AND_ACCESS_DOCTYPES` (Server Script, Client Script, Custom Field, Property Setter, Report, Print Format,
+Web Page/Form, Notification, Workflow, Webhook, User, Role, User Permission, OAuth, Email Account, AI Settings,
+AI Agent, AI Skill, AI Skill Grant, …) is refused by `actions.request_create_draft / request_update /
+request_bulk_create`, at request time and again at execution (pending requests included). Evidence: the agent had
+created a guest-reachable path, AI Skill Grants (granting itself skills) and 51 script/report writes without any code
+check; auto mode and "approve always" covered them. Customization returns through the dedicated `customize.*` tools
+(docs/customization/01-gap-audit-and-design.md), off by default and always approved by a person. Owner approved D1.
+
+## 2026-10-19 — customize.* runtime: gates, the Customize approval and where each rule is enforced (customization phase 1, group A)
+
+Design: docs/customization/01-gap-audit-and-design.md §3.2–3.8. Owner decisions D2–D5, D10 applied.
+
+- **Approval type `Customize`** (new option on `AI Approval Request.action_type`) and `runtime.policy.ALWAYS_HUMAN_TYPES =
+  {Customize, Approved Method}` / `requires_human()`. Never executed without a person, by any path:
+  `policy.auto_approves` is False for them and `engine/tools._approval_call` skips `_auto_execute`;
+  `chat/api.decide_approval("approve_always")` refuses them; `ApprovalEngine.execute_direct` refuses them (so MCP with
+  `mcp_require_approval=0` cannot run them; `mcp/service` also skips `_direct_execute` for them).
+- **Approval from Desk only (D4):** `mcp/service` refuses `approvals__decide(approve)` and `approvals__revise` for a
+  Customize request (rejecting from MCP stays allowed) and points to the Desk URL.
+- **Switches (all off by default):** `allow_customization_actions` + one per kind (`allow_customize_fields` covers
+  fields and properties, `_client_scripts`, `_server_scripts`, `_reports`), `customization_allow_mcp`,
+  `customization_require_four_eyes`, `customization_max_requests_per_hour` (20). Checked for tool visibility
+  (engine `allowed()`, MCP `_is_exposed`), in the gateway (both `authorize_and_execute` and `create_approval`), at the
+  request and again at execution — turning a switch off stops an already-approved request.
+- **Surfaces:** the caller sets `ctx.surface`. Desk chat yes; MCP only with `customization_allow_mcp` (requests also need
+  `mcp_enable_action_requests`); the support bubble, WhatsApp, API, legacy orchestrator runs and anything without a
+  surface are refused (fail closed).
+- **Roles (D3, no new role):** System Manager; Script Manager added for server scripts (and whatever a kind's
+  `roles_for(spec)` adds, e.g. Query Report). Checked for the requester, at `approve()` for the approver, and again at
+  execution. Customize four-eyes is its own switch, independent of `require_four_eyes`. The agent needs
+  `allow_actions=1, read_only=0` for every customize.* tool, reads included.
+- **Limits:** 5 pending per user, one pending per target (`custom_field:<doctype>:<fields>`, `properties:<doctype>`,
+  `<kind>:<name>`, `report:<name>`), N per hour, 20k characters of code, 10 fields, 40 properties; TTL capped at 60 min.
+- **Execution** (`customization/executor.py`) as the approver: the payload hash is re-checked, `kind.snapshot` must
+  equal the request's `before` (else ConcurrencyConflict → Failed), `kind.check` runs again (any critical → Failed),
+  then execute + verify. An unverified change is still Executed with `verified: false`. `execution_result` keeps
+  `after` so `customize.request_undo` refuses when the target changed since; undo is a new Customize approval.
+- **Taint:** after `web.fetch`/`web.search`, or `files.read` of a file that is not this chat's own upload, a Customize
+  request carries `context.tainted=true` (per run, including earlier calls of a resumed run). Every MCP request is tainted.
+- Kinds are loaded lazily from `customization.registry.KINDS` (`kinds/<name>.py` exposes `KIND`); tests register fakes.
+- **Integration with group B's kinds (same day):** the executor passes the approval name to `kind.execute(..., approval=)`
+  and sets `frappe.flags.ai_customize_approval`, so script and report headers name the real approval. When a kind
+  raises with `created_before_compensation` (a multi-field add failed part-way), the executor commits the compensating
+  deletions before re-raising (the engine's rollback would otherwise bring the deleted Custom Field rows back), and
+  `_mark_failed` stores `created_before_compensation` + `compensated: true` in `execution_result`. A Customize payload
+  whose hash no longer matches at execution ends **Failed**, never left Approved.

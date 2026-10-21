@@ -15,7 +15,8 @@ import frappe
 from ai_agent.engine.types import DOCUMENT, IMAGE, TEXT, Block, clip
 
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}
-MAX_IMAGE_BYTES = 8 * 1024 * 1024
+# Anthropic rejects an image over 5 MB as sent (base64 adds a third): larger images go through OCR text.
+MAX_IMAGE_BYTES = 3_750_000
 MAX_PDF_BYTES = 20 * 1024 * 1024
 MAX_TEXT_CHARS = 40_000
 

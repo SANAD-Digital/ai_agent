@@ -43,6 +43,10 @@ def _build_document(doc_type, payload):
 
 
 def _apply_document_defaults(doc):
+    # Both come from the selling/buying/stock controllers and walk doc.items; Journal Entry, Payment Entry
+    # and others inherit them from AccountsController without having an items table.
+    if not doc.meta.get_field("items"):
+        return
     for method_name in ("set_missing_values", "calculate_taxes_and_totals"):
         if hasattr(doc, method_name):
             getattr(doc, method_name)()
@@ -94,13 +98,31 @@ def handle_validate(arguments, permission_context):
     if not doc_type:
         return {"error": "doctype is required"}
 
+    # The same checks a save runs (defaults, mandatory, links, controller validate), never a bare
+    # doc.validate(): controllers expect _action and _doc_before_save. Inside a savepoint, rolled back.
+    frappe.db.savepoint("ai_validate_document")
     try:
         doc = _build_document(doc_type, payload)
         _apply_document_defaults(doc)
-        doc.validate()
+        # Document.insert() up to the write: defaults, name (series counter rolled back), parent links on
+        # child rows, then before_validate / validate / before_save and the mandatory and link checks.
+        doc._set_defaults()
+        doc.set_user_and_timestamp()
+        doc.set_docstatus()
+        doc.run_method("before_insert")
+        doc.set_new_name()
+        doc.set_parent_in_children()
+        doc.flags.in_insert = True
+        doc._action = "save"
+        doc.load_doc_before_save()
+        doc.run_before_save_methods()
+        doc._validate()
         return {"valid": True, "doctype": doc_type}
     except Exception as e:
-        return {"valid": False, "errors": str(e)}
+        return {"valid": False, "errors": frappe.utils.strip_html(str(e))}
+    finally:
+        frappe.db.rollback(save_point="ai_validate_document")
+        frappe.local.message_log = []
 
 
 def handle_request_create(arguments, permission_context):

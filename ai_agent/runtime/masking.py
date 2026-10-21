@@ -79,6 +79,13 @@ def _mask(value, doctype, pay_document):
 
 def result_doctype(tool_name, arguments):
 	arguments = arguments or {}
+	if str(tool_name or "").replace("__", ".") in ("reports.run", "reports.describe"):
+		# A report has no doctype argument: its reference DocType decides (Salary Register -> Salary Slip, so
+		# every amount in it is masked as pay).
+		name = arguments.get("report_name") or arguments.get("name") or arguments.get("report")
+		ref = frappe.db.get_value("Report", name, "ref_doctype") if isinstance(name, str) and name else None
+		if ref:
+			return ref
 	spec = arguments.get("specification") if isinstance(arguments.get("specification"), dict) else arguments
 	return (
 		spec.get("doctype")

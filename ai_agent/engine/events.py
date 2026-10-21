@@ -162,6 +162,7 @@ class Compaction(Event):
     after_tokens: int = 0
     summary: str = ""
     dropped_messages: int = 0
+    summary_through_seq: int = 0   # last chat message wholly folded into the summary
 
 
 @dataclass

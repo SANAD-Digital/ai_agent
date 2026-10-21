@@ -75,9 +75,25 @@ def caps_from_config(config, model):
         supports_vision=bool(row.get("supports_vision")),
         supports_pdf=bool(row.get("supports_pdf")) or "claude" in model,
         supports_cache_control="claude" in model,
-        input_price_per_million=float(row.get("input_price_per_million") or 0),
-        output_price_per_million=float(row.get("output_price_per_million") or 0),
+        input_price_per_million=float(row.get("input_price_per_million") or 0) or guess_prices(model)[0],
+        output_price_per_million=float(row.get("output_price_per_million") or 0) or guess_prices(model)[1],
     )
+
+
+# Anthropic list prices in USD per million tokens (input, output), used when the model row has no price so the
+# chat can show an estimated cost. First match wins: specific ids before their family. Other providers' prices
+# change too often to ship; enter them on the model row (AI Provider > Models).
+CLAUDE_PRICES = (
+    ("claude-fable-5", 10.0, 50.0), ("claude-mythos-5", 10.0, 50.0),
+    ("claude-opus-5-5", 4.0, 20.0), ("claude-opus-5", 5.0, 25.0), ("claude-opus-4", 5.0, 25.0),
+    ("claude-sonnet-5", 2.0, 10.0), ("claude-sonnet-4", 3.0, 15.0),
+    ("claude-haiku-5-5", 0.10, 0.50), ("claude-haiku-4", 1.0, 5.0),
+)
+
+
+def guess_prices(model):
+    m = (model or "").lower()
+    return next(((i, o) for needle, i, o in CLAUDE_PRICES if needle in m), (0.0, 0.0))
 
 
 # Fallback limits by model family, used only when the provider's model row has no

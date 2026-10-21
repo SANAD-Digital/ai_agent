@@ -28,6 +28,7 @@
         "decide_approval",
         "set_approval_mode",
         "rename_session",
+        "export_session",
         "archive_session",
         "pin_session",
         "delete_session",
@@ -170,7 +171,9 @@
 
     const POLL_MS = 1500;
     const QUIET_MS = 4000;
+    const QUIET_RESYNC_MS = 10000;
     let lastEventAt = 0;
+    let lastResyncAt = 0;
     let pollTimer = null;
 
     function socketConnected() {
@@ -184,8 +187,12 @@
             pollTimer = null;
             return;
         }
-        const quiet = Date.now() - lastEventAt > QUIET_MS;
-        if (!socketConnected() || quiet) {
+        // Socket down: poll every tick. Socket up but quiet (long thinking, a slow tool): events may have been
+        // missed, but re-fetching the whole message every 1.5 s for minutes is the costliest path, so slow down.
+        const now = Date.now();
+        const quiet = now - lastEventAt > QUIET_MS;
+        if (!socketConnected() || (quiet && now - lastResyncAt > QUIET_RESYNC_MS)) {
+            lastResyncAt = now;
             for (const name of Array.from(store.state.streaming)) resync(name);
         }
     }

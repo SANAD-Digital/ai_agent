@@ -53,6 +53,9 @@ from ai_agent.runtime.run_control import run_timeout_seconds
 REALTIME_EVENT = "ai_agent:chat"
 JOB_PREFIX = "ai-chat-msg-"
 CANCEL_KEY = "ai:chat:cancel:{}"
+TAIL_SECONDS = 0.3
+# Provider failures that say the chosen model cannot be used now; anything else (a bug, a timeout) still fails.
+FALLBACK_KINDS = frozenset({"auth", "quota", "model", "not_chat", "no_tools", "rate_limit"})
 TAIL_KEY = "ai:chat:tail:{}"
 FLUSH_SECONDS = 2.0
 DELTA_COALESCE_CHARS = 24
@@ -71,6 +74,31 @@ def run_options(route):
 
 def job_id(message):
     return f"{JOB_PREFIX}{message}"
+
+
+def stored_kind(kind):
+    """The block type as the site's schema knows it. Code deployed before `bench migrate` may emit a type the
+    Select field does not list yet; storing it would fail the whole reply ("Block Type cannot be ..."), so it is
+    kept as a status block and logged once per type instead."""
+    options = (frappe.get_meta("AI Message Block").get_field("block_type").options or "").split("\n")
+    if kind in options:
+        return kind
+    key = f"ai_agent:unknown_block_type:{kind}"
+    if not frappe.cache().get_value(key):
+        frappe.cache().set_value(key, 1, expires_in_sec=3600)
+        frappe.log_error(f"Block type '{kind}' is not in AI Message Block.block_type on this site: run bench migrate.", "AI Chat schema behind code")
+    return "status"
+
+
+def job_is_alive(message):
+    """True while the message's queue job can still run (queued or started); True when Redis cannot say."""
+    try:
+        from frappe.utils.background_jobs import get_job_status
+
+        status = get_job_status(job_id(message))
+    except Exception:
+        return True
+    return str(getattr(status, "value", status) or "").lower() in ("queued", "started", "deferred", "scheduled")
 
 
 def enqueue(message, user, resume=False):
@@ -189,14 +217,16 @@ class Runner:
         run_name = self.run_doc.name if self.run_doc else None
 
         def check():
-            if cache.get_value(key):
+            # use_local_cache=False: the first miss is otherwise kept in frappe.local.cache for the whole job,
+            # and the Stop button's flag (set by the web worker) is never seen.
+            if cache.get_value(key, use_local_cache=False):
                 return True
             return bool(run_name and frappe.db.get_value("AI Run", run_name, "cancel_requested"))
 
         return CancelToken(check=check)
 
     def build(self, resume):
-        provider, provider_name, model = provider_for(self.session.provider, self.session.model)
+        provider, provider_name, model = provider_for(*(getattr(self, "override", None) or (self.session.provider, self.session.model)))
         caps = provider.caps(model)
         ctx = PermissionContext(self.user, self.agent.name, self.session.company)
         executor = ToolExecutor(ctx, self.agent, self.run_doc.name if self.run_doc else None, settings=self.settings, session=self.session.name)
@@ -268,12 +298,14 @@ class Runner:
             provider_name=provider_name,
             max_steps=cint(self.agent.maximum_steps) or cint(self.settings.maximum_steps) or 20,
             max_tool_calls=cint(self.agent.maximum_tool_calls) or cint(self.settings.maximum_tool_calls) or 40,
-            max_tokens=min(caps.max_output_tokens or 8192, 16000),
+            # The model row's Max Output Tokens (AI Provider > Models), else the family default.
+            max_tokens=cint(caps.max_output_tokens) or 8192,
             thinking=thinking,
             thinking_budget=cint(self.agent.get("thinking_budget_tokens")),
             effort=(self.agent.reasoning_effort or self.settings.get("default_reasoning_effort") or ""),
         )
-        budget = budget_for(caps.context_window, config.max_tokens)
+        # A long possible reply must not starve the history: reserve at most a quarter of the window for it.
+        budget = budget_for(caps.context_window, min(config.max_tokens, (caps.context_window or 0) // 4 or config.max_tokens))
         compactor = Compactor(budget, summarize=summarizer(provider, model, cancel))
         loop = Loop(provider, executor, compactor, cancel, config, static, dynamic)
         self.caps = caps
@@ -354,8 +386,14 @@ class Runner:
                 messages[-1].blocks.append(block)
 
         try:
+            failed = None
             for event in loop.run(messages, start_seq=start_seq, resumed=resume):
+                if self.can_fall_back(event, resume, options):
+                    failed = event
+                    break
                 self.handle(event)
+            if failed is not None:
+                self.fall_back(failed, resume)
         except Exception as exc:
             frappe.db.rollback()
             frappe.log_error(frappe.get_traceback(), f"AI chat run {self.msg.name}")
@@ -367,6 +405,35 @@ class Runner:
                 frappe.cache().delete_value(CANCEL_KEY.format(self.msg.name))
             except Exception:
                 pass
+
+    # -- model fallback ------------------------------------------------------------------
+
+    def can_fall_back(self, event, resume, options):
+        """The chosen model could not answer at all (bad key, no credit, not a chat model, rate limit) before
+        anything was shown: answer with the site's default model instead of failing the turn."""
+        if not isinstance(event, MessageFailed) or event.kind not in FALLBACK_KINDS:
+            return False
+        if resume or self.blocks or getattr(self, "override", None) or options.get("skill") or options.get("plugin"):
+            return False
+        try:
+            _provider, name, model = provider_for(None, None)
+        except Exception:
+            return False
+        if (name, model) == (self.provider_name, self.model):
+            return False
+        self.fallback = (name, model)
+        return True
+
+    def fall_back(self, failed, resume):
+        tried = f"{self.provider_name} / {self.model}"
+        self.override = self.fallback
+        loop, executor, messages, start_seq = self.build(resume)
+        frappe.log_error(f"{tried}: {failed.kind}: {failed.error}"[:2000], f"AI chat model fallback {self.msg.name}")
+        self.msg.db_set({"provider": self.provider_name, "model": self.model}, update_modified=False)
+        note = {"kind": "status", "text": frappe._("{0} could not answer ({1}); this reply uses {2}.", lang=frappe.db.get_value("User", self.msg.user, "language") or None).format(tried, failed.kind, f"{self.provider_name} / {self.model}")}
+        self.insert_block(start_seq, note)
+        for event in loop.run(messages, start_seq=start_seq + 1, resumed=resume):
+            self.handle(event)
 
     # -- event handling ----------------------------------------------------------------
 
@@ -417,10 +484,9 @@ class Runner:
             self.cancelled()
 
     def summary_through_seq(self, event):
-        # The compactor folded everything before the recent window; persist the
-        # highest seq of a completed message older than the last 4 turns.
-        rows = frappe.get_all("AI Chat Message", filters={"session": self.session.name, "status": "completed"}, fields=["seq"], order_by="seq desc", limit=6)
-        return rows[-1].seq if len(rows) >= 6 else 0
+        # The compactor reports the last message it folded into the summary; never move the point back.
+        current = cint(frappe.db.get_value("AI Chat Session", self.session.name, "summary_through_seq"))
+        return max(current, cint(getattr(event, "summary_through_seq", 0)))
 
     # -- block persistence ----------------------------------------------------------------
 
@@ -429,7 +495,7 @@ class Runner:
             "doctype": "AI Message Block",
             "message": self.msg.name,
             "seq": seq,
-            "block_type": kind,
+            "block_type": stored_kind(kind),
             "status": "streaming",
             "tool_call_id": id or None,
             "tool_name": name or None,
@@ -471,7 +537,7 @@ class Runner:
             "doctype": "AI Message Block",
             "message": self.msg.name,
             "seq": seq,
-            "block_type": block.get("kind"),
+            "block_type": stored_kind(block.get("kind")),
             "status": "failed" if block.get("is_error") else "completed",
             "tool_call_id": block.get("id") or None,
             "tool_name": block.get("name") or None,
@@ -503,6 +569,13 @@ class Runner:
             frappe.db.commit()
 
     def tail_write(self, seq, text):
+        """The live text a reconnecting browser reads. It is the whole block each time, so it is written at most
+        every TAIL_SECONDS: per delta it grew quadratically with long answers (128K-token replies)."""
+        now = time.monotonic()
+        stamps = self.__dict__.setdefault("tail_at", {})
+        if now - stamps.get(seq, 0) < TAIL_SECONDS:
+            return
+        stamps[seq] = now
         try:
             frappe.cache().hset(self.tail, str(seq), text)
         except Exception:

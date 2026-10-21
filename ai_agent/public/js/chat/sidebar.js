@@ -100,7 +100,7 @@
         function fetch() {
             list.classList.add("is-loading");
             return api
-                .list_sessions({ limit: 50, offset: 0, include_archived: includeArchived ? 1 : 0, search: query })
+                .list_sessions({ limit: PAGE, offset: 0, include_archived: includeArchived ? 1 : 0, search: query })
                 .then((r) => store.setSessions((r && r.sessions) || [], r && r.has_more))
                 .catch((e) => AIChat.toast(AIChat.errorMessage(e), "red"))
                 .finally(() => list.classList.remove("is-loading"));
@@ -161,6 +161,7 @@
             closeMenu();
             const items = [
                 ["edit", __("Rename"), () => startRename(node, session)],
+                ["download", __("Export"), () => exportSession(session)],
                 ["pin", session.pinned ? __("Unpin") : __("Pin"), () => pin(session)],
                 ["archive", session.status === "Archived" ? __("Unarchive") : __("Archive"), () => archive(session)],
                 ["trash", __("Delete"), () => showConfirm(node, session), "is-danger"],
@@ -180,6 +181,20 @@
             );
             node.appendChild(menu);
             openMenu = menu;
+        }
+
+        function exportSession(session) {
+            api.export_session({ session: session.name })
+                .then((r) => {
+                    if (!r || !r.content) return;
+                    const url = URL.createObjectURL(new Blob([r.content], { type: "text/markdown;charset=utf-8" }));
+                    const a = h("a", { href: url, download: r.filename || "conversation.md" });
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                })
+                .catch((e) => AIChat.toast(AIChat.errorMessage(e), "red"));
         }
 
         function startRename(node, session, silent) {
@@ -268,6 +283,16 @@
 
         /* ---- list ---- */
 
+        const PAGE = 50;
+        const more = h("button.ac-btn.ac-btn-ghost.ac-session-more", { type: "button", text: __("Show more conversations") });
+        more.addEventListener("click", () => {
+            more.disabled = true;
+            api.list_sessions({ limit: PAGE, offset: store.state.sessions.length, include_archived: includeArchived ? 1 : 0, search: query })
+                .then((r) => store.setSessions(store.state.sessions.concat((r && r.sessions) || []), r && r.has_more))
+                .catch((e) => AIChat.toast(AIChat.errorMessage(e), "red"))
+                .finally(() => (more.disabled = false));
+        });
+
         function paint() {
             closeMenu();
             AIChat.clear(list);
@@ -293,6 +318,7 @@
                 });
                 list.appendChild(h("div.ac-session-group", h("div.ac-session-group-title", { text: GROUP_LABEL[g]() }), items.map(row)));
             });
+            if (store.state.sessionsHasMore) list.appendChild(more);
         }
 
         store.on("sessions", paint);

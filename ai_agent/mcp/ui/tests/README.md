@@ -10,6 +10,11 @@ They are not part of `bench run-tests` (they need Playwright + Chromium, kept ou
 2. `cd <folder with playwright installed> && node <repo>/ai_agent/mcp/ui/tests/interact.mjs <dir>` runs ~70 checks
    (server paging/sort/filters, tabs, approval, blocked stock, choice, capabilities fallback, mobile, focus).
 3. `scenarios.mjs <dir>` renders the six reference scenarios (desktop, mobile, dark) to PNGs.
+4. Customization cards: `dump_fixtures_d.py.txt` (same procedure, module `test_zz_dump_d`) writes `fx/main_ar.html`,
+   `fx/main_en.html`, `fx/cz_*.json` and `fx/desk_*.json` from the cases in `tests/test_customization_cards.py`.
+   `customization.mjs <dir>` renders every case in the MCP view (Arabic rtl and English ltr, light, dark, mobile) and
+   checks there is no approve button, the code is complete and a finding's line button jumps to the line;
+   `desk_customization.mjs <dir> <repo>/ai_agent/public` renders the same cases as Desk chat approval blocks.
 
 ## Reference host (official MCP Apps bridge)
 

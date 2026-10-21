@@ -1,7 +1,44 @@
 import hashlib
+import json
+import time
+
 import frappe
 from ai_agent.runtime.exceptions import ToolDenied
 from ai_agent.runtime.trace_service import TraceService
+
+
+def coerce_to_schema(schema, values):
+    """Repair the two shapes models often send instead of the schema's, in place: an object or a list
+    written as JSON text ("{...}", "[...]"), and one name where a list of names is expected
+    ("Accounts User" for roles). Anything else is left for the tool to reject."""
+    if not isinstance(schema, dict) or not isinstance(values, dict):
+        return values
+    for key, child in (schema.get("properties") or {}).items():
+        value = values.get(key)
+        if not isinstance(child, dict) or not isinstance(value, str):
+            if isinstance(child, dict) and child.get("type") == "object" and isinstance(value, dict):
+                coerce_to_schema(child, value)
+            continue
+        kind = child.get("type")
+        text = value.strip()
+        if kind == "object" and text.startswith("{"):
+            try:
+                parsed = json.loads(text)
+            except ValueError:
+                continue
+            if isinstance(parsed, dict):
+                values[key] = coerce_to_schema(child, parsed)
+        elif kind == "array":
+            if text.startswith("["):
+                try:
+                    parsed = json.loads(text)
+                except ValueError:
+                    continue
+                if isinstance(parsed, list):
+                    values[key] = parsed
+            elif text and (child.get("items") or {}).get("type") in (None, "string"):
+                values[key] = [part.strip() for part in text.split(",") if part.strip()]
+    return values
 
 
 class ToolGateway:
@@ -16,6 +53,16 @@ class ToolGateway:
         self._call_counts = {}
 
     def authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
+        """Every call leaves one AI Tool Call row: Executed, Failed (handler error or {"error"}), or Denied."""
+        self._executing = False
+        try:
+            return self._authorize_and_execute(tool_name, arguments, run_name, step_name, agent_doc)
+        except ToolDenied as exc:
+            if not self._executing:
+                self._audit_quiet(run_name, step_name, tool_name, arguments, "Denied", decision=str(exc))
+            raise
+
+    def _authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
         """Authorize a tool call and execute it."""
         tool_name = tool_name.replace("__", ".")
         if tool_name.startswith("repo."):
@@ -29,6 +76,8 @@ class ToolGateway:
 
         if not self._is_tool_allowed_by_agent(tool_name, agent_doc):
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
+
+        self._assert_customization_available(tool_name)
 
         from ai_agent.runtime import access
 
@@ -57,15 +106,24 @@ class ToolGateway:
 
         previous_run_name = getattr(self.ctx, "run_name", None)
         self.ctx.run_name = run_name
+        self._executing = True
+        started_at, started = frappe.utils.now_datetime(), time.monotonic()
         try:
             result = self._execute_handler(tool, arguments)
+        except Exception as exc:
+            self._audit_quiet(run_name, step_name, tool_name, arguments, "Failed", decision="allowed",
+                result={"error": str(exc)[:500]}, started_at=started_at, duration_ms=int((time.monotonic() - started) * 1000))
+            raise
         finally:
             self.ctx.run_name = previous_run_name
+        duration_ms = int((time.monotonic() - started) * 1000)
 
         max_bytes = int(tool.get("result_max_bytes") or 102400)
         result = self._truncate_result(result, max_bytes=max_bytes)
 
-        self._audit_record(run_name, step_name, tool_name, arguments, result, "Executed")
+        failed = isinstance(result, dict) and bool(result.get("error"))
+        self._audit_record(run_name, step_name, tool_name, arguments, result, "Failed" if failed else "Executed",
+            decision="allowed", started_at=started_at, duration_ms=duration_ms)
 
         return result
 
@@ -83,6 +141,8 @@ class ToolGateway:
 
         if not self._is_tool_allowed_by_agent(tool_name, agent_doc):
             raise ToolDenied(f"Tool '{tool_name}' is not allowed by this agent.")
+
+        self._assert_customization_available(tool_name)
 
         from ai_agent.runtime import access
 
@@ -102,11 +162,25 @@ class ToolGateway:
     def _is_tool_allowed_by_agent(self, tool_name, agent_doc):
         if not agent_doc:
             return True
-        if agent_doc.get("read_only") and tool_name.startswith("actions."):
+        # customize.* (reads included) belong to agents that may act: they lead to approvals that change the system.
+        acting = tool_name.startswith("actions.") or tool_name.startswith("customize.")
+        if agent_doc.get("read_only") and acting:
             return False
-        if not agent_doc.get("allow_actions") and tool_name.startswith("actions."):
+        if not agent_doc.get("allow_actions") and acting:
             return False
+        if tool_name.startswith("customize.") and not agent_doc.get("allow_customization"):
+            return False   # the Implementation agent (or one an admin opted in) owns customization
         return True
+
+    def _assert_customization_available(self, tool_name):
+        """customize.* need the AI Settings switches, Frappe's roles and an allowed surface. The caller sets
+        ``ctx.surface`` ("Desk" chat, "MCP"); without it (WhatsApp, support bubble, legacy runs) they are refused."""
+        if not tool_name.startswith("customize."):
+            return
+        from ai_agent.customization import policy as customization_policy
+
+        if not customization_policy.tool_available(tool_name, self.ctx.user, getattr(self.ctx, "surface", None)):
+            raise ToolDenied(f"Tool '{tool_name}' is not available: customization is turned off here or needs other roles.")
 
     def _is_tool_allowed_by_skill(self, tool_name):
         if not self.enforce_skill_tools:
@@ -154,6 +228,7 @@ class ToolGateway:
 
         tool = self.registry.get_tool(tool_name) or {}
         schema = tool.get("parameters") or {}
+        coerce_to_schema(schema, arguments)
         missing = self._missing_required_arguments(schema, arguments)
         if missing:
             raise ToolDenied(
@@ -211,15 +286,27 @@ class ToolGateway:
                 result = {"truncated": True, "preview": data[:1000]}
         return result
 
-    def _audit_record(self, run_name, step_name, tool_name, arguments, result, status):
+    def _audit_quiet(self, run_name, step_name, tool_name, arguments, status, decision="", result=None, started_at=None, duration_ms=0):
+        """Audit a denied or crashed call without masking the original error."""
+        try:
+            self._audit_record(run_name, step_name, tool_name, arguments, result, status, decision=decision,
+                started_at=started_at, duration_ms=duration_ms)
+        except Exception:
+            pass
+
+    def _audit_record(self, run_name, step_name, tool_name, arguments, result, status, decision="", started_at=None, duration_ms=0):
         try:
             import json
+
+            from ai_agent.runtime.masking import mask_tool_result
+
             result_hash = ""
             result_preview = ""
             if result:
                 result_json = json.dumps(result, sort_keys=True, default=str)
                 result_hash = hashlib.sha256(result_json.encode()).hexdigest()
-                result_preview = result_json[:2000]
+                # The audit row is readable by admins: the same masking as what the model saw.
+                result_preview = json.dumps(mask_tool_result(tool_name, arguments, result), sort_keys=True, default=str)[:2000]
 
             tool_call = frappe.get_doc({
                 "doctype": "AI Tool Call",
@@ -231,7 +318,9 @@ class ToolGateway:
                 "result_preview": result_preview,
                 "result_hash": result_hash,
                 "status": status,
-                "started_at": frappe.utils.now_datetime(),
+                "permission_decision": (decision or "")[:500] or None,
+                "duration_ms": duration_ms,
+                "started_at": started_at or frappe.utils.now_datetime(),
                 "completed_at": frappe.utils.now_datetime(),
             })
             tool_call.insert(ignore_permissions=True)

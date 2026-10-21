@@ -104,7 +104,10 @@ class Compactor:
         summary = (self.summarize(old, SUMMARY_PROMPT) or "").strip()
         if not summary:
             return CompactionResult(messages, before, self.total(messages, base_tokens))
-        through = max((m.seq for m in old if m.seq), default=0)
+        # One chat message can span the cut (an assistant turn and its tool results): only messages that are
+        # wholly in the summary count as summarized, or the next load would skip the rest of that message.
+        recent_seqs = {m.seq for m in recent if m.seq}
+        through = max((m.seq for m in old if m.seq and m.seq not in recent_seqs), default=0)
         head = [
             Message(role="user", blocks=[Block(kind=TEXT, text="Summary of the earlier part of this conversation (for context only):\n\n" + summary)]),
             Message(role="assistant", blocks=[Block(kind=TEXT, text="Understood. I will continue from there.")]),

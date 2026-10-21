@@ -23,6 +23,13 @@ KNOWN_ACTION_TOOLS = {
     "actions.request_workflow_action",
     "actions.request_mapped_draft",
     "messaging.request_email",
+    # customization: each one becomes a "Customize" approval (ai_agent.customization.tools.route)
+    "customize.request_field",
+    "customize.request_properties",
+    "customize.request_client_script",
+    "customize.request_server_script",
+    "customize.request_report",
+    "customize.request_undo",
 }
 
 
@@ -41,6 +48,14 @@ class ActionInterceptor:
         if tool_name not in KNOWN_ACTION_TOOLS:
             return {"error": f"Unknown action tool: {tool_name}"}
         self.update_status(RUN_STATUS_WAITING)
+
+        if tool_name.startswith("customize."):
+            from ai_agent.customization import tools as customization_tools
+
+            response = customization_tools.route(tool_name, arguments, self.ctx, self.run_name)
+            if isinstance(response, dict) and response.get("approval_id"):
+                self._record_approval_step(response.get("action_summary") or "Approval required: Customize", response["approval_id"])
+            return response
 
         if tool_name == "actions.request_create_draft":
             payload = self._document_payload(arguments)

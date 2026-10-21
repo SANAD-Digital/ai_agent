@@ -244,11 +244,31 @@ def handle_count(arguments, permission_context):
                     validate_filter_value(operator, flt.get("value"))
                 except QueryValidationError as exc:
                     return {"error": str(exc)}
-                filters.append([flt.get("field"), operator, flt.get("value")])
+                if operator in ("is set", "is not set"):
+                    # frappe.get_list spells these ["field", "is", "set" | "not set"].
+                    filters.append([flt.get("field"), "is", "set" if operator == "is set" else "not set"])
+                else:
+                    filters.append([flt.get("field"), operator, flt.get("value")])
+            elif isinstance(flt, (list, tuple)) and len(flt) in (3, 4):
+                filters.append(list(flt))
             else:
-                filters.append(flt)
-    else:
-        filters = raw_filters
+                return {"error": "Each filter must be {field, operator, value} or [field, operator, value]."}
+    elif isinstance(raw_filters, dict):
+        filters = [[field, "=", value] for field, value in raw_filters.items()]
+    elif raw_filters:
+        return {"error": "filters must be a list."}
+
+    # A count with a filter on a hidden or masked field reveals its value one comparison at a time.
+    from ai_agent.query.validator import is_protected_field
+
+    for flt in filters:
+        field = flt[1] if len(flt) == 4 else flt[0]
+        if not isinstance(field, str):
+            return {"error": "Filter field must be a name."}
+        if is_protected_field(doc_type, field):
+            return {"error": f"Cannot filter on '{field}': it is a protected field."}
+        if field not in ("name", "owner", "creation", "modified", "docstatus") and not permission_context.check_field_access(doc_type, field, "read"):
+            return {"error": f"No read access to field '{field}'."}
 
     try:
         rows = frappe.get_list(

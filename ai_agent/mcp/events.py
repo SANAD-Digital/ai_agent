@@ -45,13 +45,14 @@ def log(event, *, user=None, tool=None, approval_id=None, doctype=None, **extra)
         return   # automated tests must not write into the real host log
     try:
         entry = {"ts": str(frappe.utils.now_datetime()), "event": event, "request_id": request_id(), "user": user or frappe.session.user,
-                 "tool": tool, "approval_id": approval_id, "doctype": doctype, "host": host_name()}
+                 "tool": tool, "approval_id": approval_id, "doctype": doctype, "host": host_name(),
+                 "ip": getattr(frappe.local, "request_ip", None), "client": oauth_client()}
         entry.update({k: v for k, v in extra.items() if v is not None and k not in ("token", "payload", "arguments", "secret")})
         line = (json.dumps(entry, ensure_ascii=False, default=str)[:3800] + "\n").encode("utf-8")
         path = log_path()
         # O_APPEND writes of one short line are atomic, so nine workers can share the file without a lock or a
         # rotating handler (which loses lines when several processes rotate at once).
-        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o640)
         try:
             os.write(fd, line)
             size = os.fstat(fd).st_size
@@ -64,6 +65,17 @@ def log(event, *, user=None, tool=None, approval_id=None, doctype=None, **extra)
                 pass
     except Exception:
         pass
+
+
+def oauth_client():
+    """The OAuth client (connector) that sent this request, from its bearer token; None for a Desk session."""
+    try:
+        header = (frappe.get_request_header("Authorization", "") or "").split(" ")
+        if len(header) == 2 and header[0].lower() == "bearer":
+            return frappe.db.get_value("OAuth Bearer Token", header[1], "client")
+    except Exception:
+        pass
+    return None
 
 
 def log_path():

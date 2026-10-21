@@ -3,6 +3,27 @@ from frappe.model.document import Document
 
 
 class AIRun(Document):
+    @staticmethod
+    def clear_old_logs(days=180):
+        """Log Settings retention. Only runs outside a conversation (MCP and API calls: one run per tool call);
+        a chat keeps its runs as long as the conversation exists."""
+        from frappe.query_builder import Interval
+        from frappe.query_builder.functions import Now
+
+        run = frappe.qb.DocType("AI Run")
+        old = (
+            frappe.qb.from_(run).select(run.name)
+            .where(run.creation < (Now() - Interval(days=days)))
+            .where((run.session.isnull() | (run.session == "")) & (run.chat_session.isnull() | (run.chat_session == "")))
+            .limit(50000)
+        ).run(pluck=True)
+        for start in range(0, len(old), 1000):
+            names = old[start:start + 1000]
+            for child in ("AI Tool Call", "AI Run Step"):
+                if frappe.db.exists("DocType", child):
+                    frappe.db.delete(child, {"run": ("in", names)})
+            frappe.db.delete("AI Run", {"name": ("in", names)})
+
     def validate(self):
         if not self.user:
             self.user = frappe.session.user

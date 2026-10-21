@@ -488,6 +488,152 @@ TOOL_PARAMETER_SCHEMAS = {
 }
 
 
+# -- customization (docs/customization/01 §3.3) -------------------------------------------
+_BIT = {"type": "integer", "enum": [0, 1]}
+CUSTOM_FIELD_TYPES = [
+    "Data", "Small Text", "Text", "Long Text", "Text Editor", "Int", "Float", "Currency", "Percent", "Check", "Date",
+    "Datetime", "Time", "Duration", "Select", "Link", "Dynamic Link", "Table", "Table MultiSelect", "Attach",
+    "Attach Image", "Phone", "Rating", "Color", "Read Only", "HTML", "Section Break", "Column Break", "Tab Break",
+]
+SERVER_SCRIPT_EVENTS = [
+    "Before Insert", "Before Validate", "Before Save", "After Insert", "After Save", "Before Submit", "After Submit",
+    "Before Cancel", "After Cancel", "Before Delete", "After Delete", "Before Save (Submitted Document)",
+    "After Save (Submitted Document)", "Before Print",
+]
+CUSTOMIZATION_SCHEMAS = {
+    "customize.inspect": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string"},
+            "include": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["fields", "properties", "client_scripts", "server_scripts", "reports", "print_formats", "workflows", "notifications"]},
+                "description": "Default: fields, properties, client_scripts, server_scripts",
+            },
+        },
+        "required": ["doctype"],
+    },
+    "customize.get": {
+        "type": "object",
+        "properties": {
+            "kind": {"type": "string", "enum": ["client_script", "server_script", "report", "custom_field"]},
+            "name": {"type": "string"},
+        },
+        "required": ["kind", "name"],
+    },
+    "customize.check": {
+        "type": "object",
+        "properties": {
+            "kind": {"type": "string", "enum": ["custom_field", "properties", "client_script", "server_script", "report"]},
+            "arguments": {"type": "object", "description": "The same arguments the matching customize.request_* tool takes"},
+        },
+        "required": ["kind", "arguments"],
+    },
+    "customize.request_field": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string", "description": "Target DocType (standard, not Single, not core)"},
+            "operation": {"type": "string", "enum": ["add", "update", "remove"]},
+            "fields": {
+                "type": "array", "minItems": 1, "maxItems": 10,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "fieldname": {"type": "string", "description": "ASCII snake_case; custom_ prefix added if missing. Required for update/remove"},
+                        "label": {"type": "string"},
+                        "fieldtype": {"type": "string", "enum": CUSTOM_FIELD_TYPES},
+                        "options": {"type": "string", "description": "Link/Table: DocType; Select: one option per line; Dynamic Link: the Link-to-DocType fieldname; Data: Email|Phone|URL|Name"},
+                        "insert_after": {"type": "string", "description": "Existing fieldname; default: end of form"},
+                        "reqd": _BIT, "hidden": _BIT, "read_only": _BIT,
+                        "default": {"type": "string"}, "description": {"type": "string"},
+                        "depends_on": {"type": "string"}, "mandatory_depends_on": {"type": "string"}, "read_only_depends_on": {"type": "string"},
+                        "fetch_from": {"type": "string", "description": "link_field.source_field"}, "fetch_if_empty": _BIT,
+                        "in_list_view": _BIT, "in_standard_filter": _BIT,
+                        "bold": _BIT, "allow_on_submit": _BIT,
+                        "no_copy": _BIT, "print_hide": _BIT,
+                        "unique": _BIT, "permlevel": {"type": "integer", "minimum": 0, "maximum": 9},
+                        "precision": {"type": "string"}, "length": {"type": "integer"}, "translatable": _BIT,
+                    },
+                },
+            },
+            "reason": {"type": "string", "description": "One line: why the user wants it (shown on the card)"},
+        },
+        "required": ["doctype", "operation", "fields"],
+    },
+    "customize.request_properties": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string"},
+            "doctype_properties": {"type": "object", "description": "Any of: title_field, search_fields, sort_field, sort_order, image_field, show_title_field_in_link, quick_entry, track_changes, track_views, allow_copy, allow_import, editable_grid, max_attachments, default_view, show_name_in_global_search, show_preview_popup, default_print_format"},
+            "field_properties": {
+                "type": "object", "additionalProperties": {"type": "object"},
+                "description": "{fieldname: {property: value}}. Properties: label, hidden, reqd, read_only, bold, in_list_view, in_standard_filter, in_global_search, in_preview, allow_on_submit, default, options, description, depends_on, mandatory_depends_on, read_only_depends_on, collapsible, collapsible_depends_on, print_hide, print_hide_if_no_value, report_hide, no_copy, permlevel, precision, columns, width, fetch_from, fetch_if_empty, allow_in_quick_entry, placeholder, unique, length, link_filters, remember_last_selected_value, set_only_once, non_negative, mask",
+            },
+            "field_order": {"type": "array", "items": {"type": "string"}, "description": "Optional full new order (same set of fieldnames)"},
+            "reason": {"type": "string"},
+        },
+        "required": ["doctype"],
+    },
+    "customize.request_client_script": {
+        "type": "object",
+        "properties": {
+            "operation": {"type": "string", "enum": ["create", "update", "enable", "disable"]},
+            "name": {"type": "string", "description": "Required for update/enable/disable. For create: optional, default '<DocType> - <purpose>'"},
+            "doctype": {"type": "string"},
+            "view": {"type": "string", "enum": ["Form", "List"]},
+            "script": {"type": "string", "maxLength": 20000},
+            "purpose": {"type": "string", "description": "One line, shown on the card and stored as the script header"},
+        },
+        "required": ["operation"],
+    },
+    "customize.request_server_script": {
+        "type": "object",
+        "properties": {
+            "operation": {"type": "string", "enum": ["create", "update", "enable", "disable"]},
+            "name": {"type": "string"},
+            "script_type": {"type": "string", "enum": ["DocType Event", "API"]},
+            "reference_doctype": {"type": "string", "description": "DocType Event only"},
+            "doctype_event": {"type": "string", "enum": SERVER_SCRIPT_EVENTS},
+            "api_method": {"type": "string", "description": "API only: ^[a-z][a-z0-9_.]{2,80}$; called at /api/method/<api_method>"},
+            "script": {"type": "string", "maxLength": 20000},
+            "enable_rate_limit": _BIT,
+            "rate_limit_count": {"type": "integer"}, "rate_limit_seconds": {"type": "integer"},
+            "purpose": {"type": "string"},
+        },
+        "required": ["operation"],
+    },
+    "customize.request_report": {
+        "type": "object",
+        "properties": {
+            "operation": {"type": "string", "enum": ["create", "update", "disable"]},
+            "report_name": {"type": "string"},
+            "ref_doctype": {"type": "string"},
+            "report_type": {"type": "string", "enum": ["Report Builder", "Query Report"]},
+            "builder": {"type": "object", "description": "Report Builder: {fields:[[fieldname, doctype]], filters:[[doctype, fieldname, operator, value]], order_by:'`tabX`.`f` desc', group_by:{group_by:'`tabX`.`f`', aggregate_function:'count|sum|avg', aggregate_on:'f'}, add_totals_row:0|1}"},
+            "query": {"type": "string", "maxLength": 20000, "description": "Query Report: one SELECT; filters as %(fieldname)s"},
+            "filters": {"type": "array", "items": {"type": "object", "properties": {
+                "fieldname": {"type": "string"}, "label": {"type": "string"}, "fieldtype": {"type": "string"},
+                "options": {"type": "string"}, "mandatory": {"type": "integer"}, "default": {"type": "string"},
+            }, "required": ["fieldname", "label", "fieldtype"]}},
+            "columns": {"type": "array", "items": {"type": "object", "properties": {
+                "fieldname": {"type": "string"}, "label": {"type": "string"}, "fieldtype": {"type": "string"},
+                "options": {"type": "string"}, "width": {"type": "integer"},
+            }, "required": ["fieldname", "label", "fieldtype"]}},
+            "roles": {"type": "array", "items": {"type": "string"}, "description": "Who may run it; default: roles that can read ref_doctype"},
+            "sample_filters": {"type": "object", "description": "Values for the preview run"},
+            "purpose": {"type": "string"},
+        },
+        "required": ["operation", "report_name"],
+    },
+    "customize.request_undo": {
+        "type": "object",
+        "properties": {"approval": {"type": "string", "description": "An executed Customize approval"}},
+        "required": ["approval"],
+    },
+}
+TOOL_PARAMETER_SCHEMAS.update(CUSTOMIZATION_SCHEMAS)
+
+
 class ToolRegistry:
     """Registry of all available tools."""
 
@@ -558,6 +704,16 @@ class ToolRegistry:
             {"name": "actions.request_submit", "description": "Request approval to submit a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_submit", "requires_approval": True},
             {"name": "actions.request_cancel", "description": "Request approval to cancel a document", "access_level": "Destructive", "side_effect": "destructive", "handler": "ai_agent.tools.actions.handle_request_cancel", "requires_approval": True},
             {"name": "actions.request_workflow_action", "description": "Request a workflow action on a document (approve, reject, send for review…). Use an action workflow.get_transitions lists for this user; the user approves it in the chat", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_workflow", "requires_approval": True},
+            # Customization (off by default; AI Settings > customization switches; always approved by a person)
+            {"name": "customize.inspect", "description": "What is customized on a DocType: custom fields, property setters, client and server scripts, reports (with ai_made marks), and whether it can be customized", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.customization.tools.handle_inspect"},
+            {"name": "customize.get", "description": "The full source of one client script, server script, report or custom field, to change it", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.customization.tools.handle_get", "model_result_max_chars": 24000},
+            {"name": "customize.check", "description": "Dry-run the checks of a customization (same arguments as the matching customize.request_* tool) without requesting approval; fix every critical check before requesting", "access_level": "Prepare", "side_effect": "prepare_only", "handler": "ai_agent.customization.tools.handle_check", "model_result_max_chars": 12000},
+            {"name": "customize.request_field", "description": "Request approval to add, change or remove custom fields on a DocType", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_field", "requires_approval": True},
+            {"name": "customize.request_properties", "description": "Request approval to change field and form properties through Customize Form (label, hidden, mandatory, read only, list columns, standard filters, title/search/sort fields, field order)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_properties", "requires_approval": True},
+            {"name": "customize.request_client_script", "description": "Request approval to create, change, enable or disable a form or list client script", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_client_script", "requires_approval": True},
+            {"name": "customize.request_server_script", "description": "Request approval to create, change, enable or disable a server script (DocType Event, or API for signed-in users)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_server_script", "requires_approval": True},
+            {"name": "customize.request_report", "description": "Request approval to create, change or disable a custom report (Report Builder first; Query Report when a join or aggregate needs it)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_report", "requires_approval": True},
+            {"name": "customize.request_undo", "description": "Request approval to undo an executed customization (a created script is disabled, a change restored)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.customization.tools.handle_request_undo", "requires_approval": True},
         ]
         for tool in tools:
             tool["parameters"] = TOOL_PARAMETER_SCHEMAS.get(tool["name"], OBJECT_SCHEMA)

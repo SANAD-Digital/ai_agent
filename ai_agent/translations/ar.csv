@@ -3210,3 +3210,7 @@ Scheduled job {0} failed {1} times in the last 24 hours.,المهمة المجد
 Scheduled job {0} failed {1} times in the last hour.,المهمة المجدولة {0} فشلت {1} مرة خلال الساعة الأخيرة.,
 AI assistant: {0},المساعد الذكي: {0},
 Open the AI Agent Health report for details.,افتح تقرير «صحة المساعد الذكي» للتفاصيل.,
+Show more conversations,عرض محادثات أكثر,
+You,أنت,
+Tools used: {0},الأدوات المستخدمة: {0},
+(no text),(بلا نص),

@@ -189,7 +189,7 @@ class MCPService:
         self.settings = frappe.get_cached_doc("AI Settings")
         self._assert_access()
         self.agent = self._get_agent()
-        self.company = self.settings.get("mcp_company") or None
+        self.company = self._company()
         self.registry = ToolRegistry()
 
     def instructions(self):
@@ -695,6 +695,14 @@ class MCPService:
 
     def check_tool_rate_limit(self):
         self._check_rate_limit(bucket="tools")
+
+    def _company(self):
+        """The user's own default company when they may read it (multi-company sites: each user works in theirs),
+        else the site-wide MCP company from AI Settings."""
+        own = frappe.defaults.get_user_default("Company", self.user)
+        if own and frappe.has_permission("Company", "read", own, user=self.user):
+            return own
+        return self.settings.get("mcp_company") or None
 
     def _check_rate_limit(self, bucket="tools", factor=1):
         limit = max(1, cint(self.settings.get("mcp_max_requests_per_minute")) or 60) * factor

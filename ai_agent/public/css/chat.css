@@ -3005,3 +3005,11 @@ body[data-route^="agent-workspace/"] .main-section {
 .ac-cz-code .c-kw { color: var(--cz-kw); font-weight: 600; } .ac-cz-code .c-str { color: var(--cz-str); } .ac-cz-code .c-com { color: var(--cz-com); font-style: italic; }
 .ac-cz-code .c-num { color: var(--cz-num); } .ac-cz-code .c-var { color: var(--cz-var); font-weight: 600; }
 .ac-cz-outcome { flex-direction: column; align-items: stretch; gap: 8px; }
+
+/* "Show more conversations" at the end of the sidebar list */
+.ac-session-more {
+    display: block;
+    width: calc(100% - 16px);
+    margin: 6px 8px 12px;
+    justify-content: center;
+}

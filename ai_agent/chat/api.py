@@ -281,11 +281,17 @@ def list_sessions(limit=50, offset=0, include_archived=0, search=""):
     filters["last_seq"] = (">", 0)
     if not cint(include_archived):
         filters["status"] = "Active"
+    or_filters = None
+    hits = {}
     if search:
-        filters["title"] = ("like", f"%{search.strip()}%")
+        term = f"%{search.strip()}%"
+        # Titles and what was said: the sessions are still filtered by owner (owner_filters) below.
+        hits = _content_hits(term)
+        or_filters = {"title": ("like", term), **({"name": ("in", list(hits))} if hits else {})}
     rows = frappe.get_all(
         "AI Chat Session",
         filters=filters,
+        or_filters=or_filters,
         fields=["name", "title", "user", "agent", "company", "provider", "model", "status", "pinned", "last_message_on", "message_count", "last_seq", "modified", *USAGE_KEYS],
         order_by="pinned desc, last_message_on desc, modified desc",
         limit=limit + 1,
@@ -294,7 +300,27 @@ def list_sessions(limit=50, offset=0, include_archived=0, search=""):
     has_more = len(rows) > limit
     rows = rows[:limit]
     previews = _previews([r.name for r in rows])
+    previews.update({name: hits[name] for name in (r.name for r in rows) if name in hits})
     return {"sessions": [session_dict(r, preview=previews.get(r.name, "")) for r in rows], "has_more": has_more}
+
+
+def _content_hits(term, limit=300):
+    """session -> a short excerpt around the first message that contains the search term."""
+    rows = frappe.db.sql(
+        """select m.session, m.text from `tabAI Chat Message` m
+        where m.text like %(term)s and m.user = %(user)s
+        order by m.creation desc limit %(limit)s""",
+        {"term": term, "user": frappe.session.user, "limit": limit}, as_dict=True)
+    needle = term.strip("%").lower()
+    out = {}
+    for r in rows:
+        if r.session in out:
+            continue
+        text = " ".join((r.text or "").split())
+        at = max(text.lower().find(needle), 0)
+        start = max(at - 40, 0)
+        out[r.session] = ("…" if start else "") + text[start:start + 120]
+    return out
 
 
 def _previews(session_names):
@@ -377,6 +403,33 @@ def get_session(session):
     doc = _get_session(session)
     last = frappe.db.get_value("AI Chat Message", {"session": doc.name, "role": "assistant", "status": "completed"}, "context_tokens", order_by="seq desc")
     return {"session": session_dict(doc, preview=_previews([doc.name]).get(doc.name, ""), context_tokens=last)}
+
+
+@frappe.whitelist()
+def export_session(session):
+    """The conversation as Markdown: what was asked and answered, plus the tools each reply used (names only;
+    tool results stay in the system)."""
+    doc = _get_session(session)
+    messages = frappe.get_all(
+        "AI Chat Message",
+        filters={"session": doc.name, "status": ("in", ("completed", "failed", "cancelled", "awaiting_approval"))},
+        fields=["name", "role", "text", "model", "creation", "status", "error"],
+        order_by="seq asc",
+    )
+    tools = {}
+    if messages:
+        for row in frappe.get_all("AI Message Block", filters={"message": ("in", [m.name for m in messages]), "block_type": "tool_use"}, fields=["message", "tool_name"], order_by="seq asc"):
+            tools.setdefault(row.message, []).append((row.tool_name or "").replace("__", "."))
+    lines = [f"# {doc.title or _('Conversation')}", "", f"*{doc.agent or ''} · {frappe.utils.format_datetime(doc.creation)}*", ""]
+    for m in messages:
+        who = _("You") if m.role == "user" else (_("Assistant") + (f" ({m.model})" if m.model else ""))
+        lines += [f"## {who} · {frappe.utils.format_datetime(m.creation, 'yyyy-MM-dd HH:mm')}", ""]
+        if tools.get(m.name):
+            lines += ["> " + _("Tools used: {0}").format(", ".join(dict.fromkeys(tools[m.name]))), ""]
+        body = m.text or (m.error if m.status == "failed" else "")
+        lines += [body or "_" + _("(no text)") + "_", ""]
+    filename = "".join(c if c.isalnum() or c in " -_" else "_" for c in (doc.title or doc.name))[:60].strip() or doc.name
+    return {"filename": f"{filename}.md", "content": "\n".join(lines)}
 
 
 @frappe.whitelist()

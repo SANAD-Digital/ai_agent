@@ -28,6 +28,7 @@
         "decide_approval",
         "set_approval_mode",
         "rename_session",
+        "export_session",
         "archive_session",
         "pin_session",
         "delete_session",

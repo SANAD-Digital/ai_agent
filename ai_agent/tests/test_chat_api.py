@@ -214,6 +214,23 @@ class TestChatApi(IntegrationTestCase):
         kinds = frappe.get_all("AI Message Block", filters={"message": msg.name}, pluck="block_type", order_by="seq asc")
         self.assertEqual(kinds[0], "status")
 
+    def test_search_finds_words_inside_messages(self):
+        word = "zqx" + frappe.generate_hash(length=6)
+        out = self._send(f"please look at invoice {word} again")
+        frappe.db.set_value("AI Chat Session", out["session"]["name"], "title", "untitled")
+        found = api.list_sessions(search=word)["sessions"]
+        hit = next(s for s in found if s["name"] == out["session"]["name"])
+        self.assertIn(word, hit["preview"])
+        self.assertFalse([s for s in api.list_sessions(search=word + "-none")["sessions"] if s["name"] == out["session"]["name"]])
+
+    def test_export_is_markdown_of_the_conversation(self):
+        out = self._send("سؤال التصدير")
+        frappe.db.set_value("AI Chat Message", out["assistant_message"]["name"], {"status": "completed", "text": "جواب التصدير"})
+        exported = api.export_session(out["session"]["name"])
+        self.assertTrue(exported["filename"].endswith(".md"))
+        self.assertIn("سؤال التصدير", exported["content"])
+        self.assertIn("جواب التصدير", exported["content"])
+
     def test_a_new_message_settles_the_reply_waiting_for_approval(self):
         out = self._send("first")
         waiting = out["assistant_message"]["name"]

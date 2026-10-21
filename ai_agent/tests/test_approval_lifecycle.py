@@ -385,3 +385,18 @@ class TestDirectModeLimits(IntegrationTestCase):
 				("Cancel", True), ("Workflow", True), ("Approved Method", True), ("Customize", True)):
 			with patch.object(frappe.db, "get_value", return_value=action_type):
 				self.assertEqual(MCPService._always_human("x"), human, action_type)
+
+
+class TestMCPCompany(IntegrationTestCase):
+	"""Each MCP user works in their own default company; AI Settings' MCP company is the fallback."""
+
+	def test_user_default_company_wins(self):
+		company = frappe.get_all("Company", pluck="name", limit=1)
+		if not company:
+			self.skipTest("no company on this site")
+		svc = MCPService.__new__(MCPService)
+		svc.user, svc.settings = "Administrator", frappe._dict(mcp_company="Fallback Co")
+		with patch.object(frappe.defaults, "get_user_default", return_value=company[0]):
+			self.assertEqual(svc._company(), company[0])
+		with patch.object(frappe.defaults, "get_user_default", return_value=None):
+			self.assertEqual(svc._company(), "Fallback Co")

@@ -35,6 +35,7 @@ scheduler_events = {
     "hourly": [
         "ai_agent.runtime.approval_engine.expire_pending_approvals",
         "ai_agent.engine.memory.extract_idle_sessions",
+        "ai_agent.runtime.health.check_and_alert",
     ],
     "daily": [
         "ai_agent.runtime.memory_service.clear_expired",
@@ -51,6 +52,21 @@ doc_events = {
         "on_trash": "ai_agent.mcp.token_scope.clear_cache",
     },
 }
+
+# Retention through Log Settings (days; editable there). AI Run clears only runs outside a conversation
+# (MCP / API: one run per tool call); chat messages are never cleared automatically.
+default_log_clearing_doctypes = {
+    "AI Tool Call": 90,
+    "AI Run": 180,
+}
+
+# Personal Data Deletion Request: a user's conversations (their messages and blocks go with the session's
+# on_trash), memory and runs are deleted with the user's data.
+user_data_fields = [
+    {"doctype": "AI Chat Session", "filter_by": "user"},
+    {"doctype": "AI Memory", "filter_by": "user"},
+    {"doctype": "AI Run", "filter_by": "user"},
+]
 
 # Conversations are private to their owner; see ai_agent/permissions.py.
 permission_query_conditions = {

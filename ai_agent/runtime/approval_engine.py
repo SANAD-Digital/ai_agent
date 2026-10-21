@@ -602,8 +602,12 @@ class ApprovalEngine:
             filters={"status": "Pending", "expires_at": ("<", now)},
             pluck="name",
         )
+        from ai_agent.ai_agent.doctype.ai_approval_request.ai_approval_request import settle_tool_call
+
         for name in pending:
             frappe.db.set_value("AI Approval Request", name, "status", "Expired", update_modified=False)
+            run, created = frappe.db.get_value("AI Approval Request", name, ["run", "creation"])
+            settle_tool_call(name, run, "Expired", created)
             try:
                 from ai_agent.engine.approvals import on_approval_expired
 

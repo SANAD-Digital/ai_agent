@@ -43,12 +43,12 @@ class AIProvider(Document):
 # What a model is for, by its name (the providers' model lists rarely say).
 # First match wins. Only "Chat" models can run the assistant's chat.
 MODEL_TYPES = (
-	("Agent", ("antigravity", "computer-use", "robotics", "deep-research")),
+	("Agent", ("antigravity", "computer-use", "robotics", "deep-research", "inkling")),
 	("Embedding", ("embed",)),
 	("Video", ("veo", "sora", "video")),
 	("Image", ("imagen", "nano-banana", "dall-e", "gpt-image", "-image", "image-", "flux", "stable-diffusion")),
-	("Speech", ("tts", "whisper", "transcribe", "speech", "audio", "-live", "realtime", "lyria")),
-	("Other", ("moderation", "aqa", "search", "guard")),
+	("Speech", ("tts", "whisper", "transcribe", "speech", "audio", "-live", "realtime", "lyria", "orpheus", "playai", "kokoro", "voice", "-asr", "-stt")),
+	("Other", ("moderation", "aqa", "search", "guard", "rerank")),
 )
 # Legacy completion-only models nobody can use any more.
 NOT_LISTED = ("babbage", "davinci")
@@ -67,7 +67,9 @@ def chat_capable(row):
 	name = row.get("model_name")
 	if not name:
 		return False
-	if (row.get("model_type") or model_type_of(name)) != "Chat":
+	# The name wins over a stored "Chat": rows added before a pattern was known (a TTS model offered as chat
+	# failed every message on ai.dev).
+	if (row.get("model_type") or "Chat") != "Chat" or model_type_of(name) != "Chat":
 		return False
 	return row.get("supports_tools") in (1, True, "1", None)
 

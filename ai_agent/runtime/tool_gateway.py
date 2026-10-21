@@ -1,5 +1,7 @@
-import json
 import hashlib
+import json
+import time
+
 import frappe
 from ai_agent.runtime.exceptions import ToolDenied
 from ai_agent.runtime.trace_service import TraceService
@@ -51,6 +53,16 @@ class ToolGateway:
         self._call_counts = {}
 
     def authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
+        """Every call leaves one AI Tool Call row: Executed, Failed (handler error or {"error"}), or Denied."""
+        self._executing = False
+        try:
+            return self._authorize_and_execute(tool_name, arguments, run_name, step_name, agent_doc)
+        except ToolDenied as exc:
+            if not self._executing:
+                self._audit_quiet(run_name, step_name, tool_name, arguments, "Denied", decision=str(exc))
+            raise
+
+    def _authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
         """Authorize a tool call and execute it."""
         tool_name = tool_name.replace("__", ".")
         if tool_name.startswith("repo."):
@@ -94,15 +106,24 @@ class ToolGateway:
 
         previous_run_name = getattr(self.ctx, "run_name", None)
         self.ctx.run_name = run_name
+        self._executing = True
+        started_at, started = frappe.utils.now_datetime(), time.monotonic()
         try:
             result = self._execute_handler(tool, arguments)
+        except Exception as exc:
+            self._audit_quiet(run_name, step_name, tool_name, arguments, "Failed", decision="allowed",
+                result={"error": str(exc)[:500]}, started_at=started_at, duration_ms=int((time.monotonic() - started) * 1000))
+            raise
         finally:
             self.ctx.run_name = previous_run_name
+        duration_ms = int((time.monotonic() - started) * 1000)
 
         max_bytes = int(tool.get("result_max_bytes") or 102400)
         result = self._truncate_result(result, max_bytes=max_bytes)
 
-        self._audit_record(run_name, step_name, tool_name, arguments, result, "Executed")
+        failed = isinstance(result, dict) and bool(result.get("error"))
+        self._audit_record(run_name, step_name, tool_name, arguments, result, "Failed" if failed else "Executed",
+            decision="allowed", started_at=started_at, duration_ms=duration_ms)
 
         return result
 
@@ -265,15 +286,27 @@ class ToolGateway:
                 result = {"truncated": True, "preview": data[:1000]}
         return result
 
-    def _audit_record(self, run_name, step_name, tool_name, arguments, result, status):
+    def _audit_quiet(self, run_name, step_name, tool_name, arguments, status, decision="", result=None, started_at=None, duration_ms=0):
+        """Audit a denied or crashed call without masking the original error."""
+        try:
+            self._audit_record(run_name, step_name, tool_name, arguments, result, status, decision=decision,
+                started_at=started_at, duration_ms=duration_ms)
+        except Exception:
+            pass
+
+    def _audit_record(self, run_name, step_name, tool_name, arguments, result, status, decision="", started_at=None, duration_ms=0):
         try:
             import json
+
+            from ai_agent.runtime.masking import mask_tool_result
+
             result_hash = ""
             result_preview = ""
             if result:
                 result_json = json.dumps(result, sort_keys=True, default=str)
                 result_hash = hashlib.sha256(result_json.encode()).hexdigest()
-                result_preview = result_json[:2000]
+                # The audit row is readable by admins: the same masking as what the model saw.
+                result_preview = json.dumps(mask_tool_result(tool_name, arguments, result), sort_keys=True, default=str)[:2000]
 
             tool_call = frappe.get_doc({
                 "doctype": "AI Tool Call",
@@ -285,7 +318,9 @@ class ToolGateway:
                 "result_preview": result_preview,
                 "result_hash": result_hash,
                 "status": status,
-                "started_at": frappe.utils.now_datetime(),
+                "permission_decision": (decision or "")[:500] or None,
+                "duration_ms": duration_ms,
+                "started_at": started_at or frappe.utils.now_datetime(),
                 "completed_at": frappe.utils.now_datetime(),
             })
             tool_call.insert(ignore_permissions=True)

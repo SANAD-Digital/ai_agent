@@ -175,3 +175,25 @@ class TestToolGateway(IntegrationTestCase):
 		finally:
 			delete_docs("AI Run", [run.name])
 			frappe.db.commit()
+
+
+class TestToolCallAudit(IntegrationTestCase):
+	"""Every call leaves one row with its real outcome, duration and decision."""
+
+	def setUp(self):
+		self.run = make_test_run().name
+		self.addCleanup(lambda: delete_docs("AI Tool Call", frappe.get_all("AI Tool Call", filters={"run": self.run}, pluck="name")))
+
+	def _rows(self):
+		return frappe.get_all("AI Tool Call", filters={"run": self.run}, fields=["tool_name", "status", "permission_decision", "duration_ms"], order_by="creation asc")
+
+	def test_executed_failed_and_denied_are_recorded(self):
+		gw = make_gateway()
+		gw.authorize_and_execute("data.count", {"doctype": "ToDo"}, run_name=self.run)
+		gw.authorize_and_execute("data.count", {"doctype": "No Such DocType"}, run_name=self.run)
+		with self.assertRaises(ToolDenied):
+			gw.authorize_and_execute("data.count", {"doctype": "ToDo", "ignore_permissions": True}, run_name=self.run)
+		rows = self._rows()
+		self.assertEqual([r.status for r in rows], ["Executed", "Failed", "Denied"])
+		self.assertEqual(rows[0].permission_decision, "allowed")
+		self.assertIn("Disallowed", rows[2].permission_decision)

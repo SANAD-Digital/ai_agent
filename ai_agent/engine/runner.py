@@ -53,6 +53,8 @@ from ai_agent.runtime.run_control import run_timeout_seconds
 REALTIME_EVENT = "ai_agent:chat"
 JOB_PREFIX = "ai-chat-msg-"
 CANCEL_KEY = "ai:chat:cancel:{}"
+# Provider failures that say the chosen model cannot be used now; anything else (a bug, a timeout) still fails.
+FALLBACK_KINDS = frozenset({"auth", "quota", "model", "not_chat", "no_tools", "rate_limit"})
 TAIL_KEY = "ai:chat:tail:{}"
 FLUSH_SECONDS = 2.0
 DELTA_COALESCE_CHARS = 24
@@ -223,7 +225,7 @@ class Runner:
         return CancelToken(check=check)
 
     def build(self, resume):
-        provider, provider_name, model = provider_for(self.session.provider, self.session.model)
+        provider, provider_name, model = provider_for(*(getattr(self, "override", None) or (self.session.provider, self.session.model)))
         caps = provider.caps(model)
         ctx = PermissionContext(self.user, self.agent.name, self.session.company)
         executor = ToolExecutor(ctx, self.agent, self.run_doc.name if self.run_doc else None, settings=self.settings, session=self.session.name)
@@ -383,8 +385,14 @@ class Runner:
                 messages[-1].blocks.append(block)
 
         try:
+            failed = None
             for event in loop.run(messages, start_seq=start_seq, resumed=resume):
+                if self.can_fall_back(event, resume, options):
+                    failed = event
+                    break
                 self.handle(event)
+            if failed is not None:
+                self.fall_back(failed, resume)
         except Exception as exc:
             frappe.db.rollback()
             frappe.log_error(frappe.get_traceback(), f"AI chat run {self.msg.name}")
@@ -396,6 +404,35 @@ class Runner:
                 frappe.cache().delete_value(CANCEL_KEY.format(self.msg.name))
             except Exception:
                 pass
+
+    # -- model fallback ------------------------------------------------------------------
+
+    def can_fall_back(self, event, resume, options):
+        """The chosen model could not answer at all (bad key, no credit, not a chat model, rate limit) before
+        anything was shown: answer with the site's default model instead of failing the turn."""
+        if not isinstance(event, MessageFailed) or event.kind not in FALLBACK_KINDS:
+            return False
+        if resume or self.blocks or getattr(self, "override", None) or options.get("skill") or options.get("plugin"):
+            return False
+        try:
+            _provider, name, model = provider_for(None, None)
+        except Exception:
+            return False
+        if (name, model) == (self.provider_name, self.model):
+            return False
+        self.fallback = (name, model)
+        return True
+
+    def fall_back(self, failed, resume):
+        tried = f"{self.provider_name} / {self.model}"
+        self.override = self.fallback
+        loop, executor, messages, start_seq = self.build(resume)
+        frappe.log_error(f"{tried}: {failed.kind}: {failed.error}"[:2000], f"AI chat model fallback {self.msg.name}")
+        self.msg.db_set({"provider": self.provider_name, "model": self.model}, update_modified=False)
+        note = {"kind": "status", "text": frappe._("{0} could not answer ({1}); this reply uses {2}.", lang=frappe.db.get_value("User", self.msg.user, "language") or None).format(tried, failed.kind, f"{self.provider_name} / {self.model}")}
+        self.insert_block(start_seq, note)
+        for event in loop.run(messages, start_seq=start_seq + 1, resumed=resume):
+            self.handle(event)
 
     # -- event handling ----------------------------------------------------------------
 

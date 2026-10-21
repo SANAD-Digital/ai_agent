@@ -114,7 +114,9 @@ class TestChatApi(IntegrationTestCase):
     def test_provider_failure_marks_message_failed(self):
         out = self._send("hi")
         provider, provider_for = fake_provider([[("error", "invalid api key", "auth", False)]])
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+        # No other model to fall back to (the default is the one that failed).
+        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None), \
+                patch.object(runner.Runner, "can_fall_back", return_value=False):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
         self.assertEqual(msg.status, "failed")
@@ -192,6 +194,25 @@ class TestChatApi(IntegrationTestCase):
         frappe.db.set_value("AI Chat Message", name, "status", "streaming")
         with patch.object(runner, "job_is_alive", return_value=True):
             self.assertEqual(api.stop_message(name)["status"], "cancelling")
+
+    def test_unusable_model_falls_back_to_the_default(self):
+        out = self._send("hello")
+        broken = FakeProvider([[("error", "invalid x-api-key", "auth", False)]])
+        default = FakeProvider([[("text", "answered by the default"), ("stop", "end_turn")]])
+
+        def provider_for(provider_name=None, model=None):
+            if provider_name is None and model is None:
+                return default, "Default", "default-model"
+            return (broken, "Broken", "bad-model") if model != "default-model" else (default, "Default", "default-model")
+
+        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+            runner.execute_message(out["assistant_message"]["name"], user="Administrator")
+        msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
+        self.assertEqual(msg.status, "completed")
+        self.assertEqual(msg.text, "answered by the default")
+        self.assertEqual(msg.model, "default-model")
+        kinds = frappe.get_all("AI Message Block", filters={"message": msg.name}, pluck="block_type", order_by="seq asc")
+        self.assertEqual(kinds[0], "status")
 
     def test_a_new_message_settles_the_reply_waiting_for_approval(self):
         out = self._send("first")

@@ -208,6 +208,7 @@ def _paddle_runtime_installed():
         _validate_runtime()
         return True
     except Exception:
+        # A probe: any failure means the local runtime is not usable.
         return False
 
 
@@ -295,6 +296,7 @@ def _build_test_image():
         image.save(buffer, format="PNG")
         return buffer.getvalue()
     except Exception:
+        # Pillow unavailable: a fixed test image works just as well.
         return base64.b64decode(
             "iVBORw0KGgoAAAANSUhEUgAAAoAAAAEwCAIAAAD9nS1aAAAE5klEQVR4nO3ZwQ3CMBAFQeUO+9+Z6BWpCqzYhFQm2ZgJwE9mIu+UAAAAAAAAAAAAAAAAAAAAAgH8d2wEAAABgK2YBAAAAYCsGAAAAwFYMAGDr3mP3b7e9d9c7XgAAAPyABQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsxcfr1n6/7wMAAIDfBAwAAACwFQMAAABsBQMAAABgKwYAAADAVgwAAACArRgAAAAAWzEAAAAAtmIAAAAAbMUAAAAA2IoBAAAAsBUDAAAAYCsGAAAAwFYMAGD7A0iiBOT6Xm2uAAAAAElFTkSuQmCC"
         )
@@ -366,6 +368,7 @@ def _format_error(response):
         payload = response.json()
         message = payload.get("error", {}).get("message") or payload.get("message")
     except Exception:
+        # Not a JSON error body: show the raw text instead.
         message = response.text[:500]
     if message:
         return _("Gemini OCR request failed: {0}").format(message)
@@ -390,6 +393,7 @@ def _optimize_image_for_ocr(data, mime_type="image/png"):
         if len(compressed) < len(data):
             return compressed, "image/jpeg"
     except Exception:
+        # Optimisation only: the original image is sent unchanged.
         pass
     return data, mime_type
 

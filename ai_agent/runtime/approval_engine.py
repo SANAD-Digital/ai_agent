@@ -41,6 +41,14 @@ def failure_text(exc):
                 break
     return text or type(exc).__name__
 
+class DecisionOutcome:
+    """What a decision produced: the reloaded request, the execution result or the error text, and whether it
+    only reported an earlier decision."""
+
+    def __init__(self, approval, result, error, repeated=False):
+        self.approval, self.result, self.error, self.repeated = approval, result, error, repeated
+
+
 class ApprovalEngine:
     """Manages the approval lifecycle for write operations."""
 
@@ -124,6 +132,47 @@ class ApprovalEngine:
         )
 
         return approval
+
+    def decide(self, approval_name, decision, user=None, reason=None, on_event=None):
+        """Approve-and-execute, or reject: the one decision path behind the Desk chat card, the MCP card and the
+        ERPNext form. Exactly once: a repeated or concurrent decision returns the recorded outcome
+        (``repeated=True``) and never executes twice. ``on_event(name, **data)`` lets a caller log the stages."""
+        user = user or frappe.session.user
+        note = on_event or (lambda *args, **kwargs: None)
+        if decision not in ("approve", "reject"):
+            frappe.throw(frappe._("decision must be approve or reject"))
+        approval = frappe.get_doc("AI Approval Request", approval_name)
+        if decision == "reject":
+            if approval.status == "Rejected":
+                return DecisionOutcome(approval, None, None, repeated=True)
+            approval = self.reject(approval_name, reason=reason, user=user)
+            note("rejected")
+            return DecisionOutcome(approval, None, None)
+        if approval.status == "Executed":
+            return DecisionOutcome(approval, None, None, repeated=True)
+        if approval.status == "Pending":
+            try:
+                self.approve(approval_name, user=user)
+            except ApprovalAlreadyExecuted:
+                approval.reload()   # a concurrent decision got there first
+                return DecisionOutcome(approval, None, None, repeated=True)
+            note("approved")
+        note("execute_started")
+        try:
+            result = self.execute_approved_action(approval_name)
+        except ApprovalAlreadyExecuted:
+            approval.reload()
+            return DecisionOutcome(approval, None, None, repeated=True)
+        except ApprovalExpired:
+            raise
+        except Exception as exc:
+            error = failure_text(exc)
+            note("failed", error=error[:200])
+            approval.reload()
+            return DecisionOutcome(approval, None, error)
+        note("execute_completed")
+        approval.reload()
+        return DecisionOutcome(approval, result, None)
 
     def approve(self, approval_name, user=None):
         """Approve an approval request."""
@@ -210,7 +259,8 @@ class ApprovalEngine:
         # Re-check against the approver (who executes it) at execution time:
         # permissions or the target document may have changed since the request.
         user = approval.approved_by
-        if approval.action_type == CUSTOMIZE and approval.payload_hash != self._compute_hash(approval.payload_json or ""):
+        # The payload executed is the one approved, for every action type (the hash was checked only at approve).
+        if approval.payload_hash != self._compute_hash(approval.payload_json or ""):
             # Ends Failed (never left Approved): a changed payload is never retried.
             exc = PermissionDenied("Payload has been tampered with.")
             self._mark_failed(approval_name, exc)

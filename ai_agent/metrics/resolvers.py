@@ -7,6 +7,7 @@ goes through frappe.get_list in the caller's session.
 """
 
 import frappe
+from frappe import _
 from frappe.utils import date_diff, flt, getdate
 
 CREDIT_LABEL = "آجل"
@@ -95,7 +96,7 @@ def payment_mode(definition, period_info, dim, others, filters, company):
 		"rows": rows,
 		"total": round(sum(r["value"] for r in rows), 2),
 		"source": {"doctype": definition.doctype, "documents": engine._document_count(definition, base)},
-		"notes": ["توزيع طريقة الدفع محسوب على إجمالي الفاتورة شامل الضريبة؛ الفواتير غير المدفوعة داخل الفاتورة = آجل."],
+		"notes": [_("The payment-mode split is computed on the invoice grand total including tax; invoices not paid inside the invoice = {0}.").format(CREDIT_LABEL)],
 	}
 
 
@@ -134,7 +135,7 @@ def age_bucket(definition, period_info, dim, others, filters, company):
 		"rows": rows,
 		"total": round(sum(r["value"] for r in rows), 2),
 		"source": result["source"],
-		"notes": [f"الأعمار محسوبة من تاريخ الاستحقاق حتى {as_of}."],
+		"notes": [_("Ages are counted from the due date up to {0}.").format(as_of)],
 	}
 
 
@@ -152,7 +153,7 @@ def below_reorder(definition, period_info, dimension_keys, filters, company):
 	notes = []
 	rows = []
 	if not levels:
-		notes.append("لا توجد حدود إعادة طلب معرّفة في جدول Item Reorder لأي صنف.")
+		notes.append(_("No re-order levels are defined in the Item Reorder table for any item."))
 	else:
 		bin_filters = [["item_code", "in", sorted({item for item, _ in levels})]]
 		if company:
@@ -176,7 +177,7 @@ def below_reorder(definition, period_info, dimension_keys, filters, company):
 		"rows": rows,
 		"total": len(rows),
 		"source": {"doctype": "Bin + Item Reorder", "documents": len(levels)},
-		"notes": notes + ["value = الكمية المتوقعة (projected_qty) مقارنة بحد إعادة الطلب للمخزن."],
+		"notes": notes + [_("value = projected quantity (projected_qty) compared with the warehouse re-order level.")],
 	}
 
 

@@ -1028,7 +1028,7 @@ def route_conflicts(route, doctype, own_name):
 	except (NotFound, MethodNotAllowed):
 		pass
 	except Exception:
-		pass
+		frappe.log_error(frappe.get_traceback(), "ai_agent customize: web route check could not read the route rules")
 	# redirects (hooks + Website Settings): the visitor would be sent elsewhere (path_resolver.resolve_redirect)
 	redirects = list(frappe.get_hooks("website_redirects") or [])
 	redirects += [{"source": r.source} for r in (frappe.get_website_settings("route_redirects") or [])]

@@ -13,6 +13,7 @@ def doc_href(doctype, name):
     try:
         return frappe.utils.get_url(f"/app/{slug(doctype)}/{frappe.utils.quote(str(name), safe='')}")
     except Exception:
+        # Cosmetic: a relative link still opens the record.
         return f"/app/{slug(doctype)}/{name}"
 
 

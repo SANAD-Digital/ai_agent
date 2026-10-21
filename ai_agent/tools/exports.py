@@ -132,7 +132,7 @@ def handle_excel(arguments, ctx):
         return {"error": error}
     if not rows:
         return {"error": "no rows to export"}
-    title = arguments.get("title") or "تصدير"
+    title = arguments.get("title") or _("Export")
     wb = Workbook()
     ws = wb.active
     ws.title = str(title)[:31].replace("/", "-")
@@ -160,7 +160,7 @@ def handle_csv(arguments, ctx):
         return {"error": error}
     if not rows:
         return {"error": "no rows to export"}
-    title = arguments.get("title") or "تصدير"
+    title = arguments.get("title") or _("Export")
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow([label for _, label in columns])
@@ -176,13 +176,13 @@ def handle_pdf(arguments, ctx):
     columns, rows, error = _source(arguments, ctx)
     if error:
         return {"error": error}
-    title = arguments.get("title") or "تقرير"
+    title = arguments.get("title") or _("Report")
     summary = str(arguments.get("summary") or "").strip()
     if not rows and not summary:
         return {"error": "nothing to put in the PDF: give rows or a summary"}
     rows = rows[:MAX_PDF_ROWS]
     rtl = _rtl(title, columns) or _is_arabic(summary)
-    meta = format_datetime(now_datetime()) + (f" · {len(rows)} {'سجل' if rtl else 'rows'}" if rows else "")
+    meta = format_datetime(now_datetime()) + (" · " + (_("{0} records", lang="ar") if rtl else "{0} rows").format(len(rows)) if rows else "")
     pdf = _table_pdf(title, [meta], summary.splitlines(), columns, rows, rtl=rtl)
     return _save(title, "pdf", pdf, ctx, "pdf", len(rows))
 
@@ -251,7 +251,6 @@ def handle_print(arguments, ctx):
 # -- Party statement ---------------------------------------------------------
 
 STATEMENT_PARTIES = ("Customer", "Supplier", "Employee", "Shareholder")
-PARTY_AR = {"Customer": "العميل", "Supplier": "المورد", "Employee": "الموظف", "Shareholder": "المساهم"}
 
 
 def _resolve_party(party_type, text, user):
@@ -296,7 +295,7 @@ def handle_statement(arguments, ctx):
         return {"error": "no permission on the General Ledger report"}
     language = arguments.get("language") or frappe.db.get_value("User", user, "language") or frappe.local.lang
     rtl = str(language).startswith("ar")
-    labels = {"'Opening'": "الرصيد الافتتاحي", "'Total'": "إجمالي الفترة", "'Closing (Opening + Total)'": "الرصيد الختامي"} if rtl else {}
+    labels = {"'Opening'": _("Opening Balance", lang="ar"), "'Total'": _("Period Total", lang="ar"), "'Closing (Opening + Total)'": _("Closing Balance", lang="ar")} if rtl else {}
     rows, opening, closing = [], 0, 0
     for row in report.get("result") or []:
         if not isinstance(row, dict):
@@ -317,12 +316,14 @@ def handle_statement(arguments, ctx):
         })
     entries = sum(1 for r in rows if not r["_strong"])
     if rtl:
-        columns = [("posting_date", "التاريخ"), ("voucher_type", "المستند"), ("voucher_no", "الرقم"), ("debit", "مدين"), ("credit", "دائن"), ("balance", "الرصيد")]
+        columns = [("posting_date", _("Date", lang="ar", context="AI Agent tools")), ("voucher_type", _("Voucher", lang="ar")), ("voucher_no", _("No.", lang="ar")),
+                   ("debit", _("Debit", lang="ar")), ("credit", _("Credit", lang="ar")), ("balance", _("Balance", lang="ar", context="AI Agent tools"))]
         party_name = frappe.db.get_value(party_type, party, frappe.get_meta(party_type).title_field or "name") or party
-        title = f"كشف حساب {PARTY_AR.get(party_type, party_type)}: {party_name}"
-        meta = [f"{company} · من {from_date} إلى {to_date}", f"{entries} حركة · طُبع {format_datetime(now_datetime())}"]
-        side = "عليه" if closing > 0 else "له" if closing < 0 else ""
-        summary = [f"الرصيد الافتتاحي: {_fmt(opening)} · الرصيد الختامي: {_fmt(abs(closing))} {side}".strip()]
+        title = _("Statement of Account for {0}: {1}", lang="ar").format(_(party_type, lang="ar"), party_name)
+        meta = [_("{0} · from {1} to {2}", lang="ar").format(company, from_date, to_date),
+                _("{0} entries · printed {1}", lang="ar").format(entries, format_datetime(now_datetime()))]
+        side = _("owed by them", lang="ar") if closing > 0 else _("owed to them", lang="ar") if closing < 0 else ""
+        summary = [_("Opening balance: {0} · Closing balance: {1} {2}", lang="ar").format(_fmt(opening), _fmt(abs(closing)), side).strip()]
     else:
         columns = [("posting_date", "Date"), ("voucher_type", "Voucher"), ("voucher_no", "No."), ("debit", "Debit"), ("credit", "Credit"), ("balance", "Balance")]
         title = f"Statement of Account: {party}"
@@ -331,10 +332,10 @@ def handle_statement(arguments, ctx):
     pdf = _table_pdf(title, meta, summary, columns, rows, rtl=rtl, strong=lambda r: r.get("_strong"))
     result = _save(title, "pdf", pdf, ctx, "statement", entries)
     # The sign is easy to misread (a customer's credit balance is negative): spell it out for the model.
-    side_ar = "عليه (مدين لنا)" if closing > 0 else "له (دائن، نحن مدينون له)" if closing < 0 else "صفر"
+    side_text = _("owed by the party (debit, they owe us)") if closing > 0 else _("owed to the party (credit, we owe them)") if closing < 0 else _("zero")
     result.update({
         "party": party, "opening": opening, "closing": closing, "from_date": from_date, "to_date": to_date, "company": company,
-        "closing_text": f"{_fmt(abs(closing))} {side_ar}" if closing else "0",
+        "closing_text": f"{_fmt(abs(closing))} {side_text}" if closing else "0",
         "note": "The file is ready; the user sees a download card. Report closing_text as written; do not re-derive the sign.",
     })
     return result
@@ -363,7 +364,7 @@ def _shape(text):
 
         return get_display(arabic_reshaper.reshape(text))
     except Exception:
-        return text
+        return text   # cosmetic: without the shaping libraries the label is drawn unjoined, never lost
 
 
 def handle_image(arguments, ctx):
@@ -372,7 +373,7 @@ def handle_image(arguments, ctx):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    title = arguments.get("title") or "صورة"
+    title = arguments.get("title") or _("Image")
     chart = arguments.get("chart")
     plt.rcParams["font.family"] = "DejaVu Sans"
     if isinstance(chart, dict):

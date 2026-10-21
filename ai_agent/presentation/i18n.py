@@ -17,6 +17,7 @@ def t(text, *args):
 	try:
 		out = frappe._(text, lang=label_language(), context=CONTEXT)
 	except Exception:
+		# Cosmetic: an untranslated label beats a failed view.
 		out = text
 	return out.format(*args) if args else out
 

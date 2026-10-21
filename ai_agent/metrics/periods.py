@@ -8,6 +8,7 @@ state exactly what was measured.
 from datetime import timedelta
 
 import frappe
+from frappe import _
 from frappe.utils import add_days, add_months, add_years, get_first_day, get_last_day, getdate, now_datetime
 
 NAMED_PERIODS = (
@@ -97,7 +98,7 @@ def comparison_period(base, mode, company=None):
 def describe(period):
 	text = str(period["from"]) if period["from"] == period["to"] else f"{period['from']} → {period['to']}"
 	if period.get("until_time"):
-		text += f" (حتى الساعة {period['until_time']})"
+		text += " " + _("(until {0})").format(period["until_time"])
 	return text
 
 

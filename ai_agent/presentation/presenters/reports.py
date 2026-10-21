@@ -227,6 +227,7 @@ def _can(doctype, ptype):
     try:
         return bool(frappe.has_permission(doctype, ptype))
     except Exception:
+        # Fails closed: the action is not offered.
         return False
 
 
@@ -250,6 +251,7 @@ def _overdue(filters, party, ctx):
         rows = frappe.get_list(doctype, filters=[[doctype, r["field"], r["operator"], r["value"]] for r in rules],
                                fields=["name", "outstanding_amount", "currency"], user=getattr(ctx, "user", None) or frappe.session.user, limit_page_length=0)
     except Exception:
+        # Optional enrichment (also covers a permission denial): no overdue section.
         return None
     if not rows:
         return None

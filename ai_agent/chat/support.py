@@ -20,11 +20,12 @@ from ai_agent.permissions import owner_filters
 SURFACE = "Chatbot"
 RESUME_HOURS = 12          # reopen the last conversation when it is this recent
 
-SUGGESTIONS_AR = [
-    {"label": "لماذا لا يظهر هذا المستند في التقرير؟", "needs_document": True},
-    {"label": "اشرح لي هذه الشاشة وما المطلوب تعبئته", "needs_document": True},
-    {"label": "ظهرت لي رسالة خطأ، ساعدني في حلها"},
-    {"label": "كيف أُنشئ فاتورة مبيعات؟"},
+# Labels are translated per request in bootstrap().
+SUGGESTIONS = [
+    {"label": "Why does this document not appear in the report?", "needs_document": True},
+    {"label": "Explain this screen and what I need to fill in", "needs_document": True},
+    {"label": "I got an error message, help me fix it"},
+    {"label": "How do I create a sales invoice?"},
 ]
 
 
@@ -78,7 +79,7 @@ def bootstrap():
         "agent": {"name": agent, "agent_name": _(frappe.db.get_value("AI Agent", agent, "agent_name") or agent, context="AI Agent")},
         "user": {"name": user, "full_name": info.get("full_name") or user, "image": info.get("user_image"), "language": lang, "dir": "rtl" if str(lang).startswith(("ar", "he", "fa", "ur")) else "ltr"},
         "session": api.get_session(session)["session"] if session else None,
-        "suggestions": SUGGESTIONS_AR,
+        "suggestions": [{**s, "label": _(s["label"])} for s in SUGGESTIONS],
         "third_party_warning": policy.third_party_warning(),
         "auto_approval": policy.auto_approval_available(),
     }

@@ -50,6 +50,7 @@ class QueryCostGuard:
         try:
             meta = frappe.get_meta(doc_type)
         except Exception:
+            # Cost heuristic only: an unreadable DocType fails in the query itself.
             return fields
 
         for field in meta.fields:
@@ -80,6 +81,7 @@ class QueryCostGuard:
         try:
             meta = frappe.get_meta(doc_type)
         except Exception:
+            # Cost heuristic only (stricter answer): an unreadable DocType fails in the query itself.
             return False
 
         selective_fieldtypes = {"Link", "Dynamic Link", "Select"}
@@ -110,6 +112,7 @@ class QueryCostGuard:
         try:
             meta = frappe.get_meta(doc_type)
         except Exception:
+            # Cost heuristic only (stricter answer): an unreadable DocType fails in the query itself.
             return False
 
         searchable_fields = {
@@ -146,6 +149,7 @@ class QueryCostGuard:
                 return True
             return frappe.db.count(doc_type) > 10000
         except Exception:
+            # Cost heuristic only: an unreadable DocType fails in the query itself.
             return False
 
     def _parent_doctype_from_filters(self, filters):

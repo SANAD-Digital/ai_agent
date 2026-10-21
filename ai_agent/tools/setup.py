@@ -6,6 +6,7 @@ singles are read only when the user has read permission on them.
 """
 
 import frappe
+from frappe import _
 from frappe.utils import cint, getdate
 
 AREAS = ("company", "accounts", "stock", "selling", "buying")
@@ -63,10 +64,10 @@ def _count(doctype, filters):
 
 def _fields_check(row, required, where, steps):
 	if row is None:
-		return [_item(where, UNKNOWN, "لا تملك صلاحية قراءة هذه الإعدادات أو لم تُحدد شركة.")]
+		return [_item(where, UNKNOWN, _("You do not have permission to read these settings, or no company is set."))]
 	return [
 		_item(label, OK if row.get(field) else MISSING,
-			  f"{label}: {row.get(field)}" if row.get(field) else f"{label} غير مضبوط في {where}.", steps)
+			  f"{label}: {row.get(field)}" if row.get(field) else _("{0} is not set in {1}.").format(label, where), steps)
 		for field, label in required.items()
 	]
 
@@ -74,16 +75,16 @@ def _fields_check(row, required, where, steps):
 def check_company(company):
 	row = _company(company, ["name", "default_currency", "country", "abbr", "cost_center", "round_off_account",
 							 "default_receivable_account", "default_payable_account"])
-	checks = _fields_check(row, {"default_currency": "العملة الافتراضية", "country": "الدولة", "cost_center": "مركز التكلفة الافتراضي"},
-						   f"الشركة {company}", "الشركة ← تعديل ← الحقل المذكور ← حفظ.")
+	checks = _fields_check(row, {"default_currency": _("Default Currency"), "country": _("Country"), "cost_center": _("Default Cost Center")},
+						   _("Company {0}").format(company), _("Company → Edit → the field named → Save."))
 	fiscal = _count("Fiscal Year", [["year_start_date", "<=", getdate()], ["year_end_date", ">=", getdate()], ["disabled", "=", 0]])
-	checks.append(_item("السنة المالية الحالية", OK if fiscal else (UNKNOWN if fiscal is None else MISSING),
-						"توجد سنة مالية تغطي تاريخ اليوم." if fiscal else "لا توجد سنة مالية مفعلة تغطي تاريخ اليوم.",
-						"المحاسبة ← السنة المالية ← جديد: تاريخ البداية والنهاية ← حفظ."))
+	checks.append(_item(_("Current Fiscal Year"), OK if fiscal else (UNKNOWN if fiscal is None else MISSING),
+						_("A fiscal year covers today's date.") if fiscal else _("No enabled fiscal year covers today's date."),
+						_("Accounting → Fiscal Year → New: start and end dates → Save.")))
 	warehouses = _count("Warehouse", {"company": company, "is_group": 0}) if company else None
-	checks.append(_item("المخازن", OK if warehouses else (UNKNOWN if warehouses is None else MISSING),
-						f"{warehouses} مخزن للشركة." if warehouses else "لا توجد مخازن فرعية للشركة.",
-						"المخزون ← المخزن ← جديد ← اختر الشركة ← حفظ."))
+	checks.append(_item(_("Warehouses", context="AI Agent tools"), OK if warehouses else (UNKNOWN if warehouses is None else MISSING),
+						_("{0} warehouses for the company.").format(warehouses) if warehouses else _("The company has no non-group warehouses."),
+						_("Stock → Warehouse → New → choose the company → Save.")))
 	return checks
 
 
@@ -92,65 +93,65 @@ def check_accounts(company):
 							 "default_expense_account", "round_off_account", "exchange_gain_loss_account",
 							 "default_cash_account", "default_bank_account", "accounts_frozen_till_date"])
 	checks = _fields_check(row, {
-		"default_receivable_account": "حساب المدينين الافتراضي",
-		"default_payable_account": "حساب الدائنين الافتراضي",
-		"default_income_account": "حساب الإيرادات الافتراضي",
-		"default_expense_account": "حساب المصروفات الافتراضي",
-		"round_off_account": "حساب التقريب",
-		"exchange_gain_loss_account": "حساب أرباح وخسائر فروق العملة",
-		"default_cash_account": "حساب النقدية الافتراضي",
-	}, f"الشركة {company}", "الشركة ← تبويب المحاسبة ← الحسابات الافتراضية ← اختر الحساب ← حفظ.")
+		"default_receivable_account": _("Default Receivable Account", context="AI Agent tools"),
+		"default_payable_account": _("Default Payable Account", context="AI Agent tools"),
+		"default_income_account": _("Default Income Account", context="AI Agent tools"),
+		"default_expense_account": _("Default Expense Account"),
+		"round_off_account": _("Round Off Account", context="AI Agent tools"),
+		"exchange_gain_loss_account": _("Exchange Gain/Loss Account"),
+		"default_cash_account": _("Default Cash Account", context="AI Agent tools"),
+	}, _("Company {0}").format(company), _("Company → Accounts tab → Default Accounts → choose the account → Save."))
 	if row and row.get("accounts_frozen_till_date"):
-		checks.append(_item("تجميد الحسابات", WARN, f"الحسابات مجمدة حتى {row.accounts_frozen_till_date}."))
+		checks.append(_item(_("Accounts Freeze"), WARN, _("Accounts are frozen until {0}.").format(row.accounts_frozen_till_date)))
 	modes = _count("Mode of Payment Account", {"company": company}) if company else None
-	checks.append(_item("حسابات طرق الدفع", OK if modes else (UNKNOWN if modes is None else MISSING),
-						f"{modes} طريقة دفع مربوطة بحساب للشركة." if modes else "لا توجد طريقة دفع مربوطة بحساب لهذه الشركة.",
-						"المحاسبة ← طريقة الدفع ← جدول الحسابات ← أضف الشركة والحساب الافتراضي."))
+	checks.append(_item(_("Mode of Payment Accounts"), OK if modes else (UNKNOWN if modes is None else MISSING),
+						_("{0} modes of payment linked to an account for the company.").format(modes) if modes else _("No mode of payment is linked to an account for this company."),
+						_("Accounting → Mode of Payment → Accounts table → add the company and its default account.")))
 	return checks
 
 
 def check_stock(company):
 	settings = _single("Stock Settings", ["valuation_method", "default_warehouse", "stock_uom", "allow_negative_stock"])
-	checks = _fields_check(settings, {"valuation_method": "طريقة التقييم", "stock_uom": "وحدة المخزون الافتراضية"},
-						   "إعدادات المخزون", "المخزون ← إعدادات المخزون ← الحقل المذكور ← حفظ.")
+	checks = _fields_check(settings, {"valuation_method": _("Valuation Method"), "stock_uom": _("Default Stock UOM", context="AI Agent tools")},
+						   _("Stock Settings"), _("Stock → Stock Settings → the field named → Save."))
 	if settings and cint(settings.get("allow_negative_stock")):
-		checks.append(_item("المخزون السالب", WARN, "المخزون السالب مسموح؛ قد تظهر أرصدة سالبة وتقييم غير دقيق."))
+		checks.append(_item(_("Negative Stock"), WARN, _("Negative stock is allowed; negative balances and inaccurate valuation may appear.")))
 	row = _company(company, ["enable_perpetual_inventory", "default_inventory_account", "stock_adjustment_account",
 							 "stock_received_but_not_billed"])
 	if row and cint(row.get("enable_perpetual_inventory")):
 		checks += _fields_check(row, {
-			"default_inventory_account": "حساب المخزون الافتراضي",
-			"stock_adjustment_account": "حساب تسوية المخزون",
-			"stock_received_but_not_billed": "حساب مخزون مستلم غير مفوتر",
-		}, f"الشركة {company}", "الشركة ← تبويب المخزون ← الحسابات ← حفظ.")
+			"default_inventory_account": _("Default Inventory Account"),
+			"stock_adjustment_account": _("Stock Adjustment Account", context="AI Agent tools"),
+			"stock_received_but_not_billed": _("Stock Received But Not Billed", context="AI Agent tools"),
+		}, _("Company {0}").format(company), _("Company → Stock tab → Accounts → Save."))
 	items = _count("Item", {"is_stock_item": 1, "disabled": 0})
-	checks.append(_item("أصناف مخزنية", OK if items else (UNKNOWN if items is None else MISSING),
-						f"{items} صنف مخزني مفعّل." if items else "لا توجد أصناف مخزنية مفعلة."))
+	checks.append(_item(_("Stock Items", context="AI Agent tools"), OK if items else (UNKNOWN if items is None else MISSING),
+						_("{0} enabled stock items.").format(items) if items else _("No enabled stock items.")))
 	return checks
 
 
 def check_selling(company):
 	settings = _single("Selling Settings", ["customer_group", "territory", "selling_price_list", "cust_master_name"])
 	checks = _fields_check(settings, {
-		"customer_group": "مجموعة العملاء الافتراضية",
-		"territory": "المنطقة الافتراضية",
-		"selling_price_list": "قائمة أسعار البيع الافتراضية",
-	}, "إعدادات البيع", "المبيعات ← إعدادات البيع ← الحقل المذكور ← حفظ.")
+		"customer_group": _("Default Customer Group", context="AI Agent tools"),
+		"territory": _("Default Territory", context="AI Agent tools"),
+		"selling_price_list": _("Default Selling Price List"),
+	}, _("Selling Settings"), _("Selling → Selling Settings → the field named → Save."))
 	price_lists = _count("Price List", {"selling": 1, "enabled": 1})
-	checks.append(_item("قوائم أسعار البيع", OK if price_lists else (UNKNOWN if price_lists is None else MISSING),
-						f"{price_lists} قائمة أسعار بيع مفعلة." if price_lists else "لا توجد قائمة أسعار بيع مفعلة."))
+	checks.append(_item(_("Selling Price Lists"), OK if price_lists else (UNKNOWN if price_lists is None else MISSING),
+						_("{0} enabled selling price lists.").format(price_lists) if price_lists else _("No enabled selling price list.")))
 	return checks
 
 
 def check_buying(company):
 	settings = _single("Buying Settings", ["supplier_group", "buying_price_list", "supp_master_name"])
 	checks = _fields_check(settings, {
-		"supplier_group": "مجموعة الموردين الافتراضية",
-		"buying_price_list": "قائمة أسعار الشراء الافتراضية",
-	}, "إعدادات الشراء", "المشتريات ← إعدادات الشراء ← الحقل المذكور ← حفظ.")
+		"supplier_group": _("Default Supplier Group"),
+		"buying_price_list": _("Default Buying Price List", context="AI Agent tools"),
+	}, _("Buying Settings"), _("Buying → Buying Settings → the field named → Save."))
 	suppliers = _count("Supplier", {"disabled": 0})
-	checks.append(_item("الموردون", OK if suppliers else (UNKNOWN if suppliers is None else MISSING),
-						f"{suppliers} مورد مفعّل." if suppliers else "لا يوجد موردون مفعّلون."))
+	checks.append(_item(_("Suppliers", context="AI Agent tools"), OK if suppliers else (UNKNOWN if suppliers is None else MISSING),
+						_("{0} enabled suppliers.").format(suppliers) if suppliers else _("No enabled suppliers.")))
 	return checks
 
 

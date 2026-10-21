@@ -213,6 +213,7 @@ def result_to_dict(result: Any) -> dict[str, Any]:
             try:
                 candidates.append(attr() if callable(attr) else attr)
             except Exception:
+                # Try the next representation; dict(result) below raises if none works.
                 pass
 
     for candidate in candidates:
@@ -249,7 +250,8 @@ def polygon_to_bbox(poly: Any) -> list[int]:
         try:
             xs.append(float(point[0]))
             ys.append(float(point[1]))
-        except Exception:
+        except (TypeError, ValueError, IndexError):
+            # Malformed point: skip it; an empty box is returned when none parse.
             continue
 
     if not xs or not ys:
@@ -278,7 +280,8 @@ def extract_blocks_from_prediction(prediction: Iterable[Any]) -> list[OCRBlock]:
 
             try:
                 score = float(scores[index]) if index < len(scores) else 0.0
-            except Exception:
+            except (TypeError, ValueError):
+                # A missing confidence never drops the recognised text.
                 score = 0.0
 
             poly = geometry_list[index] if index < len(geometry_list) else None

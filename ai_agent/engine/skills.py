@@ -30,7 +30,8 @@ def split(skills, ctx):
                     implicit.append({"name": name, "title": full.get("title") or name, "instructions": full["instructions"].strip()})
                     continue
             except Exception:
-                pass
+                # Its instructions are lost from the prompt: still advertised, so loading it on demand reports the error.
+                frappe.log_error(frappe.get_traceback(), f"AI skills: implicit skill {name}")
         advertised.append({"name": name, "description": meta.get("description") or meta.get("title") or ""})
     return implicit, advertised
 

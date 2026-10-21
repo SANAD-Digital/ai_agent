@@ -28,6 +28,7 @@ def available():
 
         return True
     except Exception:
+        # A probe: any import failure means RapidOCR is not usable.
         return False
 
 

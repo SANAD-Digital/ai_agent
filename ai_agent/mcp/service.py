@@ -245,6 +245,7 @@ class MCPService:
             lines = [f"- {memory_mod._line(frappe._dict(r))}" for r in rows if not (r.expires_at and r.expires_at < now)]
             facts = frappe.db.count("AI Memory", {"user": self.user, "memory_type": ("!=", "Preference")})
         except Exception:
+            frappe.log_error(frappe.get_traceback(), "MCP: memory instructions")
             return ""
         out = ""
         if lines:
@@ -323,7 +324,7 @@ class MCPService:
         try:
             diagnostics.note_resource_read(self.user, uri)
         except Exception:
-            pass
+            pass   # diagnostics must never break a request
 
     def set_client_capabilities(self, capabilities, *, remember=False):
         """Host capability detection, best evidence first.
@@ -512,7 +513,7 @@ class MCPService:
                 try:
                     diagnostics.note_resource_read(self.user, "rendered:" + str(arguments.get("view") or "view")[:40])   # proof the host renders views
                 except Exception:
-                    pass
+                    pass   # diagnostics must never break a request
                 return {"content": [{"type": "text", "text": "ok"}], "structuredContent": {"ok": True}, "isError": False}
             if name == "app__choose":
                 return self._envelope_result(self._choose(arguments), "app.choose", {})

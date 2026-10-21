@@ -33,6 +33,8 @@ def admin_audit_enabled():
 	try:
 		return bool(cint(frappe.db.get_single_value("AI Settings", AUDIT_SETTING)))
 	except Exception:
+		# Fails closed: without the setting, nobody audits other users' conversations.
+		frappe.log_error(frappe.get_traceback(), "AI conversation audit setting unreadable")
 		return False
 
 

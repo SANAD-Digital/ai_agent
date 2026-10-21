@@ -147,7 +147,7 @@ class OpenAICompatProvider(Provider):
                     try:
                         raw.close()
                     except Exception:
-                        pass
+                        pass   # closing a cancelled stream is best-effort
                     for ev in asm.close_all():
                         yield ev
                     yield MessageStop(stop_reason=CANCELLED)

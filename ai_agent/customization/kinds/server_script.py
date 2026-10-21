@@ -378,7 +378,7 @@ class ServerScriptKind(ScriptKind):
 			runs = croniter(cron, now_datetime())
 			return [str(runs.get_next(datetime)) for _i in range(count)]
 		except Exception:
-			return []
+			return []  # preview text only; an invalid cron is reported by the checks
 
 	# -- Permission Query ------------------------------------------------------------------
 	def _check_permission_query_target(self, spec, reference, impact):

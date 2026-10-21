@@ -106,6 +106,7 @@ def _default_currency(spec):
             return frappe.get_cached_value("Company", company, "default_currency")
         return frappe.defaults.get_global_default("currency") or frappe.defaults.get_defaults().get("currency")
     except Exception:
+        # Cosmetic: amounts are shown without a currency.
         return None
 
 
@@ -125,6 +126,7 @@ def _company_capital(company, user):
             return None
         return (row.get("credit") or 0) - (row.get("debit") or 0)
     except Exception:
+        # Optional enrichment: None reads as "unknown", never as zero.
         return None
 
 
@@ -277,6 +279,7 @@ def _select_options(doctype, key, rows):
         if field and field.fieldtype == "Select" and field.options:
             raw = [o.strip() for o in field.options.split("\n") if o.strip()]
     except Exception:
+        # Falls back to the values present in the rows.
         raw = []
     if not raw:
         raw = sorted({str(r.get(key)) for r in rows if r.get(key) not in (None, "")})
@@ -312,6 +315,7 @@ def _header_actions(doctype, view):
         if not frappe.has_permission(doctype, "create"):
             return []
     except Exception:
+        # Fails closed: no create action.
         return []
     return [schema.action("new", t(label), kind="link", style="primary", icon="plus", href=frappe.utils.get_url(f"/app/{slug(doctype)}/new"), placement="header")]
 

@@ -58,7 +58,7 @@ def _site_host():
 	try:
 		return (urlparse(frappe.utils.get_url()).hostname or "").lower()
 	except Exception:
-		return ""
+		return ""  # no host: every URL is then reported as another site's (more warnings, never fewer)
 
 
 def text_checks(text, where, html=True):

@@ -199,6 +199,8 @@ class CustomFieldKind:
 		try:
 			instance = frappe.new_doc(spec["doctype"])
 		except Exception:
+			# the meta loaded, so this is unexpected: the clash-with-a-controller-attribute check is skipped
+			frappe.log_error(frappe.get_traceback(), "ai_agent customize: custom_field check could not build the document")
 			instance = None
 		for f in spec["fields"]:
 			name = f["fieldname"]

@@ -94,7 +94,9 @@ def _tables_of(query):
 	try:
 		statements = sql_analyzer._parse(query)
 	except Exception:
-		return []
+		# None, not []: no tables means no roles, and a Report without roles is open to every user
+		frappe.log_error(frappe.get_traceback(), "ai_agent customize: report could not parse the query for its roles")
+		return None
 	out = []
 	for statement in statements:
 		if statement is None:
@@ -268,7 +270,9 @@ class ReportKind:
 				raise CustomizationError(_("Unknown role(s): {0}").format(", ".join(missing)))
 			spec["roles"] = sorted(set(roles))
 		elif operation == "create" and spec["report_type"] == "Query Report":
-			spec["roles"] = sql_analyzer.default_roles(_tables_of(spec["query"]))
+			tables = _tables_of(spec["query"])
+			# A Report with no roles is open to every user: no common read role means System Manager only.
+			spec["roles"] = (sql_analyzer.default_roles(tables) if tables is not None else None) or ["System Manager"]
 		if args.get("sample_filters") is not None:
 			if not isinstance(args["sample_filters"], dict):
 				raise CustomizationError(_("sample_filters must be an object"))
@@ -497,7 +501,9 @@ class ReportKind:
 			with _base.as_user(user):
 				rows = get_filtered_data(merged.get("ref_doctype"), column_dicts, rows, user) if rows else rows
 		except Exception:
-			pass
+			# fails closed: never show rows the viewer's User Permissions could exclude
+			frappe.log_error(frappe.get_traceback(), "ai_agent customize: report preview could not apply User Permissions")
+			rows = []
 		labels = [c.get("fieldname") for c in column_dicts]
 		preview["columns"] = [{k: c.get(k) for k in ("fieldname", "label", "fieldtype", "options") if c.get(k)} for c in column_dicts]
 		preview["rows"] = {"columns": labels, "rows": sql_analyzer.json_safe(

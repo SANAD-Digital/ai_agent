@@ -36,7 +36,7 @@ def host_name():
     try:
         return (frappe.request.headers.get("User-Agent") or "")[:60] if getattr(frappe, "request", None) else None
     except Exception:
-        return None
+        return None   # no readable request: treated as an unknown host
 
 
 def log(event, *, user=None, tool=None, approval_id=None, doctype=None, **extra):
@@ -64,7 +64,7 @@ def log(event, *, user=None, tool=None, approval_id=None, doctype=None, **extra)
             except OSError:
                 pass
     except Exception:
-        pass
+        pass   # the host log is diagnostics: it must never break a request
 
 
 def oauth_client():
@@ -74,7 +74,7 @@ def oauth_client():
         if len(header) == 2 and header[0].lower() == "bearer":
             return frappe.db.get_value("OAuth Bearer Token", header[1], "client")
     except Exception:
-        pass
+        pass   # diagnostics field of the host log only
     return None
 
 

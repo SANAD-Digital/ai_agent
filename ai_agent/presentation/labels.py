@@ -265,6 +265,7 @@ def label_language():
             cache[user] = frappe.db.get_value("User", user, "language") or frappe.local.lang or "ar"
         return cache[user]
     except Exception:
+        # Cosmetic: labels fall back to the default language.
         return "ar"
 
 
@@ -274,6 +275,7 @@ def translate(text):
 
         return frappe._(text, lang=label_language())
     except Exception:
+        # Cosmetic: the untranslated text is shown.
         return text
 
 
@@ -294,6 +296,7 @@ def label_for(fieldname, doctype=None):
             if field and field.label:
                 return translate(field.label)
         except Exception:
+            # Cosmetic: the humanized fieldname is the label.
             pass
     return humanize(fieldname)
 

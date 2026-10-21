@@ -17,6 +17,7 @@ def _root_type(account):
     try:
         return frappe.get_cached_value("Account", account, "root_type")
     except Exception:
+        # Optional enrichment: the insight is skipped.
         return None
 
 
@@ -30,6 +31,7 @@ def ledger_drill(filters, account=None, party=None):
         try:
             start, end = frappe.db.get_value("Fiscal Year", filters["fiscal_year"], ["year_start_date", "year_end_date"])
         except Exception:
+            # Optional drill-down: without a period no ledger link is offered.
             start = None
     if not (company and start and end):
         return None

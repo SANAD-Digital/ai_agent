@@ -109,6 +109,8 @@ def run(approval, user):
 		try:
 			after = kind.snapshot(spec)
 		except Exception:
+			# the change is applied; without "after" the undo cannot compare the target, so leave a trace
+			frappe.log_error(frappe.get_traceback(), f"ai_agent customize: {kind_name} snapshot after execute failed")
 			after = None
 
 	verified = not any(c.level == "critical" for c in checks)

@@ -141,7 +141,8 @@ def _drop_retired_workspace_entries(workspace):
         workspace.set(table, rows)
     try:
         content = json.loads(workspace.content or "[]")
-    except Exception:
+    except ValueError:
+        # Unparseable workspace content: leave the blocks as they are.
         return
     kept = [
         block for block in content
@@ -368,6 +369,7 @@ def ensure_default_provider():
     try:
         provider.api_key = settings.get_password("api_key") or ""
     except Exception:
+        frappe.log_error(frappe.get_traceback(), "AI provider seed: API key unreadable")
         provider.api_key = ""
     provider.insert(ignore_permissions=True)
 

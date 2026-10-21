@@ -1,13 +1,15 @@
 """analysis.sales: a period's sales, invoice/customer counts and the top customers, read with the caller's permissions."""
 
 import frappe
+from frappe import _
 from frappe.utils import flt
 
 from ai_agent.metrics import periods
 
 MAX_INVOICES = 20000
-LABELS = {"today": "اليوم", "yesterday": "أمس", "this_week": "هذا الأسبوع", "last_week": "الأسبوع الماضي", "this_month": "هذا الشهر", "last_month": "الشهر الماضي",
-          "this_quarter": "هذا الربع", "last_quarter": "الربع الماضي", "this_fiscal_year": "هذه السنة المالية", "custom": "الفترة المحددة"}
+# Translated where used.
+LABELS = {"today": "Today", "yesterday": "Yesterday", "this_week": "This Week", "last_week": "Last Week", "this_month": "This Month", "last_month": "Last Month",
+          "this_quarter": "This Quarter", "last_quarter": "Last Quarter", "this_fiscal_year": "This Fiscal Year", "custom": "Selected Period"}
 
 
 def handle_sales(arguments, permission_context):
@@ -44,7 +46,7 @@ def handle_sales(arguments, permission_context):
         e["share"] = (e["sales"] / total) if total else 0
     count = len(rows)
     return {
-        "period": {"key": info["key"], "from": str(info["from"]), "to": str(info["to"]), "label": LABELS.get(info["key"], info["key"])},
+        "period": {"key": info["key"], "from": str(info["from"]), "to": str(info["to"]), "label": _(LABELS[info["key"]], context="AI Agent tools") if info["key"] in LABELS else info["key"]},
         "company": company, "currency": currency, "truncated": count >= MAX_INVOICES,
         "totals": {"sales": total, "invoices": count, "customers": len(by_customer), "avg_invoice": (total / count) if count else 0},
         "top": ranked[:top],

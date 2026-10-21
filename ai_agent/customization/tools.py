@@ -271,7 +271,7 @@ def _summary(kind, spec):
 	try:
 		return str(kind.summary(spec) or "")[:500]
 	except Exception:
-		return ""
+		return ""  # the one-line summary is cosmetic; the checks and the request do not depend on it
 
 
 def get_kinds():
@@ -283,7 +283,10 @@ def get_kinds():
 		try:
 			if callable(getattr(registry.get(name), "get_source", None)):
 				out.append(name)
+		except CustomizationError:
+			continue  # the kind is not installed on this site
 		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"ai_agent customize: kind {name} failed to load")
 			continue
 	return out
 
@@ -446,7 +449,10 @@ def request_undo(arguments, ctx, run):
 		current = kind.snapshot(payload.get("spec") or {})
 	except CustomizationError as exc:
 		return _error(exc.message, exc.hints)
-	if execution.get("after") is not None and not same_state(current, execution.get("after")):
+	if execution.get("after") is None:
+		# Without the state recorded after execution, an undo could overwrite later changes it cannot see.
+		return _error("This change kept no record of its result, so it cannot be undone safely; undo it by hand or request a new change.")
+	if not same_state(current, execution.get("after")):
 		return _error("The target changed after this customization was executed; undo it by hand or request a new change.")
 	tainted = bool((payload.get("context") or {}).get("tainted")) or bool(getattr(ctx, "tainted", False))
 	undo = _normalized_undo(kind, undo, ctx)

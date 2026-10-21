@@ -117,6 +117,7 @@ class FileContextService:
         try:
             cached = frappe.cache().get_value(cache_key)
         except Exception:
+            # Cache only: the file is read again below.
             cached = None
         if cached:
             return cached
@@ -125,6 +126,7 @@ class FileContextService:
             try:
                 frappe.cache().set_value(cache_key, summary, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
             except Exception:
+                # Cache only: the summary is still returned.
                 pass
         return summary
 
@@ -187,6 +189,7 @@ class FileContextService:
                 data = file.read(MAX_TEXT_CHARS * 4)
             return data.decode("utf-8", errors="replace")
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading: {file_doc.name}")
             return ""
 
     def _summarize_csv(self, content):
@@ -206,7 +209,8 @@ class FileContextService:
     def _summarize_json(self, content):
         try:
             parsed = json.loads(content)
-        except Exception:
+        except ValueError:
+            # Not valid JSON: the raw text preview is the summary.
             return f"- preview:\n{content[:MAX_TEXT_CHARS]}"
 
         if isinstance(parsed, list):
@@ -246,6 +250,7 @@ class FileContextService:
             workbook.close()
             return f"- workbook_sheets: {json.dumps(sheets, ensure_ascii=False, default=str)[:MAX_TEXT_CHARS]}"
         except Exception as error:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (Excel): {file_doc.name}")
             return f"- summary: Could not extract Excel content: {str(error)}"
 
     def _summarize_pdf(self, file_doc, progress_run=None):
@@ -316,6 +321,7 @@ class FileContextService:
                     )
             return f"- pages: {len(reader.pages)}\n- text_preview:\n{text[:MAX_TEXT_CHARS]}"
         except Exception as error:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF): {file_doc.name}")
             return f"- summary: Could not extract PDF content: {str(error)}"
 
     def _needs_numeric_ocr_fallback(self, text):
@@ -337,6 +343,7 @@ class FileContextService:
             document.close()
             return "\n\n".join(pages).strip()
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF layout): {file_doc.name}")
             return ""
 
     def extract_pdf_invoice_pages(self, file_doc):
@@ -352,6 +359,7 @@ class FileContextService:
             document.close()
             return pages
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF pages): {file_doc.name}")
             return []
 
     def _read_xls_text(self, file_doc):
@@ -376,6 +384,7 @@ class FileContextService:
                     sections.append(f"[sheet: {sheet.name}]\n" + "\n".join(lines))
             return "\n\n".join(sections)
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (XLS): {file_doc.name}")
             return ""
 
     def _read_docx_text(self, file_doc):
@@ -419,6 +428,7 @@ class FileContextService:
                 paragraphs.append("".join(current).strip())
             return "\n".join(paragraph for paragraph in paragraphs if paragraph)
         except Exception:
+            # Last-resort fallback: the python-docx failure is already logged above.
             return ""
 
     def _extract_pdf_page_result(self, page, page_number):
@@ -472,6 +482,7 @@ class FileContextService:
             if not is_gemini_ocr_enabled():
                 return ["محرك OCR الاحتياطي غير مفعل في الإعدادات."]
         except Exception:
+            # Diagnostics are optional hints next to an OCR result.
             pass
         return []
 
@@ -512,7 +523,7 @@ class FileContextService:
             number = match.group(0).replace(",", "")
             try:
                 value_number = float(number)
-            except Exception:
+            except ValueError:
                 continue
             if value_number >= 1_000_000_000 or (tax_match and match.group(0) in tax_match.group(0)):
                 continue
@@ -569,6 +580,7 @@ class FileContextService:
             pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
             return self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png")
         except Exception:
+            frappe.log_error(frappe.get_traceback(), "AI file reading (PDF page OCR)")
             return ""
 
     def _is_better_pdf_table_text(self, text, layout_text):
@@ -693,7 +705,8 @@ class FileContextService:
             normalized = str(token or "").translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789"))
             normalized = normalized.replace("٫", ".").replace(",", "")
             return float(normalized)
-        except Exception:
+        except (TypeError, ValueError):
+            # Not a number: callers skip the token.
             return None
 
     def _normalize_arabic_text(self, text):
@@ -721,6 +734,7 @@ class FileContextService:
             mime_type = mimetypes.guess_type(filename)[0] or "image/png"
             return self._ocr_image_bytes(data, mime_type=mime_type)
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (image OCR): {file_doc.name}")
             return ""
 
     def _ocr_pdf(self, file_doc, progress_run=None):
@@ -744,6 +758,7 @@ class FileContextService:
             document.close()
             return "\n\n".join(pages).strip()
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF OCR): {file_doc.name}")
             return ""
 
     def _ocr_image_bytes(self, data, mime_type="image/png", allow_claude=True):
@@ -756,7 +771,7 @@ class FileContextService:
             if ocr_text and ocr_text.strip():
                 return ocr_text.strip()
         except Exception:
-            pass
+            frappe.log_error(frappe.get_traceback(), "AI OCR engine failed")
         if allow_claude:   # a single image; PDF pages go to Claude as one document (_claude_pdf)
             try:
                 from ai_agent.runtime import claude_ocr
@@ -811,6 +826,7 @@ class FileContextService:
                 },
             }
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (image): {file_doc.name}")
             return None
 
     def _pdf_to_image_parts(self, file_doc):
@@ -836,11 +852,12 @@ class FileContextService:
             document.close()
             return parts
         except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF images): {file_doc.name}")
             return []
 
 
 def cint_safe(value):
     try:
         return int(value or 0)
-    except Exception:
+    except (TypeError, ValueError):
         return 0

@@ -57,8 +57,13 @@ def is_protected_field(doc_type, fieldname):
         return True
     try:
         df = frappe.get_meta(doc_type).get_field(name)
-    except Exception:
+    except frappe.DoesNotExistError:
+        # Unknown DocType: the spec is rejected by the DocType checks.
         return False
+    except Exception:
+        # Unknown state: treat the field as protected (fail closed).
+        frappe.log_error(frappe.get_traceback(), "AI query: protected field check failed")
+        return True
     return bool(df and df.fieldtype in ("Password", "Password Hash"))
 
 class QueryValidator:
@@ -297,6 +302,7 @@ class QueryValidator:
             parents = self.ctx.get_readable_parent_doctypes(doc_type)
             return parents[0] if len(parents) == 1 else None
         except Exception:
+            # Fails closed: with no default parent a child-table query is rejected below.
             return None
 
     def _validate_group_by(self, doc_type, group_by, fields):

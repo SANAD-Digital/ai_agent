@@ -244,6 +244,7 @@ def _parse_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]
 def _stop_process_tree(process: subprocess.Popen[str]) -> None:
     if process.poll() is not None:
         return
+    # Best-effort cleanup: each step may fail because the process already exited.
     try:
         os.killpg(process.pid, signal.SIGTERM)
     except Exception:
@@ -310,7 +311,7 @@ def _wait_for_available_memory() -> None:
             raise LocalOCRExecutionError(
                 _(
                     "The server has {0}MB of free memory, less than the {1}MB local OCR needs. "
-                    "تم إيقاف قراءة الصفحة حتى لا يتأثر الموقع؛ أعد المحاولة لاحقًا أو أخفض ai_agent_ocr_min_available_mb."
+                    "Page reading was stopped so the site is not affected; try again later or lower ai_agent_ocr_min_available_mb."
                 ).format(available, required)
             )
         time.sleep(3)

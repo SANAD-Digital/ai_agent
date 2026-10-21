@@ -111,7 +111,10 @@ def _controller_names_itself(doctype):
 
 	try:
 		return hasattr(get_controller(doctype), "autoname")
+	except (ImportError, frappe.DoesNotExistError):
+		return False  # no controller module (a custom DocType): no naming code
 	except Exception:
+		frappe.log_error(frappe.get_traceback(), f"ai_agent customize: naming check could not load the {doctype} controller")
 		return False
 
 
@@ -479,7 +482,7 @@ class NamingKind:
 					if series:
 						existing[stripped(series)] = other
 			except Exception:
-				continue
+				continue  # a stale DocType (field left by an uninstalled app): it has no series to clash with
 		out = []
 		for series in options:
 			if stripped(series) in existing:

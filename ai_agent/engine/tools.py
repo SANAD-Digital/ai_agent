@@ -301,6 +301,8 @@ class ToolExecutor:
 
                 own = {f["file"] for f in _attachments(self.session)} if self.session else set()
             except Exception:
+                # Cannot tell this chat's own uploads: treat the file as outside text (fail closed).
+                frappe.log_error(frappe.get_traceback(), f"AI taint check: own attachments of {self.session}")
                 own = set()
             if result.get("file") not in own:
                 self.tainted = True
@@ -508,7 +510,7 @@ class ToolExecutor:
         try:
             return frappe.db.get_value("AI Tool Call", {"run": self.run_name, "tool_name": name}, "name", order_by="creation desc") or ""
         except Exception:
-            return ""
+            return ""   # audit link on the card is a convenience only
 
 
 # -- helpers ---------------------------------------------------------------------

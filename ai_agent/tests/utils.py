@@ -92,3 +92,24 @@ def restore_users(states):
 		if not frappe.db.exists("User", user):
 			continue
 		frappe.db.set_value("User", user, "enabled", 1 if enabled else 0, update_modified=False)
+
+
+def cleanup_leftovers():
+	"""hooks.before_tests: remove what earlier test runs left behind (runs, conversations and finished approvals
+	of the test agent and the @example.com test users), so a development site does not fill up with them."""
+	db = frappe.db
+	sessions = db.sql_list("select name from `tabAI Chat Session` where agent='Unit Test Agent' or user like '%%@example.com'")
+	if sessions:
+		messages = db.sql_list("select name from `tabAI Chat Message` where session in %s", (tuple(sessions),))
+		if messages:
+			db.sql("delete from `tabAI Message Block` where message in %s", (tuple(messages),))
+			db.sql("delete from `tabAI Chat Message` where name in %s", (tuple(messages),))
+		db.sql("delete from `tabAI Chat Session` where name in %s", (tuple(sessions),))
+	runs = db.sql_list("select name from `tabAI Run` where agent='Unit Test Agent' or user like '%%@example.com'")
+	if runs:
+		db.sql("delete from `tabAI Tool Call` where run in %s", (tuple(runs),))
+		if db.table_exists("AI Run Step"):
+			db.sql("delete from `tabAI Run Step` where run in %s", (tuple(runs),))
+		db.sql("delete from `tabAI Run` where name in %s", (tuple(runs),))
+	db.sql("delete from `tabAI Approval Request` where requested_by like '%%@example.com' and status != 'Pending'")
+	db.commit()

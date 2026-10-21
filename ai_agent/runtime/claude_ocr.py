@@ -27,6 +27,7 @@ def _provider():
 		try:
 			key = doc.get_password("api_key") if doc.get("api_key") else ""
 		except Exception:
+			frappe.log_error(frappe.get_traceback(), "AI Claude OCR: provider key unreadable")
 			key = ""
 		if key:
 			model = row.default_model or next((m.model_name for m in doc.models if m.is_default), None) or "claude-opus-5-5"

@@ -10,6 +10,7 @@ import hashlib
 import json
 
 import frappe
+from frappe import _
 
 from ai_agent.runtime.constants import RUN_STATUS_WAITING
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
@@ -129,7 +130,7 @@ class ActionInterceptor:
                 doctype_name=payload.get("reference_doctype"),
                 document_name=payload.get("reference_name"),
                 action_summary=messaging.summary(payload),
-                impact_summary="سيُرسل البريد من حساب البريد الصادر في النظام ويُسجَّل في المراسلات.",
+                impact_summary=_("The email will be sent from the system's outgoing email account and recorded in the communications."),
                 payload=payload,
             )
             self._record_approval_step(messaging.summary(payload), approval.name)
@@ -206,6 +207,7 @@ class ActionInterceptor:
                 if nxt:
                     return f"{state} → {nxt}"
         except Exception:
+            # Cosmetic approval-card text: the generic sentence below is enough.
             pass
         return "The workflow action will be applied to the document."
 

@@ -3237,3 +3237,152 @@ WITH RECURSIVE is not allowed in a report,WITH RECURSIVE غير مسموح في 
 A join without ON/USING multiplies the rows of both tables; give every join a condition,الربط بدون ON/USING يضاعف صفوف الجدولين؛ أعطِ كل ربط شرطاً,
 CROSS JOIN multiplies the rows of both tables; join on a condition,CROSS JOIN يضاعف صفوف الجدولين؛ اربط بشرط,
 Approving from the card is turned off. Approve the request in ERPNext: {0},الاعتماد من البطاقة متوقف. اعتمد الطلب من ERPNext: {0},
+All permitted companies,كل الشركات المسموحة,
+The dimension '{0}' is not configured on this site; it was not used for grouping.,البعد '{0}' غير مضبوط على هذا الموقع؛ لم يُستخدم في التجميع.,
+Current balance,رصيد حالي,
+Up to {0},حتى {0},
+The payment-mode split is computed on the invoice grand total including tax; invoices not paid inside the invoice = {0}.,توزيع طريقة الدفع محسوب على إجمالي الفاتورة شامل الضريبة؛ الفواتير غير المدفوعة داخل الفاتورة = {0}.,
+Ages are counted from the due date up to {0}.,الأعمار محسوبة من تاريخ الاستحقاق حتى {0}.,
+No re-order levels are defined in the Item Reorder table for any item.,لا توجد حدود إعادة طلب معرّفة في جدول Item Reorder لأي صنف.,
+value = projected quantity (projected_qty) compared with the warehouse re-order level.,value = الكمية المتوقعة (projected_qty) مقارنة بحد إعادة الطلب للمخزن.,
+(until {0}),(حتى الساعة {0}),
+The email will be sent from the system's outgoing email account and recorded in the communications.,سيُرسل البريد من حساب البريد الصادر في النظام ويُسجَّل في المراسلات.,
+"The server has {0}MB of free memory, less than the {1}MB local OCR needs. Page reading was stopped so the site is not affected; try again later or lower ai_agent_ocr_min_available_mb.",لدى الخادم {0}MB من الذاكرة الحرة، أقل من {1}MB التي تحتاجها قراءة OCR المحلية. تم إيقاف قراءة الصفحة حتى لا يتأثر الموقع؛ أعد المحاولة لاحقًا أو أخفض ai_agent_ocr_min_available_mb.,
+Draft,مسودة,AI Agent tools
+Submitted,معتمد,AI Agent tools
+Cancelled,ملغى,AI Agent tools
+The document is submitted (docstatus = 1).,المستند معتمد (docstatus = 1).,
+The document is {0}: accounting entries and stock movements are created only for submitted documents.,المستند {0}: لا تُنشأ قيود محاسبية أو حركات مخزون إلا للمستندات المعتمدة.,
+"The ""Update Stock"" option is enabled on the invoice.","خيار ""تحديث المخزون"" مفعّل في الفاتورة.",
+The invoice does not update stock; the stock movement is in the linked document: {0}.,الفاتورة لا تحدّث المخزون؛ حركة المخزون في المستند المرتبط: {0}.,
+"The ""Update Stock"" option is off and no delivery note or purchase receipt is linked, so this invoice creates no stock movement.","خيار ""تحديث المخزون"" غير مفعّل ولا يوجد سند تسليم/استلام مرتبط، لذلك لا تنشأ حركة مخزون من هذه الفاتورة.",
+You do not have permission to read the items to check whether they are stock items.,لا تملك صلاحية قراءة الأصناف للتحقق من كونها مخزنية.,
+None of the items is a stock item ({0}); they do not move in stock.,كل الأصناف غير مخزنية ({0})؛ لا تتحرك في المخزون.,
+Non-stock items that do not appear in stock: {0}.,أصناف غير مخزنية لا تظهر في المخزون: {0}.,
+All items are stock items.,كل الأصناف مخزنية.,
+Stock rows without a warehouse: {0}.,بنود مخزنية بلا مخزن: {0}.,
+Every stock row has a warehouse.,كل البنود المخزنية لها مخزن.,
+You do not have permission to read the stock ledger (Stock Ledger Entry).,لا تملك صلاحية قراءة دفتر حركة المخزون (Stock Ledger Entry).,
+{0} stock movements exist for this document.,توجد {0} حركة مخزون لهذا المستند.,
+No stock movements are recorded for this document.,لا توجد حركات مخزون مسجلة لهذا المستند.,
+You do not have permission to read the ledger entries (GL Entry).,لا تملك صلاحية قراءة القيود (GL Entry).,
+{0} general ledger lines exist for this document.,يوجد {0} سطر قيد محاسبي لهذا المستند.,
+No accounting entries exist for this document.,لا توجد قيود محاسبية لهذا المستند.,
+You do not have permission to read the company settings.,لا تملك صلاحية قراءة إعدادات الشركة.,
+Default Receivable Account,حساب المدينين الافتراضي,AI Agent tools
+Default Payable Account,حساب الدائنين الافتراضي,AI Agent tools
+Default Income Account,حساب الإيرادات الافتراضي,AI Agent tools
+Round Off Account,حساب التقريب,AI Agent tools
+Default Cost Center,مركز التكلفة الافتراضي,
+Default accounts missing in company {0}: {1}.,حسابات افتراضية ناقصة في الشركة {0}: {1}.,
+The company's default accounts are set.,الحسابات الافتراضية للشركة مضبوطة.,
+Accounts are frozen until {0} and the document date is {1}.,الحسابات مجمدة حتى {0} وتاريخ المستند {1}.,
+Accounting period {0} is closed for this document type.,الفترة المحاسبية {0} مقفلة لهذا النوع من المستندات.,
+A period closing ({0}) up to {1} covers the document date.,يوجد إقفال فترة ({0}) حتى {1} يغطي تاريخ المستند.,
+No {0} on the document.,لا يوجد {0} في المستند.,
+"Party: {0} {1}, company: {2}.",الطرف: {0} {1}، الشركة: {2}.,
+The invoice currency {0} differs from the party account currency {1}; the statement shows the amount in the account currency.,عملة الفاتورة {0} تختلف عن عملة حساب الطرف {1}؛ يظهر المبلغ في الكشف بعملة الحساب.,
+Account used: {0}. The statement must be filtered by the same company and account.,الحساب المستخدم: {0}. كشف الحساب يجب أن يُفلتر بنفس الشركة والحساب.,
+You do not have permission to read the payment ledger (Payment Ledger Entry).,لا تملك صلاحية قراءة دفتر الدفعات (Payment Ledger Entry).,
+"The invoice has a payment ledger row, so it appears in the party statements and ageing.",للفاتورة سطر في دفتر الدفعات، فهي تظهر في كشوف الطرف والأعمار.,
+The invoice has no payment ledger row.,لا يوجد للفاتورة سطر في دفتر الدفعات.,
+Outstanding: {0}.,المتبقي: {0}.,
+The item is disabled.,الصنف معطّل (disabled).,
+The item is not disabled.,الصنف غير معطّل.,
+The item reached its end of life on {0}.,انتهى عمر الصنف في {0}.,
+"This is a template item: its variants appear in transactions, not the template itself.",هذا صنف قالب (Template): تظهر المتغيرات في الحركات وليس القالب نفسه.,
+Appears in sales documents.,يظهر في مستندات البيع.,
+Not enabled as a sales item (is_sales_item); it does not appear in sales documents.,غير مفعّل كصنف بيع (is_sales_item)؛ لا يظهر في مستندات البيع.,
+Appears in purchase documents.,يظهر في مستندات الشراء.,
+Not enabled as a purchase item (is_purchase_item); it does not appear in purchase documents.,غير مفعّل كصنف شراء (is_purchase_item)؛ لا يظهر في مستندات الشراء.,
+No item defaults (Item Default) for company {0}.,لا توجد إعدادات افتراضية للصنف (Item Default) للشركة {0}.,
+No default warehouse for the item in company {0}.,لا يوجد مخزن افتراضي للصنف في الشركة {0}.,
+The item defaults for company {0} exist.,الإعدادات الافتراضية للشركة {0} موجودة.,
+"You do not have permission to read these settings, or no company is set.",لا تملك صلاحية قراءة هذه الإعدادات أو لم تُحدد شركة.,
+{0} is not set in {1}.,{0} غير مضبوط في {1}.,
+Default Currency,العملة الافتراضية,
+Country,الدولة,
+Company → Edit → the field named → Save.,الشركة ← تعديل ← الحقل المذكور ← حفظ.,
+Current Fiscal Year,السنة المالية الحالية,
+A fiscal year covers today's date.,توجد سنة مالية تغطي تاريخ اليوم.,
+No enabled fiscal year covers today's date.,لا توجد سنة مالية مفعلة تغطي تاريخ اليوم.,
+Accounting → Fiscal Year → New: start and end dates → Save.,المحاسبة ← السنة المالية ← جديد: تاريخ البداية والنهاية ← حفظ.,
+Warehouses,المخازن,AI Agent tools
+The company has no non-group warehouses.,لا توجد مخازن فرعية للشركة.,
+Stock → Warehouse → New → choose the company → Save.,المخزون ← المخزن ← جديد ← اختر الشركة ← حفظ.,
+Default Expense Account,حساب المصروفات الافتراضي,
+Exchange Gain/Loss Account,حساب أرباح وخسائر فروق العملة,
+Default Cash Account,حساب النقدية الافتراضي,AI Agent tools
+Company → Accounts tab → Default Accounts → choose the account → Save.,الشركة ← تبويب المحاسبة ← الحسابات الافتراضية ← اختر الحساب ← حفظ.,
+Accounts Freeze,تجميد الحسابات,
+Mode of Payment Accounts,حسابات طرق الدفع,
+No mode of payment is linked to an account for this company.,لا توجد طريقة دفع مربوطة بحساب لهذه الشركة.,
+Accounting → Mode of Payment → Accounts table → add the company and its default account.,المحاسبة ← طريقة الدفع ← جدول الحسابات ← أضف الشركة والحساب الافتراضي.,
+Valuation Method,طريقة التقييم,
+Default Stock UOM,وحدة المخزون الافتراضية,AI Agent tools
+Stock Settings,إعدادات المخزون,
+Stock → Stock Settings → the field named → Save.,المخزون ← إعدادات المخزون ← الحقل المذكور ← حفظ.,
+Negative Stock,المخزون السالب,
+Negative stock is allowed; negative balances and inaccurate valuation may appear.,المخزون السالب مسموح؛ قد تظهر أرصدة سالبة وتقييم غير دقيق.,
+Default Inventory Account,حساب المخزون الافتراضي,
+Stock Adjustment Account,حساب تسوية المخزون,AI Agent tools
+Stock Received But Not Billed,حساب مخزون مستلم غير مفوتر,AI Agent tools
+Company → Stock tab → Accounts → Save.,الشركة ← تبويب المخزون ← الحسابات ← حفظ.,
+Stock Items,أصناف مخزنية,AI Agent tools
+No enabled stock items.,لا توجد أصناف مخزنية مفعلة.,
+Default Customer Group,مجموعة العملاء الافتراضية,AI Agent tools
+Default Territory,المنطقة الافتراضية,AI Agent tools
+Default Selling Price List,قائمة أسعار البيع الافتراضية,
+Selling Settings,إعدادات البيع,
+Selling → Selling Settings → the field named → Save.,المبيعات ← إعدادات البيع ← الحقل المذكور ← حفظ.,
+Selling Price Lists,قوائم أسعار البيع,
+No enabled selling price list.,لا توجد قائمة أسعار بيع مفعلة.,
+Default Supplier Group,مجموعة الموردين الافتراضية,
+Default Buying Price List,قائمة أسعار الشراء الافتراضية,AI Agent tools
+Buying Settings,إعدادات الشراء,
+Buying → Buying Settings → the field named → Save.,المشتريات ← إعدادات الشراء ← الحقل المذكور ← حفظ.,
+Suppliers,الموردون,AI Agent tools
+No enabled suppliers.,لا يوجد موردون مفعّلون.,
+Company {0},الشركة {0},
+{0} warehouses for the company.,{0} مخزن للشركة.,
+Accounts are frozen until {0}.,الحسابات مجمدة حتى {0}.,
+{0} modes of payment linked to an account for the company.,{0} طريقة دفع مربوطة بحساب للشركة.,
+{0} enabled stock items.,{0} صنف مخزني مفعّل.,
+{0} enabled selling price lists.,{0} قائمة أسعار بيع مفعلة.,
+{0} enabled suppliers.,{0} مورد مفعّل.,
+Today,اليوم,AI Agent tools
+Yesterday,أمس,AI Agent tools
+This Week,هذا الأسبوع,AI Agent tools
+Last Week,الأسبوع الماضي,AI Agent tools
+This Month,هذا الشهر,AI Agent tools
+Last Month,الشهر الماضي,AI Agent tools
+This Quarter,هذا الربع,AI Agent tools
+Last Quarter,الربع الماضي,AI Agent tools
+This Fiscal Year,هذه السنة المالية,AI Agent tools
+Selected Period,الفترة المحددة,AI Agent tools
+Why does this document not appear in the report?,لماذا لا يظهر هذا المستند في التقرير؟,
+Explain this screen and what I need to fill in,اشرح لي هذه الشاشة وما المطلوب تعبئته,
+"I got an error message, help me fix it",ظهرت لي رسالة خطأ، ساعدني في حلها,
+How do I create a sales invoice?,كيف أُنشئ فاتورة مبيعات؟,
+Export,تصدير,
+Report,تقرير,
+Image,صورة,
+{0} records,{0} سجل,
+Opening Balance,الرصيد الافتتاحي,
+Period Total,إجمالي الفترة,
+Closing Balance,الرصيد الختامي,
+Date,التاريخ,AI Agent tools
+Voucher,المستند,
+No.,الرقم,
+Debit,مدين,
+Credit,دائن,
+Balance,الرصيد,AI Agent tools
+Statement of Account for {0}: {1},كشف حساب {0}: {1},
+{0} · from {1} to {2},{0} · من {1} إلى {2},
+{0} entries · printed {1},{0} حركة · طُبع {1},
+owed by them,عليه,
+owed to them,له,
+Opening balance: {0} · Closing balance: {1} {2},الرصيد الافتتاحي: {0} · الرصيد الختامي: {1} {2},
+"owed by the party (debit, they owe us)",عليه (مدين لنا),
+"owed to the party (credit, we owe them)",له (دائن، نحن مدينون له),
+zero,صفر,

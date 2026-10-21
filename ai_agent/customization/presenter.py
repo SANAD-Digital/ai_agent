@@ -565,19 +565,21 @@ def _approval_gate(approval, user, kind, spec):
 	try:
 		from ai_agent.customization import policy, registry
 	except Exception:
-		return {"allowed": True, "reason": None}
+		frappe.log_error(frappe.get_traceback(), "ai_agent customize: approval gate could not load policy")
+		return {"allowed": False, "reason": None}  # fails closed: no Approve button when the gate cannot run
 	try:
 		if policy.four_eyes(kind, spec) and approval.get("requested_by") == user:
 			return {"allowed": False, "reason": t("Customization needs a second person: you cannot approve your own change. A colleague with the required roles approves it.")}
 		try:
 			kind_obj = registry.get(kind)
 		except Exception:
-			kind_obj = None
+			return {"allowed": False, "reason": None}  # policy.assert_can_approve refuses a kind it cannot load
 		roles = policy.kind_roles(kind, kind_obj, spec)
 		if not policy.has_roles(user, roles):
 			return {"allowed": False, "reason": t("Approving this change needs the roles: {0}.", ", ".join(t(r) for r in roles))}
 	except Exception:
-		return {"allowed": True, "reason": None}
+		frappe.log_error(frappe.get_traceback(), f"ai_agent customize: approval gate failed for {kind}")
+		return {"allowed": False, "reason": None}  # fails closed: no Approve button when the gate cannot run
 	return {"allowed": True, "reason": None}
 
 

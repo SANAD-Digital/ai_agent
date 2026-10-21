@@ -12,6 +12,7 @@ def company_currency(company):
     try:
         return frappe.get_cached_value("Company", company, "default_currency")
     except Exception:
+        # Cosmetic: the amount is shown without a currency.
         return None
 
 

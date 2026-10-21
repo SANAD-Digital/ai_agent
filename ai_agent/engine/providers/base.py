@@ -40,7 +40,7 @@ class CancelToken:
             try:
                 self._flag = bool(self._check())
             except Exception:
-                pass
+                pass   # the cancel flag could not be read: checked again within a second
         return self._flag
 
 

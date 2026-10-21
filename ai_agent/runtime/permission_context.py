@@ -104,6 +104,7 @@ class PermissionContext:
         try:
             return bool(getattr(frappe.get_meta(doc_type), "istable", False))
         except Exception:
+            # Fails closed: a non-child DocType goes through the regular has_permission check.
             return False
 
     def _has_permlevel(self, doc_type, permlevel, perm_type, parent_doctype=None):

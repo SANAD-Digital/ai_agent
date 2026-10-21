@@ -61,6 +61,7 @@ def temperature() -> float | None:
     try:
         value = flt(_setting("temperature", DEFAULT_TEMPERATURE))
     except Exception:
+        # Not a number: the default temperature is a safe value.
         return DEFAULT_TEMPERATURE
     return min(max(value, 0.0), 1.0)
 
@@ -111,5 +112,6 @@ def _setting(field: str, default=None):
     try:
         value = frappe.db.get_single_value(SETTINGS_DOCTYPE, field)
     except Exception:
+        frappe.log_error(frappe.get_traceback(), f"Chatbot setting unreadable: {field}")
         return default
     return default if value in (None, "") else value

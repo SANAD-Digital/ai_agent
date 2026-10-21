@@ -97,7 +97,7 @@ def job_is_alive(message):
 
         status = get_job_status(job_id(message))
     except Exception:
-        return True
+        return True   # Redis cannot say: assume alive rather than restart a running reply
     return str(getattr(status, "value", status) or "").lower() in ("queued", "started", "deferred", "scheduled")
 
 
@@ -184,13 +184,13 @@ class Publisher:
         try:
             frappe.publish_realtime(REALTIME_EVENT, {"session": self.session, "message": self.message, "seq": self.seq, "event": payload}, user=self.user)
         except Exception:
-            pass
+            pass   # realtime is best-effort: the browser resyncs from the saved blocks
         # The live sequence rides in the delta tail so a resync (get_message) can
         # tell the client exactly which realtime events are already included.
         try:
             frappe.cache().hset(TAIL_KEY.format(self.message), "_seq", self.seq)
         except Exception:
-            pass
+            pass   # cache hint only: a resync without it replays from the saved blocks
 
 
 class Runner:
@@ -240,6 +240,7 @@ class Runner:
 
                 catalog = metric_catalog_text() or ""
             except Exception:
+                frappe.log_error(frappe.get_traceback(), "AI chat: metric catalog for the prompt")
                 catalog = ""
         static = system_prompt.static_prompt(
             self.agent.agent_name or self.agent.name,
@@ -260,6 +261,7 @@ class Runner:
 
                 document_context = build_doc_context(user_msg.context_doctype, user_msg.context_name, self.user) or ""
             except Exception:
+                frappe.log_error(frappe.get_traceback(), f"AI chat: document context {user_msg.context_doctype} {user_msg.context_name}")
                 document_context = ""
         dynamic = system_prompt.dynamic_prompt(
             self.user,
@@ -327,7 +329,7 @@ class Runner:
                     "assume their question is about it."
                 )
             except Exception:
-                pass
+                frappe.log_error(frappe.get_traceback(), "AI chat: chatbot system prompt")
         return "\n\n".join(p for p in parts if p)
 
     def attachment_blocks(self, message_name, caps):
@@ -404,7 +406,7 @@ class Runner:
                 frappe.cache().delete_value(self.tail)
                 frappe.cache().delete_value(CANCEL_KEY.format(self.msg.name))
             except Exception:
-                pass
+                pass   # cache cleanup only: both keys expire on their own
 
     # -- model fallback ------------------------------------------------------------------
 
@@ -418,7 +420,7 @@ class Runner:
         try:
             _provider, name, model = provider_for(None, None)
         except Exception:
-            return False
+            return False   # no usable default model: the original failure is reported as is
         if (name, model) == (self.provider_name, self.model):
             return False
         self.fallback = (name, model)
@@ -579,13 +581,13 @@ class Runner:
         try:
             frappe.cache().hset(self.tail, str(seq), text)
         except Exception:
-            pass
+            pass   # live tail is a reconnect hint; the block itself is saved
 
     def tail_delete(self, seq):
         try:
             frappe.cache().hdel(self.tail, str(seq))
         except Exception:
-            pass
+            pass   # cache cleanup only: the tail key expires on its own
 
     # -- terminal states --------------------------------------------------------------------
 
@@ -675,7 +677,7 @@ class Runner:
         try:
             self.pub.publish(_SessionUpdated(get_session(self.session.name)["session"]))
         except Exception:
-            pass
+            pass   # realtime refresh of the sidebar only: the session reloads on next open
 
     def maybe_title(self):
         """A short title after the first exchange, written by the model."""
@@ -700,7 +702,7 @@ class Runner:
                 self.session.db_set({"title": title}, update_modified=False)
                 frappe.db.commit()
         except Exception:
-            pass
+            pass   # cosmetic: the conversation keeps its default title
 
 
 class _SessionUpdated:

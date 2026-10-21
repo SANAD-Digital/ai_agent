@@ -764,7 +764,7 @@ class DocTypeKind:
 			try:
 				path = get_doc_path(meta.module, "DocType", name)
 			except Exception:
-				path = None
+				path = None  # only feeds the informational "files were written" warning
 			import os
 
 			if path and os.path.exists(path):

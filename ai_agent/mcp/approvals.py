@@ -643,38 +643,26 @@ def decide(user, approval_id, decision, token=None, reason=None):
     if approval.status not in ("Pending", "Approved"):
         raise ApprovalUiError(t("This request can no longer be decided: its status is {0}.", status_display(approval.status)[0]))
 
-    engine = ApprovalEngine(PermissionContext(user))
+    def note(stage, **data):
+        events.log("approval_" + stage, user=user, approval_id=approval.name, doctype=approval.doctype_name, via=via, **data)
+
     try:
-        if decision == "reject":
-            approval = engine.reject(approval.name, reason or f"Rejected from {via}", user)
-            events.log("approval_rejected", user=user, approval_id=approval.name, doctype=approval.doctype_name, via=via)
-            return card_envelope(approval, user, tool="approvals.decide", state="rejected")
-        if approval.status == "Pending":
-            try:
-                approval = engine.approve(approval.name, user)
-            except ApprovalAlreadyExecuted:
-                return _outcome(user, approval.name)     # a concurrent decision got there first
-            except ApprovalExpired:
-                raise ApprovalUiError(t("This approval request has expired. Ask the assistant to prepare it again."))
-            events.log("approval_approved", user=user, approval_id=approval.name, doctype=approval.doctype_name, via=via)
-        events.log("approval_execute_started", user=user, approval_id=approval.name, doctype=approval.doctype_name)
-        try:
-            result = engine.execute_approved_action(approval.name)
-        except ApprovalAlreadyExecuted:
-            return _outcome(user, approval.name)
-        except ApprovalExpired as exc:
-            raise ApprovalUiError(str(exc))
-        except Exception as exc:
-            events.log("approval_failed", user=user, approval_id=approval.name, doctype=approval.doctype_name, error=_plain_error(exc)[:200])
-            approval.reload()
-            return card_envelope(approval, user, tool="approvals.decide", state="failed", error=_plain_error(exc))
-        events.log("approval_execute_completed", user=user, approval_id=approval.name, doctype=approval.doctype_name)
-        approval.reload()
-        verified = record_verification(user, approval, result, via=via)
-        approval.reload()
-        return card_envelope(approval, user, tool="approvals.decide", state="verified" if verified else "executed", result=result)
-    except PermissionDenied as exc:
+        outcome = ApprovalEngine(PermissionContext(user)).decide(
+            approval.name, decision, user=user, reason=reason or f"Rejected from {via}", on_event=note)
+    except ApprovalExpired:
+        raise ApprovalUiError(t("This approval request has expired. Ask the assistant to prepare it again."))
+    except (PermissionDenied, ApprovalAlreadyExecuted) as exc:
         raise ApprovalUiError(str(exc))
+    approval = outcome.approval
+    if outcome.repeated:
+        return _outcome(user, approval.name)
+    if decision == "reject":
+        return card_envelope(approval, user, tool="approvals.decide", state="rejected")
+    if outcome.error is not None:
+        return card_envelope(approval, user, tool="approvals.decide", state="failed", error=outcome.error)
+    verified = record_verification(user, approval, outcome.result, via=via)
+    approval.reload()
+    return card_envelope(approval, user, tool="approvals.decide", state="verified" if verified else "executed", result=outcome.result)
 
 
 def _outcome(user, approval_name):

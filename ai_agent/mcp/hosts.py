@@ -16,7 +16,7 @@ def _versioned(base, filename_or_builder):
     try:
         text = filename_or_builder()
     except Exception:
-        return base
+        return base   # unversioned URI only: reading the broken view still fails loudly (protocol resources/read)
     return f"{base}/{hashlib.sha256(text.encode()).hexdigest()[:10]}"
 
 

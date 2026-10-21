@@ -11,6 +11,7 @@ import json
 import operator
 
 import frappe
+from frappe import _
 from frappe.utils import cint, flt
 
 from ai_agent.metrics import periods
@@ -121,7 +122,7 @@ def query(metric, period="this_month", dimensions=None, filters=None, compare=No
 		"metric": definition.key,
 		"label": definition.label,
 		"period": _period_output(definition, period_info),
-		"company": company or "كل الشركات المسموحة",
+		"company": company or _("All permitted companies"),
 		"dimensions": result["dimensions"],
 		"rows": result["rows"],
 		"total": result["total"],
@@ -131,7 +132,7 @@ def query(metric, period="this_month", dimensions=None, filters=None, compare=No
 	if definition.currency_note:
 		output["currency"] = definition.currency_note
 	notes = list(result.get("notes") or [])
-	notes += [f"البعد '{key}' غير مضبوط على هذا الموقع؛ لم يُستخدم في التجميع." for key in missing]
+	notes += [_("The dimension '{0}' is not configured on this site; it was not used for grouping.").format(key) for key in missing]
 	if notes:
 		output["notes"] = notes
 	if definition.pending:
@@ -162,9 +163,9 @@ def _is_unconfigured(definition, key):
 
 def _period_output(definition, period_info):
 	if not definition.date_field and not definition.resolver:
-		return {"key": "now", "range": "رصيد حالي"}
+		return {"key": "now", "range": _("Current balance")}
 	if definition.aggregate == "balance":
-		return {"key": period_info["key"], "range": f"حتى {period_info['to']}"}
+		return {"key": period_info["key"], "range": _("Up to {0}").format(period_info["to"])}
 	return {"key": period_info["key"], "range": periods.describe(period_info)}
 
 
@@ -191,7 +192,7 @@ def query_composite(key, period, compare=None, company=None, user=None):
 		"metric": doc.composite_key,
 		"label": doc.label_ar,
 		"period": {"key": period_info["key"], "range": periods.describe(period_info)},
-		"company": company or "كل الشركات المسموحة",
+		"company": company or _("All permitted companies"),
 		"assumption": doc.assumption_text or "",
 	}
 	if compare:
@@ -341,7 +342,7 @@ def _filter_for(field, value):
 
 def _dimension(definition, key):
 	if key == "company" and "company" not in definition.dimensions and definition.company_field:
-		return frappe._dict(key="company", label="الشركة", field_path=definition.company_field, value_field="", resolver="")
+		return frappe._dict(key="company", label=_("Company"), field_path=definition.company_field, value_field="", resolver="")
 	dim = definition.dimensions.get(key)
 	if not dim:
 		allowed = ", ".join(sorted(definition.dimensions)) or "none"
@@ -405,6 +406,7 @@ def _document_count(definition, parent_filters):
 		)
 		return cint(rows[0].get("n")) if rows else 0
 	except Exception:
+		frappe.log_error(frappe.get_traceback(), f"AI metric document count failed: {definition.doctype}")
 		return None
 
 

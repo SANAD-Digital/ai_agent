@@ -73,7 +73,8 @@ def four_eyes(kind_name=None, spec=None):
 	try:
 		kind = registry.get(kind_name)
 	except Exception:
-		return False
+		frappe.log_error(frappe.get_traceback(), f"ai_agent customize: four-eyes check could not load {kind_name}")
+		return True  # fails closed: a kind that cannot be loaded needs a second person
 	if getattr(kind, "four_eyes_required", False):
 		return True
 	getter = getattr(kind, "four_eyes_for", None)
@@ -246,7 +247,9 @@ def assert_can_approve(approval, user):
 	try:
 		kind = registry.get(kind_name)
 	except Exception:
-		kind = None
+		# fails closed: without the kind its own required roles are unknown (and it could not execute anyway)
+		frappe.log_error(frappe.get_traceback(), f"ai_agent customize: approve check could not load {kind_name}")
+		raise PermissionDenied(f"The customization kind '{kind_name}' cannot be loaded on this site; it cannot be approved.")
 	roles = kind_roles(kind_name, kind, payload.get("spec"))
 	if not has_roles(user, roles):
 		raise PermissionDenied(f"Approving this change needs the role(s) {', '.join(roles)}.")

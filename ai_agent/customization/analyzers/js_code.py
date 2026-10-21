@@ -50,7 +50,10 @@ def acorn_path():
 def child_doctypes(doctype):
 	try:
 		return [df.options for df in frappe.get_meta(doctype).get_table_fields() if df.options]
+	except frappe.DoesNotExistError:
+		return []  # an unknown DocType is reported by the checker itself
 	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ai_agent customize: js check could not read child tables")
 		return []
 
 
@@ -115,7 +118,7 @@ def _method_exists(method):
 	try:
 		fn = frappe.get_attr(method)
 	except Exception:
-		return False
+		return False  # fails closed: a method that cannot be loaded is reported as missing
 	return fn in frappe.whitelisted or getattr(fn, "__func__", None) in frappe.whitelisted
 
 

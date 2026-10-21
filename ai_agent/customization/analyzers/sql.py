@@ -308,7 +308,7 @@ def explain(query, values):
 	try:
 		plan = frappe.db.sql(f"EXPLAIN {query.strip().rstrip(';')}", values or {}, as_dict=True)
 	except Exception:
-		return out
+		return out  # performance hints only; the query itself is run and checked by the preview
 	for row in plan:
 		# MariaDB returns "rows" as text in some versions: compare it as a number.
 		if str(row.get("type")).upper() == "ALL" and cint(row.get("rows")) > LARGE_TABLE_ROWS:

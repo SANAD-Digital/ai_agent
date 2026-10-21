@@ -120,8 +120,12 @@ def is_protected_doctype(doctype):
 		return True
 	try:
 		return bool(frappe.get_meta(doctype).issingle)
-	except Exception:
+	except frappe.DoesNotExistError:
 		return False
+	except Exception:
+		# Unknown state: treat as protected (fail closed).
+		frappe.log_error(frappe.get_traceback(), "AI policy: protected DocType check failed")
+		return True
 
 
 def is_default_account_field(fieldname):

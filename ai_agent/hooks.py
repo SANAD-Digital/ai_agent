@@ -49,6 +49,9 @@ doc_events = {
     },
 }
 
+# Test runs start by clearing what earlier runs left on the site (ai_agent/tests/utils.py).
+before_tests = "ai_agent.tests.utils.cleanup_leftovers"
+
 # Retention through Log Settings (days; editable there). AI Run clears only runs outside a conversation
 # (MCP / API: one run per tool call); chat messages are never cleared automatically.
 default_log_clearing_doctypes = {

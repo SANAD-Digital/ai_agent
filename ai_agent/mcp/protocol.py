@@ -195,7 +195,10 @@ def dispatch(payload, service, protocol_version=None):
     except MCPProtocolError as exc:
         return error_response(request_id, exc.code, exc.message, exc.data)
     except Exception:
-        # Tool/service exceptions must not leak tracebacks, SQL, or secrets.
+        # Tool/service exceptions must not leak tracebacks, SQL, or secrets: logged on the site, generic to the client.
+        import frappe
+
+        frappe.log_error(frappe.get_traceback(), "MCP dispatch failed")
         return error_response(request_id, -32603, "Internal server error")
 
 

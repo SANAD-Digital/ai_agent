@@ -182,7 +182,7 @@ def _safe_parse_json(value):
     try:
         return frappe.parse_json(value)
     except Exception:
-        return None
+        return None   # malformed filter JSON on the report: treated as no declared filters
 
 
 def _map_filter_keys(filters, declared):

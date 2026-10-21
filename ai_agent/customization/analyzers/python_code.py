@@ -136,6 +136,7 @@ def _missing_frappe_api(name):
 	try:
 		names = _safe_frappe_names()
 	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ai_agent customize: python check could not list safe_exec names")
 		return False
 	return parts[-1] not in (names["db"] if len(parts) == 3 else names["frappe"])
 

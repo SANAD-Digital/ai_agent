@@ -26,19 +26,8 @@ def decide(approval_name, decision, reason=None, user=None):
         "AI Message Block", {"approval": approval_name, "block_type": "approval"},
         ["name", "message", "seq", "tool_call_id", "tool_name"], as_dict=True,
     )
-    engine = ApprovalEngine(PermissionContext(user))
-    result = None
-    error = None
-    if decision == "approve":
-        engine.approve(approval_name, user=user)
-        try:
-            result = engine.execute_approved_action(approval_name)
-        except Exception as exc:
-            error = frappe.utils.cstr(exc)[:500]
-    elif decision == "reject":
-        engine.reject(approval_name, reason=reason, user=user)
-    else:
-        frappe.throw(frappe._("decision must be approve or reject"))
+    outcome = ApprovalEngine(PermissionContext(user)).decide(approval_name, decision, user=user, reason=reason)
+    result, error = outcome.result, (outcome.error or "")[:500] or None
 
     approval = frappe.get_doc("AI Approval Request", approval_name)
     snapshot = approval_snapshot(approval)

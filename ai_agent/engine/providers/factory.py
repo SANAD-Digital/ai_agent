@@ -55,6 +55,8 @@ def provider_config(provider_doc, model=None):
     try:
         api_key = provider_doc.get_password("api_key") if provider_doc.get("api_key") else ""
     except Exception:
+        # Usually an encryption key mismatch: the provider then fails as "bad key", so keep the real cause.
+        frappe.log_error(frappe.get_traceback(), f"AI provider {provider_doc.name}: API key could not be decrypted")
         api_key = ""
     return {
         "name": provider_doc.name,

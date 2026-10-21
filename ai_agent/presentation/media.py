@@ -38,4 +38,5 @@ def thumbnail_data_uri(file_url, max_side=240):
             return None
         return f"data:{mime};base64,{base64.b64encode(data).decode()}"
     except Exception:
+        # Cosmetic: a missing picture must not break a card (see docstring).
         return None

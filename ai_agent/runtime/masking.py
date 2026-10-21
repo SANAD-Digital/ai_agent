@@ -35,6 +35,8 @@ def _setting_lines(fieldname):
 	try:
 		raw = frappe.get_cached_doc("AI Settings").get(fieldname) or ""
 	except Exception:
+		# The built-in lists above still apply; only the site's extra entries are lost, so record it.
+		frappe.log_error(frappe.get_traceback(), "AI masking settings unreadable")
 		return []
 	return [line.strip() for line in raw.splitlines() if line.strip()]
 

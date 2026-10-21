@@ -1,0 +1,28 @@
+{
+  "kind": "naming",
+  "tool": "customize.request_naming",
+  "setting": "allow_customize_fields",
+  "roles": ["System Manager"],
+  "description": "Request how new documents of a DocType are named: its autoname / naming series options, or a Document Naming Rule (prefix + counter, with conditions); the user approves it",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["set_doctype_naming", "create_rule", "update_rule", "disable_rule", "enable_rule"]},
+      "doctype": {"type": "string", "description": "set_doctype_naming and create_rule"},
+      "autoname": {"type": "string", "description": "set_doctype_naming: naming_series: | field:<fieldname> | INV-.YYYY.-.##### (expression, needs #) | format:INV-{YYYY}-{#####} | hash | prompt"},
+      "naming_series_options": {"type": "array", "items": {"type": "string"}, "maxItems": 20, "description": "set_doctype_naming: the full list of series offered in the naming_series field, first = default, e.g. [\"INV-.YYYY.-\", \"RET-.YYYY.-\"]"},
+      "rule": {"type": "string", "description": "update_rule / disable_rule / enable_rule: the Document Naming Rule's name"},
+      "prefix": {"type": "string", "description": "create_rule / update_rule: e.g. EXP-.YYYY.- (date parts and {fieldname} allowed, no #)"},
+      "prefix_digits": {"type": "integer", "minimum": 1, "maximum": 10, "description": "Counter digits, default 5"},
+      "priority": {"type": "integer", "description": "Higher runs first; default 0"},
+      "conditions": {"type": "array", "items": {"type": "object", "properties": {
+        "field": {"type": "string"}, "condition": {"type": "string", "enum": ["=", "!=", ">", "<", ">=", "<="]}, "value": {"type": "string"}
+      }, "required": ["field", "condition", "value"]}, "description": "All must match for the rule to name a document; none = every document"},
+      "purpose": {"type": "string", "description": "One line: why the user wants it (shown on the card)"}
+    },
+    "required": ["operation"]
+  },
+  "get_fields": ["name", "document_type", "disabled", "prefix", "prefix_digits", "counter", "priority", "conditions"],
+  "get_doctype": "Document Naming Rule",
+  "inspect_part": "naming_rules"
+}

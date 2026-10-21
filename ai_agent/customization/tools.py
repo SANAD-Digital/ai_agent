@@ -21,7 +21,8 @@ from ai_agent.customization.executor import canonical, critical_message, same_st
 from ai_agent.runtime.exceptions import PermissionDenied
 
 AI_HEADER = "ai_agent:"
-INSPECT_PARTS = ("fields", "properties", "client_scripts", "server_scripts", "reports", "print_formats", "workflows", "notifications")
+INSPECT_PARTS = ("fields", "properties", "client_scripts", "server_scripts", "reports", "print_formats", "workflows",
+	"notifications", "permissions", "list_settings", "naming_rules", "dashboards")
 INSPECT_DEFAULT = ("fields", "properties", "client_scripts", "server_scripts")
 TRANSPORT_KEYS = ("run", "then")  # added by the MCP bridge, not the model's arguments
 
@@ -52,6 +53,8 @@ def _assert_group(ctx, tool):
 def handle_inspect(arguments, ctx):
 	_assert_group(ctx, "customize.inspect")
 	doctype = (arguments or {}).get("doctype")
+	if not doctype and (arguments or {}).get("kind"):
+		return list_kind(arguments["kind"], arguments.get("search"), ctx)
 	if not doctype or not frappe.db.exists("DocType", doctype):
 		return _error(f"DocType '{doctype}' not found.", ["Find the exact name with schema__search_doctypes."])
 	if not (frappe.has_permission(doctype, "read", user=ctx.user) or policy.has_roles(ctx.user, ("System Manager",))):
@@ -72,11 +75,13 @@ def handle_inspect(arguments, ctx):
 	if "server_scripts" in include:
 		rows = frappe.get_all("Server Script", filters={"reference_doctype": doctype},
 			fields=["name", "script_type", "doctype_event", "api_method", "disabled", "script"])
-		out["server_scripts"] = [_script_row(r, ("name", "script_type", "doctype_event", "api_method", "disabled")) for r in rows]
+		# Frappe lets only Script Manager read Server Script: others see names, not code.
+		show_code = policy.has_roles(ctx.user, ("Script Manager",))
+		out["server_scripts"] = [_script_row(r, ("name", "script_type", "doctype_event", "api_method", "disabled"), code=show_code) for r in rows]
 	if "reports" in include:
 		rows = frappe.get_all("Report", filters={"ref_doctype": doctype},
-			fields=["name", "report_type", "is_standard", "disabled", "query"])
-		out["reports"] = [{**{k: r.get(k) for k in ("name", "report_type", "is_standard", "disabled")}, "ai_made": _ai_made(r.get("query"))} for r in rows]
+			fields=["name", "report_type", "is_standard", "disabled", "query", "report_script"])
+		out["reports"] = [{**{k: r.get(k) for k in ("name", "report_type", "is_standard", "disabled")}, "ai_made": _ai_made(r.get("query") or r.get("report_script"))} for r in rows]
 	if "print_formats" in include:
 		out["print_formats"] = frappe.get_all("Print Format", filters={"doc_type": doctype},
 			fields=["name", "print_format_type", "standard", "disabled"])
@@ -85,7 +90,60 @@ def handle_inspect(arguments, ctx):
 	if "notifications" in include:
 		out["notifications"] = frappe.get_all("Notification", filters={"document_type": doctype},
 			fields=["name", "channel", "event", "enabled"])
+	for part, kind_name in (("permissions", "permissions"), ("list_settings", "list_settings")):
+		if part in include:
+			out[part] = _kind_source(kind_name, doctype, ctx)
+	if "naming_rules" in include:
+		out["naming"] = {"autoname": meta.autoname, "naming_series": (meta.get_field("naming_series").options or "").split("\n") if meta.get_field("naming_series") else []}
+		out["naming_rules"] = frappe.get_all("Document Naming Rule", filters={"document_type": doctype},
+			fields=["name", "prefix", "prefix_digits", "counter", "priority", "disabled"], order_by="priority desc")
+	if "dashboards" in include:
+		out["number_cards"] = frappe.get_all("Number Card", filters={"document_type": doctype}, fields=["name", "label", "function", "is_public"])
+		out["dashboard_charts"] = frappe.get_all("Dashboard Chart", filters={"document_type": doctype}, fields=["name", "chart_type", "type", "is_public"])
 	return out
+
+
+def _kind_source(kind_name, name, ctx):
+	try:
+		getter = getattr(registry.get(kind_name), "get_source", None)
+		return getter(name, ctx.user) if callable(getter) else None
+	except (CustomizationError, frappe.DoesNotExistError):
+		frappe.clear_last_message()
+		return None
+
+
+# customize.inspect without a DocType: the records of one kind, to find a name (API and scheduler scripts,
+# standalone reports, cards, workspaces, web pages have no single DocType to start from).
+LIST_KINDS = {
+	"server_script": ("Server Script", ["name", "script_type", "reference_doctype", "doctype_event", "api_method", "disabled"], "script"),
+	"client_script": ("Client Script", ["name", "dt", "view", "enabled"], "script"),
+	"report": ("Report", ["name", "report_type", "ref_doctype", "is_standard", "disabled"], None),
+	"print_format": ("Print Format", ["name", "doc_type", "print_format_type", "standard", "disabled"], None),
+	"notification": ("Notification", ["name", "document_type", "channel", "event", "enabled"], None),
+	"workflow": ("Workflow", ["name", "document_type", "is_active"], None),
+	"naming": ("Document Naming Rule", ["name", "document_type", "prefix", "disabled"], None),
+	"workspace": ("Workspace", ["name", "label", "module", "public"], None),
+	"doctype": ("DocType", ["name", "module", "custom", "istable", "issingle"], None),
+	"web": ("Web Page", ["name", "title", "route", "published"], None),
+	"dashboard": ("Number Card", ["name", "label", "document_type"], None),
+}
+
+
+def list_kind(kind_name, search, ctx):
+	if kind_name not in LIST_KINDS:
+		return _error(f"Cannot list kind '{kind_name}'.", [f"kind is one of {', '.join(LIST_KINDS)}"])
+	doctype, fields, source = LIST_KINDS[kind_name]
+	filters = {"custom": 1} if kind_name == "doctype" else {}
+	or_filters = {"name": ("like", f"%{search}%")} if search else None
+	rows = frappe.get_all(doctype, filters=filters, or_filters=or_filters, fields=fields + ([source] if source else []), limit=200, order_by="modified desc")
+	show_code = kind_name != "server_script" or policy.has_roles(ctx.user, ("Script Manager",))
+	out = [{**{k: r.get(k) for k in fields}, **({"ai_made": _ai_made(r.get(source))} if source and show_code else {})} for r in rows]
+	result = {"kind": kind_name, "doctype": doctype, "records": out, "count": len(out)}
+	if kind_name == "dashboard":
+		result["charts"] = frappe.get_all("Dashboard Chart", or_filters=or_filters, fields=["name", "chart_name", "document_type", "chart_type"], limit=200, order_by="modified desc")
+	if kind_name == "web":
+		result["web_forms"] = frappe.get_all("Web Form", or_filters=or_filters, fields=["name", "title", "route", "published", "doc_type"], limit=200, order_by="modified desc")
+	return result
 
 
 def _customizable(doctype, meta):
@@ -109,17 +167,20 @@ def _ai_made(text):
 	return AI_HEADER in head
 
 
-def _script_row(row, keys):
+def _script_row(row, keys, code=True):
 	lines = str(row.get("script") or "").strip().splitlines()
+	if not code:
+		return {**{k: row.get(k) for k in keys}, "lines": len(lines), "ai_made": _ai_made(row.get("script"))}
 	return {**{k: row.get(k) for k in keys}, "first_lines": "\n".join(lines[:2]), "lines": len(lines), "ai_made": _ai_made(row.get("script"))}
 
 
 GET_FIELDS = {
 	"client_script": ("Client Script", ("name", "dt", "view", "enabled", "module", "script")),
 	"server_script": ("Server Script", ("name", "script_type", "reference_doctype", "doctype_event", "api_method",
-		"allow_guest", "disabled", "enable_rate_limit", "rate_limit_count", "rate_limit_seconds", "module", "script")),
+		"allow_guest", "disabled", "enable_rate_limit", "rate_limit_count", "rate_limit_seconds", "module", "script",
+		"event_frequency", "cron_format")),
 	"report": ("Report", ("name", "report_type", "ref_doctype", "is_standard", "disabled", "module", "query", "json",
-		"prepared_report", "add_total_row")),
+		"prepared_report", "add_total_row", "report_script", "javascript")),
 	"custom_field": ("Custom Field", ("name", "dt", "fieldname", "label", "fieldtype", "options", "insert_after", "reqd",
 		"hidden", "read_only", "default", "description", "depends_on", "mandatory_depends_on", "read_only_depends_on",
 		"fetch_from", "fetch_if_empty", "in_list_view", "in_standard_filter", "bold", "allow_on_submit", "no_copy",
@@ -127,12 +188,30 @@ GET_FIELDS = {
 }
 
 
+BASE_GET_KINDS = ("client_script", "server_script", "report", "custom_field")
+
+
+def _has_source(kind_name):
+	try:
+		return callable(getattr(registry.get(kind_name), "get_source", None))
+	except CustomizationError:
+		return False
+
+
 def handle_get(arguments, ctx):
 	_assert_group(ctx, "customize.get")
 	kind = (arguments or {}).get("kind")
 	name = (arguments or {}).get("name")
+	if kind == "server_script" and not policy.has_roles(ctx.user, ("Script Manager",)):
+		return _error("Reading server script code needs the Script Manager role.")
+	if kind in registry.KINDS and kind not in BASE_GET_KINDS and _has_source(kind):
+		# A kind that reads its own record (recipients, states, sidebar, Web Form vs Web Page, card vs chart)
+		# wins over the plain field list its _tool.json may also declare.
+		return _get_from_kind(kind, name, arguments, ctx)
+	if kind not in GET_FIELDS and kind in registry.KINDS:
+		return _get_from_kind(kind, name, arguments, ctx)
 	if kind not in GET_FIELDS:
-		return _error(f"Unknown kind '{kind}'.", [f"kind is one of {', '.join(GET_FIELDS)}"])
+		return _error(f"Unknown kind '{kind}'.", [f"kind is one of {', '.join(get_kinds())}"])
 	doctype, keys = GET_FIELDS[kind]
 	if not name or not frappe.db.exists(doctype, name):
 		return _error(f"{doctype} '{name}' not found.", ["List what exists with customize__inspect."])
@@ -142,7 +221,7 @@ def handle_get(arguments, ctx):
 		out["filters"] = [{k: f.get(k) for k in ("fieldname", "label", "fieldtype", "options", "mandatory", "default")} for f in doc.get("filters") or []]
 		out["columns"] = [{k: c.get(k) for k in ("fieldname", "label", "fieldtype", "options", "width")} for c in doc.get("columns") or []]
 		out["roles"] = [r.role for r in doc.get("roles") or []]
-	for key in ("script", "query"):
+	for key in ("script", "query", "report_script"):
 		if out.get(key):
 			out["ai_made"] = _ai_made(out[key])
 	return out
@@ -156,9 +235,21 @@ def handle_check(arguments, ctx):
 	if not tool:
 		return _error(f"Unknown kind '{kind_name}'.", [f"kind is one of {', '.join(registry.KINDS)}"])
 	_assert_group(ctx, tool)
-	args = _clean(arguments.get("arguments") or {})
+	args = arguments.get("arguments")
+	if isinstance(args, str):
+		try:
+			args = json.loads(args)
+		except ValueError:
+			return _error("arguments must be an object (the request tool's arguments), not text.")
+	if not args:   # the request's arguments sent next to kind instead of inside "arguments"
+		args = {k: v for k, v in arguments.items() if k not in ("kind", "arguments")}
+	args = _clean(args)
+	from ai_agent.runtime.tool_gateway import coerce_to_schema
+	from ai_agent.runtime.tool_registry import CUSTOMIZATION_SCHEMAS
+
+	coerce_to_schema(CUSTOMIZATION_SCHEMAS.get(tool) or {}, args)   # the request tool's own repairs
 	try:
-		policy.assert_size(args)
+		policy.assert_size(args, kind_name)
 		kind = registry.get(kind_name)
 		spec = kind.normalize(args, ctx.user)
 		report = _report(kind.check(spec, ctx.user))
@@ -183,6 +274,42 @@ def _summary(kind, spec):
 		return ""
 
 
+def get_kinds():
+	"""The kinds customize.get can read: the four with a field list, and every kind with ``get_source``."""
+	out = list(GET_FIELDS)
+	for name in registry.KINDS:
+		if name in out:
+			continue
+		try:
+			if callable(getattr(registry.get(name), "get_source", None)):
+				out.append(name)
+		except Exception:
+			continue
+	return out
+
+
+def _get_from_kind(kind_name, name, arguments, ctx):
+	"""customize.get for a kind that reads its own record (``get_source``): a notification with its
+	recipients, a workflow with its states, the permission rules of a DocType, a whole custom DocType…"""
+	kind = registry.get(kind_name)
+	getter = getattr(kind, "get_source", None)
+	if not callable(getter):
+		return _error(f"customize.get cannot read the kind '{kind_name}'.", [f"kind is one of {', '.join(get_kinds())}"])
+	if not name:
+		return _error("Name the record to read.", ["List what exists with customize__inspect."])
+	extra = {}
+	if kind_name == "dashboard" and arguments.get("object"):
+		extra["obj"] = arguments["object"]
+	if kind_name == "web" and arguments.get("doctype"):
+		extra["doctype"] = arguments["doctype"]
+	try:
+		out = getter(name, ctx.user, **extra)
+	except frappe.DoesNotExistError:
+		frappe.clear_last_message()
+		return _error(f"'{name}' not found for {kind_name}.", ["List what exists with customize__inspect."])
+	return out if isinstance(out, dict) else {"kind": kind_name, "source": out}
+
+
 def _target_doctype(kind_name, spec):
 	for key in ("doctype", "dt", "reference_doctype", "ref_doctype"):
 		value = spec.get(key)
@@ -194,8 +321,9 @@ def _target_doctype(kind_name, spec):
 def _target_name(kind_name, spec):
 	if kind_name == "report":
 		return spec.get("report_name") or spec.get("name")
-	if kind_name in ("client_script", "server_script"):
-		return spec.get("name")
+	if kind_name in ("client_script", "server_script", "web", "doctype", "print_format", "notification",
+		"workflow", "dashboard", "workspace"):
+		return spec.get("name") or spec.get("workflow_name")
 	return None
 
 
@@ -203,7 +331,7 @@ def request(kind_name, arguments, ctx, run, *, via=None):
 	"""Create the Customize approval for one customize.request_* call (Desk engine and MCP)."""
 	args = _clean(arguments)
 	try:
-		policy.assert_size(args)
+		policy.assert_size(args, kind_name)
 		kind = registry.get(kind_name)
 		spec = kind.normalize(args, ctx.user)
 	except CustomizationError as exc:
@@ -278,6 +406,15 @@ handle_request_client_script = _request_tool("client_script", "customize.request
 handle_request_server_script = _request_tool("server_script", "customize.request_server_script")
 handle_request_report = _request_tool("report", "customize.request_report")
 
+# the kinds that describe themselves in kinds/<kind>_tool.json get their handler here
+for _tool, _kind in registry.REQUEST_TOOLS.items():
+	_handler_name = "handle_" + _tool.split(".", 1)[1]
+	if _handler_name not in globals():
+		globals()[_handler_name] = _request_tool(_kind, _tool)
+for _spec in registry.TOOL_SPECS:
+	if _spec.get("get_doctype") and _spec.get("get_fields") and _spec["kind"] not in GET_FIELDS:
+		GET_FIELDS[_spec["kind"]] = (_spec["get_doctype"], tuple(_spec["get_fields"]))
+
 
 def handle_request_undo(arguments, ctx):
 	return request_undo(arguments, ctx, (arguments or {}).get("run") or getattr(ctx, "run_name", None))
@@ -312,8 +449,18 @@ def request_undo(arguments, ctx, run):
 	if execution.get("after") is not None and not same_state(current, execution.get("after")):
 		return _error("The target changed after this customization was executed; undo it by hand or request a new change.")
 	tainted = bool((payload.get("context") or {}).get("tainted")) or bool(getattr(ctx, "tainted", False))
+	undo = _normalized_undo(kind, undo, ctx)
 	return _create(kind_name, kind, undo, ctx, run, via="customize.request_undo",
 		purpose=f"Undo {original.name}", undo_of=original.name, tainted=tainted)
+
+
+def _normalized_undo(kind, undo, ctx):
+	"""An undo step is the kind's own spec: normalize it like a request (defaults, requested_by) when the kind
+	accepts its keys; a kind whose undo carries internal keys normalize refuses keeps the raw step."""
+	try:
+		return kind.normalize(dict(undo), ctx.user)
+	except CustomizationError:
+		return undo
 
 
 def is_request_tool(name):

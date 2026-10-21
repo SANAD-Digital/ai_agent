@@ -1,0 +1,29 @@
+{
+  "kind": "print_format",
+  "tool": "customize.request_print_format",
+  "setting": "allow_customize_print_formats",
+  "roles": ["System Manager"],
+  "description": "Request a custom Jinja (HTML) print format for a DocType, or change, disable, enable it, or make it the default (checked, rendered on a real document, needs approval)",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["create", "update", "disable", "enable", "set_default", "unset_default"]},
+      "name": {"type": "string", "description": "Print Format name (3-140 characters). Must be new for create"},
+      "doc_type": {"type": "string", "description": "DocType it prints (create only), e.g. Sales Invoice"},
+      "html": {"type": "string", "maxLength": 50000, "description": "Jinja template. Context: doc, meta, letter_head, footer, no_letterhead, print_settings, _(), frappe.format/frappe.utils. Do not write, send or read without permission (frappe.db.*, frappe.get_all)"},
+      "css": {"type": "string", "maxLength": 50000},
+      "align_labels_right": {"type": "integer", "enum": [0, 1]},
+      "font_size": {"type": "integer", "minimum": 6, "maximum": 40},
+      "margin_top": {"type": "number"}, "margin_bottom": {"type": "number"},
+      "margin_left": {"type": "number"}, "margin_right": {"type": "number"},
+      "default_print_format": {"type": "integer", "enum": [0, 1], "description": "With create/update/enable: 1 makes it the DocType's default (Property Setter, like Customize Form); 0 removes it as default"},
+      "sample_document": {"type": "string", "description": "Name of the document to render the preview on; default: the latest one you can read"},
+      "purpose": {"type": "string", "description": "One line, shown on the card and kept as a Jinja comment in the template"}
+    },
+    "required": ["operation", "name"]
+  },
+  "get_fields": ["name", "doc_type", "standard", "custom_format", "print_format_type", "disabled", "html", "css",
+    "align_labels_right", "font_size", "margin_top", "margin_bottom", "margin_left", "margin_right", "module"],
+  "get_doctype": "Print Format",
+  "inspect_part": "print_formats"
+}

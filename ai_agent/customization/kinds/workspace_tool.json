@@ -1,0 +1,42 @@
+{
+  "kind": "workspace",
+  "tool": "customize.request_workspace",
+  "setting": "allow_customize_dashboards",
+  "roles": ["System Manager", "Workspace Manager"],
+  "description": "Create, update, hide, show or delete a desk workspace (shortcuts, link cards, number cards, charts) with its left sidebar and desktop icon; app-owned workspaces are copied, never edited in place (needs approval)",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["create", "update", "disable", "enable", "delete"], "description": "disable/enable hide/show a public workspace (Workspace Managers still see it); delete removes it with its own sidebar and desktop icon"},
+      "name": {"type": "string", "description": "The workspace title (create) or name; a sidebar-only update names the sidebar"},
+      "title": {"type": "string"},
+      "public": {"type": "integer", "enum": [0, 1], "description": "create: 1 (default) for everyone, 0 for the requester only (listed in My Workspaces)"},
+      "copy_from": {"type": "string", "description": "create: start from a copy of this workspace and its sidebar (the way to change an app workspace)"},
+      "icon": {"type": "string", "description": "A Frappe icon name (lucide: home, users, receipt-text, chart-column…) or an emoji"},
+      "indicator_color": {"type": "string"},
+      "parent_page": {"type": "string"},
+      "roles": {"type": "array", "items": {"type": "string"}, "description": "Only these roles see it; empty = every desk user"},
+      "shortcuts": {"type": "array", "description": "Replaces all shortcuts, in order", "items": {"type": "object", "properties": {
+        "label": {"type": "string"}, "type": {"type": "string", "enum": ["DocType", "Report", "Page", "Dashboard", "URL"]},
+        "link_to": {"type": "string"}, "url": {"type": "string"}, "doc_view": {"type": "string", "enum": ["", "List", "Report Builder", "Dashboard", "Tree", "New", "Calendar", "Kanban", "Image"]},
+        "color": {"type": "string"}, "stats_filter": {"description": "filters for the count badge"}, "format": {"type": "string"}, "icon": {"type": "string"}}, "required": ["label", "type"]}},
+      "cards": {"type": "array", "description": "Replaces all link cards, in order", "items": {"type": "object", "properties": {
+        "label": {"type": "string"}, "icon": {"type": "string"}, "description": {"type": "string"},
+        "links": {"type": "array", "items": {"type": "object", "properties": {"label": {"type": "string"}, "link_type": {"type": "string", "enum": ["DocType", "Page", "Report"]},
+          "link_to": {"type": "string"}, "is_query_report": {"type": "integer"}, "onboard": {"type": "integer"}, "dependencies": {"type": "string"}, "only_for": {"type": "string"}}, "required": ["label", "link_type", "link_to"]}}},
+        "required": ["label"]}},
+      "number_cards": {"type": "array", "description": "Replaces the number cards: names or {name, label}", "items": {}},
+      "charts": {"type": "array", "description": "Replaces the charts: names or {name, label}", "items": {}},
+      "content": {"type": "array", "description": "Advanced: the exact block layout [{id, type, data}] (customize.get returns the current one)", "items": {"type": "object"}},
+      "sidebar": {"type": "object", "description": "Replaces the left menu: {items: [...], header_icon} or {remove: 1}. Item: {type: Link|Section Break|Spacer, label, link_type: DocType|Page|Report|Workspace|Dashboard|URL, link_to, url, icon, child, collapsible, keep_closed}. A Section Break may hold its links in items: [...]", "properties": {
+        "items": {"type": "array", "items": {"type": "object"}}, "header_icon": {"type": "string"}, "remove": {"type": "integer"}}},
+      "desktop_icon": {"type": "integer", "enum": [0, 1], "description": "A tile on /desk for a public workspace (default 1 on create)"},
+      "purpose": {"type": "string"}
+    },
+    "required": ["operation", "name"]
+  },
+  "get_fields": ["name", "title", "public", "for_user", "module", "app", "icon", "indicator_color", "parent_page", "is_hidden", "content"],
+  "get_doctype": "Workspace",
+  "get_source": "ai_agent.customization.kinds.workspace.KIND.get_source",
+  "inspect_part": null
+}

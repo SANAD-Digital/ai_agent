@@ -1,0 +1,134 @@
+{
+ "kind": "server_script",
+ "tool": "customize.request_server_script",
+ "setting": "allow_customize_server_scripts",
+ "roles": [
+  "System Manager",
+  "Script Manager"
+ ],
+ "description": "Request approval to create, change, enable or disable a server script (DocType Event; API for signed-in users; Scheduler Event, which runs as Administrator; Permission Query, validated and previewed)",
+ "input_schema": {
+  "type": "object",
+  "properties": {
+   "operation": {
+    "type": "string",
+    "enum": [
+     "create",
+     "update",
+     "enable",
+     "disable"
+    ]
+   },
+   "name": {
+    "type": "string"
+   },
+   "script_type": {
+    "type": "string",
+    "enum": [
+     "DocType Event",
+     "API",
+     "Scheduler Event",
+     "Permission Query"
+    ]
+   },
+   "reference_doctype": {
+    "type": "string",
+    "description": "DocType Event and Permission Query"
+   },
+   "doctype_event": {
+    "type": "string",
+    "enum": [
+     "Before Insert",
+     "Before Validate",
+     "Before Save",
+     "After Insert",
+     "After Save",
+     "Before Submit",
+     "After Submit",
+     "Before Cancel",
+     "After Cancel",
+     "Before Delete",
+     "After Delete",
+     "Before Save (Submitted Document)",
+     "After Save (Submitted Document)",
+     "Before Print"
+    ]
+   },
+   "api_method": {
+    "type": "string",
+    "description": "API only: ^[a-z][a-z0-9_.]{2,80}$; called at /api/method/<api_method>"
+   },
+   "event_frequency": {
+    "type": "string",
+    "enum": [
+     "All",
+     "Hourly",
+     "Daily",
+     "Weekly",
+     "Monthly",
+     "Yearly",
+     "Hourly Long",
+     "Daily Long",
+     "Weekly Long",
+     "Monthly Long",
+     "Cron"
+    ],
+    "description": "Scheduler Event only (required)"
+   },
+   "cron_format": {
+    "type": "string",
+    "description": "Scheduler Event with event_frequency Cron only: 'minute hour day month weekday', e.g. '30 6 * * 1'"
+   },
+   "sample_users": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "maxItems": 2,
+    "description": "Permission Query only: users to preview the list query for (default: two users who read the DocType)"
+   },
+   "script": {
+    "type": "string",
+    "maxLength": 20000,
+    "description": "Permission Query: set conditions = \"<SQL condition>\" using frappe.db.escape(user)"
+   },
+   "enable_rate_limit": {
+    "type": "integer",
+    "enum": [
+     0,
+     1
+    ]
+   },
+   "rate_limit_count": {
+    "type": "integer"
+   },
+   "rate_limit_seconds": {
+    "type": "integer"
+   },
+   "purpose": {
+    "type": "string"
+   }
+  },
+  "required": [
+   "operation"
+  ]
+ },
+ "get_fields": [
+  "name",
+  "script_type",
+  "reference_doctype",
+  "doctype_event",
+  "api_method",
+  "event_frequency",
+  "cron_format",
+  "allow_guest",
+  "disabled",
+  "enable_rate_limit",
+  "rate_limit_count",
+  "rate_limit_seconds",
+  "module",
+  "script"
+ ],
+ "get_doctype": "Server Script",
+ "inspect_part": "server_scripts"
+}

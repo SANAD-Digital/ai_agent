@@ -1,0 +1,69 @@
+{
+  "kind": "doctype",
+  "tool": "customize.request_doctype",
+  "setting": "allow_customize_doctypes",
+  "roles": ["System Manager"],
+  "description": "Request a new custom DocType (or child table) with its fields, naming, form options and initial role permissions, or add/change fields of a custom DocType the agent made (validated by Frappe in a dry run, needs approval)",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["create", "update"], "description": "create a new custom DocType; update adds or changes fields/properties of an existing custom DocType (standard DocTypes: use customize.request_field)"},
+      "name": {"type": "string", "description": "DocType name: English letters first, then letters, digits, spaces, - or _ (max 61). Must be new for create"},
+      "module": {"type": "string", "description": "create only: an existing Module Def; default the site's custom module (or Custom)"},
+      "fields": {
+        "type": "array", "minItems": 1, "maxItems": 60,
+        "description": "create: every field in form order. update: new fields (with insert_after) and/or changes to existing ones (by fieldname)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "fieldname": {"type": "string", "description": "ASCII snake_case ^[a-z][a-z0-9_]{1,60}$ (no custom_ prefix here); derived from an English label when omitted"},
+            "label": {"type": "string"},
+            "fieldtype": {"type": "string", "enum": ["Data", "Small Text", "Text", "Long Text", "Text Editor", "Int", "Float", "Currency", "Percent", "Check", "Date", "Datetime", "Time", "Duration", "Select", "Link", "Dynamic Link", "Table", "Table MultiSelect", "Attach", "Attach Image", "Phone", "Rating", "Color", "Read Only", "HTML", "Section Break", "Column Break", "Tab Break"]},
+            "options": {"type": "string", "description": "Link: target DocType; Table: a child DocType (istable 1); Select: one option per line; Dynamic Link: the Link-to-DocType fieldname; Data: Email|Phone|URL|Name"},
+            "insert_after": {"type": "string", "description": "update only: place a new field after this fieldname"},
+            "reqd": {"type": "integer", "enum": [0, 1]}, "hidden": {"type": "integer", "enum": [0, 1]}, "read_only": {"type": "integer", "enum": [0, 1]},
+            "default": {"type": "string"}, "description": {"type": "string"},
+            "depends_on": {"type": "string"}, "mandatory_depends_on": {"type": "string"}, "read_only_depends_on": {"type": "string"},
+            "fetch_from": {"type": "string", "description": "link_field.source_field"}, "fetch_if_empty": {"type": "integer", "enum": [0, 1]},
+            "in_list_view": {"type": "integer", "enum": [0, 1]}, "in_standard_filter": {"type": "integer", "enum": [0, 1]},
+            "bold": {"type": "integer", "enum": [0, 1]}, "allow_on_submit": {"type": "integer", "enum": [0, 1]},
+            "no_copy": {"type": "integer", "enum": [0, 1]}, "print_hide": {"type": "integer", "enum": [0, 1]},
+            "unique": {"type": "integer", "enum": [0, 1]}, "search_index": {"type": "integer", "enum": [0, 1]},
+            "collapsible": {"type": "integer", "enum": [0, 1]}, "translatable": {"type": "integer", "enum": [0, 1]},
+            "permlevel": {"type": "integer", "minimum": 0, "maximum": 9},
+            "precision": {"type": "string"}, "length": {"type": "integer"}
+          }
+        }
+      },
+      "autoname": {"type": "string", "description": "create only: hash (default) | autoincrement | prompt | uuid | field:<fieldname> | naming_series: (needs a Select field naming_series) | VST-.YYYY.-.##### (expression; format:… is discouraged in v16)"},
+      "istable": {"type": "integer", "enum": [0, 1], "description": "create only: 1 = child table (used through a Table field; no permissions of its own)"},
+      "is_submittable": {"type": "integer", "enum": [0, 1]},
+      "title_field": {"type": "string"},
+      "search_fields": {"type": "array", "items": {"type": "string"}},
+      "sort_field": {"type": "string"},
+      "sort_order": {"type": "string", "enum": ["ASC", "DESC"]},
+      "track_changes": {"type": "integer", "enum": [0, 1], "description": "default 1"},
+      "quick_entry": {"type": "integer", "enum": [0, 1]},
+      "allow_rename": {"type": "integer", "enum": [0, 1]},
+      "allow_import": {"type": "integer", "enum": [0, 1]},
+      "editable_grid": {"type": "integer", "enum": [0, 1]},
+      "show_title_field_in_link": {"type": "integer", "enum": [0, 1]},
+      "description": {"type": "string"},
+      "permissions": {
+        "type": "array",
+        "description": "create only: initial rules; System Manager (full) is always added. Later changes: customize.request_permissions",
+        "items": {"type": "object", "properties": {
+          "role": {"type": "string"},
+          "rights": {"type": "array", "items": {"type": "string", "enum": ["select", "read", "write", "create", "delete", "submit", "cancel", "amend", "print", "email", "report", "import", "export", "share"]}},
+          "permlevel": {"type": "integer", "minimum": 0, "maximum": 9},
+          "if_owner": {"type": "integer", "enum": [0, 1]}
+        }, "required": ["role", "rights"]}
+      },
+      "purpose": {"type": "string", "description": "One line: why the user wants it (shown on the card)"}
+    },
+    "required": ["operation", "name"]
+  },
+  "get_fields": ["name", "module", "custom", "istable", "is_submittable", "autoname", "naming_rule", "title_field", "search_fields", "sort_field", "sort_order", "track_changes", "quick_entry", "allow_rename", "allow_import", "editable_grid", "description"],
+  "get_doctype": "DocType",
+  "inspect_part": null
+}

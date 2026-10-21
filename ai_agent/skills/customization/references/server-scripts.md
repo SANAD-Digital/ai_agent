@@ -4,10 +4,12 @@ Verified against the installed Frappe 16.28 (`frappe/utils/safe_exec.py`, `core/
 `model/document.py`, `handler.py`) and by running every example below through `safe_exec` and the checker. Where
 the official docs disagree with the source, the source wins and the line is marked **(docs differ)**.
 
-Arguments: `operation` (`create` | `update` | `enable` | `disable`), `name`, `script_type` (`DocType Event` | `API`),
-`reference_doctype` + `doctype_event` (DocType Event), `api_method` (API, `^[a-z][a-z0-9_.]{2,80}$`), `script`,
-`enable_rate_limit`, `rate_limit_count`, `rate_limit_seconds`, `purpose`. `allow_guest` is forced to 0. There is
-no `code`, `api_method_name`, `module` or `event_frequency` argument: the source goes in `script`.
+Arguments: `operation` (`create` | `update` | `enable` | `disable`), `name`, `script_type` (`DocType Event` | `API`
+| `Scheduler Event` | `Permission Query`), `reference_doctype` + `doctype_event` (DocType Event), `reference_doctype`
+(Permission Query), `api_method` (API, `^[a-z][a-z0-9_.]{2,80}$`), `event_frequency` + `cron_format` (Scheduler
+Event, §7), `sample_users` (Permission Query preview, §7), `script`, `enable_rate_limit`, `rate_limit_count`,
+`rate_limit_seconds`, `purpose`. `allow_guest` is forced to 0. There is no `code`, `api_method_name` or `module`
+argument: the source goes in `script`.
 
 Preconditions: server scripts are enabled for the bench (`server_script_enabled` in `common_site_config.json`, not
 in site_config), and the approver holds **Script Manager** (`ServerScript.validate` → `frappe.only_for("Script Manager")`).
@@ -18,8 +20,8 @@ in site_config), and the approver holds **Script Manager** (`ServerScript.valida
 |---|---|---|
 | DocType Event | yes | runs inside `doc.insert/save/submit/cancel/delete` everywhere: form, import, REST, other code |
 | API | yes, signed-in users only | the script is the endpoint `/api/method/<api_method>` |
-| Scheduler Event | no (an administrator adds it by hand) | runs as Administrator on a frequency or cron; every read ignores permissions |
-| Permission Query | no | sets `conditions` (SQL WHERE text) that Frappe adds to every list query of `reference_doctype` |
+| Scheduler Event | yes, with an explicit `event_frequency` (§7) | runs in the background as Administrator on a frequency or cron; every read ignores permissions |
+| Permission Query | yes, condition validated and previewed (§7) | sets `conditions` (SQL WHERE text) that Frappe adds to every list query of `reference_doctype` |
 | Workflow Task | no | runs from a Workflow Action Master with `doc` |
 
 ## 2. DocType events (v16 `EVENT_MAP`)
@@ -116,14 +118,16 @@ attribute '<name>'`. **There is no `frappe.has_permission`, `frappe.get_roles`, 
 | `frappe.format_value(value, {"fieldtype": "Currency"})` (= `frappe.format`), `frappe.format_date(d)`, `frappe.get_url()`, `frappe.get_system_settings(field)` | — | |
 | `frappe.ValidationError`, `frappe.PermissionError`, `frappe.DoesNotExistError`, `frappe.DuplicateEntryError`, `frappe.MandatoryError`, … | — | every `frappe.exceptions` class |
 | `frappe.log_error(title, message)` | — | writes an Error Log |
-| `frappe.qb`, `frappe.db.sql(select…)`, `frappe.db.escape` | — | exist, **refused by the checker** (no row permissions): use a Query Report |
-| `frappe.sendmail`, `frappe.enqueue`, `frappe.call`, `run_script`, `frappe.make_get/post/put/patch/delete_request`, `FrappeClient`, `frappe.get_print`, `frappe.attach_print`, `frappe.render_template`, `frappe.publish_realtime` | — | exist, **refused**: data leaves the system or other code runs unreviewed |
+| `frappe.qb`, `frappe.db.sql(select…)`, `frappe.db.escape` | — | exist, **refused by the checker** (no row permissions): use a Query Report or a Script Report. `frappe.db.escape` is allowed in a Permission Query (§7) |
+| `frappe.call("<method>", **kwargs)` | as the user | runs a **whitelisted** method through `execute_cmd` (`is_whitelisted` + the method's own permission checks). The name must be literal text and exist (`py.call_missing` / `py.call_dynamic` are critical); `frappe.client.delete/set_value/insert/save/submit/cancel…` is a write (warning). Example: `frappe.call("frappe.desk.query_report.run", report_name="Trial Balance", filters={...})` |
+| `frappe.sendmail`, `frappe.enqueue`, `run_script`, `frappe.make_get/post/put/patch/delete_request`, `FrappeClient`, `frappe.get_print`, `frappe.attach_print`, `frappe.render_template`, `frappe.publish_realtime` | — | exist, **refused**: data leaves the system or other code runs unreviewed |
 | `frappe.delete_doc`, `frappe.rename_doc`, `frappe.db.add_index`, `frappe.db.commit/rollback`, `frappe.set_user`, writing `frappe.session` | — | **refused** |
 
 Also refused: `ignore_permissions` / `ignore_user_permissions` in any form (keyword, `doc.flags.…`, inside a dict);
 any literal protected DocType (User, Role, Has Role, Role Profile, User Permission, DocPerm, Custom DocPerm, Server
 Script, Client Script, Webhook, Email Account, OAuth…, any `… Settings`, Company, Fiscal Year, Accounting Period,
-AI …); `<script` or `on…=` inside messages.
+AI …); `<script` or `on…=` inside messages. Exception: `frappe.get_list("Company" | "Fiscal Year" | "Accounting
+Period", ...)` is allowed (read only, the user's permissions apply), e.g. to list the companies a user may see.
 
 **v16 aggregates in `get_list`/`get_all`**: `fields=["sum(grand_total) as total"]` fails with *SQL functions are not
 allowed as strings in SELECT*. Use the dict form `{"SUM": "grand_total", "as": "total"}`, `{"COUNT": "*", "as": "n"}`
@@ -258,18 +262,91 @@ rows = frappe.get_list(
 frappe.response["message"] = rows
 ```
 
-### Permission Query (reference only: the agent cannot request it)
+## 7. Scheduler Event and Permission Query
 
-Locals: `user` (the user being filtered) and `conditions` (set a SQL WHERE fragment; "" means no limit). The
-checker refuses `frappe.db.escape` and `frappe.get_all("Has Role")`, so an administrator adds it by hand.
+Both are powerful and rarely the right answer: prefer a DocType Event, a Report Builder report, User Permissions or
+a role change. Use them only when the user clearly asks for a recurring background job or for row-level access.
 
-```python server-script type=permission_query doctype="ToDo"
-roles = frappe.get_all("Has Role", filters={"parent": user, "parenttype": "User"}, pluck="role")
-if "System Manager" not in roles:
-    conditions = f"`tabToDo`.`allocated_to` = {frappe.db.escape(user)}"
+### Scheduler Event
+
+Runs in the background **as Administrator, with no user** (`ServerScript.execute_scheduled_method` → `safe_exec`):
+every read sees every record and every write skips permission checks; errors go to the Error Log, nobody sees them.
+The card always carries a warning saying so.
+
+Arguments: `script_type: "Scheduler Event"`, `event_frequency` (**required**, one of `All` `Hourly` `Daily` `Weekly`
+`Monthly` `Yearly` `Hourly Long` `Daily Long` `Weekly Long` `Monthly Long` `Cron`), `cron_format` (only and always
+with `Cron`: five fields, `minute hour day-of-month month day-of-week`, e.g. `"30 6 * * 1"` = Mondays 06:30),
+`script`, `purpose`. No `reference_doctype`. Default name: `<purpose> - <event_frequency>`.
+
+Saving it creates a **Scheduled Job Type** (`sync_scheduled_job_type`); disabling the script stops the job.
+`Daily`/`Weekly`/`Monthly` run at midnight (`0 0 * * *` …), `Hourly` on the hour, `All` on every scheduler tick
+(every ~4 minutes); `… Long` run in the long queue. The preview lists the next three run times.
+
+```python
+cutoff = frappe.utils.add_days(frappe.utils.nowdate(), -30)
+stale = frappe.get_list("ToDo", filters={"status": "Open", "date": ["<", cutoff]}, pluck="name", limit=200)
+if stale:
+    frappe.log_error("Stale ToDos", f"{len(stale)} open ToDos are older than 30 days")
 ```
 
-## 7. Mistakes seen on real sites
+```
+{"operation": "create", "script_type": "Scheduler Event", "event_frequency": "Cron", "cron_format": "0 7 * * *",
+ "purpose": "Log stale ToDos every morning", "script": "<the Python above>"}
+```
+
+| Code | Level | Fix |
+|---|---|---|
+| `script.runs_as_admin` | warning | always shown: the script runs as Administrator with no user |
+| `script.frequency` | critical | send `event_frequency` from the list above |
+| `script.cron` | critical | `cron_format` must be a valid 5-field cron expression (croniter, as `ScheduledJobType.validate`) |
+| `script.cron_frequent` | warning | `All`, or a cron more often than every 15 minutes |
+| `script.scheduler_disabled` | warning | the site's scheduler is off: it will not run until enabled |
+| `py.unchecked_read` | warning | every read sees everything here; read only what the job needs |
+
+### Permission Query
+
+The script sets `conditions`, a SQL condition Frappe adds to **every** list, report, link search, count and
+`get_list` of `reference_doctype`, for every user, also in the REST API. Locals: `user` (the user being filtered),
+`conditions` (`""` = no restriction for this user), `active_child_tables`. Frappe uses **one** Permission Query per
+DocType (`get_server_script_map`), on top of the apps' `permission_query_conditions` hooks (ANDed).
+
+Frappe pastes the text as ` and <conditions>` with **no parentheses** in `db_query.py` (link searches use it), so the
+condition must stay one expression:
+
+- wrap every `OR` in parentheses: `(a or b)`; a top-level `OR`, `XOR` or `||` is refused (it would widen access);
+- never close a parenthesis you did not open, no `--`, `#`, `/* */` or `;`, no `ORDER BY`/`LIMIT`/`UNION` tail;
+- subqueries only into readable DocType tables (`tabUser`, `__Auth`, `tabHas Role`, … are refused);
+- put the user in with `frappe.db.escape(user)` (allowed here, and only here); a raw `'{user}'` is warned;
+- qualify columns: `` `tabToDo`.`owner` `` (an unqualified name is ambiguous when Frappe joins a child table);
+- no writes (critical), no `frappe.db.sql`.
+
+Arguments: `script_type: "Permission Query"`, `reference_doctype`, `script`, `purpose`, optional `sample_users`
+(at most two user ids for the preview; default: two enabled users who can read the DocType, non-System-Managers
+first). Default name: `<DocType> - Permission Query - <purpose>`.
+
+```python server-script type=permission_query doctype="ToDo"
+if user != "Administrator":
+    me = frappe.db.escape(user)
+    conditions = f"(`tabToDo`.`owner` = {me} or `tabToDo`.`allocated_to` = {me})"
+```
+
+The preview runs the script for both sample users, validates each produced condition with sqlglot, then builds and
+counts the real list query of the DocType for each user with and without the condition (nothing is saved), and shows
+both queries and "would see N of the M they see today". A list that grows is critical.
+
+| Code | Level | Fix |
+|---|---|---|
+| `script.permission_query_review` | warning | always shown: review the condition for each kind of user |
+| `script.permission_query_taken` | critical | the DocType already has an enabled Permission Query: update that one |
+| `script.pq_top_or` | critical | wrap the OR in parentheses |
+| `script.pq_escape` / `script.pq_comment` / `script.pq_structure` / `script.pq_syntax` | critical | one balanced WHERE expression, nothing after it |
+| `script.pq_table` / `script.pq_function` | critical | subquery into a readable, non-system DocType; no `sleep()`, `INTO` … |
+| `script.permission_query_error` | critical | the script fails for a sample user |
+| `script.permission_query_preview` | ok / critical | the list query ran with the condition / it fails or widens |
+| `py.conditions` | critical | the script must set `conditions` |
+| `py.unescaped_user` | warning | use `frappe.db.escape(user)` |
+
+## 8. Mistakes seen on real sites
 
 | Seen | Cause | Fix |
 |---|---|---|

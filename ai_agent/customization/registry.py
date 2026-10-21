@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib
+import json
+import os
 
 from ai_agent.customization.contract import CustomizationError
 
@@ -41,9 +43,41 @@ REQUEST_TOOLS = {
 	"customize.request_server_script": "server_script",
 	"customize.request_report": "report",
 }
+# A kind added later describes itself in ``kinds/<kind>_tool.json`` (tool name, AI Settings switch, roles,
+# tool description and argument schema, what customize.get / customize.inspect show): read here once, so
+# a new kind needs no change in this file nor in the tool registry, the interceptor, MCP or the cards.
+# A file for a kind that already exists (report, server_script) only extends its tool's schema.
+def _load_tool_specs():
+	folder = os.path.join(os.path.dirname(__file__), "kinds")
+	specs = []
+	for filename in sorted(os.listdir(folder)):
+		if not filename.endswith("_tool.json"):
+			continue
+		try:
+			with open(os.path.join(folder, filename), encoding="utf-8") as handle:
+				spec = json.load(handle)
+		except (OSError, ValueError):
+			continue
+		if isinstance(spec, dict) and spec.get("kind") and spec.get("tool"):
+			specs.append(spec)
+	return specs
+
+
+TOOL_SPECS = _load_tool_specs()
+for _spec in TOOL_SPECS:
+	_kind = _spec["kind"]
+	KINDS.setdefault(_kind, f"ai_agent.customization.kinds.{_kind}.KIND")
+	if _spec.get("setting"):
+		KIND_SETTINGS.setdefault(_kind, _spec["setting"])
+	KIND_ROLES.setdefault(_kind, tuple(_spec.get("roles") or ("System Manager",)))
+	REQUEST_TOOLS.setdefault(_spec["tool"], _kind)
+
 UNDO_TOOL = "customize.request_undo"
 READ_TOOLS = ("customize.inspect", "customize.get", "customize.check")
 ALL_TOOLS = READ_TOOLS + tuple(REQUEST_TOOLS) + (UNDO_TOOL,)
+
+# kinds whose approver must never be their requester, whatever customization_require_four_eyes says
+ALWAYS_FOUR_EYES = ("permissions",)
 
 _overrides = {}  # tests register fake kinds here
 

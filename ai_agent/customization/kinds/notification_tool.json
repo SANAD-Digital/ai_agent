@@ -1,0 +1,48 @@
+{
+  "kind": "notification",
+  "tool": "customize.request_notification",
+  "setting": "allow_customize_notifications",
+  "roles": ["System Manager"],
+  "description": "Request an email or in-app Notification on a DocType event, or change, disable, enable one (condition and templates checked on a real document, recipients and daily volume shown, needs approval)",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["create", "update", "disable", "enable"]},
+      "name": {"type": "string", "description": "Notification name (3-140 characters). Must be new for create"},
+      "document_type": {"type": "string", "description": "DocType it watches (create only), e.g. Sales Invoice"},
+      "event": {"type": "string", "enum": ["New", "Save", "Submit", "Cancel", "Days After", "Days Before", "Minutes After", "Minutes Before", "Value Change", "Method"]},
+      "method": {"type": "string", "description": "event Method only: the document method, e.g. on_update_after_submit"},
+      "date_changed": {"type": "string", "description": "Days Before/After: a Date or Datetime field (or creation/modified)"},
+      "days_in_advance": {"type": "integer", "minimum": 0},
+      "datetime_changed": {"type": "string", "description": "Minutes Before/After: a Datetime field"},
+      "minutes_offset": {"type": "integer", "minimum": 10},
+      "value_changed": {"type": "string", "description": "Value Change: the field to watch"},
+      "channel": {"type": "string", "enum": ["Email", "System Notification", "SMS", "Slack"], "description": "Default Email. SMS/Slack only when the site already has them configured"},
+      "slack_webhook_url": {"type": "string", "description": "Slack only: an existing Slack Webhook URL record"},
+      "condition": {"type": "string", "description": "One Python expression on doc, nowdate() and frappe.utils, e.g. doc.grand_total > 10000 and doc.docstatus == 1"},
+      "subject": {"type": "string", "description": "Jinja allowed: {{ doc.name }}"},
+      "message": {"type": "string", "maxLength": 50000, "description": "Jinja (HTML/Markdown) with doc, alert, comments, nowdate, frappe.utils, _()"},
+      "recipients": {"type": "array", "items": {"type": "object", "properties": {
+        "receiver_by_document_field": {"type": "string", "description": "owner, a User link, a Data field with options Email; child table field as 'field,child_table'"},
+        "receiver_by_role": {"type": "string", "description": "Every enabled user with this role"},
+        "cc": {"type": "string", "description": "Addresses separated by commas or new lines (Jinja allowed)"},
+        "bcc": {"type": "string"},
+        "condition": {"type": "string", "description": "Python expression: this row only when true"}
+      }}, "description": "Replaces the whole recipient list on update"},
+      "attach_print": {"type": "integer", "enum": [0, 1], "description": "Email only: attach the document's print"},
+      "print_format": {"type": "string", "description": "Existing, enabled Print Format of document_type (default: Standard)"},
+      "send_system_notification": {"type": "integer", "enum": [0, 1]},
+      "send_to_all_assignees": {"type": "integer", "enum": [0, 1]},
+      "allow_external": {"type": "boolean", "description": "true only after the user confirmed sending to cc/bcc addresses that are not users of this site"},
+      "sample_document": {"type": "string", "description": "Document to evaluate the condition and render the preview on; default: the latest you can read"},
+      "purpose": {"type": "string", "description": "One line, shown on the card and kept as a Jinja comment in the message"}
+    },
+    "required": ["operation", "name"]
+  },
+  "get_fields": ["name", "document_type", "enabled", "is_standard", "channel", "event", "method", "date_changed",
+    "days_in_advance", "datetime_changed", "minutes_offset", "value_changed", "condition_type", "condition", "filters",
+    "subject", "message", "attach_print", "print_format", "send_system_notification", "send_to_all_assignees",
+    "set_property_after_alert", "property_value", "slack_webhook_url"],
+  "get_doctype": "Notification",
+  "inspect_part": "notifications"
+}

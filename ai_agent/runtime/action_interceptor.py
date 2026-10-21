@@ -14,6 +14,12 @@ import frappe
 from ai_agent.runtime.constants import RUN_STATUS_WAITING
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
 
+def _customize_request_tools():
+    from ai_agent.customization import registry
+
+    return (*registry.REQUEST_TOOLS, registry.UNDO_TOOL)
+
+
 KNOWN_ACTION_TOOLS = {
     "actions.request_create_draft",
     "actions.request_bulk_create",
@@ -23,13 +29,9 @@ KNOWN_ACTION_TOOLS = {
     "actions.request_workflow_action",
     "actions.request_mapped_draft",
     "messaging.request_email",
-    # customization: each one becomes a "Customize" approval (ai_agent.customization.tools.route)
-    "customize.request_field",
-    "customize.request_properties",
-    "customize.request_client_script",
-    "customize.request_server_script",
-    "customize.request_report",
-    "customize.request_undo",
+    # customization: each one becomes a "Customize" approval (ai_agent.customization.tools.route);
+    # the list is the registry's, so a new kind needs no change here
+    *_customize_request_tools(),
 }
 
 

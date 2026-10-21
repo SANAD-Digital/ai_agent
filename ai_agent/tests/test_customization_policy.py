@@ -92,8 +92,25 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 		self.assertTrue(cpolicy.available("Administrator", "Desk"))
 		self.assertFalse(cpolicy.tool_available("customize.request_client_script", "Administrator", "Desk"))
 		self.assertTrue(cpolicy.tool_available("customize.request_field", "Administrator", "Desk"))
-		fx.set_settings(allow_customize_fields=0, allow_customize_server_scripts=0, allow_customize_reports=0)
+		from ai_agent.customization import registry
+
+		fx.set_settings(**{setting: 0 for setting in set(registry.KIND_SETTINGS.values())})
 		self.assertFalse(cpolicy.available("Administrator", "Desk"), "no kind on: no group")
+
+	def test_every_kind_is_wired(self):
+		"""Each kind's switch is an AI Settings field (off by default) and each request tool has a handler."""
+		from ai_agent.customization import registry, tools as ctools
+
+		path = frappe.get_app_path("ai_agent", "ai_agent", "doctype", "ai_settings", "ai_settings.json")
+		with open(path) as f:
+			fields = {d["fieldname"]: d for d in json.load(f)["fields"]}
+		for kind, setting in registry.KIND_SETTINGS.items():
+			self.assertIn(setting, fields, kind)
+			self.assertEqual(fields[setting].get("default"), "0", setting)
+		for tool in registry.REQUEST_TOOLS:
+			self.assertTrue(callable(getattr(ctools, "handle_" + tool.split(".", 1)[1], None)), tool)
+		for kind in registry.KINDS:
+			registry.get(kind)   # imports cleanly
 
 	def test_surfaces(self):
 		self.assertTrue(cpolicy.available("Administrator", "Desk"))

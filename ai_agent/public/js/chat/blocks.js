@@ -638,6 +638,8 @@
         }
         (c.lists || []).forEach((l) => parts.push(czSection("list", l.title, h("div.ac-cz-tags", l.items.map((x) => h("span.ac-cz-tag", { text: x }))))));
         if (code) parts.push(czSection("code", c.code.title || L.code, code));
+        // more sources and rendered output a kind shows (a print format's HTML, a notification's message…), as text
+        (c.codes || []).forEach((x) => parts.push(czSection("code", x.title || L.code, czCode(x, {}, L))));
         if (c.dry_run) {
             const changed = c.dry_run.changed || [];
             parts.push(

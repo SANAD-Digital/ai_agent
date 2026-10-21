@@ -1,0 +1,60 @@
+{
+  "kind": "workflow",
+  "tool": "customize.request_workflow",
+  "setting": "allow_customize_workflows",
+  "roles": ["System Manager"],
+  "description": "Request a document workflow (states, transitions, who may act) on a DocType: create, update, activate or deactivate; the user approves it",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": {"type": "string", "enum": ["create", "update", "activate", "deactivate"]},
+      "workflow_name": {"type": "string", "description": "The Workflow's name (create: a new one; others: an existing one)"},
+      "doctype": {"type": "string", "description": "create only: the DocType the workflow runs on"},
+      "activate": {"type": "integer", "enum": [0, 1], "description": "create only, default 1. Activating deactivates the DocType's current workflow"},
+      "states": {
+        "type": "array", "minItems": 1, "maxItems": 30,
+        "description": "create; update replaces the whole list. The FIRST state is where new documents start (doc_status 0)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "state": {"type": "string", "description": "Workflow State name (created when missing), e.g. Pending Approval"},
+            "doc_status": {"type": "integer", "enum": [0, 1, 2], "description": "0 draft, 1 submitted, 2 cancelled; 1 and 2 only on submittable DocTypes"},
+            "allow_edit": {"type": "string", "description": "Role that may edit the document in this state"},
+            "update_field": {"type": "string", "description": "Optional fieldname set when the document enters this state"},
+            "update_value": {"type": "string"},
+            "evaluate_as_expression": {"type": "integer", "enum": [0, 1], "description": "1 = update_value is a Python expression on doc"},
+            "is_optional_state": {"type": "integer", "enum": [0, 1]},
+            "message": {"type": "string", "description": "Shown on the form in this state"},
+            "style": {"type": "string", "enum": ["Primary", "Info", "Success", "Warning", "Danger", "Inverse"], "description": "Colour of a NEW Workflow State record"}
+          },
+          "required": ["state", "allow_edit"]
+        }
+      },
+      "transitions": {
+        "type": "array", "minItems": 1, "maxItems": 60,
+        "description": "create; update replaces the whole list",
+        "items": {
+          "type": "object",
+          "properties": {
+            "state": {"type": "string"},
+            "action": {"type": "string", "description": "Button label, e.g. Approve (Workflow Action created when missing)"},
+            "next_state": {"type": "string"},
+            "allowed": {"type": "string", "description": "Role that may take this action"},
+            "allow_self_approval": {"type": "integer", "enum": [0, 1], "description": "Default 1. 0 = the document's creator cannot take it"},
+            "condition": {"type": "string", "description": "Optional Python expression on doc, e.g. doc.grand_total > 10000"},
+            "send_email_to_creator": {"type": "integer", "enum": [0, 1]}
+          },
+          "required": ["state", "action", "next_state", "allowed"]
+        }
+      },
+      "send_email_alert": {"type": "integer", "enum": [0, 1]},
+      "override_status": {"type": "integer", "enum": [0, 1], "description": "1 = do not let the workflow state override the list status"},
+      "sample_document": {"type": "string", "description": "Optional document name to evaluate conditions on (default: the latest one)"},
+      "purpose": {"type": "string", "description": "One line: why the user wants it (shown on the card)"}
+    },
+    "required": ["operation", "workflow_name"]
+  },
+  "get_fields": ["name", "workflow_name", "document_type", "is_active", "workflow_state_field", "send_email_alert", "override_status", "states", "transitions"],
+  "get_doctype": "Workflow",
+  "inspect_part": "workflows"
+}

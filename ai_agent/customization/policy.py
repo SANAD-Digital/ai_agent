@@ -34,7 +34,9 @@ MAX_FIELDS = 10
 MAX_PROPERTIES = 40
 DESK = "Desk"
 MCP = "MCP"
-CODE_ARGS = ("script", "query")
+CODE_ARGS = ("script", "query", "report_script", "javascript", "html", "css", "message", "client_script")
+# a new DocType or a web form brings more fields than a custom-field request: the kind sets its own cap
+MAX_FIELDS_BY_KIND = {"doctype": 60}
 
 
 def _settings():
@@ -58,8 +60,24 @@ def any_kind_enabled():
 	return enabled() and any(_flag(s) for s in set(registry.KIND_SETTINGS.values()))
 
 
-def four_eyes():
-	return _flag(FOUR_EYES_SETTING)
+def four_eyes(kind_name=None, spec=None):
+	"""A second approver is needed: the site's setting says so, or the kind always needs one
+	(``four_eyes_required`` on the kind, or ``registry.ALWAYS_FOUR_EYES``: role permissions), or this
+	request does (``four_eyes_for(spec)`` on the kind: a Permission Query server script)."""
+	if _flag(FOUR_EYES_SETTING):
+		return True
+	if not kind_name:
+		return False
+	if kind_name in registry.ALWAYS_FOUR_EYES:
+		return True
+	try:
+		kind = registry.get(kind_name)
+	except Exception:
+		return False
+	if getattr(kind, "four_eyes_required", False):
+		return True
+	getter = getattr(kind, "four_eyes_for", None)
+	return bool(callable(getter) and spec is not None and getter(spec))
 
 
 def surface_allowed(surface):
@@ -169,7 +187,15 @@ def target_key(kind_name, spec):
 		return f"custom_field:{doctype}:{','.join(names)}"
 	if kind_name == "report":
 		return f"report:{spec.get('report_name') or spec.get('name') or ''}"
-	return f"{kind_name}:{spec.get('name') or ''}"
+	if kind_name == "workflow":  # one active workflow per DocType
+		return f"workflow:{spec.get('document_type') or doctype}"
+	if kind_name == "naming" and spec.get("operation") == "set_doctype_naming":
+		return f"properties:{doctype}"  # saved through Customize Form, like the properties kind
+	if kind_name == "dashboard":  # a card and a chart may share a name
+		return f"dashboard:{spec.get('object') or ''}:{spec.get('name') or ''}"
+	if kind_name == "server_script" and spec.get("script_type") == "Permission Query":
+		return f"server_script:permission_query:{spec.get('reference_doctype') or ''}"
+	return f"{kind_name}:{spec.get('name') or doctype or ''}"
 
 
 def _payload(text):
@@ -183,7 +209,7 @@ def _payload(text):
 # -- request size -------------------------------------------------------------------
 
 
-def assert_size(args):
+def assert_size(args, kind_name=None):
 	"""Limits on the raw arguments, before the kind sees them."""
 	if not isinstance(args, dict):
 		raise PermissionDenied("Arguments must be an object.")
@@ -192,8 +218,9 @@ def assert_size(args):
 		if isinstance(value, str) and len(value) > MAX_CODE_CHARS:
 			raise PermissionDenied(f"`{key}` is {len(value)} characters; the limit is {MAX_CODE_CHARS}.")
 	fields = args.get("fields")
-	if isinstance(fields, list) and len(fields) > MAX_FIELDS:
-		raise PermissionDenied(f"At most {MAX_FIELDS} fields per request ({len(fields)} sent).")
+	cap = MAX_FIELDS_BY_KIND.get(kind_name, MAX_FIELDS)
+	if isinstance(fields, list) and len(fields) > cap:
+		raise PermissionDenied(f"At most {cap} fields per request ({len(fields)} sent).")
 	count = len(args.get("doctype_properties") or {}) if isinstance(args.get("doctype_properties"), dict) else 0
 	field_properties = args.get("field_properties")
 	if isinstance(field_properties, dict):
@@ -212,10 +239,10 @@ def approval_ttl_minutes():
 def assert_can_approve(approval, user):
 	"""Extra rules for approving a Customize request: four-eyes of its own, and the approver holds the
 	kind's roles (they execute it under their own name)."""
-	if four_eyes() and approval.requested_by == user:
-		raise PermissionDenied("Customization needs a second person: the requester cannot approve their own change.")
 	payload = _payload(approval.payload_json)
 	kind_name = payload.get("kind")
+	if four_eyes(kind_name, payload.get("spec")) and approval.requested_by == user:
+		raise PermissionDenied("Customization needs a second person: the requester cannot approve their own change.")
 	try:
 		kind = registry.get(kind_name)
 	except Exception:

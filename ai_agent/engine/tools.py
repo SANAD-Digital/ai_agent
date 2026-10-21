@@ -57,6 +57,12 @@ CORE_TOOLS = {
     # plugin tools: always in the list (hidden per user by the access rules), never added mid-conversation
     "export.excel", "export.csv", "export.pdf", "export.image", "export.print", "export.statement", "messaging.request_email",
 }
+def _customize_tools():
+    from ai_agent.customization import registry
+
+    return (*registry.READ_TOOLS, *registry.REQUEST_TOOLS, registry.UNDO_TOOL)
+
+
 TOOL_GROUPS = {
     "erp_details": {
         "description": "ERPNext lookups for building transactions: item price/stock/accounts, party account/currency/terms, fiscal year, exchange rate, stock balance, payments against an invoice",
@@ -87,11 +93,9 @@ TOOL_GROUPS = {
         "tools": ("workflow.get_transitions", "actions.request_workflow_action"),
     },
     "customization": {
-        "description": "Change how the system works: custom fields, field and form properties, list columns and filters, client and server scripts, custom reports (each change needs approval)",
-        "tools": ("customize.inspect", "customize.get", "customize.check",
-                  "customize.request_field", "customize.request_properties",
-                  "customize.request_client_script", "customize.request_server_script",
-                  "customize.request_report", "customize.request_undo"),
+        "description": "Change how the system works: custom fields, field and form properties, list columns and filters, naming, client and server scripts (also scheduled and permission scripts), reports (Builder, Query, Python), print formats, notifications, workflows, number cards, charts and workspaces, web pages and forms, role permissions and new DocTypes (each change needs approval)",
+        # the registry's tools, so a new kind needs no change here
+        "tools": _customize_tools(),
     },
 }
 # Results that bring outside text into the conversation: a customization requested after one of

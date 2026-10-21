@@ -39,7 +39,7 @@ from ai_agent.runtime.untrusted import wrap
 DEFAULT_MODEL_RESULT_CHARS = 4000
 UI_RESULT_MAX_ROWS = 100
 UI_RESULT_MAX_CHARS = 60_000
-HIDDEN_TOOLS = {"tools.request_more"}       # the old keyword-routing crutch; replaced by tools.enable
+HIDDEN_TOOLS = set()
 
 # Progressive tool loading: the core set covers most requests; a group is added
 # only when the model asks for it (tools__enable). Loading a skill never changes
@@ -313,7 +313,9 @@ class ToolExecutor:
         try:
             self.tainted = bool(frappe.db.exists("AI Tool Call", {"run": self.run_name, "tool_name": ("in", list(TAINTING_TOOLS))}))
         except Exception:
-            pass
+            # Cannot tell whether outside text came in: assume it did (customization then needs the stricter path).
+            frappe.log_error(frappe.get_traceback(), f"AI taint check failed for run {self.run_name}")
+            self.tainted = True
         self.ctx.tainted = self.tainted
         return self.tainted
 

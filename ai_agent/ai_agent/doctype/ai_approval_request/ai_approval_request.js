@@ -13,7 +13,8 @@ frappe.ui.form.on("AI Approval Request", {
 				})
 				.then((r) => {
 					const message = (r.message && r.message.approval && r.message.approval.error) || "";
-					if (message) frappe.msgprint({ title: __("The action failed"), message, indicator: "red" });
+					// msgprint renders HTML; the error can carry a value the requester typed
+					if (message) frappe.msgprint({ title: __("The action failed"), message: frappe.utils.escape_html(message), indicator: "red" });
 					else frappe.show_alert({ message: decision === "approve" ? __("Approved and executed") : __("Rejected"), indicator: "green" });
 					frm.reload_doc();
 				});

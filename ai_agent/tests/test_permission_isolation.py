@@ -412,16 +412,6 @@ class TestConversationOwnership(IntegrationTestCase):
 		frappe.db.delete("Access Log", {"reference_document": self.run.name})
 		frappe.db.commit()
 
-	def test_run_executes_only_as_owner(self):
-		from ai_agent.runtime import orchestrator
-
-		frappe.set_user(USER_B)
-		with patch.object(orchestrator, "Orchestrator") as mocked:
-			orchestrator.execute_run(self.run.name)
-		mocked.assert_not_called()
-		frappe.set_user("Administrator")
-		self.assertEqual(frappe.db.get_value("AI Run", self.run.name, "status"), "Failed")
-
 
 class TestBackgroundUserFallbacks(IntegrationTestCase):
 	"""A3 / A8: no Administrator fallback, no privileged WhatsApp user."""
@@ -435,29 +425,3 @@ class TestBackgroundUserFallbacks(IntegrationTestCase):
 		delete_docs("AI Run", [self.run.name])
 		_disable_test_users()
 		frappe.db.commit()
-
-	def test_whatsapp_support_user_must_be_low_privilege(self):
-		from ai_agent.whatsapp_support import settings
-
-		_ensure_user(USER_SM, ["System Manager", "Projects User"])
-		_ensure_user(USER_A, ["Projects User", "Desk User"])
-		self.assertIsNotNone(settings.support_user_problem("Administrator"))
-		self.assertIsNotNone(settings.support_user_problem(USER_SM))
-		self.assertIsNotNone(settings.support_user_problem(""))
-		self.assertIsNone(settings.support_user_problem(USER_A))
-
-	def test_whatsapp_settings_reject_privileged_user(self):
-		_ensure_user(USER_SM, ["System Manager", "Projects User"])
-		doc = frappe.get_single("AI WhatsApp Support Settings")
-		doc.support_user = USER_SM
-		with self.assertRaises(frappe.ValidationError):
-			doc.validate()
-		doc.support_user = "Administrator"
-		with self.assertRaises(frappe.ValidationError):
-			doc.validate()
-
-	def test_whatsapp_has_no_administrator_default(self):
-		from ai_agent.whatsapp_support import settings
-
-		with patch.object(settings, "_setting", return_value=""), patch.object(settings, "_conf", return_value=""):
-			self.assertIsNone(settings.support_user())

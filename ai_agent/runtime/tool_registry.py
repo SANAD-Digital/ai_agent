@@ -101,14 +101,6 @@ TOOL_PARAMETER_SCHEMAS = {
         },
         "required": ["metric"],
     },
-    "tools.request_more": {
-        "type": "object",
-        "properties": {
-            "tools": {"type": "array", "items": {"type": "string"}, "description": "Tool names to add, e.g. data.query"},
-            "reason": {"type": "string"},
-        },
-        "required": ["tools"],
-    },
     "diagnose.document": {
         "type": "object",
         "properties": {
@@ -714,7 +706,6 @@ class ToolRegistry:
             {"name": "schema.describe_workflow", "description": "Describe workflow for a DocType", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.schema.handle_describe_workflow"},
             {"name": "workflow.get_transitions", "description": "A document's current workflow state and the workflow actions THIS user may take on it now (by their roles, the workflow conditions and self-approval rules), with what each action leads to. Call it before requesting a workflow action.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.workflow.handle_get_transitions"},
             # Data
-            {"name": "tools.request_more", "description": "Ask for extra tools when the ones offered cannot answer the request", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.runtime.router.handle_request_more_stub"},
             {"name": "metrics.query", "description": "Answer a business number (sales, balances, receivables...) from the metric catalog, grouped and compared, permission-scoped", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.metrics.handle_query"},
             {"name": "diagnose.document", "description": "Read-only checks explaining why a document is missing from stock ledger, general ledger, party statement, or why an item does not show in search", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.diagnose.handle_document"},
             {"name": "web.search", "description": "Search the internet for public information (product docs, prices, news, regulations). Returns titles, links and snippets; open pages with web.fetch before relying on them", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.web.handle_search"},

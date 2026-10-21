@@ -336,7 +336,7 @@ def _previews(session_names):
     return {r.session: " ".join((r.text or "").split())[:120] for r in rows}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_session(agent=None, company=None, provider=None, model=None, title=None):
     _chat_page()
     agent = agent or _default_agent()
@@ -373,6 +373,30 @@ def _default_agent():
 def _assert_agent(agent):
     if not frappe.db.get_value("AI Agent", agent, "enabled"):
         frappe.throw(_("Agent {0} is not available.").format(agent))
+
+
+# Calls that start a model run (and spend the provider budget) per user: a script or a forged page must not loop them.
+MODEL_CALLS_PER_MINUTE = 20
+MODEL_CALLS_PER_DAY = 600
+VIEW_CALLS_PER_MINUTE = 120
+
+
+def _throttle(bucket, per_minute, per_day=None):
+    import time
+
+    if frappe.flags.in_test:
+        return
+    user = frappe.session.user
+    now = int(time.time())
+    for span, limit in ((60, per_minute), (86400, per_day)):
+        if not limit:
+            continue
+        key = frappe.cache.make_key(f"ai-agent-chat-rate:{bucket}:{user}:{span}:{now // span}")
+        count = frappe.cache.incrby(key, 1)
+        if count == 1:
+            frappe.cache.expire(key, span * 2)
+        if count > limit:
+            frappe.throw(_("Too many requests. Wait a moment and try again."), frappe.RateLimitExceededError)
 
 
 def _resolve_provider_model(provider, model, agent):
@@ -429,7 +453,7 @@ def export_session(session):
     return {"filename": f"{filename}.md", "content": "\n".join(lines)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def rename_session(session, title):
     doc = _get_session(session, "write")
     title = " ".join(str(title or "").split())[:80]
@@ -440,7 +464,7 @@ def rename_session(session, title):
     return {"session": session_dict(doc)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def archive_session(session, archived=1):
     doc = _get_session(session, "write")
     doc.db_set("status", "Archived" if cint(archived) else "Active")
@@ -451,7 +475,7 @@ def archive_session(session, archived=1):
     return {"session": session_dict(doc)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def pin_session(session, pinned=1):
     doc = _get_session(session, "write")
     doc.db_set("pinned", 1 if cint(pinned) else 0)
@@ -459,7 +483,7 @@ def pin_session(session, pinned=1):
     return {"session": session_dict(doc)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_session(session):
     doc = _get_session(session, "write")
     for m in frappe.get_all("AI Chat Message", filters={"session": doc.name, "status": ("in", ("pending", "streaming"))}, pluck="name"):
@@ -525,8 +549,9 @@ def get_message(message):
     return {"message": message_dict(doc, blocks=_with_tail(doc, blocks), attachments=attachments)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def send_message(text=None, session=None, agent=None, company=None, provider=None, model=None, thinking=None, files=None, skill=None, plugin=None, context_doctype=None, context_name=None, approval_mode=None):
+    _throttle("model", MODEL_CALLS_PER_MINUTE, MODEL_CALLS_PER_DAY)
     text = (text or "").strip()
     files = _parse_list(files)
     if not text and not files:
@@ -541,6 +566,10 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
         sdoc = _get_session(session, "write")
         if (sdoc.surface or "Desk") == "Desk":
             _chat_page()
+        else:
+            # The support bubble (and any non-Desk surface) has its agent, company and model fixed by its own
+            # settings: a bubble-only user must not switch them (to an agent with actions) through this API.
+            agent = company = provider = model = approval_mode = None
         changes = {}
         if agent and agent != sdoc.agent:
             _assert_agent(agent)
@@ -594,7 +623,6 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
         "company": sdoc.company,
         "prompt": text or _("(attachments)"),
         "status": "Queued",
-        "session": sdoc.name,
         "chat_session": sdoc.name,
         "provider": sdoc.provider,
         "model": sdoc.model,
@@ -660,14 +688,15 @@ def _parse_list(value):
 def _attach_files(message_name, file_names):
     for name in file_names:
         f = frappe.get_doc("File", name)
-        if f.owner != frappe.session.user and not frappe.has_permission("File", "write", f):
+        # Only the user's own upload: re-pointing a file would take it off the document it belongs to.
+        if f.owner != frappe.session.user:
             frappe.throw(_("File {0} is not yours.").format(name), frappe.PermissionError)
-        if f.attached_to_name and f.attached_to_doctype == "AI Chat Message" and f.attached_to_name != message_name:
-            frappe.throw(_("File {0} is already attached to another message.").format(name))
+        if f.attached_to_name and (f.attached_to_doctype != "AI Chat Message" or f.attached_to_name != message_name):
+            frappe.throw(_("File {0} is already attached to another document.").format(name))
         f.db_set({"attached_to_doctype": "AI Chat Message", "attached_to_name": message_name, "is_private": 1}, update_modified=False)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def stop_message(message):
     doc = _get_message(message, "write")
     if doc.status not in ("pending", "streaming"):
@@ -692,8 +721,9 @@ def stop_message(message):
     return {"status": "cancelling"}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def retry_message(message):
+    _throttle("model", MODEL_CALLS_PER_MINUTE, MODEL_CALLS_PER_DAY)
     doc = _get_message(message, "write")
     if doc.role != "assistant":
         frappe.throw(_("Only an assistant message can be regenerated."))
@@ -718,8 +748,9 @@ def _reset_assistant(doc):
         frappe.db.set_value("AI Run", doc.run, {"status": "Queued", "cancel_requested": 0, "final_answer": None, "error_summary": None, "completed_at": None}, update_modified=False)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_message(message, text):
+    _throttle("model", MODEL_CALLS_PER_MINUTE, MODEL_CALLS_PER_DAY)
     doc = _get_message(message, "write")
     if doc.role != "user":
         frappe.throw(_("Only your own message can be edited."))
@@ -735,7 +766,7 @@ def edit_message(message, text):
     sdoc = frappe.get_doc("AI Chat Session", doc.session)
     run = frappe.get_doc({
         "doctype": "AI Run", "agent": sdoc.agent, "user": doc.user, "company": sdoc.company, "prompt": text, "status": "Queued",
-        "session": sdoc.name, "chat_session": sdoc.name, "provider": sdoc.provider, "model": sdoc.model,
+        "chat_session": sdoc.name, "provider": sdoc.provider, "model": sdoc.model,
         "context_doctype": doc.context_doctype, "context_name": doc.context_name,
     })
     run.insert(ignore_permissions=True)
@@ -760,7 +791,7 @@ def _approval_mode(mode):
     return mode
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_approval_mode(session, mode):
     """Ask (every action waits) or Auto (drafts and edits run at once) for one conversation."""
     sdoc = _get_session(session, "write")
@@ -768,7 +799,7 @@ def set_approval_mode(session, mode):
     return {"session": session_dict(sdoc)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def decide_approval(approval, decision, reason=None):
     """approve | reject | approve_always (approve, and switch this conversation to auto mode)."""
     if decision not in ("approve", "reject", "approve_always"):
@@ -797,7 +828,7 @@ def decide_approval(approval, decision, reason=None):
     return {"approval": snapshot, "message": message, "session": switched}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def feedback(message, value=0):
     doc = _get_message(message, "write")
     value = max(-1, min(1, cint(value)))
@@ -865,12 +896,12 @@ def search_documents(txt, doctype=None, limit=10):
             return {"results": []}
         meta = frappe.get_meta(doctype)
         fields = ["name"] + ([meta.title_field] if meta.title_field and meta.title_field != "name" else [])
-        for r in frappe.get_list(doctype, filters=[[doctype, "name", "like", f"%{txt}%"]], fields=fields, limit=cint(limit) or 10):
+        for r in frappe.get_list(doctype, filters=[[doctype, "name", "like", f"%{txt}%"]], fields=fields, limit=min(cint(limit) or 10, 50)):
             results.append({"doctype": doctype, "name": r.name, "title": r.get(meta.title_field) if meta.title_field else r.name})
         return {"results": results}
     from frappe.utils.global_search import search
 
-    for r in search(txt, limit=cint(limit) or 10):
+    for r in search(txt, limit=min(cint(limit) or 10, 50)):
         results.append({"doctype": r.get("doctype"), "name": r.get("name"), "title": (r.get("content") or "")[:80]})
     return {"results": results}
 
@@ -911,7 +942,7 @@ def list_memories(agent=None):
     return {"memories": memory_mod.list_for_user(frappe.session.user, agent=agent or None), "enabled": bool(cint(frappe.db.get_single_value("AI Settings", "enable_memory")))}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_memory(memory):
     _any_chat()
     doc = frappe.get_doc("AI Memory", memory)
@@ -922,8 +953,9 @@ def delete_memory(memory):
     return {"deleted": doc.name}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def remember_now(session):
+    _throttle("model", MODEL_CALLS_PER_MINUTE, MODEL_CALLS_PER_DAY)
     """Extract memories from a session immediately (the user asked to)."""
     doc = _get_session(session, "write")
     from ai_agent.engine import memory as memory_mod
@@ -945,8 +977,9 @@ def view_html():
     return {"html": html, "version": version}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def view_call(session, name, arguments=None):
+    _throttle("view", VIEW_CALLS_PER_MINUTE)
     from ai_agent.chat import view_host
 
     doc = _get_session(session)

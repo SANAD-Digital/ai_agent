@@ -15,7 +15,6 @@
   "api_key",
   "cb_general",
   "default_model",
-  "enable_thinking_mode",
   "default_reasoning_effort",
   "strict_tool_calling",
   "section_web",
@@ -35,7 +34,6 @@
   "maximum_result_bytes",
   "section_tool_results",
   "enable_tool_routing",
-  "store_full_tool_results",
   "section_approvals",
   "default_approval_ttl_minutes",
   "approver_role",
@@ -159,14 +157,6 @@
    "hidden": 1
   },
   {
-   "default": "0",
-   "depends_on": "eval:doc.provider_type == 'OpenAI Compatible'",
-   "fieldname": "enable_thinking_mode",
-   "fieldtype": "Check",
-   "label": "Thinking Mode",
-   "hidden": 1
-  },
-  {
    "default": "medium",
    "fieldname": "default_reasoning_effort",
    "fieldtype": "Select",
@@ -279,11 +269,6 @@
    "fieldname": "enable_tool_routing",
    "fieldtype": "Check",
    "label": "Enable Tool Routing"
-  },
-  {
-   "fieldname": "store_full_tool_results",
-   "fieldtype": "Check",
-   "label": "Store Full Tool Results"
   },
   {
    "fieldname": "section_approvals",
@@ -623,7 +608,7 @@
    "label": "Require Approval"
   },
   {
-   "default": "0",
+   "default": "1",
    "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests && doc.mcp_require_approval",
    "description": "Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",
    "fieldname": "mcp_enable_app_approval",

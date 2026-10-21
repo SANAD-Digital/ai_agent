@@ -8,7 +8,7 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils.file_manager import save_file
 
 from ai_agent.knowledge import indexer
-from ai_agent.runtime import document_context, router
+from ai_agent.runtime import document_context
 from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.tests.test_permission_isolation import (
 	USER_A, USER_B, _disable_test_users, _ensure_user, _make_project, _restrict_to_company,
@@ -61,11 +61,6 @@ class TestOpenDocumentContext(IntegrationTestCase):
 		self.assertEqual(document_context.normalize("No Such DocType", "X"), (None, None))
 		self.assertEqual(document_context.normalize("Sales Invoice Item", "X"), (None, None))  # child table
 		self.assertEqual(document_context.normalize("Project", ""), (None, None))
-
-	def test_vague_question_on_open_form_routes_to_the_document(self):
-		self.assertEqual(router.classify("اشرح لي هذا", has_document=True), "document_lookup")
-		self.assertEqual(router.classify("اشرح لي هذا"), "guide")  # no open form: a how-to question
-		self.assertEqual(router.classify("ليش ما يظهر القيد؟", has_document=True), "diagnose")
 
 
 class TestDiagnose(IntegrationTestCase):

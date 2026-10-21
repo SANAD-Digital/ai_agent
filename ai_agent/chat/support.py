@@ -84,7 +84,7 @@ def bootstrap():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def send_message(text=None, session=None, files=None, skill=None, plugin=None, context_doctype=None, context_name=None):
     _assert_access()
     if session:

@@ -32,8 +32,9 @@ legacy handshake protocol through `2025-11-25` for older clients.
 
 The endpoint never executes document-changing action tools directly. When
 action requests are enabled, they create an `AI Approval Request`, and a human
-decides it: with the card's button, by saying so in chat (`approvals__decide`),
-or in Frappe. See "Approval lifecycle" below.
+decides it: with the card's signed Approve button, or in ERPNext (the AI Approval
+Request form has Approve / Reject buttons). Typing «موافق» in the chat does not approve:
+the model is told to point the user to the card. See "Approval lifecycle" below.
 
 ## OAuth for ChatGPT and other remote clients
 
@@ -175,7 +176,7 @@ one; the purpose and the undo plan.
 
 Approval is **in ERPNext only** (design decision D4): the card has no approve button, its primary action opens the
 `AI Approval Request` in the desk, and `approvals__decide` refuses `approve` for a Customize request whether the call
-comes from the card or from the model ("موافق" in the chat). Cancel stays available. After execution the card shows
+comes from the card or from the model. Cancel stays available. After execution the card shows
 the verification checks, a link to the created record and an Undo action that sends "Undo customization APR-…" as the
 user's next message; the assistant answers with `customize__request_undo`, which is a new request approved the same
 way. Text-only hosts get the risk, the critical and warning findings, the impact, the undo plan and the desk link.
@@ -226,8 +227,8 @@ request (actions__request_*)  ->  Pending  ->  decision  ->  Approved  ->  execu
 
 | Tool | Visible to | Purpose |
 |---|---|---|
-| `approvals__decide` | model + app | Approve or reject. From chat the user's explicit word ("موافق", "اعتمد") is the decision; the card's buttons call the same tool with a signed token. Executes, verifies and returns the document link. |
-| `approvals__list_pending` | model + app | What "موافق" refers to: one pending request returns its card, several return a choice card, none says so. |
+| `approvals__decide` | model + app | Approve needs the signed token only the card's Approve button carries; the model may only reject (when the user rejects in chat). Executes, verifies and returns the document link. |
+| `approvals__list_pending` | model + app | The user's pending requests with their cards and ERPNext links (the model points to them when the user says «موافق»). |
 | `approvals__status` | model + app | Current state and result of one request. |
 | `approvals__revise` | app only | Edit quantity / price / company / warehouse of a pending create request. |
 
@@ -246,7 +247,7 @@ After the request is approved and executed the server prepares that next step it
 |---|---|
 | Enable MCP Action Requests | Write tools exist at all. |
 | MCP Actions Require Approval (`mcp_require_approval`, default on, unset = on) | Off: the requester's own requests execute immediately under their ERPNext permissions, are still recorded as AI Approval Requests (`mode: direct`), and no approval card is shown. |
-| Allow Approval from MCP App (`mcp_enable_app_approval`) | The card's buttons may decide. Off: approval is typed in chat or done in Frappe. |
+| Allow Approval from MCP App (`mcp_enable_app_approval`, default on) | The card's buttons may decide. Off: approval happens in ERPNext only. |
 
 ## Diagnostics
 
@@ -267,8 +268,8 @@ actions__request_*  ->  Pending  ->  approvals__decide(approve)  ->  Approved ->
 
 | Tool | Visible to | Purpose |
 |---|---|---|
-| `approvals__decide` | model + app | Approve or reject. From chat (the user typed "موافق") it needs only `approval_id` + `decision`; the card's buttons add a signed token |
-| `approvals__list_pending` | model + app | What "موافق" refers to: one pending request returns its card, several return a choice, none says so |
+| `approvals__decide` | model + app | Approve with the card's signed token; reject also from chat with `approval_id` + `decision` |
+| `approvals__list_pending` | model + app | Pending requests with their cards and links |
 | `approvals__status` | model + app | Current state and result of a request |
 | `approvals__revise` | app only | Edit quantity / price / warehouse before approval |
 
@@ -288,7 +289,7 @@ Only request tools can be chained, and each continuation runs once.
 |---|---|
 | Enable MCP Action Requests | Write tools are offered at all |
 | MCP Actions Require Approval (default on; unset = on) | Off: the requester's own requests execute immediately under their ERPNext permissions, still recorded |
-| Allow Approval from MCP App | The card's buttons may decide. Off: approval happens in chat or in Frappe |
+| Allow Approval from MCP App | The card's buttons may decide. Off: approval happens in ERPNext only |
 
 ## Diagnostics
 

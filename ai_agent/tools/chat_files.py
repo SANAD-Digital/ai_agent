@@ -18,7 +18,7 @@ def _session(permission_context):
     run = getattr(permission_context, "run_name", None)
     if not run:
         return None
-    return frappe.db.get_value("AI Run", run, "session")
+    return frappe.db.get_value("AI Run", run, "chat_session")
 
 
 def _attachments(session):

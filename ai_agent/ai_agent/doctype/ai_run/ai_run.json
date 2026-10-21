@@ -207,16 +207,6 @@
    "options": "Company:company:default_currency"
   },
   {
-   "fieldname": "provider_response_id",
-   "fieldtype": "Data",
-   "label": "Provider Response ID"
-  },
-  {
-   "fieldname": "permission_snapshot_hash",
-   "fieldtype": "Data",
-   "label": "Permission Snapshot Hash"
-  },
-  {
    "fieldname": "idempotency_key",
    "fieldtype": "Data",
    "label": "Idempotency Key"
@@ -231,12 +221,6 @@
    "fieldtype": "Table",
    "label": "Steps",
    "options": "AI Run Step"
-  },
-  {
-   "fieldname": "session",
-   "fieldtype": "Link",
-   "label": "Chat Session (new)",
-   "options": "AI Chat Session"
   },
   {
    "fieldname": "message",
@@ -290,7 +274,6 @@
   "parent_run",
   "root_run",
   "chat_session",
-  "session",
   "message",
   "plan_summary",
   "final_answer",
@@ -310,8 +293,6 @@
   "context_doctype",
   "context_name",
   "estimated_cost",
-  "provider_response_id",
-  "permission_snapshot_hash",
   "idempotency_key",
   "steps_section",
   "steps"

@@ -188,16 +188,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "WhatsApp Support",
-   "link_count": 0,
-   "link_to": "AI WhatsApp Support Settings",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Image Reading (OCR)",
    "link_count": 0,
    "link_to": "Gemini OCR Settings",
@@ -232,7 +222,7 @@
   {
    "color": "Yellow",
    "doc_view": "",
-   "format": "{} \u0645\u0639\u0644\u0651\u0642\u0629",
+   "format": "{} معلّقة",
    "label": "Approval Requests",
    "link_to": "AI Approval Request",
    "stats_filter": "{\"status\":\"Pending\"}",

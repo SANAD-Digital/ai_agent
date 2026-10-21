@@ -42,11 +42,7 @@ scheduler_events = {
     ],
 }
 
-# WhatsApp Support Engine
 doc_events = {
-    "WhatsApp Webhook Message Received Log": {
-        "after_insert": "ai_agent.whatsapp_support.events.on_message_received",
-    },
     "OAuth Client": {
         "on_update": "ai_agent.mcp.token_scope.clear_cache",
         "on_trash": "ai_agent.mcp.token_scope.clear_cache",
@@ -77,6 +73,7 @@ permission_query_conditions = {
     "AI Memory": "ai_agent.permissions.ai_memory_query",
     "AI Tool Call": "ai_agent.permissions.ai_tool_call_query",
     "AI Approval Request": "ai_agent.permissions.ai_approval_request_query",
+    "AI Provider": "ai_agent.permissions.ai_provider_query",
 }
 
 has_permission = {
@@ -87,6 +84,9 @@ has_permission = {
     "AI Memory": "ai_agent.permissions.has_owned_permission",
     "AI Tool Call": "ai_agent.permissions.has_owned_permission",
     "AI Approval Request": "ai_agent.permissions.has_approval_permission",
+    # Provider records hold internal endpoints and request options: the chat reads what it needs through
+    # chat.api.available_providers, so only System Managers open the records themselves.
+    "AI Provider": "ai_agent.permissions.has_provider_permission",
 }
 
 # Override whitelisted methods if needed

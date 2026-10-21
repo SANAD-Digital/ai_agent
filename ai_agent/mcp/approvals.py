@@ -611,7 +611,7 @@ def list_pending(user):
 
 
 def decide(user, approval_id, decision, token=None, reason=None):
-    """The one place a decision is taken, for the card buttons (signed token) and for the chat (the user typed it).
+    """The one place an MCP decision is taken: approve needs the card's signed token; reject may come from chat.
 
     Exactly-once: a second "approve" returns the outcome of the first, it never runs the action again.
     """
@@ -632,7 +632,7 @@ def decide(user, approval_id, decision, token=None, reason=None):
         raise ApprovalUiError(t("Approve by clicking Approve on the approval card, or in ERPNext: {0}", doc_href("AI Approval Request", approval.name)))
     if token:
         if not app_approval_enabled():
-            raise ApprovalUiError(t("Approving from the card is turned off. Approve in the chat or approve the request in ERPNext."))
+            raise ApprovalUiError(t("Approving from the card is turned off. Approve the request in ERPNext: {0}", doc_href("AI Approval Request", approval.name)))
         _check_token(approval, user, token, decision)
 
     # A repeated decision is answered with the recorded outcome, never executed again.

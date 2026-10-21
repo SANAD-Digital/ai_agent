@@ -15,7 +15,6 @@
   "behavior_section",
   "prompt",
   "column_break_behavior",
-  "fallback_to_tesseract",
   "request_timeout",
   "max_inline_image_bytes",
   "max_output_chars"
@@ -72,13 +71,6 @@
   {
    "fieldname": "column_break_behavior",
    "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "description": "Only enable this if you want the slower local Tesseract OCR to run after Gemini returns no readable text.",
-   "fieldname": "fallback_to_tesseract",
-   "fieldtype": "Check",
-   "label": "Fallback To Tesseract"
   },
   {
    "default": "25",

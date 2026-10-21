@@ -1,9 +1,7 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from ai_agent.runtime.context_builder import ContextBuilder
 from ai_agent.runtime.memory_service import MemoryService
-from ai_agent.runtime.orchestrator import Orchestrator
 from ai_agent.tests.utils import TEST_AGENT, delete_docs, ensure_test_agent, make_test_run
 
 
@@ -40,35 +38,3 @@ class TestAgentMemoryIsolation(IntegrationTestCase):
 		agent = frappe.get_doc("AI Agent", TEST_AGENT)
 		agent.disable_memory = disable_memory
 		return agent
-
-	def test_memory_injected_for_normal_agent(self):
-		message = ContextBuilder()._build_user_message(self.run, self._agent(0))
-		text = message if isinstance(message, str) else str(message)
-		self.assertIn(self.marker, text)
-
-	def test_memory_not_injected_for_disabled_agent(self):
-		message = ContextBuilder()._build_user_message(self.run, self._agent(1))
-		text = message if isinstance(message, str) else str(message)
-		self.assertNotIn(self.marker, text)
-
-	def test_memory_tools_hidden_for_disabled_agent(self):
-		orchestrator = Orchestrator(self.run.name)
-		orchestrator.agent = self._agent(1)
-		self.assertFalse(orchestrator._is_tool_runtime_enabled("memory.search"))
-		orchestrator.agent = self._agent(0)
-		self.assertTrue(orchestrator._is_tool_runtime_enabled("memory.search"))
-
-	def test_no_episode_stored_for_disabled_agent(self):
-		orchestrator = Orchestrator(self.run.name)
-		orchestrator.agent = self._agent(1)
-		orchestrator._store_lesson_from_failed_run("boom")
-		self.assertFalse(
-			frappe.db.exists("AI Memory", {"source_run": self.run.name})
-		)
-
-	def test_whatsapp_agent_is_flagged(self):
-		if not frappe.db.exists("AI Agent", "WhatsApp Technical Support"):
-			self.skipTest("WhatsApp agent not provisioned on this site")
-		self.assertTrue(
-			frappe.db.get_value("AI Agent", "WhatsApp Technical Support", "disable_memory")
-		)

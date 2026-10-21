@@ -11,21 +11,27 @@ dependencies = [
     "Pillow>=10.0.0",
     "pypdf>=5.0.0",
     "PyMuPDF>=1.24.0",
-    "pytesseract>=0.3.10",
     "anthropic>=1.8,<2",
+    "openai>=1.40",
     "arabic-reshaper>=3.0",
+    "python-bidi>=0.4",
+    "matplotlib>=3.8",
+    "python-docx>=1.1",
+    "beautifulsoup4>=4.12",
+    "sqlglot>=25",
+]
+
+[project.optional-dependencies]
+# Local OCR for images and scanned PDFs (runtime/rapid_ocr.py); imported only when used.
+ocr = [
+    "rapidocr>=3",
+    "onnxruntime>=1.18",
+    "opencv-python-headless>=4.10",
 ]
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
-
-[deploy.dependencies.apt]
-packages = [
-    "tesseract-ocr",
-    "tesseract-ocr-ara",
-    "tesseract-ocr-eng",
-]
 
 [tool.bench.frappe-dependencies]
 frappe = ">=16.0.0,<17.0.0"

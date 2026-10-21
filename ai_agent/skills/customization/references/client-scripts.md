@@ -238,9 +238,12 @@ frappe.listview_settings["Sales Invoice"] = Object.assign(ai_si_settings, {
 |---|---|
 | syntax error (acorn, ECMAScript 2021) | critical, with line and column |
 | `frappe.ui.form.on` for another DocType; no `frappe.ui.form.on` for this one; List script without `listview_settings["<doctype>"]` | critical |
-| `eval`, `new Function`, `setTimeout/setInterval` with a string, `import()` | critical |
+| `eval`, `new Function`, `Worker`, `import()`, `setTimeout/setInterval` with anything but an inline function | critical |
+| a global reached by a computed name (`window[x]`, `document[x]`, `globalThis[x]`), `.constructor`, `fetch`/`eval`/`Function`/`XMLHttpRequest`/`Image` used as a value (assigned, passed, `.call`) | critical |
+| `document.createElement` of `script`, `iframe`, `img`, `link`, `form`… or a computed tag; `.src`/`.href`/`.action =` an absolute or computed URL; `new Image()` | critical |
+| `frappe.call/xcall` with a computed method name | critical |
 | `document.cookie`, `localStorage`, `sessionStorage`, `indexedDB`, `frappe.boot` as a whole, `frappe.csrf_token` | critical |
-| `fetch`, `XMLHttpRequest`, `$.ajax/get/post`, `navigator.sendBeacon`, `WebSocket`, `EventSource` to anything but `/api/…` | critical |
+| `fetch`, `XMLHttpRequest`, `$.ajax/get/post`, `navigator.sendBeacon`, `WebSocket`, `EventSource` to anything but `/api/…` (also through `window.`, `self.`, `globalThis.`) | critical |
 | `window.location = …`, `location.assign/replace`, `window.open` to an absolute or computed URL | critical |
 | `frappe.call/xcall` to a method that does not exist | critical |
 | `frappe.call/xcall` to `frappe.client.delete/set_value/submit/cancel/insert/save…` | warning |

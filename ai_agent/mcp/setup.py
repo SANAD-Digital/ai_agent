@@ -99,7 +99,7 @@ def _connected_clients():
 	]
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def fix(item):
 	"""Apply one prerequisite: mcp_enabled | oauth | chatgpt_origin | my_role | all."""
 	frappe.only_for("System Manager")
@@ -130,7 +130,7 @@ def _ensure_role(user):
 		frappe.get_doc("User", user).add_roles(MCP_ROLE)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def grant_role(user):
 	"""Give one user the MCP access role (their ERP permissions are unchanged)."""
 	frappe.only_for("System Manager")
@@ -140,7 +140,7 @@ def grant_role(user):
 	return get_status()
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def revoke_client(client):
 	"""Disconnect an app: revoke all of its active tokens; users must sign in again."""
 	frappe.only_for("System Manager")

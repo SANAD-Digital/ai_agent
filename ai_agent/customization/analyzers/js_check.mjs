@@ -24,7 +24,7 @@ const STORAGE = new Set(["localStorage", "sessionStorage", "window.localStorage"
 const LOCATION = new Set(["location", "window.location", "location.href", "window.location.href",
 	"document.location", "document.location.href", "top.location", "window.top.location"]);
 const NAVIGATE_CALLS = new Set(["location.assign", "location.replace", "window.location.assign",
-	"window.location.replace", "window.open"]);
+	"window.location.replace", "window.open", "open"]);
 const CALL_METHODS = new Set(["frappe.call", "frappe.xcall"]);
 
 function dotted(node) {
@@ -46,6 +46,21 @@ function dotted(node) {
 	}
 	return null;
 }
+
+// window.fetch, globalThis.fetch, self.top.fetch... all name the same global: checks compare the bare name.
+const GLOBAL_ROOTS = new Set(["window", "globalThis", "self", "top", "parent", "frames"]);
+function norm(name) {
+	if (!name) return name;
+	const parts = name.split(".");
+	while (parts.length > 1 && GLOBAL_ROOTS.has(parts[0])) parts.shift();
+	return parts.join(".");
+}
+// Globals that run text as code or reach the network: used as a value (aliased, passed) they escape every name check.
+const DANGEROUS_GLOBALS = new Set(["eval", "Function", "fetch", "XMLHttpRequest", "WebSocket", "EventSource", "Worker",
+	"SharedWorker", "importScripts", "Image"]);
+const DANGEROUS_ELEMENTS = new Set(["script", "iframe", "frame", "object", "embed", "link", "img", "form", "base", "meta"]);
+const CLIENT_WRITES = new Set(["frappe.db.set_value", "frappe.db.insert", "frappe.db.delete_doc", "frappe.model.delete_doc",
+	"frappe.model.set_value"]);
 
 function literalString(node) {
 	if (!node) return null;
@@ -131,7 +146,7 @@ async function main() {
 		if (node.type === "ImportExpression") add("js.dynamic_code", "critical", node, { what: "import()" });
 
 		if (node.type === "CallExpression" || node.type === "NewExpression") {
-			const callee = dotted(node.callee);
+			const callee = norm(dotted(node.callee));
 			const first = node.arguments[0];
 			if (node.type === "CallExpression" && callee === "frappe.ui.form.on") {
 				const target = literalString(first);
@@ -139,17 +154,26 @@ async function main() {
 				if (input.view === "Form" && (target === null || !allowedTargets.has(target)))
 					add("js.form_target", "critical", node, { target: target === null ? "?" : target });
 			}
-			if (callee === "eval" || callee === "window.eval" || callee === "Function" || callee === "window.Function")
+			if (callee === "eval" || callee === "Function" || callee === "Worker" || callee === "SharedWorker" || callee === "importScripts")
 				add("js.dynamic_code", "critical", node, { what: callee });
-			if ((callee === "setTimeout" || callee === "setInterval" || callee === "window.setTimeout" || callee === "window.setInterval") && isStringish(first))
-				add("js.dynamic_code", "critical", node, { what: `${callee}(string)` });
+			// a timer must get a function: a variable may hold a string, which the browser would run as code
+			if ((callee === "setTimeout" || callee === "setInterval") && first
+					&& !["ArrowFunctionExpression", "FunctionExpression"].includes(first.type))
+				add("js.dynamic_code", "critical", node, { what: `${callee}(non-function)` });
+			if (callee === "Image") add("js.network", "critical", node, { call: "new Image", url: "", kind: "beacon" });
+			if (node.type === "CallExpression" && callee && callee.endsWith("createElement")) {
+				const tag = (literalString(first) || "").toLowerCase();
+				if (!tag || DANGEROUS_ELEMENTS.has(tag)) add("js.dynamic_code", "critical", node, { what: `createElement(${tag || "?"})` });
+			}
+			if (node.type === "CallExpression" && CLIENT_WRITES.has(callee))
+				out.methods.push({ method: "frappe.client.set_value", line: node.loc.start.line });
 			if (node.type === "CallExpression" && NETWORK_CALLS.has(callee)) {
 				const urlNode = callee.endsWith("ajax") && first && first.type === "ObjectExpression" ? propValue(first, "url") : first;
 				const kind = classifyUrl(urlNode);
 				if (kind !== "ok") add("js.network", "critical", node, { call: callee, url: literalString(urlNode) || "", kind });
 			}
 			if (NETWORK_CONSTRUCTORS.has(callee)) add("js.network", "critical", node, { call: callee, url: literalString(first) || "", kind: "socket" });
-			if (callee === "XMLHttpRequest" || callee === "window.XMLHttpRequest") add("js.network", "critical", node, { call: "XMLHttpRequest", url: "", kind: "xhr" });
+			if (callee === "XMLHttpRequest") add("js.network", "critical", node, { call: "XMLHttpRequest", url: "", kind: "xhr" });
 			if (node.type === "CallExpression" && NAVIGATE_CALLS.has(callee)) {
 				const kind = classifyUrl(first);
 				if (kind === "absolute" || kind === "unknown") add("js.navigation", "critical", node, { call: callee, url: literalString(first) || "" });
@@ -160,16 +184,33 @@ async function main() {
 				let method = null;
 				if (first && first.type === "ObjectExpression") method = literalString(propValue(first, "method"));
 				else method = literalString(first);
-				if (method === null) add("js.call_dynamic", "warning", node, { call: callee });
+				if (method === null) add("js.call_dynamic", "critical", node, { call: callee });
 				else out.methods.push({ method, line: node.loc.start.line });
 			}
 		}
 
 		if (node.type === "MemberExpression") {
-			const name = dotted(node);
+			const root = node.object && node.object.type === "Identifier" ? node.object.name : null;
+			// window["fe"+"tch"], document[key]: a computed name on a global cannot be reviewed
+			if (node.computed && literalString(node.property) === null && node.property.type !== "NumericLiteral"
+					&& !(node.property.type === "Literal" && typeof node.property.value === "number")
+					&& (GLOBAL_ROOTS.has(root) || root === "document" || root === "navigator" || root === "frappe"))
+				add("js.dynamic_code", "critical", node, { what: `${root}[computed]` });
+			// ({}).constructor.constructor("code")() reaches Function without naming it
+			if ((!node.computed && node.property.name === "constructor") || literalString(node.property) === "constructor")
+				add("js.dynamic_code", "critical", node, { what: ".constructor" });
+			// img.src = "https://…?d=" sends a request like fetch does
+			const name = norm(dotted(node));
 			const parentIsMember = parent && parent.type === "MemberExpression" && parent.object === node;
 			if (name && STORAGE.has(name)) add("js.storage", "critical", node, { what: name });
 			if (name === "frappe.boot" && !parentIsMember) add("js.storage", "critical", node, { what: "frappe.boot" });
+		}
+		if (node.type === "Identifier" && DANGEROUS_GLOBALS.has(node.name)) {
+			const isCallee = parent && (parent.type === "CallExpression" || parent.type === "NewExpression") && parent.callee === node;
+			const isProperty = parent && parent.type === "MemberExpression" && parent.property === node && !parent.computed;
+			const isKey = parent && parent.type === "Property" && parent.key === node && !parent.computed;
+			// fetch.call(...), const f = fetch, [fetch][0]: anything but a direct call escapes the name checks
+			if (!isCallee && !isProperty && !isKey) add("js.dynamic_code", "critical", node, { what: `${node.name} as a value` });
 		}
 		if (node.type === "Identifier" && (node.name === "localStorage" || node.name === "sessionStorage" || node.name === "indexedDB")) {
 			const isProperty = parent && parent.type === "MemberExpression" && parent.property === node && !parent.computed;
@@ -178,7 +219,11 @@ async function main() {
 		}
 
 		if (node.type === "AssignmentExpression") {
-			const target = dotted(node.left);
+			const target = norm(dotted(node.left));
+			if (node.left.type === "MemberExpression" && !node.left.computed && ["src", "href", "action", "srcdoc"].includes(node.left.property.name)) {
+				const kind = classifyUrl(node.right);
+				if (kind === "absolute" || kind === "unknown") add("js.network", "critical", node, { call: `.${node.left.property.name} =`, url: literalString(node.right) || "", kind });
+			}
 			if (target && LOCATION.has(target)) {
 				const kind = classifyUrl(node.right);
 				if (kind === "absolute" || kind === "unknown") add("js.navigation", "critical", node, { call: target, url: literalString(node.right) || "" });

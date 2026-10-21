@@ -33,7 +33,7 @@ class TestChatApi(IntegrationTestCase):
         frappe.set_user("Administrator")
         for name in self._sessions:
             if frappe.db.exists("AI Chat Session", name):
-                for run in frappe.get_all("AI Run", filters={"session": name}, pluck="name"):
+                for run in frappe.get_all("AI Run", filters={"chat_session": name}, pluck="name"):
                     frappe.delete_doc("AI Run", run, ignore_permissions=True, force=True)
                 frappe.delete_doc("AI Chat Session", name, ignore_permissions=True, force=True)
         frappe.db.commit()
@@ -53,7 +53,7 @@ class TestChatApi(IntegrationTestCase):
         self.assertEqual(out["session"]["message_count"], 2)
         self.assertEqual(out["session"]["title"], "كم عدد الشركات؟")
         run = frappe.get_doc("AI Run", out["assistant_message"]["run"])
-        self.assertEqual(run.session, out["session"]["name"])
+        self.assertEqual(run.chat_session, out["session"]["name"])
         self.assertEqual(run.message, out["assistant_message"]["name"])
         self.assertEqual(frappe.db.get_value("AI Chat Session", out["session"]["name"], "surface"), "Desk")
 
@@ -252,7 +252,7 @@ class TestChatViewHost(IntegrationTestCase):
 
     def tearDown(self):
         frappe.set_user("Administrator")
-        for run in frappe.get_all("AI Run", filters={"session": self.session}, pluck="name"):
+        for run in frappe.get_all("AI Run", filters={"chat_session": self.session}, pluck="name"):
             frappe.delete_doc("AI Run", run, ignore_permissions=True, force=True)
         frappe.delete_doc("AI Chat Session", self.session, ignore_permissions=True, force=True)
         frappe.db.commit()
@@ -315,7 +315,7 @@ class TestChatAttachments(IntegrationTestCase):
 
     def tearDown(self):
         frappe.set_user("Administrator")
-        for run in frappe.get_all("AI Run", filters={"session": self.session}, pluck="name"):
+        for run in frappe.get_all("AI Run", filters={"chat_session": self.session}, pluck="name"):
             frappe.delete_doc("AI Run", run, ignore_permissions=True, force=True)
         frappe.delete_doc("AI Chat Session", self.session, ignore_permissions=True, force=True)
         frappe.db.commit()

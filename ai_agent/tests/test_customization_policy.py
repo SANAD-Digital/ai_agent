@@ -114,7 +114,7 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 
 	def test_surfaces(self):
 		self.assertTrue(cpolicy.available("Administrator", "Desk"))
-		for surface in ("Chatbot", "WhatsApp", "API", None, ""):
+		for surface in ("Chatbot", "API", None, ""):
 			self.assertFalse(cpolicy.available("Administrator", surface), surface)
 		self.assertFalse(cpolicy.available("Administrator", "MCP"), "MCP is off by default")
 		fx.set_settings(customization_allow_mcp=1)
@@ -159,7 +159,7 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 
 	def test_gateway_refuses_without_an_allowed_surface(self):
 		registry = ToolRegistry()
-		for surface in (None, "Chatbot", "WhatsApp"):
+		for surface in (None, "Chatbot"):
 			gateway = ToolGateway(_ctx("Administrator", surface), registry)
 			with self.assertRaises(ToolDenied):
 				gateway.authorize_and_execute("customize.inspect", {"doctype": "ToDo"}, run_name=self.run.name)

@@ -58,6 +58,8 @@ viewer's permissions).
 | `print.validate` | critical | Frappe's own `PrintFormat.validate` refused it |
 | `print.default_custom`, `print.default_disabled`, `print.not_default` | critical | Custom DocType default; enable before making default; unset only the current default |
 | `jinja.unpermitted_read` | warning | `frappe.db.*`, `frappe.get_all`, `frappe.get_doc`, `frappe.get_value` read **without permission checks**: everyone who prints sees that data. Prefer fields of `doc` or `frappe.get_list` |
+| `jinja.sql` | critical | `frappe.db.sql` in a template: read through the document's fields or `frappe.get_list` |
+| `jinja.protected_doctype` / `jinja.dynamic_doctype` | critical | a read of identity, access or settings DocTypes (Has Role, User Permission, OAuth…, *Settings, AI…), or a DocType named by a computed value. Company, User (full name), Letter Head stay readable |
 | `jinja.script` | warning | `<script>`, `on*=` handlers or `javascript:` run in every browser that opens the print |
 | `jinja.external_url` | warning | `src`/`href`/`url()` to another site: readers' browsers contact it. Use files uploaded to this site |
 | `print.disable_default` | warning | Disabling the current default: printing falls back to the DocType's own default until undone |
@@ -120,6 +122,7 @@ Never send `set_property_after_alert`: a notification that writes to the documen
 | `notification.mass` | warning | A role with more than 50 users: everyone gets every message |
 | `notification.print_draft` | warning | Draft documents cannot be printed (Print Settings): the email fails for drafts |
 | `jinja.unpermitted_read` | warning | The message reads data without permission checks and mails it |
+| `jinja.sql` / `jinja.protected_doctype` / `jinja.dynamic_doctype` | critical | as for print formats: the result is mailed |
 
 The card shows whether the condition holds on the sample document, the rendered subject and message, the resolved
 recipients (to/cc/bcc), and the impact: who receives it and roughly how many messages a day (documents created per

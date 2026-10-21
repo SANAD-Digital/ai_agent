@@ -26,3 +26,9 @@ def settle_tool_call(approval_name, run, status, created):
     )
     if row:
         frappe.db.set_value("AI Tool Call", row, {"status": target, "permission_decision": f"approval {approval_name}: {status}"}, update_modified=False)
+
+
+def on_doctype_update():
+	# Filtered by run (tool-call settling, chat), by status (expiry job, pending lists) and by requester.
+	frappe.db.add_index("AI Approval Request", ["run"])
+	frappe.db.add_index("AI Approval Request", ["status", "requested_by"])

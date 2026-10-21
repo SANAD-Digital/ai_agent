@@ -8,6 +8,6 @@ def get_data():
             "icon": "octicon octicon-hubot",
             "logo_url": "/assets/ai_agent/musaed-brand/assets/svg/icon/icon-primary.svg",
             "type": "module",
-            "description": "Run ERP AI analysis, approvals, purchase invoice extraction, and agent configuration.",
+            "description": "ERP assistant: chat, analysis, approvals, customization and agent configuration.",
         }
     ]

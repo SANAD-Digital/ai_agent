@@ -68,6 +68,32 @@ class TestPythonAnalyzer(IntegrationTestCase):
 		src = "def count(rows):\n    return len(rows)\nfrappe.response['message'] = count(frappe.get_list('ToDo', fields=['name']))"
 		self.assertNotIn("py.api_def", critical(python_code.analyze(src, "API")))
 
+	def test_js_bypass_shapes_are_refused(self):
+		form = 'frappe.ui.form.on("ToDo", {refresh(frm){ %s }});'
+		for body in ('globalThis.fetch("https://example.com");', 'window["fe" + "tch"]("https://example.com");',
+				"const f = fetch; f('https://example.com');", "({}).constructor.constructor('return 1')();",
+				"const i = new Image(); i.src = 'https://example.com/x';", "const c = 'x'; setTimeout(c, 10);",
+				"const x = document['coo' + 'kie'];", "frappe.call({method: 'frappe.client.' + 'delete'});",
+				"self.open('https://example.com');"):
+			checks = js_code.analyze(form % body, "Form", "ToDo")
+			self.assertTrue(critical(checks), body)
+		fine = js_code.analyze(form % "frm.set_value('status', 'Open'); setTimeout(() => frm.refresh(), 10);", "Form", "ToDo")
+		self.assertFalse(critical(fine))
+
+	def test_aliases_and_computed_doctypes_are_refused(self):
+		for src, code in (
+			("d = frappe.db\nd.commit()", "py.alias"),
+			("f = frappe\nf.sendmail(recipients=['a@b.c'])", "py.alias"),
+			("rows = frappe.get_list('Us' + 'er', fields=['name'])\nfrappe.response['message'] = rows", "py.dynamic_doctype"),
+		):
+			self.assertIn(code, critical(python_code.analyze(src, "API")), src)
+		fine = python_code.analyze("x = frappe.db.get_value('ToDo', 'x', 'status')\nfrappe.response['message'] = x", "API")
+		self.assertFalse(critical(fine))
+
+	def test_a_report_may_not_write(self):
+		src = "d = frappe.get_doc('ToDo', 'x')\nd.save()\ndata = [[], []]"
+		self.assertIn("py.write", critical(python_code.analyze(src, "Script Report")))
+
 	def test_frappe_apis_missing_from_the_sandbox(self):
 		for call in ('frappe.get_cached_value("Company", "x", "abbr")', 'frappe.get_single("Selling Settings")', 'frappe.db.no_such_helper()'):
 			checks = python_code.analyze(f"x = {call}\ndata = [[], []]", "Script Report")

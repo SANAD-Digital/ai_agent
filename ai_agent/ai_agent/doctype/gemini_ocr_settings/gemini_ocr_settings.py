@@ -19,7 +19,7 @@ class GeminiOCRSettings(Document):
             self.max_output_chars = 8000
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def test_connection():
     # Spends the stored API key on an outbound call: settings managers only.
     frappe.only_for("System Manager")

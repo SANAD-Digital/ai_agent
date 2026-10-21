@@ -87,6 +87,12 @@ SAFE_JINJA_NAMES = {"_", "range", "dict", "list", "tuple", "set", "sorted", "min
 	"html2text", "bundled_asset", "include_style", "include_icons"}
 SAFE_FRAPPE_ATTRS = {"utils", "format", "format_value", "format_date", "date_format", "time_format", "number_format",
 	"bold", "get_url", "lang", "_"}
+# The formatting helpers of frappe.utils a public page may call (no file, request, user or database access).
+SAFE_UTILS = {"fmt_money", "formatdate", "format_date", "format_datetime", "format_time", "format_duration",
+	"global_date_format", "getdate", "get_datetime", "nowdate", "today", "now", "now_datetime", "add_days",
+	"add_months", "add_to_date", "date_diff", "flt", "cint", "cstr", "rounded", "money_in_words", "in_words",
+	"pretty_date", "comma_and", "comma_or", "escape_html", "strip_html", "strip_html_tags", "get_url", "markdown",
+	"md_to_html", "ceil", "floor", "get_first_day", "get_last_day"}
 SENSITIVE_LINKS = ("User", "Employee")
 SENSITIVE_TYPES = ("Currency", "Password")
 PREVIEW_CHARS = 6000
@@ -304,6 +310,7 @@ def scan_jinja(template):
 		dotted = _dotted(node.node) or ""
 		if dotted.startswith("doc.") and dotted.rsplit(".", 1)[-1] not in ("get", "get_formatted"):
 			flag(dotted, node, _("{0}() calls a method of the page document from the template").format(dotted))
+	attr_bases = {id(n.node) for n in tree.find_all((nodes.Getattr, nodes.Getitem))}
 	for node in tree.find_all((nodes.Getattr, nodes.Getitem, nodes.Name)):
 		dotted = _dotted(node) if not isinstance(node, nodes.Name) else node.name
 		if not dotted:
@@ -311,11 +318,16 @@ def scan_jinja(template):
 		root, _sep, rest = dotted.partition(".")
 		bad = None
 		if root == "frappe":
-			attr = rest.split(".", 1)[0]
+			attr, _sep2, sub = rest.partition(".")
 			if not attr:
 				continue  # the bare Name node of a frappe.x chain; the chain itself is checked
 			if attr not in SAFE_FRAPPE_ATTRS:
 				bad = "frappe." + attr
+			elif attr == "utils" and sub and sub.split(".", 1)[0] not in SAFE_UTILS:
+				# frappe.utils also holds file and request readers (pdf_to_base64 returns a private file's bytes)
+				bad = "frappe.utils." + sub.split(".", 1)[0]
+			elif attr == "utils" and not sub and isinstance(node, nodes.Getattr) and id(node) not in attr_bases:
+				bad = "frappe.utils"   # utils passed around whole
 		elif root in risky_globals and isinstance(node, nodes.Name):
 			bad = root
 		if bad:

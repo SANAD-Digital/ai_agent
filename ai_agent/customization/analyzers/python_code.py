@@ -97,6 +97,36 @@ def _matches(name, names):
 	return any(name == n or name.startswith(n + ".") for n in names)
 
 
+# Namespaces whose functions the rules above match by their spelled-out name (frappe.db.sql, frappe.sendmail…):
+# bound to a local name they would slip past every list, so using one as a value is refused.
+ALIASED_NAMESPACES = ("frappe", "frappe.db", "frappe.qb", "frappe.local", "frappe.session", "frappe.utils.background_jobs")
+
+
+def _alias_checks(tree):
+	"""`d = frappe.db` then `d.sql(...)`: the rules match dotted names only, so frappe (or a namespace of it) may
+	only appear as the start of an attribute chain, never as a value of its own."""
+	bases = set()
+	for node in ast.walk(tree):
+		if isinstance(node, ast.Attribute):
+			bases.add(id(node.value))
+	checks, seen = [], set()
+	for node in ast.walk(tree):
+		if id(node) in bases:
+			continue
+		name = None
+		if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == "frappe":
+			name = "frappe"
+		elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+			chain = dotted(node)
+			if chain in ALIASED_NAMESPACES:
+				name = chain
+		if name and (name, node.lineno) not in seen:
+			seen.add((name, node.lineno))
+			checks.append(Check("py.alias", "critical",
+				_("{0} is used as a value (assigned, passed or returned): call its functions directly, e.g. frappe.db.get_value(...), so the review can see them").format(name), node.lineno))
+	return checks
+
+
 def _missing_frappe_api(name):
 	"""frappe.X / frappe.db.X called in a script but absent from safe_exec's namespaces (Frappe v16), e.g.
 	frappe.get_cached_value, frappe.get_single, frappe.get_value. Unknown deeper chains are left alone."""
@@ -308,6 +338,11 @@ class _Visitor(ast.NodeVisitor):
 			self.doc_permission_checked = True
 		if name in DOCTYPE_CALLS:
 			doctype = _call_doctype(node)
+			first = node.args[0] if node.args else next((kw.value for kw in node.keywords if kw.arg in ("doctype", "dt")), None)
+			if doctype is None and first is not None and not _is_doc_doctype(first) and not isinstance(first, ast.Dict):
+				# "Us" + "er", or a variable: the protected-DocType rule only reads literal names
+				self.add("py.dynamic_doctype", "critical",
+					_("{0} names its DocType with a computed value: write the DocType name as text so it can be reviewed").format(name), line)
 			if doctype and protected_doctype(doctype) and not (name in LISTING_CALLS and doctype in LISTABLE_PROTECTED):
 				self.add("py.protected_doctype", "critical", _("{0} touches {1}, which agent scripts may not read or change").format(name, doctype), line)
 			if name in UNCHECKED_READS:
@@ -344,6 +379,8 @@ class _Visitor(ast.NodeVisitor):
 	def _write(self, message, line):
 		if self.script_type == "Permission Query":
 			self.add("py.write", "critical", _("A Permission Query runs on every list read and may not write: {0}").format(message), line)
+		elif self.script_type == "Script Report":
+			self.add("py.write", "critical", _("A report only reads; it may not write: {0}").format(message), line)
 		else:
 			self.add("py.write", "warning", message, line)
 
@@ -433,6 +470,7 @@ def analyze(src, script_type="DocType Event", reference_doctype=None):
 	visitor.visit(tree)
 	visitor.finish(tree)
 	checks.extend(visitor.checks)
+	checks.extend(_alias_checks(tree))
 	checks.extend(_runtime_traps(tree))
 	checks.extend(_called_methods(visitor.called_methods))
 
@@ -508,12 +546,17 @@ def _stub(name, calls):
 	return blocked
 
 
+# Methods a preview may really call: plain reads that neither commit nor enqueue. Anything else is stubbed,
+# because a whitelisted method can commit on its own and a savepoint rollback would not undo it.
+PREVIEW_CALLS = frozenset({"frappe.desk.query_report.run", "frappe.client.get_list", "frappe.client.get_count",
+	"frappe.client.get_value", "frappe.client.get"})
+
+
 def _guarded_call(call, calls):
-	"""frappe.call in a dry run: read methods run (inside the rolled-back savepoint), write methods are blocked."""
-	from ai_agent.customization.analyzers.js_code import WRITE_METHODS as WRITE_API
+	"""frappe.call in a dry run or preview: only PREVIEW_CALLS run (inside the rolled-back savepoint)."""
 
 	def guarded(function, *args, **kwargs):
-		if function in WRITE_API:
+		if function not in PREVIEW_CALLS:
 			calls.append(f"frappe.call({function})")
 			raise DryRunBlocked(function)
 		return call(function, *args, **kwargs)

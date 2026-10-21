@@ -74,7 +74,7 @@ def chat_capable(row):
 	return row.get("supports_tools") in (1, True, "1", None)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def fetch_models(provider):
 	"""The models the provider offers this account, with the capabilities it reports.
 

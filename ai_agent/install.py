@@ -20,7 +20,7 @@ def ensure_standard_configuration():
     from ai_agent.roles import ensure_roles
 
     ensure_roles()
-    # Before anything that syncs skills (agents, WhatsApp, chatbot): a skill row
+    # Before anything that syncs skills (agents, chatbot): a skill row
     # naming a tool missing from AI Skill Tool's options is rejected.
     sync_tool_name_options()
     create_default_settings()
@@ -31,7 +31,6 @@ def ensure_standard_configuration():
     create_default_agents()
     link_model_providers()
     tidy_memory_rows()
-    ensure_whatsapp_support_configuration()
     ensure_chatbot_configuration()
     ensure_workspace_sidebar()
     ensure_workspace_sidebar_doc()
@@ -277,7 +276,6 @@ def _ai_workspace_sidebar_items():
         link("Settings & Permissions", "AI Settings", "settings"),
         link("Model Providers", "AI Provider", "server"),
         link("Quick Support Window", "AI Chatbot Settings", "message-circle"),
-        link("WhatsApp Support", "AI WhatsApp Support Settings", "phone"),
         link("Image Reading (OCR)", "Gemini OCR Settings", "scan-text"),
     ]
 
@@ -296,7 +294,6 @@ def create_default_settings():
             "maximum_tool_calls": 25,
             "maximum_rows_per_query": 500,
             "maximum_result_bytes": 102400,
-            "store_full_tool_results": 0,
             "enable_memory": 1,
             "memory_retention_days": 90,
             "default_approval_ttl_minutes": 1440,
@@ -319,7 +316,6 @@ def create_default_settings():
         "maximum_tool_calls": 25,
         "maximum_rows_per_query": 500,
         "maximum_result_bytes": 102400,
-        "store_full_tool_results": 0,
         "enable_memory": 1,
         "memory_retention_days": 90,
         "default_approval_ttl_minutes": 1440,
@@ -494,7 +490,6 @@ def create_default_gemini_ocr_settings():
             "Extract all visible text from this invoice or document image. Preserve line breaks, "
             "numbers, currency values, item tables, Arabic text, and English text. Return plain text only."
         ),
-        "fallback_to_tesseract": 0,
         "request_timeout": 25,
         "max_inline_image_bytes": 8000000,
         "max_output_chars": 8000,
@@ -509,9 +504,6 @@ def create_default_gemini_ocr_settings():
         if settings.get(field) in (None, ""):
             settings.set(field, value)
             changed = True
-    if cint(settings.get("fallback_to_tesseract")) and settings.get("model") == defaults["model"]:
-        settings.fallback_to_tesseract = 0
-        changed = True
     if changed:
         settings.save(ignore_permissions=True)
 
@@ -537,16 +529,6 @@ def create_default_agents():
             **values,
         })
         agent.insert(ignore_permissions=True)
-
-
-def ensure_whatsapp_support_configuration():
-    """Create WhatsApp support agent/settings if their doctypes are available."""
-    try:
-        from ai_agent.whatsapp_support.setup import ensure_whatsapp_support_configuration as ensure
-
-        ensure()
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "AI WhatsApp Support Setup Failed")
 
 
 def ensure_chatbot_configuration():

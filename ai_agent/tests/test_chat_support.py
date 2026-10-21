@@ -33,7 +33,7 @@ class TestChatSupport(IntegrationTestCase):
         frappe.set_user("Administrator")
         for name in self._sessions:
             if frappe.db.exists("AI Chat Session", name):
-                for run in frappe.get_all("AI Run", filters={"session": name}, pluck="name"):
+                for run in frappe.get_all("AI Run", filters={"chat_session": name}, pluck="name"):
                     frappe.delete_doc("AI Run", run, ignore_permissions=True, force=True)
                 frappe.delete_doc("AI Chat Session", name, ignore_permissions=True, force=True)
         frappe.db.commit()

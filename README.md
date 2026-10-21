@@ -2,6 +2,11 @@
 
 AI Agent
 
+### Architecture
+
+See [docs/architecture.md](docs/architecture.md): chat engine, MCP server, runtime and approvals, customization.
+Endpoint review: [docs/security/whitelist-review.md](docs/security/whitelist-review.md).
+
 ### Installation
 
 You can install this app using the [bench](https://github.com/frappe/bench) CLI:
@@ -44,5 +49,3 @@ bench --site <your-dev-site> run-tests --app ai_agent
 ### License
 
 mit
-# ai_agent
-# ai_agent

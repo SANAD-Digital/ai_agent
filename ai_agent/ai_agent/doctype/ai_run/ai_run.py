@@ -14,7 +14,7 @@ class AIRun(Document):
         old = (
             frappe.qb.from_(run).select(run.name)
             .where(run.creation < (Now() - Interval(days=days)))
-            .where((run.session.isnull() | (run.session == "")) & (run.chat_session.isnull() | (run.chat_session == "")))
+            .where(run.chat_session.isnull() | (run.chat_session == ""))
             .limit(50000)
         ).run(pluck=True)
         for start in range(0, len(old), 1000):
@@ -45,48 +45,10 @@ class AIRun(Document):
     def after_insert(self):
         if not self.root_run:
             self.db_set("root_run", self.name, update_modified=False)
-        if self.session:
-            # A run created by the chat engine: the session already exists and
-            # its counters are maintained by the chat API, not by the run.
-            return
-        if self.chat_session:
-            self._touch_chat_session()
-        else:
-            self._create_chat_session()
+        # A chat run belongs to its conversation (chat_session, counters kept by the chat API). MCP and API runs
+        # have none: they no longer get a hidden chat session each (one per MCP tool call before).
 
-    def _create_chat_session(self):
-        title = " ".join(str(self.prompt or "").split())[:80] or self.name
-        # Runs that still come through this legacy path (MCP tool calls,
-        # WhatsApp) are not Desk chats:
-        # tag them so the chat workspace sidebar never lists them.
-        surface = "MCP" if str(self.prompt or "").startswith("MCP tool call:") else "API"
-        session = frappe.get_doc({
-            "doctype": "AI Chat Session",
-            "title": title,
-            "surface": surface,
-            "user": self.user,
-            "agent": self.agent,
-            "company": self.company,
-            "status": "Active",
-            "root_run": self.root_run or self.name,
-            "last_run": self.name,
-            "last_message_on": frappe.utils.now_datetime(),
-            "message_count": 1,
-        })
-        session.insert(ignore_permissions=True)
-        self.db_set("chat_session", session.name, update_modified=False)
-
-    def _touch_chat_session(self):
-        frappe.db.set_value(
-            "AI Chat Session",
-            self.chat_session,
-            {
-                "last_run": self.name,
-                "last_message_on": frappe.utils.now_datetime(),
-            },
-            update_modified=False,
-        )
-        frappe.db.sql(
-            "update `tabAI Chat Session` set message_count = message_count + 1 where name = %s",
-            self.chat_session,
-        )
+def on_doctype_update():
+    # The owner permission query runs on every list read; recovery and retention filter by status.
+    frappe.db.add_index("AI Run", ["user", "creation"])
+    frappe.db.add_index("AI Run", ["status", "modified"])

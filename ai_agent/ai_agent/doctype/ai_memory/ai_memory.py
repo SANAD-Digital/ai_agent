@@ -18,3 +18,8 @@ class AIMemory(Document):
             frappe.throw(_("User is required unless Scope is Agent."))
         if self.scope == "Agent" and not self.agent:
             frappe.throw(_("Agent is required when Scope is Agent."))
+
+
+def on_doctype_update():
+	# Memory is always read per user (permission query, recall, cleanup).
+	frappe.db.add_index("AI Memory", ["user"])

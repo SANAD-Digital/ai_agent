@@ -623,7 +623,6 @@ def send_message(text=None, session=None, agent=None, company=None, provider=Non
         "company": sdoc.company,
         "prompt": text or _("(attachments)"),
         "status": "Queued",
-        "session": sdoc.name,
         "chat_session": sdoc.name,
         "provider": sdoc.provider,
         "model": sdoc.model,
@@ -767,7 +766,7 @@ def edit_message(message, text):
     sdoc = frappe.get_doc("AI Chat Session", doc.session)
     run = frappe.get_doc({
         "doctype": "AI Run", "agent": sdoc.agent, "user": doc.user, "company": sdoc.company, "prompt": text, "status": "Queued",
-        "session": sdoc.name, "chat_session": sdoc.name, "provider": sdoc.provider, "model": sdoc.model,
+        "chat_session": sdoc.name, "provider": sdoc.provider, "model": sdoc.model,
         "context_doctype": doc.context_doctype, "context_name": doc.context_name,
     })
     run.insert(ignore_permissions=True)

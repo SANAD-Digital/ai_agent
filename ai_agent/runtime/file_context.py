@@ -394,8 +394,10 @@ class FileContextService:
                 if rows:
                     parts.append("[table]\n" + "\n".join(rows))
             return "\n".join(parts)
+        except ImportError:
+            frappe.log_error("python-docx is not installed: Word attachments cannot be read", "AI file reading")
         except Exception:
-            pass
+            frappe.log_error(frappe.get_traceback(), f"AI file reading: {file_doc.name}")
 
         try:
             import zipfile

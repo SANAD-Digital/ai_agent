@@ -34,7 +34,7 @@ class TestApprovalModes(IntegrationTestCase):
 		self._settings(**self.saved)
 		for name in frappe.get_all("Note", filters={"title": ["like", f"{TITLE}%"]}, pluck="name"):
 			frappe.delete_doc("Note", name, force=True, ignore_permissions=True)
-		for run in frappe.get_all("AI Run", filters={"session": self.session}, pluck="name"):
+		for run in frappe.get_all("AI Run", filters={"chat_session": self.session}, pluck="name"):
 			frappe.delete_doc("AI Run", run, ignore_permissions=True, force=True)
 		frappe.delete_doc("AI Chat Session", self.session, ignore_permissions=True, force=True)
 		frappe.db.commit()

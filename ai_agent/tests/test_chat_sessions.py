@@ -42,20 +42,4 @@ class TestChatSessions(IntegrationTestCase):
 		self.assertEqual(frappe.db.get_value("AI Run", r2.name, "root_run"), r1.name)
 		self.assertEqual(frappe.db.get_value("AI Run", r3.name, "root_run"), r1.name)
 
-	def test_run_creates_and_updates_chat_session_doc(self):
-		r1, r2, r3 = self._make_chain()
-		session_name = frappe.db.get_value("AI Run", r1.name, "chat_session")
-		self.assertTrue(session_name)
-		self.assertEqual(frappe.db.get_value("AI Run", r3.name, "chat_session"), session_name)
-		session = frappe.db.get_value(
-			"AI Chat Session", session_name,
-			["title", "root_run", "last_run", "message_count", "status", "user"],
-			as_dict=True,
-		)
-		self.assertIn("سؤال الجلسة الأول", session.title)
-		self.assertEqual(session.root_run, r1.name)
-		self.assertEqual(session.last_run, r3.name)
-		self.assertEqual(session.message_count, 3)
-		self.assertEqual(session.status, "Active")
-
 

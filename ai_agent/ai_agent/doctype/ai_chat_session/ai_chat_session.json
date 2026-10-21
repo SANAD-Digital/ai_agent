@@ -85,12 +85,6 @@
    "in_standard_filter": 1
   },
   {
-   "fieldname": "external_key",
-   "fieldtype": "Data",
-   "label": "External Key",
-   "search_index": 1
-  },
-  {
    "fieldname": "provider",
    "fieldtype": "Link",
    "label": "Provider",
@@ -223,7 +217,6 @@
   "message_count",
   "section_chat",
   "surface",
-  "external_key",
   "provider",
   "model",
   "approval_mode",

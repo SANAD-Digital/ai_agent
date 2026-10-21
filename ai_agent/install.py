@@ -294,7 +294,6 @@ def create_default_settings():
             "maximum_tool_calls": 25,
             "maximum_rows_per_query": 500,
             "maximum_result_bytes": 102400,
-            "store_full_tool_results": 0,
             "enable_memory": 1,
             "memory_retention_days": 90,
             "default_approval_ttl_minutes": 1440,
@@ -317,7 +316,6 @@ def create_default_settings():
         "maximum_tool_calls": 25,
         "maximum_rows_per_query": 500,
         "maximum_result_bytes": 102400,
-        "store_full_tool_results": 0,
         "enable_memory": 1,
         "memory_retention_days": 90,
         "default_approval_ttl_minutes": 1440,
@@ -492,7 +490,6 @@ def create_default_gemini_ocr_settings():
             "Extract all visible text from this invoice or document image. Preserve line breaks, "
             "numbers, currency values, item tables, Arabic text, and English text. Return plain text only."
         ),
-        "fallback_to_tesseract": 0,
         "request_timeout": 25,
         "max_inline_image_bytes": 8000000,
         "max_output_chars": 8000,
@@ -507,9 +504,6 @@ def create_default_gemini_ocr_settings():
         if settings.get(field) in (None, ""):
             settings.set(field, value)
             changed = True
-    if cint(settings.get("fallback_to_tesseract")) and settings.get("model") == defaults["model"]:
-        settings.fallback_to_tesseract = 0
-        changed = True
     if changed:
         settings.save(ignore_permissions=True)
 

@@ -3,12 +3,6 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.chat.api import available_providers
-from ai_agent.runtime.model_provider import (
-	estimate_context_window_tokens,
-	get_provider,
-	resolve_run_model,
-	supports_vision_model,
-)
 from ai_agent.tests.utils import delete_docs, ensure_test_agent
 
 PROVIDER = "Unit Test Provider"
@@ -46,28 +40,6 @@ class TestProviders(IntegrationTestCase):
 			frappe.delete_doc("AI Provider", PROVIDER, ignore_permissions=True, force=True)
 			frappe.db.commit()
 		super().tearDownClass()
-
-	def test_provider_record_drives_the_client(self):
-		client = get_provider(PROVIDER)
-		self.assertEqual(client.base_url, "http://localhost:9/v1")
-		self.assertEqual(client.model, "unit-model")
-		self.assertEqual(client.api_key, "unit-secret-key-1234")
-
-	def test_disabled_or_unknown_provider_is_refused(self):
-		from ai_agent.runtime.exceptions import ModelProviderError
-
-		with self.assertRaises(ModelProviderError):
-			get_provider("No Such Provider")
-
-	def test_capabilities_come_from_provider_models(self):
-		self.assertTrue(supports_vision_model("unit-vision"))
-		self.assertEqual(estimate_context_window_tokens("unit-vision"), 64000)
-
-	def test_model_precedence(self):
-		agent = frappe._dict(model="agent-model")
-		self.assertEqual(resolve_run_model(frappe._dict(model="run-model", provider=PROVIDER), agent), "run-model")
-		self.assertEqual(resolve_run_model(frappe._dict(model="", provider=PROVIDER), agent), "unit-model")
-		self.assertEqual(resolve_run_model(frappe._dict(model="", provider=""), agent), "agent-model")
 
 	def test_available_providers_exposes_models_not_secrets(self):
 		providers = available_providers()

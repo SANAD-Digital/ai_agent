@@ -19,9 +19,7 @@ class AIRun(Document):
         ).run(pluck=True)
         for start in range(0, len(old), 1000):
             names = old[start:start + 1000]
-            for child in ("AI Tool Call", "AI Run Step"):
-                if frappe.db.exists("DocType", child):
-                    frappe.db.delete(child, {"run": ("in", names)})
+            frappe.db.delete("AI Tool Call", {"run": ("in", names)})
             frappe.db.delete("AI Run", {"name": ("in", names)})
 
     def validate(self):

@@ -80,9 +80,3 @@ class TestCompactionAfterUse(IntegrationTestCase):
 	def test_small_results_are_kept(self):
 		messages = self._messages("short")
 		self.assertEqual(result_compaction.compact_seen_tool_results(messages), 0)
-
-	def test_private_keys_never_reach_openai_compatible_apis(self):
-		from ai_agent.runtime.model_provider import _openai_messages
-
-		cleaned = _openai_messages(self._messages("x"))
-		self.assertTrue(all(not key.startswith("_") for message in cleaned for key in message))

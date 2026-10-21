@@ -140,12 +140,6 @@ class FileContextService:
         if extension in IMAGE_EXTENSIONS:
             ocr_text = self._ocr_image_file(file_doc)
             if ocr_text:
-                self._emit_read_progress(
-                    progress_run,
-                    frappe._("قراءة الصورة {0}").format(filename),
-                    frappe._("استُخرج {0} حرفًا: {1}").format(len(ocr_text), " ".join(ocr_text[:90].split())),
-                )
-            if ocr_text:
                 return (
                     f"{header}\n"
                     "- extraction: OCR\n"
@@ -253,23 +247,6 @@ class FileContextService:
             return f"- workbook_sheets: {json.dumps(sheets, ensure_ascii=False, default=str)[:MAX_TEXT_CHARS]}"
         except Exception as error:
             return f"- summary: Could not extract Excel content: {str(error)}"
-
-    def _emit_read_progress(self, run_name, title, summary=""):
-        """Live per-page reading progress: a completed AI Run Step + realtime
-        ping so the open chat's work log updates while OCR is running."""
-        if not run_name:
-            return
-        try:
-            from ai_agent.runtime.trace_service import TraceService
-
-            trace = TraceService()
-            sequence = frappe.db.count("AI Run Step", {"run": run_name}) + 1
-            step = trace.add_step(run_name, sequence, "Tool", title, summary[:400])
-            trace.complete_step(step.name, summary=summary[:400])
-            frappe.db.commit()
-            trace.publish_realtime("ai_agent:step_added", run_name)
-        except Exception:
-            pass
 
     def _summarize_pdf(self, file_doc, progress_run=None):
         try:
@@ -762,16 +739,6 @@ class FileContextService:
                 text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png", allow_claude=False)
                 if text:
                     pages.append(f"[page {page_index + 1}]\n{text}")
-                    summary = frappe._("استُخرج {0} حرفًا: {1}").format(
-                        len(text), " ".join(text[:90].split())
-                    )
-                else:
-                    summary = frappe._("لم يُستخرج نص من هذه الصفحة.")
-                self._emit_read_progress(
-                    progress_run,
-                    frappe._("قراءة صفحة {0}/{1} من {2}").format(page_index + 1, total, filename),
-                    summary,
-                )
             document.close()
             return "\n\n".join(pages).strip()
         except Exception:
@@ -811,7 +778,6 @@ class FileContextService:
             if is_gemini_ocr_enabled() or not claude_ocr.available():
                 return ""
             filename = file_doc.file_name or file_doc.name
-            self._emit_read_progress(progress_run, frappe._("قراءة {0} بواسطة Claude").format(filename))
             text = claude_ocr.read_pdf(get_file_path(file_doc.name), FINANCIAL_ATTACHMENT_OCR_PROMPT)
             self._read_by_claude = bool(text)
             return text

@@ -2,7 +2,6 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.engine.providers.base import caps_from_config, guess_context_window, guess_max_output, model_limits
-from ai_agent.runtime.model_provider import estimate_context_window_tokens, supports_vision_model
 
 
 class TestModelCapabilities(IntegrationTestCase):
@@ -45,15 +44,7 @@ class TestModelCapabilities(IntegrationTestCase):
 		doc = frappe.get_doc("AI Provider", provider[0])
 		doc.append("models", {"model_name": "test-capability-model", "context_window_tokens": 32_000, "supports_vision": 1})
 		doc.save(ignore_permissions=True)
-		self.assertEqual(estimate_context_window_tokens("test-capability-model"), 32_000, "the legacy path reads the same row")
-		self.assertTrue(supports_vision_model("test-capability-model"))
 		frappe.db.rollback()
-
-	def test_legacy_path_matches_the_engine(self):
-		for model in ("claude-opus-5-5", "gemini-3.8-flash", "deepseek-v4-pro", "gpt-5.6", "some-new-model"):
-			if frappe.db.exists("AI Provider Model", {"model_name": model}):
-				continue
-			self.assertEqual(estimate_context_window_tokens(model), guess_context_window(model), model)
 
 
 class TestPromptBudget(IntegrationTestCase):

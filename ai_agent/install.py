@@ -20,7 +20,7 @@ def ensure_standard_configuration():
     from ai_agent.roles import ensure_roles
 
     ensure_roles()
-    # Before anything that syncs skills (agents, WhatsApp, chatbot): a skill row
+    # Before anything that syncs skills (agents, chatbot): a skill row
     # naming a tool missing from AI Skill Tool's options is rejected.
     sync_tool_name_options()
     create_default_settings()
@@ -31,7 +31,6 @@ def ensure_standard_configuration():
     create_default_agents()
     link_model_providers()
     tidy_memory_rows()
-    ensure_whatsapp_support_configuration()
     ensure_chatbot_configuration()
     ensure_workspace_sidebar()
     ensure_workspace_sidebar_doc()
@@ -277,7 +276,6 @@ def _ai_workspace_sidebar_items():
         link("Settings & Permissions", "AI Settings", "settings"),
         link("Model Providers", "AI Provider", "server"),
         link("Quick Support Window", "AI Chatbot Settings", "message-circle"),
-        link("WhatsApp Support", "AI WhatsApp Support Settings", "phone"),
         link("Image Reading (OCR)", "Gemini OCR Settings", "scan-text"),
     ]
 
@@ -537,16 +535,6 @@ def create_default_agents():
             **values,
         })
         agent.insert(ignore_permissions=True)
-
-
-def ensure_whatsapp_support_configuration():
-    """Create WhatsApp support agent/settings if their doctypes are available."""
-    try:
-        from ai_agent.whatsapp_support.setup import ensure_whatsapp_support_configuration as ensure
-
-        ensure()
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "AI WhatsApp Support Setup Failed")
 
 
 def ensure_chatbot_configuration():

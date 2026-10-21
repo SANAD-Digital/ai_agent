@@ -73,10 +73,10 @@ class TestUiTools(IntegrationTestCase):
 	def _executor(self):
 		return ToolExecutor(PermissionContext("Administrator", self.agent.name), self.agent, None, session=self.session.name)
 
-	def test_offered_in_the_chat_not_on_whatsapp(self):
+	def test_offered_in_the_chat_not_over_the_api(self):
 		names = {s.name for s in self._executor().specs()}
 		self.assertTrue({"ui__ask", "ui__suggest"} <= names)
-		self.session.db_set("surface", "WhatsApp")
+		self.session.db_set("surface", "API")
 		self.assertFalse({"ui__ask", "ui__suggest"} & {s.name for s in self._executor().specs()})
 
 	def test_ask_draws_a_card_and_ends_the_turn(self):

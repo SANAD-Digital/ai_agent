@@ -42,11 +42,7 @@ scheduler_events = {
     ],
 }
 
-# WhatsApp Support Engine
 doc_events = {
-    "WhatsApp Webhook Message Received Log": {
-        "after_insert": "ai_agent.whatsapp_support.events.on_message_received",
-    },
     "OAuth Client": {
         "on_update": "ai_agent.mcp.token_scope.clear_cache",
         "on_trash": "ai_agent.mcp.token_scope.clear_cache",

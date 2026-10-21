@@ -4,7 +4,6 @@ import time
 
 import frappe
 from ai_agent.runtime.exceptions import ToolDenied
-from ai_agent.runtime.trace_service import TraceService
 
 
 def coerce_to_schema(schema, values):
@@ -49,7 +48,6 @@ class ToolGateway:
         self.registry = tool_registry
         self.skill_tools = skill_tools or []
         self.enforce_skill_tools = False
-        self.trace = TraceService()
         self._call_counts = {}
 
     def authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
@@ -311,7 +309,6 @@ class ToolGateway:
             tool_call = frappe.get_doc({
                 "doctype": "AI Tool Call",
                 "run": run_name,
-                "step": step_name,
                 "call_id": f"{tool_name}-{frappe.utils.cint(frappe.utils.now_datetime().timestamp())}",
                 "tool_name": tool_name,
                 "arguments_json": json.dumps(arguments, default=str),

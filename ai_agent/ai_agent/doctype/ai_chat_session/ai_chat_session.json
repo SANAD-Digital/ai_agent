@@ -80,7 +80,7 @@
    "fieldname": "surface",
    "fieldtype": "Select",
    "label": "Surface",
-   "options": "Desk\nWhatsApp\nChatbot\nMCP\nAPI",
+   "options": "Desk\nChatbot\nMCP\nAPI",
    "default": "Desk",
    "in_standard_filter": 1
   },

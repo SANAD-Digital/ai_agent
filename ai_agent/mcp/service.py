@@ -749,7 +749,7 @@ class MCPService:
                 return False
         if tool["name"] in policy.SUBMIT_CANCEL_TOOLS and not policy.submit_cancel_allowed():
             return False
-        if tool["name"] in ("tools.request_more", "files.read"):   # files.read reads Desk chat attachments only
+        if tool["name"] == "files.read":   # it reads Desk chat attachments only
             return False
         if tool["name"].startswith("web."):   # MCP hosts browse with their own tools; no server-side fetching for external callers
             return False

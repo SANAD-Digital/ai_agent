@@ -171,7 +171,8 @@ class ServerScriptKind(ScriptKind):
 		script_type = (spec or {}).get("script_type")
 		if not script_type and (spec or {}).get("name"):
 			script_type = frappe.db.get_value(self.doctype, spec["name"], "script_type")
-		return script_type == "Permission Query"
+		# A Scheduler Event runs as Administrator with no permission check: a second person approves it too.
+		return script_type in ("Permission Query", "Scheduler Event")
 
 	def normalize(self, args, user):
 		args = dict(args or {})
@@ -299,7 +300,7 @@ class ServerScriptKind(ScriptKind):
 			if not cint(merged.get("enable_rate_limit")):
 				checks.append(Check("script.rate_limit", "info", _("Consider enable_rate_limit for an API script")))
 
-		code_ok = True
+		code_ok, analysis = True, []
 		if spec["operation"] in ("create", "update"):
 			analysis = python_code.analyze(merged.get("script"), script_type, reference)
 			checks += analysis
@@ -315,7 +316,10 @@ class ServerScriptKind(ScriptKind):
 		if (script_type == "Permission Query" and code_ok and spec["operation"] in ("create", "update", "enable")
 				and server_scripts_enabled() and reference and not any(c.level == "critical" for c in checks)):
 			checks += self._preview_permission_query(spec, merged, reference, user, preview, impact)
-		if (code_ok and spec["operation"] in ("create", "update") and script_type == "DocType Event"
+		writes = any(c.code in ("py.write", "py.call", "py.call_missing") for c in analysis)
+		if writes and script_type == "DocType Event":
+			checks.append(Check("py.dry_run_skipped", "info", _("No trial run: the script writes or calls server methods, which a trial could not fully undo")))
+		if (code_ok and not writes and spec["operation"] in ("create", "update") and script_type == "DocType Event"
 				and reference and not _base.customizable_reason(reference, allow_custom=True)
 				and server_scripts_enabled() and (event or "").startswith("Before")):
 			try:

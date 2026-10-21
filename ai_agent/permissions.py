@@ -185,3 +185,13 @@ def ai_message_block_query(user=None):
 		"(`tabAI Message Block`.`message` in (select `name` from `tabAI Chat Message` "
 		f"where `user` = {frappe.db.escape(user)}))"
 	)
+
+
+def has_provider_permission(doc, ptype=None, user=None, debug=False):
+	user = user or frappe.session.user
+	return user == "Administrator" or "System Manager" in frappe.get_roles(user)
+
+
+def ai_provider_query(user=None):
+	user = user or frappe.session.user
+	return "" if user == "Administrator" or "System Manager" in frappe.get_roles(user) else "1=0"

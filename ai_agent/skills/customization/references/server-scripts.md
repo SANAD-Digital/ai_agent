@@ -123,6 +123,11 @@ attribute '<name>'`. **There is no `frappe.has_permission`, `frappe.get_roles`, 
 | `frappe.sendmail`, `frappe.enqueue`, `run_script`, `frappe.make_get/post/put/patch/delete_request`, `FrappeClient`, `frappe.get_print`, `frappe.attach_print`, `frappe.render_template`, `frappe.publish_realtime` | — | exist, **refused**: data leaves the system or other code runs unreviewed |
 | `frappe.delete_doc`, `frappe.rename_doc`, `frappe.db.add_index`, `frappe.db.commit/rollback`, `frappe.set_user`, writing `frappe.session` | — | **refused** |
 
+Also refused: `frappe`, `frappe.db`, `frappe.qb`, `frappe.local`, `frappe.session` used as a value (`d = frappe.db`,
+passed to a function, returned) — call their functions directly; a DocType named by a computed value
+(`frappe.get_list("Us" + "er")`, a variable) — write the name as text; any write in a Script Report or Permission Query.
+Scheduler Event and Permission Query scripts need a second approver (not the requester).
+
 Also refused: `ignore_permissions` / `ignore_user_permissions` in any form (keyword, `doc.flags.…`, inside a dict);
 any literal protected DocType (User, Role, Has Role, Role Profile, User Permission, DocPerm, Custom DocPerm, Server
 Script, Client Script, Webhook, Email Account, OAuth…, any `… Settings`, Company, Fiscal Year, Accounting Period,

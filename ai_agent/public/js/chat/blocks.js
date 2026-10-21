@@ -963,7 +963,8 @@
                     if (window.frappe && frappe.Chart) {
                         try {
                             chart = new frappe.Chart(holder, {
-                                data: { labels: s.chart.labels || [], datasets: s.chart.datasets || [] },
+                                // frappe-charts draws labels and series names into tooltips as HTML
+                                data: AIChat.safeChartData(s.chart),
                                 type: s.chart.type || "bar",
                                 height: 260,
                                 colors: chartColors(),

@@ -30,6 +30,9 @@
   function notify(method, params) { post({ jsonrpc: "2.0", method: method, params: params || {} }); }
 
   window.addEventListener("message", function (event) {
+    // Only the host that embeds this view may talk to it: another window (a page that opened Desk in a popup)
+    // could otherwise post forged results or replies into the frame.
+    if (event.source !== window.parent) return;
     var m = event.data;
     if (!m || m.jsonrpc !== "2.0") return;
     if (m.id != null && !m.method && pending[m.id]) {

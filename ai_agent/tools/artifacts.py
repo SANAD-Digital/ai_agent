@@ -47,6 +47,11 @@ def handle_create_chart(arguments, permission_context):
     return {"artifact_name": artifact.name, "title": title, "chart_url": chart_url}
 
 
+def _plain(value):
+    """Labels are text: tags are removed here, and the chart renderers escape what is left."""
+    return frappe.utils.strip_html(str(value))[:200]
+
+
 def _normalize_chart_spec(spec):
     """Reject malformed specs instead of storing a chart that renders empty."""
     shape = "chart_spec must be {type, labels: [..], datasets: [{name, values: [..]}]}"
@@ -66,12 +71,12 @@ def _normalize_chart_spec(spec):
             return None, f"each dataset needs a flat values array with one number per label. {shape}"
         if not all(isinstance(v, (int, float, str)) for v in values):
             return None, f"values must be numbers. {shape}"
-        normalized.append({"name": str(dataset.get("name") or ""), "values": [flt(v) for v in values]})
+        normalized.append({"name": _plain(dataset.get("name") or ""), "values": [flt(v) for v in values]})
 
     chart_type = str(spec.get("type") or "bar")
     return {
         "type": chart_type if chart_type in CHART_TYPES else "bar",
-        "labels": [str(label) for label in labels],
+        "labels": [_plain(label) for label in labels],
         "datasets": normalized,
     }, None
 

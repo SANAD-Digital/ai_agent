@@ -91,8 +91,21 @@
     /* Markdown                                                            */
     /* ------------------------------------------------------------------ */
 
-    const BLOCKED_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "FORM", "META", "LINK", "BASE"]);
+    const BLOCKED_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "FORM", "META", "LINK", "BASE", "SVG", "MATH", "TEMPLATE"]);
     const URL_ATTRS = ["href", "src", "xlink:href", "action", "formaction"];
+    // Attributes markdown output needs; everything else (style, srcset, svg animation...) is dropped.
+    const KEPT_ATTRS = new Set(["href", "src", "alt", "title", "colspan", "rowspan", "align", "start", "class", "dir", "lang"]);
+
+    /** An image the reply shows loads only from this site: an outside URL in a model's answer would send
+        whatever it carries (a prompt-injected "logo" with data in its query) the moment it renders. */
+    function sameOriginImage(src) {
+        try {
+            const url = new URL(src, window.location.href);
+            return url.origin === window.location.origin || url.protocol === "data:";
+        } catch (e) {
+            return false;
+        }
+    }
 
     function sanitiseHtml(html) {
         const tpl = document.createElement("template");
@@ -107,11 +120,21 @@
                 for (const attr of Array.from(node.attributes)) {
                     const name = attr.name.toLowerCase();
                     const value = String(attr.value || "").replace(/[\u0000-\u001f\s]+/g, "").toLowerCase();
-                    if (name.startsWith("on")) {
+                    if (!KEPT_ATTRS.has(name) || name.startsWith("on")) {
                         node.removeAttribute(attr.name);
                     } else if (URL_ATTRS.includes(name) && (value.startsWith("javascript:") || value.startsWith("vbscript:") || value.startsWith("data:text/html"))) {
                         node.removeAttribute(attr.name);
                     }
+                }
+                if (node.tagName === "IMG" && !sameOriginImage(node.getAttribute("src") || "")) {
+                    const link = document.createElement("a");
+                    link.textContent = node.getAttribute("alt") || node.getAttribute("src") || "image";
+                    if (/^https?:/i.test(node.getAttribute("src") || "")) link.setAttribute("href", node.getAttribute("src"));
+                    link.setAttribute("target", "_blank");
+                    link.setAttribute("rel", "noopener noreferrer");
+                    node.replaceWith(link);
+                    walker.currentNode = link;   // keep walking from the replacement (a detached node ends the walk)
+                    node = link;
                 }
                 if (node.tagName === "A") {
                     node.setAttribute("target", "_blank");
@@ -504,8 +527,18 @@
 
     function toast(message, indicator) {
         if (window.frappe && typeof frappe.show_alert === "function") {
-            frappe.show_alert({ message, indicator: indicator || "green" }, 3);
+            // show_alert inserts HTML: the chat only ever passes plain text
+            frappe.show_alert({ message: escape(message), indicator: indicator || "green" }, 3);
         }
+    }
+
+    /** Chart data for frappe-charts, which writes labels and series names into tooltips as HTML. */
+    function safeChartData(chart) {
+        const c = chart || {};
+        return {
+            labels: (c.labels || []).map((label) => escape(label)),
+            datasets: (c.datasets || []).filter((d) => d && Array.isArray(d.values)).map((d) => Object.assign({}, d, { name: escape(d.name || ""), values: d.values.map((v) => Number(v) || 0) })),
+        };
     }
 
     function errorMessage(err) {
@@ -526,9 +559,8 @@
     }
 
     function stripHtml(s) {
-        const div = document.createElement("div");
-        div.innerHTML = String(s);
-        return div.textContent || "";
+        // DOMParser builds an inert document: no image loads, no handlers run (innerHTML on a live element does)
+        return new DOMParser().parseFromString(String(s), "text/html").body.textContent || "";
     }
 
     function prettyJson(value) {
@@ -597,6 +629,7 @@
         toolDotted,
         copyText,
         toast,
+        safeChartData,
         errorMessage,
         prettyJson,
         formLink,

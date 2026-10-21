@@ -24,10 +24,12 @@
 <script>
 (function () {
 	const spec = {{ chart | tojson }};
-	const labels = (spec.labels || []).map((label) => String(label));
+	// frappe-charts writes labels and series names into its tooltip as HTML: escape them.
+	const esc = (v) => String(v === null || v === undefined ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+	const labels = (spec.labels || []).map((label) => esc(label));
 	const datasets = (spec.datasets || [])
 		.filter((dataset) => dataset && Array.isArray(dataset.values))
-		.map((dataset) => ({ name: String(dataset.name || ""), values: dataset.values }));
+		.map((dataset) => ({ name: esc(dataset.name || ""), values: dataset.values.map((v) => Number(v) || 0) }));
 	const type = ["bar", "line", "pie", "percentage", "donut"].includes(String(spec.type)) ? String(spec.type) : "bar";
 	try {
 		const Chart = window["frappe-charts"].Chart;

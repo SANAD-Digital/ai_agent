@@ -138,6 +138,20 @@ def analyze(query, filters=None, user=None, roles=None):
 		if name in DANGEROUS_FUNCTIONS:
 			checks.append(Check("sql.function", "critical", _("The function {0}() is not allowed in a report").format(name.upper())))
 
+	# A saved report runs with no statement time limit: shapes that can grow without bound are refused.
+	for with_ in root.find_all(exp.With):
+		if with_.args.get("recursive"):
+			checks.append(Check("sql.recursive", "critical", _("WITH RECURSIVE is not allowed in a report")))
+			break
+	for join in root.find_all(exp.Join):
+		kind = (join.args.get("kind") or "").upper()
+		if not join.args.get("on") and not join.args.get("using") and kind != "CROSS" and not join.args.get("method"):
+			checks.append(Check("sql.join_condition", "critical", _("A join without ON/USING multiplies the rows of both tables; give every join a condition")))
+			break
+		if kind == "CROSS":
+			checks.append(Check("sql.join_condition", "critical", _("CROSS JOIN multiplies the rows of both tables; join on a condition")))
+			break
+
 	cte_names = {cte.alias_or_name for cte in root.find_all(exp.CTE)}
 	tables = []
 	for table in root.find_all(exp.Table):

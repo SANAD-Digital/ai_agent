@@ -140,6 +140,10 @@ order by 4 desc
 
 `columns[]`: `fieldname` (snake_case, no spaces), `label`, `fieldtype` (also `Duration`), `options`, `width`.
 
+
+Query Report SQL also refuses `WITH RECURSIVE` and joins without a condition (`a JOIN b` with no ON/USING, `CROSS JOIN`,
+`FROM a, b`): a saved report runs with no time limit. Write every join as `JOIN … ON …`.
+
 ## 4. Roles: who may run it
 
 - Frappe's default (`Report.set_doctype_roles`) is every role with level-0 permission on `ref_doctype`.

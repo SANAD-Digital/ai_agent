@@ -313,7 +313,9 @@ class ToolExecutor:
         try:
             self.tainted = bool(frappe.db.exists("AI Tool Call", {"run": self.run_name, "tool_name": ("in", list(TAINTING_TOOLS))}))
         except Exception:
-            pass
+            # Cannot tell whether outside text came in: assume it did (customization then needs the stricter path).
+            frappe.log_error(frappe.get_traceback(), f"AI taint check failed for run {self.run_name}")
+            self.tainted = True
         self.ctx.tainted = self.tainted
         return self.tainted
 

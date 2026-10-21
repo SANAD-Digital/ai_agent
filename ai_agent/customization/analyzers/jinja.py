@@ -102,6 +102,23 @@ def _chain(node):
 	return None
 
 
+# Protected from writes elsewhere, but a print legitimately reads them ("prepared by" the owner's full name, a
+# letter head, another print style).
+TEMPLATE_READABLE = frozenset({"User", "Role", "Letter Head", "Print Format", "Print Style", "Email Template", "Translation"})
+
+
+def _template_protected(doctype):
+	"""What a print or a notification may never read: identity, access, secrets and settings (business
+	masters such as Company stay readable: a letterhead needs the company's address)."""
+	from ai_agent.runtime.policy import CODE_AND_ACCESS_DOCTYPES
+
+	name = str(doctype or "")
+	if name in TEMPLATE_READABLE:
+		return False
+	return name in CODE_AND_ACCESS_DOCTYPES or name.startswith("OAuth") or name.endswith("Settings") or name in (
+		"Has Role", "User Permission", "Role Profile", "Custom DocPerm", "DocPerm", "Session Default Settings")
+
+
 def compile_checks(text, where):
 	"""Jinja syntax (critical, with the line) and AST rules. Returns ``(checks, ok)``."""
 	from jinja2 import TemplateSyntaxError, nodes
@@ -159,6 +176,24 @@ def compile_checks(text, where):
 						add("jinja.write", "critical", _("{0} calls {1}: templates must not write, send, queue or run code").format(where, node.arg.value), lineno)
 				else:
 					add("jinja.dynamic_access", "critical", _("{0} indexes frappe with a computed key; use plain dotted access").format(where), lineno)
+	for call in tree.find_all(nodes.Call):
+		chain = _chain(call.node)
+		if not chain:
+			continue
+		root, _sep, rest = chain.partition(".")
+		dotted = "frappe." + rest if root in frappe_names and rest else chain
+		if dotted not in UNPERMITTED_READS:
+			continue
+		lineno = getattr(call, "lineno", None)
+		if dotted == "frappe.db.sql":
+			# raw SQL reads any table, users and passwords included; the output goes to whoever gets the print or mail
+			add("jinja.sql", "critical", _("{0} runs frappe.db.sql: read through frappe.get_list or the document's own fields").format(where), lineno)
+			continue
+		first = call.args[0] if call.args else None
+		if first is None or not isinstance(first, nodes.Const):
+			add("jinja.dynamic_doctype", "critical", _("{0}: {1} names its DocType with a computed value; write the name as text").format(where, dotted), lineno)
+		elif _template_protected(first.value):
+			add("jinja.protected_doctype", "critical", _("{0}: {1} reads {2}, which templates may not read").format(where, dotted, first.value), lineno)
 	return out, True
 
 

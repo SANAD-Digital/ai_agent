@@ -71,3 +71,30 @@ class TestWriteGuardReplacementHints(IntegrationTestCase):
 		self.assertEqual(len(hints), 1)
 		self.assertIn("remark", hints[0].split("use ", 1)[1])
 		self.assertEqual(blocked_fields("Journal Entry", {"remark": "x", "custom_remark": 1}, "Administrator"), [])
+
+
+class TestForeignChildRows(IntegrationTestCase):
+	"""An update may only name child rows the target document already has (no re-parenting)."""
+
+	def _doc(self, *row_names):
+		doc = frappe.new_doc("Journal Entry")
+		for name in row_names:
+			doc.append("accounts", {"account": "x", "name": name})
+		return doc
+
+	def test_own_rows_and_new_rows_pass(self):
+		from ai_agent.runtime.write_guard import foreign_child_rows
+
+		doc = self._doc("row-a", "row-b")
+		payload = {"accounts": [{"name": "row-a", "debit": 5}, {"account": "y", "credit": 5}]}
+		self.assertEqual(foreign_child_rows(doc, payload), [])
+
+	def test_a_row_of_another_document_is_refused(self):
+		from ai_agent.runtime.write_guard import foreign_child_rows
+
+		doc = self._doc("row-a")
+		self.assertEqual(foreign_child_rows(doc, {"accounts": [{"name": "row-of-other-je"}]}), ["accounts[0].name"])
+
+	def test_create_may_not_name_child_rows(self):
+		problems = blocked_fields("Journal Entry", {"accounts": [{"name": "row-of-other-je", "account": "x"}]}, "Administrator", mode="create")
+		self.assertIn("accounts[0].name", problems)

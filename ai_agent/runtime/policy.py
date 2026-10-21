@@ -25,8 +25,12 @@ CODE_AND_ACCESS_DOCTYPES = frozenset({
 	"Server Script", "Client Script", "Custom Field", "Property Setter", "Customize Form", "Report",
 	"Print Format", "Print Format Field Template", "Web Page", "Web Form", "Web Template", "Website Script",
 	"Website Theme", "Notification", "Workflow", "Workflow State", "Workflow Action Master", "DocType",
-	"DocField", "DocPerm", "Custom DocPerm", "Page", "Workspace", "Number Card", "Dashboard Chart", "Dashboard",
+	"DocField", "DocPerm", "Custom DocPerm", "Page", "Workspace", "Workspace Sidebar", "Desktop Icon", "Number Card",
+	"Dashboard Chart", "Dashboard",
 	"List View Settings", "Document Naming Rule", "Scheduled Job Type", "Translation", "System Console",
+	# render Jinja, evaluate conditions or act on a schedule
+	"Letter Head", "Email Template", "Print Style", "Custom HTML Block", "Assignment Rule", "Auto Repeat",
+	"Energy Point Rule",
 	"Package", "Package Release", "Module Def", "Patch Log", "Installed Application",
 	# data leaving the system
 	"Webhook", "Auto Email Report", "Email Account", "Email Domain", "Data Import", "Data Export",

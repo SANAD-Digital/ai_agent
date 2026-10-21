@@ -84,6 +84,9 @@ def blocked_fields(doctype, payload, user, *, mode="update", parent_doctype=None
                 problems.append(key)
             continue
         if key == "name" and parent_doctype:
+            # Only an update may point at an existing row, and only at one of its own (foreign_child_rows).
+            if mode != "update":
+                problems.append(key)
             continue
         if key in blocked_system:
             problems.append(key)
@@ -130,3 +133,24 @@ def replacement_hints(doctype, problems, user):
         if alternatives:
             hints.append(f"{key} is retired (hidden) on {doctype}; use {' / '.join(alternatives[:3])} instead")
     return hints
+
+
+def foreign_child_rows(doc, payload):
+    """Child rows in an update that name a row this document does not have ("table[i].name").
+
+    Frappe updates a child row by its name and sets its parent to the document being saved: a row name taken
+    from another document would move that row (and its amounts) here, across documents and companies.
+    """
+    problems = []
+    if not isinstance(payload, dict):
+        return problems
+    for df in doc.meta.get_table_fields():
+        rows = payload.get(df.fieldname)
+        if not isinstance(rows, list):
+            continue
+        own = {row.name for row in doc.get(df.fieldname) or []}
+        for index, row in enumerate(rows):
+            name = row.get("name") if isinstance(row, dict) else None
+            if name and name not in own:
+                problems.append(f"{df.fieldname}[{index}].name")
+    return problems

@@ -9,6 +9,10 @@ app_license = "mit"
 # rest of the Frappe API keeps its normal origin-level resource metadata.
 after_request = ["ai_agent.mcp.http.after_request"]
 
+# A token issued to an AI connector (dynamic registration, or a Claude/ChatGPT callback) works on the MCP
+# endpoint only, never on /api/resource or other methods (ai_agent/mcp/token_scope.py).
+auth_hooks = ["ai_agent.mcp.token_scope.restrict_mcp_tokens"]
+
 # The support bubble on the chat engine (ai_agent/chat/support.py). Only this
 # tiny loader ships on every Desk page; the chat itself loads on first open.
 # The CSS bundle also carries the Musaed brand kit (public/musaed-brand):
@@ -41,6 +45,10 @@ scheduler_events = {
 doc_events = {
     "WhatsApp Webhook Message Received Log": {
         "after_insert": "ai_agent.whatsapp_support.events.on_message_received",
+    },
+    "OAuth Client": {
+        "on_update": "ai_agent.mcp.token_scope.clear_cache",
+        "on_trash": "ai_agent.mcp.token_scope.clear_cache",
     },
 }
 

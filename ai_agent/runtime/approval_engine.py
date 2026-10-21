@@ -6,7 +6,7 @@ from ai_agent.runtime.exceptions import (
     ApprovalRequired, ApprovalExpired, ApprovalAlreadyExecuted,
     PermissionDenied, IdempotencyConflict, ConcurrencyConflict,
 )
-from ai_agent.runtime.write_guard import blocked_fields, replacement_hints
+from ai_agent.runtime.write_guard import blocked_fields, foreign_child_rows, replacement_hints
 
 PERMTYPE_BY_ACTION = {
     "Create": "create",
@@ -341,6 +341,9 @@ class ApprovalEngine:
 
         if approval.expected_modified and str(doc.modified) != str(approval.expected_modified):
             raise ConcurrencyConflict("Document was modified since the approval was requested.")
+        foreign = foreign_child_rows(doc, payload)
+        if foreign:
+            raise PermissionDenied(f"These rows do not belong to {doc.doctype} {doc.name}: {', '.join(foreign)}.")
 
         for key, val in payload.items():
             doc.set(key, val)
@@ -517,6 +520,12 @@ class ApprovalEngine:
                     f"These fields cannot be changed on {doctype_name} through the agent: "
                     f"{', '.join(problems)}" + (f". {'; '.join(hints)}." if hints else "")
                 )
+            foreign = foreign_child_rows(doc, payload)
+            if foreign:
+                raise PermissionDenied(
+                    f"These rows do not belong to {doctype_name} {document_name}: {', '.join(foreign)}. "
+                    "Leave out 'name' to add a new row, or use the name of one of its own rows."
+                )
         return doc
 
     def _assert_customize_allowed(self, payload, user, phase):
@@ -579,7 +588,7 @@ class ApprovalEngine:
             pluck="name",
         )
         for name in pending:
-            frappe.db.set("AI Approval Request", name, "status", "Expired", update_modified=False)
+            frappe.db.set_value("AI Approval Request", name, "status", "Expired", update_modified=False)
         if pending:
             frappe.db.commit()
         return len(pending)

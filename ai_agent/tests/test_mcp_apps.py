@@ -240,7 +240,8 @@ class TestMinimalSlice(IntegrationTestCase):
 			result = self._rpc(svc, "tools/call", {"name": "app__probe", "arguments": {}})
 			self.assertFalse(result["isError"])
 			self.assertIsInstance(result["structuredContent"]["companies"], int)
-			self.assertEqual(result["content"][0]["text"], t("Companies: {0}", result["structuredContent"]["companies"]))
+			self.assertIn(t("Companies: {0}", result["structuredContent"]["companies"]), result["content"][0]["text"])
+			self.assertIn("UNTRUSTED_DATA", result["content"][0]["text"])
 			self.assertNotIn("_meta", {k: v for k, v in result.items() if k == "_meta" and "ai_agent/presentation" in v})
 
 

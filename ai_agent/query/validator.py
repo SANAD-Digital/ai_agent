@@ -34,6 +34,33 @@ def validate_filter_value(operator, value):
         raise QueryValidationError(f"'{operator}' requires a single scalar value.")
 
 
+
+def _pay_doctype(doc_type):
+    from ai_agent.runtime.masking import salary_doctypes
+
+    return doc_type in salary_doctypes()
+
+
+# Output keys that masking never touches in a pay document; an alias there may not borrow them.
+RESERVED_ALIASES = frozenset({"name", "doctype", "docstatus", "idx", "count", "row_count", "total_rows", "employee", "employee_name"})
+
+
+def is_protected_field(doc_type, fieldname):
+    """Masked or redacted on output (salaries, IBANs, IDs, passwords): never renamed, aggregated, filtered or sorted."""
+    from ai_agent.runtime.constants import SENSITIVE_FIELD_PATTERNS
+    from ai_agent.runtime.masking import is_sensitive_field
+
+    name = str(fieldname or "").lower()
+    if not name or not doc_type:
+        return False
+    if is_sensitive_field(name, doc_type) or any(p in name for p in SENSITIVE_FIELD_PATTERNS):
+        return True
+    try:
+        df = frappe.get_meta(doc_type).get_field(name)
+    except Exception:
+        return False
+    return bool(df and df.fieldtype in ("Password", "Password Hash"))
+
 class QueryValidator:
     """Validates Query Specification JSON before execution."""
 
@@ -70,6 +97,17 @@ class QueryValidator:
             or self._parent_doctype_from_filters(spec.get("filters", []))
             or self._default_readable_parent_doctype(doc_type)
         )
+        if getattr(frappe.get_meta(doc_type), "istable", False):
+            # A child table has no permissions of its own: rows are readable through a parent the user may read.
+            # Without one, a grouped query would run with no row filter at all and total across companies.
+            parents = self.ctx.get_readable_parent_doctypes(doc_type)
+            if not parent_doctype:
+                raise QueryValidationError(
+                    f"'{doc_type}' is a child table: set parent_doctype"
+                    + (f" (one of: {', '.join(sorted(parents)[:10])})." if parents else ".")
+                )
+            if parent_doctype not in parents:
+                raise QueryValidationError(f"No read access to '{doc_type}' through '{parent_doctype}'.")
         if parent_doctype:
             spec["parent_doctype"] = parent_doctype
         # Child-table permlevels are evaluated against the parent's DocPerms.
@@ -134,6 +172,15 @@ class QueryValidator:
                     raise QueryValidationError(f"Field '{fieldname}' not found.")
                 if not self.ctx.check_field_access(doc_type, fieldname, "read", self._field_parent()):
                     raise QueryValidationError(f"No read access to field '{fieldname}'.")
+                if (aggregate or alias) and self._sensitive(doc_type, fieldname):
+                    # Masking works on the output name: a renamed or aggregated salary/IBAN would come back unmasked.
+                    raise QueryValidationError(
+                        f"'{fieldname}' is a protected field: select it as is (it comes back masked), "
+                        "never renamed or aggregated."
+                    )
+                if alias and str(alias).lower() in RESERVED_ALIASES and _pay_doctype(doc_type):
+                    # Every amount in a pay document is masked except these keys: an alias may not borrow them.
+                    raise QueryValidationError(f"Alias '{alias}' is reserved in {doc_type}; choose another name.")
 
                 if aggregate and aggregate not in ALLOWED_AGGREGATES:
                     raise QueryValidationError(f"Aggregate '{aggregate}' not allowed.")
@@ -163,6 +210,9 @@ class QueryValidator:
                 pass
             elif field not in allowed_fieldnames:
                 raise QueryValidationError(f"Filter field '{field}' not found.")
+            elif not self.ctx.check_field_access(doc_type, field, "read", self._field_parent()):
+                raise QueryValidationError(f"No read access to field '{field}'.")
+            self._refuse_sensitive(doc_type, field, "filter on", parent_doctype)
             validate_filter_value(operator, flt.get("value"))
 
     def _normalize_child_parent_filters(self, doc_type, filters, parent_doctype=None):
@@ -220,6 +270,15 @@ class QueryValidator:
             raise QueryValidationError(f"No read access to parent field '{parent_field}'.")
         return True
 
+    def _sensitive(self, doc_type, fieldname):
+        return is_protected_field(doc_type, fieldname)
+
+    def _refuse_sensitive(self, doc_type, fieldname, verb, parent_doctype=None):
+        """Filtering, grouping or sorting on a masked field leaks it one comparison at a time."""
+        targets = [doc_type] + ([parent_doctype] if parent_doctype else [])
+        if any(is_protected_field(dt, fieldname) for dt in targets):
+            raise QueryValidationError(f"Cannot {verb} '{fieldname}': it is a protected field.")
+
     def _parent_doctype_from_filters(self, filters):
         for flt in filters or []:
             if (
@@ -254,6 +313,8 @@ class QueryValidator:
                 self._validate_group_by_bucket(doc_type, meta, allowed_fieldnames, gb)
             elif gb not in allowed_fieldnames:
                 raise QueryValidationError(f"group_by field '{gb}' not found.")
+            else:
+                self._refuse_sensitive(doc_type, gb, "group by")
 
     def _validate_group_by_bucket(self, doc_type, meta, allowed_fieldnames, group):
         fieldname = group.get("field")
@@ -302,6 +363,7 @@ class QueryValidator:
             field = ob.get("field")
             if field not in allowed_fieldnames:
                 raise QueryValidationError(f"order_by field '{field}' not found.")
+            self._refuse_sensitive(doc_type, field, "sort by")
             direction = ob.get("direction", "asc").lower()
             if direction not in ("asc", "desc"):
                 raise QueryValidationError(f"Invalid order direction '{direction}'.")

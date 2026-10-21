@@ -621,6 +621,10 @@ def decide(user, approval_id, decision, token=None, reason=None):
     if decision == "approve" and approval.action_type in DESK_ONLY_TYPES and approval.status != "Executed":
         # D4: an outside model must never approve code or schema changes; a person approves them in ERPNext.
         raise ApprovalUiError(t("Customization requests are approved in ERPNext only: open request {0}: {1}", approval.name, doc_href("AI Approval Request", approval.name)))
+    if decision == "approve" and not token and approval.status not in ("Executed", "Rejected"):
+        # The external model cannot approve on the user's behalf (a word in the chat, or text inside a record the
+        # model read, could trigger it): approval is a click on the card's signed button, or in ERPNext.
+        raise ApprovalUiError(t("Approve by clicking Approve on the approval card, or in ERPNext: {0}", doc_href("AI Approval Request", approval.name)))
     if token:
         if not app_approval_enabled():
             raise ApprovalUiError(t("Approving from the card is turned off. Approve in the chat or approve the request in ERPNext."))

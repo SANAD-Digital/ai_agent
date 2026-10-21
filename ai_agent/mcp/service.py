@@ -19,6 +19,7 @@ from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.tool_gateway import ToolGateway
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.tool_registry import ToolRegistry
+from ai_agent.runtime.untrusted import RULE as UNTRUSTED_RULE
 
 
 ACTION_PREFIX = "actions.request_"
@@ -114,15 +115,15 @@ SYNTHETIC_TOOLS = {
         "properties": {"approval_id": {"type": "string"}}, "required": ["approval_id"], "app_only": False, "read_only": True,
     },
     "approvals__list_pending": {
-        "description": "The user's own pending approval requests. Call it when the user says 'موافق' / 'اعتمد' / 'نفذ' / 'yes go ahead' without naming a "
-        "request: one pending request → decide on it; several → the result asks the user which one; none → say so.",
+        "description": "The user's own pending approval requests, with their cards and ERPNext links. Call it when the user asks what is "
+        "waiting, or says 'موافق' / 'نفذ' without naming a request, then point them to the card's Approve button or the link.",
         "properties": {}, "required": [], "app_only": False, "read_only": True,
     },
     "approvals__decide": {
-        "description": "Approve or reject a pending approval request. Use it when the user explicitly approves in chat ('موافق', 'اعتمد', 'نعم نفذ') "
-        "or rejects ('ألغِ', 'لا'). Approving executes the action, verifies the created/changed document and returns its link; "
-        "when the request carried a next step (`then`) the server prepares it and returns that next request too. Never call it "
-        "without an explicit decision from the user. The card's buttons call the same tool with a signed token.",
+        "description": "Reject a pending approval request when the user rejects it in chat ('ألغِ', 'لا'). Approving needs the "
+        "signed token that only the card's Approve button carries: you cannot approve from chat. When the user says 'موافق', "
+        "ask them to click Approve on the card (or open the request link in ERPNext). An approval executes the action, verifies "
+        "the document and, when the request carried a next step (`then`), prepares it too.",
         "properties": {"approval_id": {"type": "string"}, "decision": {"type": "string", "enum": ["approve", "reject"]},
                        "reason": {"type": "string", "maxLength": 300}, "token": {"type": "string", "description": "Set by the approval card only; leave empty from chat."}},
         "required": ["approval_id", "decision"], "app_only": False, "read_only": False, "destructive": True,
@@ -202,14 +203,14 @@ class MCPService:
             "documents directly; they create a pending approval. Lookup tools (queries, reports, "
             "documents) are your working steps and are not shown to the user as views. "
             + self._final_result_instructions() +
-            "When an approval is pending, the user may click the card's button OR approve in chat: if they say "
-            "'موافق' / 'اعتمد' / 'نفذ', call approvals__list_pending (or approvals__decide with the approval_id you "
-            "just received) and approve; never approve without the user's explicit word. approvals__decide "
-            "executes, verifies and returns the document link. If the request needs prerequisite records "
+            "A pending approval is approved only by the user clicking Approve on its card (or in ERPNext through "
+            "the request link); you cannot approve it. If the user says 'موافق' / 'نفذ', ask them to click Approve "
+            "on the card. If the request needs prerequisite records "
             "(a customer or item that does not exist), put them in ONE bulk request, and once the user "
             "approves it continue with the main document (for example the invoice) in the same task "
             "instead of presenting the prerequisites as the final result. Ask with app__choose when "
-            "a choice is ambiguous (which company, which warehouse) instead of guessing."
+            "a choice is ambiguous (which company, which warehouse) instead of guessing. "
+            + UNTRUSTED_RULE
         ) + self._memory_instructions()
 
     def _final_result_instructions(self):
@@ -217,7 +218,7 @@ class MCPService:
             # This host shows no views: the reply itself carries the result.
             return ("Give the final answer in your reply as a short markdown table. For a trend or "
                     "comparison also call artifacts__create_chart and give the user its chart_url as a "
-                    "link. For a pending approval, summarise it and ask the user to reply 'موافق'. ")
+                    "link. For a pending approval, summarise it and give the user the request link to approve it in ERPNext. ")
         return ("When you have the final answer, show it once with artifacts__create_table (rows) or "
                 "artifacts__create_chart (trend or comparison); the host renders that view, so do not "
                 "re-print the table or repeat its numbers, add analysis and the next step instead. ")
@@ -564,9 +565,12 @@ class MCPService:
 
     @staticmethod
     def _always_human(approval_id):
+        """With mcp_require_approval off, only what Desk auto mode runs without a person (Create, Bulk Create,
+        Update) runs directly; Submit, Cancel, Workflow, email and Customize still wait for the card."""
         from ai_agent.runtime import policy
 
-        return policy.requires_human(frappe.db.get_value("AI Approval Request", approval_id, "action_type"))
+        action_type = frappe.db.get_value("AI Approval Request", approval_id, "action_type")
+        return policy.requires_human(action_type) or action_type not in policy.AUTO_APPROVE_TYPES
 
     def _assert_decidable_here(self, approval_id):
         """A Customize request is approved from Desk only (D4): never by approvals__decide, which an external

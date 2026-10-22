@@ -4,7 +4,6 @@ Each check reports whether one prerequisite of a working MCP connection is in pl
 and each fix changes exactly that prerequisite on this site.
 """
 
-import re
 
 import frappe
 from frappe import _
@@ -19,11 +18,7 @@ DEFAULT_ROLES = ("AI MCP User", "System Manager")
 def allowed_roles(settings=None):
 	"""Roles picked in AI Settings > Allowed Roles (Has Role rows); none picked means the defaults."""
 	settings = settings or frappe.get_cached_doc("AI Settings")
-	value = settings.get("mcp_allowed_roles") or []
-	if isinstance(value, str):  # a site not migrated yet still has the old text field
-		roles = [r.strip() for r in re.split(r"[,;\n]+", value) if r.strip()]
-	else:
-		roles = [row.role for row in value if row.get("role")]
+	roles = [row.role for row in settings.get("mcp_allowed_roles") or [] if row.get("role")]
 	return roles or list(DEFAULT_ROLES)
 
 

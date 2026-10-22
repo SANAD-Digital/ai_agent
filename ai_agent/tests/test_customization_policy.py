@@ -164,7 +164,7 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 			with self.assertRaises(ToolDenied):
 				gateway.authorize_and_execute("customize.inspect", {"doctype": "ToDo"}, run_name=self.run.name)
 			with self.assertRaises(ToolDenied):
-				gateway.create_approval("customize.request_client_script", {"operation": "create"}, self.run.name, None, None)
+				gateway.create_approval("customize.request_client_script", {"operation": "create"}, self.run.name, None)
 		result = ToolGateway(_ctx("Administrator"), registry).authorize_and_execute("customize.inspect", {"doctype": "ToDo"}, run_name=self.run.name)
 		self.assertIn("customizable", result)
 

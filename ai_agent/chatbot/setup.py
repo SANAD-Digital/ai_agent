@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 
 import frappe
 
@@ -44,11 +43,7 @@ def ensure_chatbot_agent() -> str:
         "system_instructions": settings.system_prompt(),
     }
 
-    model = settings.model() or (
-        frappe.db.get_single_value("AI Settings", "default_model")
-        if frappe.db.exists("DocType", "AI Settings")
-        else None
-    )
+    model = settings.model()
     if model:
         values["model"] = model
 

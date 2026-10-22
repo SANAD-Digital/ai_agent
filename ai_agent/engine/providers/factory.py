@@ -41,7 +41,7 @@ def provider_config(provider_doc, model=None):
     # e.g. an agent-only or speech model.
     usable = [r for r in provider_doc.get("models") or [] if chat_capable(r)]
     default_model = provider_doc.get("default_model") or next((r.model_name for r in usable if r.is_default), None) \
-        or next((r.model_name for r in usable), None) or settings.default_model
+        or next((r.model_name for r in usable), None)
     if model and model in models and not chat_capable(models[model]):
         model = None   # a session left on a model that cannot chat falls back to the default
     ptype = provider_doc.get("provider_type") or "OpenAI Compatible"

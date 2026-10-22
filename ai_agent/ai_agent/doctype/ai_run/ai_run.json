@@ -217,12 +217,6 @@
    "label": "Steps"
   },
   {
-   "fieldname": "steps",
-   "fieldtype": "Table",
-   "label": "Steps",
-   "options": "AI Run Step"
-  },
-  {
    "fieldname": "message",
    "fieldtype": "Link",
    "label": "Chat Message",
@@ -261,7 +255,7 @@
  "title_field": "run_id",
  "search_fields": "run_id,agent,user,prompt",
  "description_field": "prompt",
- "modified": "2026-09-30 12:00:00.000000",
+ "modified": "2026-10-22 18:00:00.000000",
  "field_order": [
   "run_id",
   "agent",
@@ -294,7 +288,6 @@
   "context_name",
   "estimated_cost",
   "idempotency_key",
-  "steps_section",
-  "steps"
+  "steps_section"
  ]
 }

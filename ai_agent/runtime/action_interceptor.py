@@ -12,7 +12,6 @@ import json
 import frappe
 from frappe import _
 
-from ai_agent.runtime.constants import RUN_STATUS_WAITING
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
 
 def _customize_request_tools():
@@ -37,28 +36,21 @@ KNOWN_ACTION_TOOLS = {
 
 
 class ActionInterceptor:
-    def __init__(self, *, run_name, agent, permission_context, approval_engine, add_step, update_status, trace):
+    def __init__(self, *, run_name, agent, permission_context, approval_engine):
         self.run_name = run_name
         self.agent = agent
         self.ctx = permission_context
         self.approval_engine = approval_engine
-        self.add_step = add_step
-        self.update_status = update_status
-        self.trace = trace
 
     def handle_action_tool(self, tool_name, arguments):
         """Create the approval request that represents this action tool call."""
         if tool_name not in KNOWN_ACTION_TOOLS:
             return {"error": f"Unknown action tool: {tool_name}"}
-        self.update_status(RUN_STATUS_WAITING)
 
         if tool_name.startswith("customize."):
             from ai_agent.customization import tools as customization_tools
 
-            response = customization_tools.route(tool_name, arguments, self.ctx, self.run_name)
-            if isinstance(response, dict) and response.get("approval_id"):
-                self._record_approval_step(response.get("action_summary") or "Approval required: Customize", response["approval_id"])
-            return response
+            return customization_tools.route(tool_name, arguments, self.ctx, self.run_name)
 
         if tool_name == "actions.request_create_draft":
             payload = self._document_payload(arguments)
@@ -111,10 +103,6 @@ class ActionInterceptor:
                 payload=payload,
                 expected_modified=arguments.get("expected_modified"),
             )
-            self._record_approval_step(
-                f"Approval required: Update {arguments.get('doctype')}",
-                approval.name,
-            )
             return {"approval_required": True, "approval_id": approval.name}
 
         elif tool_name == "messaging.request_email":
@@ -133,7 +121,6 @@ class ActionInterceptor:
                 impact_summary=_("The email will be sent from the system's outgoing email account and recorded in the communications."),
                 payload=payload,
             )
-            self._record_approval_step(messaging.summary(payload), approval.name)
             return {"approval_required": True, "approval_id": approval.name}
 
         elif tool_name == "actions.request_submit":
@@ -146,10 +133,6 @@ class ActionInterceptor:
                 impact_summary="The document will be submitted.",
                 payload={"doctype": arguments.get("doctype"), "name": arguments.get("document_name")},
             )
-            self._record_approval_step(
-                f"Approval required: Submit {arguments.get('doctype')}",
-                approval.name,
-            )
             return {"approval_required": True, "approval_id": approval.name}
 
         elif tool_name == "actions.request_cancel":
@@ -161,10 +144,6 @@ class ActionInterceptor:
                 action_summary=f"Cancel {arguments.get('doctype')} {arguments.get('document_name')}",
                 impact_summary="The document will be cancelled.",
                 payload={"doctype": arguments.get("doctype"), "name": arguments.get("document_name")},
-            )
-            self._record_approval_step(
-                f"Approval required: Cancel {arguments.get('doctype')}",
-                approval.name,
             )
             return {"approval_required": True, "approval_id": approval.name}
 
@@ -184,10 +163,6 @@ class ActionInterceptor:
                     "name": arguments.get("document_name"),
                     "action": arguments.get("action"),
                 },
-            )
-            self._record_approval_step(
-                f"Approval required: Workflow {arguments.get('doctype')}",
-                approval.name,
             )
             return {"approval_required": True, "approval_id": approval.name}
 
@@ -270,7 +245,6 @@ class ActionInterceptor:
             payload=payload,
             idempotency_key=idempotency_key,
         )
-        self._record_approval_step(f"Approval required: Create {doc_type}", approval.name)
         return approval
 
     def _create_or_get_bulk_create_approval(self, documents, summary=None):
@@ -303,12 +277,7 @@ class ActionInterceptor:
             payload=payload,
             idempotency_key=idempotency_key,
         )
-        self._record_approval_step(f"Approval required: Bulk create {len(documents)} documents", approval.name)
         return approval
-
-    def _record_approval_step(self, title, approval_name):
-        approval_step = self.add_step("Approval", title)
-        self.trace.complete_step(approval_step.name, summary=f"Pending approval: {approval_name}")
 
     def _document_payload(self, arguments, include_doctype=True):
         payload = dict(arguments.get("payload") or {})

@@ -148,11 +148,6 @@ def drop_nulls(value):
     return value
 
 
-class _NoTrace:
-    def __getattr__(self, _name):
-        return lambda *a, **k: None
-
-
 @dataclass
 class ToolOutcome:
     result: Block | None = None             # tool_result block (None while an approval is pending)
@@ -179,11 +174,6 @@ class ToolExecutor:
             agent=agent_doc,
             permission_context=ctx,
             approval_engine=self.approvals,
-            # The chat engine records its own blocks; the interceptor's legacy
-            # step/trace hooks are no-ops here (never None: it calls them).
-            add_step=lambda *a, **k: frappe._dict(name=None),
-            update_status=lambda *a, **k: None,
-            trace=_NoTrace(),
         )
         self.surface = self._session_surface()
         self.tainted = False
@@ -392,7 +382,7 @@ class ToolExecutor:
         return ToolOutcome(result=Block(kind=TOOL_RESULT, id=block.id, name=block.name, text=json.dumps(result, ensure_ascii=False), data=result))
 
     def _plain_call(self, block, name, args):
-        result = self.gateway.authorize_and_execute(name, args, run_name=self.run_name, step_name=None, agent_doc=self.agent)
+        result = self.gateway.authorize_and_execute(name, args, run_name=self.run_name, agent_doc=self.agent)
         result = mask_tool_result(name, args, result)
         self._note_taint(name, args, result)
         outcome = ToolOutcome()
@@ -447,7 +437,7 @@ class ToolExecutor:
         # Gateway validates, budgets and audits ("Requested"); the interceptor creates the approval.
         if name.startswith("customize."):
             self._run_tainted()
-        self.gateway.create_approval(name, args, run_name=self.run_name, step_name=None, agent_doc=self.agent)
+        self.gateway.create_approval(name, args, run_name=self.run_name, agent_doc=self.agent)
         response = self.interceptor.handle_action_tool(name, args)
         outcome = ToolOutcome(tool_call=self._latest_audit(name))
         if not isinstance(response, dict) or response.get("error") or not response.get("approval_id"):

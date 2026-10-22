@@ -370,7 +370,7 @@ class MCPService:
                 then = arguments.pop("then", None)
                 if then is not None:
                     then = continuation.clean(then)
-                gateway.create_approval(internal_name, arguments, run.name, None, self.agent)
+                gateway.create_approval(internal_name, arguments, run.name, self.agent)
                 handler_arguments = dict(arguments)
                 handler_arguments["run"] = run.name
                 result = self._execute_handler(registered, handler_arguments, ctx)

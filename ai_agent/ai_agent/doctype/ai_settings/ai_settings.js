@@ -292,6 +292,6 @@ async function test_mcp_connection($w, url) {
 // check fails on the server ("Integer exceeds 64-bit range") and the key ends up in Error Log.
 frappe.ui.form.on("AI Settings", {
 	refresh(frm) {
-		["api_key", "web_search_api_key"].forEach((f) => frm.get_field(f)?.disable_password_checks?.());
+		frm.get_field("web_search_api_key")?.disable_password_checks?.();
 	},
 });

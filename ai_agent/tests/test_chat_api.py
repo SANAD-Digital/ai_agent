@@ -293,21 +293,6 @@ class TestChatViewHost(IntegrationTestCase):
             api.view_call(self.session, "approvals__decide", {"approval_id": "x", "decision": "approve"})
 
 
-class TestEngineInterceptorHooks(IntegrationTestCase):
-    """The legacy interceptor records an approval step through add_step/trace; in
-    the chat engine those hooks must be harmless, never None (a None trace crashed
-    after the approval was saved, leaving requests the user never saw)."""
-
-    def test_record_approval_step_is_a_no_op(self):
-        from ai_agent.engine.tools import ToolExecutor
-        from ai_agent.runtime.permission_context import PermissionContext
-
-        ensure_test_agent()
-        agent = frappe.get_cached_doc("AI Agent", "Unit Test Agent")
-        ex = ToolExecutor(PermissionContext("Administrator", agent.name, None), agent, None)
-        ex.interceptor._record_approval_step("Approval required: test", "APRQ-TEST")
-
-
 class TestChatAttachments(IntegrationTestCase):
     """Attachments stay readable for the whole conversation: their text is kept
     on the user message, and files.read lists / re-reads them on demand."""

@@ -54,6 +54,4 @@ class TestMCPSetup(IntegrationTestCase):
 		self.assertEqual(setup.allowed_roles(settings), ["System Manager"])
 		settings.set("mcp_allowed_roles", [])
 		self.assertEqual(setup.allowed_roles(settings), list(setup.DEFAULT_ROLES))
-		settings.mcp_allowed_roles = "AI MCP User\nSystem Manager"  # a site not migrated yet
-		self.assertEqual(setup.allowed_roles(settings), ["AI MCP User", "System Manager"])
 

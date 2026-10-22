@@ -108,8 +108,6 @@ def cleanup_leftovers():
 	runs = db.sql_list("select name from `tabAI Run` where agent='Unit Test Agent' or user like '%%@example.com'")
 	if runs:
 		db.sql("delete from `tabAI Tool Call` where run in %s", (tuple(runs),))
-		if db.table_exists("AI Run Step"):
-			db.sql("delete from `tabAI Run Step` where run in %s", (tuple(runs),))
 		db.sql("delete from `tabAI Run` where name in %s", (tuple(runs),))
 	db.sql("delete from `tabAI Approval Request` where requested_by like '%%@example.com' and status != 'Pending'")
 	db.commit()

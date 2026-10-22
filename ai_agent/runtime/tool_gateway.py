@@ -51,17 +51,17 @@ class ToolGateway:
         self.enforce_skill_tools = False
         self._call_counts = {}
 
-    def authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
+    def authorize_and_execute(self, tool_name, arguments, run_name=None, agent_doc=None):
         """Every call leaves one AI Tool Call row: Executed, Failed (handler error or {"error"}), or Denied."""
         self._executing = False
         try:
-            return self._authorize_and_execute(tool_name, arguments, run_name, step_name, agent_doc)
+            return self._authorize_and_execute(tool_name, arguments, run_name, agent_doc)
         except ToolDenied as exc:
             if not self._executing:
-                self._audit_quiet(run_name, step_name, tool_name, arguments, "Denied", decision=str(exc))
+                self._audit_quiet(run_name, tool_name, arguments, "Denied", decision=str(exc))
             raise
 
-    def _authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
+    def _authorize_and_execute(self, tool_name, arguments, run_name=None, agent_doc=None):
         """Authorize a tool call and execute it."""
         tool_name = registry_name(tool_name)
         if tool_name.startswith("repo."):
@@ -110,7 +110,7 @@ class ToolGateway:
         try:
             result = self._execute_handler(tool, arguments)
         except Exception as exc:
-            self._audit_quiet(run_name, step_name, tool_name, arguments, "Failed", decision="allowed",
+            self._audit_quiet(run_name, tool_name, arguments, "Failed", decision="allowed",
                 result={"error": str(exc)[:500]}, started_at=started_at, duration_ms=int((time.monotonic() - started) * 1000))
             raise
         finally:
@@ -121,12 +121,12 @@ class ToolGateway:
         result = self._truncate_result(result, max_bytes=max_bytes)
 
         failed = isinstance(result, dict) and bool(result.get("error"))
-        self._audit_record(run_name, step_name, tool_name, arguments, result, "Failed" if failed else "Executed",
+        self._audit_record(run_name, tool_name, arguments, result, "Failed" if failed else "Executed",
             decision="allowed", started_at=started_at, duration_ms=duration_ms)
 
         return result
 
-    def create_approval(self, tool_name, arguments, run_name, step_name, agent_doc):
+    def create_approval(self, tool_name, arguments, run_name, agent_doc):
         """Create an approval request for a write action."""
         tool_name = registry_name(tool_name)
         if tool_name.startswith("repo."):
@@ -154,7 +154,7 @@ class ToolGateway:
 
         self._count_call(tool_name)
 
-        self._audit_record(run_name, step_name, tool_name, arguments, None, "Requested")
+        self._audit_record(run_name, tool_name, arguments, None, "Requested")
 
         return {"approval_required": True, "tool_name": tool_name, "arguments": arguments}
 
@@ -285,15 +285,15 @@ class ToolGateway:
                 result = {"truncated": True, "preview": data[:1000]}
         return result
 
-    def _audit_quiet(self, run_name, step_name, tool_name, arguments, status, decision="", result=None, started_at=None, duration_ms=0):
+    def _audit_quiet(self, run_name, tool_name, arguments, status, decision="", result=None, started_at=None, duration_ms=0):
         """Audit a denied or crashed call without masking the original error."""
         try:
-            self._audit_record(run_name, step_name, tool_name, arguments, result, status, decision=decision,
+            self._audit_record(run_name, tool_name, arguments, result, status, decision=decision,
                 started_at=started_at, duration_ms=duration_ms)
         except Exception:
             pass
 
-    def _audit_record(self, run_name, step_name, tool_name, arguments, result, status, decision="", started_at=None, duration_ms=0):
+    def _audit_record(self, run_name, tool_name, arguments, result, status, decision="", started_at=None, duration_ms=0):
         try:
             import json
 

@@ -5,7 +5,6 @@
  "engine": "InnoDB",
  "field_order": [
   "run",
-  "step",
   "call_id",
   "tool_name",
   "skill",
@@ -26,13 +25,6 @@
    "label": "Run",
    "options": "AI Run",
    "reqd": 1
-  },
-  {
-   "fieldname": "step",
-   "fieldtype": "Link",
-   "in_list_view": 0,
-   "label": "Step",
-   "options": "AI Run Step"
   },
   {
    "fieldname": "call_id",
@@ -103,7 +95,7 @@
  "index_web_pages_for_search": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-07-14 00:00:00.000000",
+ "modified": "2026-10-22 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Tool Call",

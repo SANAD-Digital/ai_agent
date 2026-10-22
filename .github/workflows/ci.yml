@@ -97,6 +97,12 @@ jobs:
         run: |
           bench --site test_site set-config allow_tests true
           bench --site test_site execute ai_agent.tests.utils.seed_ci_site
-          bench --site test_site run-tests --app ai_agent
+          set -o pipefail
+          bench --site test_site run-tests --app ai_agent 2>&1 | tee /tmp/tests.log
         env:
           TYPE: server
+
+      # Job logs need a GitHub sign-in; the summary and annotations are public.
+      - name: Report failures
+        if: failure()
+        run: python $GITHUB_WORKSPACE/.github/helper/test_report.py /tmp/tests.log "$GITHUB_STEP_SUMMARY"

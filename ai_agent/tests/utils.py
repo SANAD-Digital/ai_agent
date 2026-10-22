@@ -7,7 +7,9 @@ TEST_AGENT = "Unit Test Agent"
 
 
 def ensure_test_agent():
-	"""Create (or fetch) a disabled-by-default agent used only by automated tests."""
+	"""Create (or fetch) a disabled-by-default agent used only by automated tests; on a site without an enabled
+	AI Provider, the test provider too."""
+	ensure_test_provider()
 	if frappe.db.exists("AI Agent", TEST_AGENT):
 		return frappe.get_doc("AI Agent", TEST_AGENT)
 	agent = frappe.get_doc({

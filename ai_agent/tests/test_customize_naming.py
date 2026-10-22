@@ -36,9 +36,14 @@ class TestCustomizeNaming(IntegrationTestCase):
 		self.setters = {dt: set(frappe.get_all("Property Setter", filters={"doc_type": dt}, pluck="name")) for dt in ("ToDo", SERIES_DT)}
 		self.rules = set(frappe.get_all("Document Naming Rule", pluck="name"))
 		self.addCleanup(self.cleanup)
+		# two ToDos with the same status: the duplicate and condition checks need documents (a fresh site has none)
+		self.todos = [frappe.get_doc({"doctype": "ToDo", "description": f"{self.tag} naming test", "status": "Open"}).insert(
+			ignore_permissions=True).name for _ in range(2)]
 
 	def cleanup(self):
 		frappe.set_user(ADMIN)
+		for name in self.todos:
+			frappe.delete_doc("ToDo", name, force=True, ignore_permissions=True)
 		for dt, initial in self.setters.items():
 			for name in frappe.get_all("Property Setter", filters={"doc_type": dt}, pluck="name"):
 				if name not in initial:

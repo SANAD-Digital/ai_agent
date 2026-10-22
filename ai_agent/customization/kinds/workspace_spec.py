@@ -56,8 +56,8 @@ def icon_names():
 		return _ICONS[key]
 	names = set()
 	for path in key:
-		full = os.path.join(frappe.local.sites_path, cstr(path).lstrip("/"))
-		if not os.path.exists(full):
+		full = _asset_file(cstr(path))
+		if not full:
 			continue
 		with open(full, encoding="utf-8") as handle:
 			for symbol in re.findall(r"<symbol[^>]*\bid=\"([^\"]+)\"", handle.read()):
@@ -65,6 +65,22 @@ def icon_names():
 	_ICONS.clear()
 	_ICONS[key] = names
 	return names
+
+
+def _asset_file(path):
+	"""``/assets/<app>/…`` on disk: the built assets folder, else the app's own public folder (a site whose assets
+	were never built or linked still knows its icons)."""
+	full = os.path.join(frappe.local.sites_path, path.lstrip("/"))
+	if os.path.exists(full):
+		return full
+	parts = path.lstrip("/").split("/", 2)
+	if len(parts) == 3 and parts[0] == "assets":
+		try:
+			full = frappe.get_app_path(parts[1], "public", parts[2])
+		except Exception:
+			return None
+		return full if os.path.exists(full) else None
+	return None
 
 
 def is_emoji(text):

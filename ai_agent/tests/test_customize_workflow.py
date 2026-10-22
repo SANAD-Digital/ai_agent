@@ -35,6 +35,10 @@ class TestCustomizeWorkflow(IntegrationTestCase):
 		self.had_column = "workflow_state" in frappe.db.get_table_columns(DOCTYPE)
 		self.active_before = frappe.db.get_value("Workflow", {"document_type": DOCTYPE, "is_active": 1}, "name")
 		self.addCleanup(self.cleanup)
+		# the round trips submit through a workflow: allowed here whatever the site's AI Settings say
+		allowed = patch("ai_agent.runtime.policy.submit_cancel_allowed", return_value=True)
+		allowed.start()
+		self.addCleanup(allowed.stop)
 
 	def cleanup(self):
 		frappe.set_user(ADMIN)

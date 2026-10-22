@@ -261,6 +261,8 @@ class TestSqlAnalyzer(IntegrationTestCase):
 
 	def test_blocked_queries(self):
 		for query, code in self.BLOCKED:
+			if "Salary Slip" in query and not frappe.db.exists("DocType", "Salary Slip"):
+				continue  # HRMS not installed: the table does not exist, so it is reported as missing
 			with self.subTest(query=query):
 				self.assertIn(code, critical(self.analyze(query)))
 

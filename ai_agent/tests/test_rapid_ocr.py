@@ -56,7 +56,10 @@ class TestOcrRouting(IntegrationTestCase):
 
     def test_real_engine_reads_printed_text(self):
         """One real pass on a rendered image (skipped when rapidocr is absent)."""
-        if not rapid_ocr.available():
+        import importlib.util
+
+        # not rapid_ocr.available(): setUp patches it for the routing tests
+        if not importlib.util.find_spec("rapidocr") or not importlib.util.find_spec("cv2"):
             self.skipTest("rapidocr not installed")
         import cv2
         import numpy as np

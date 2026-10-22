@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
+from ai_agent.runtime.tool_names import registry_name, wire_name  # noqa: F401 (re-exported)
+
 # Block kinds. "skill" and "memory" and "status" are engine-only blocks that
 # the provider never sees as such: history.py turns a skill block into a user
 # turn and drops the rest.
@@ -181,14 +183,6 @@ def message_tokens(message: Message):
         if b.data:
             total += estimate_tokens(json.dumps(b.data, ensure_ascii=False, default=str))
     return total
-
-
-def wire_name(registry_name):
-    return registry_name.replace(".", "__")
-
-
-def registry_name(wire):
-    return wire.replace("__", ".")
 
 
 def clip(text, limit):

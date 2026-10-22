@@ -14,7 +14,6 @@ USER = "ai-roles-test@example.com"
 class TestAppRoles(IntegrationTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
-		roles.ensure_roles()
 		if not frappe.db.exists("User", USER):
 			frappe.get_doc({"doctype": "User", "email": USER, "first_name": "Roles Test", "send_welcome_email": 0}).insert(ignore_permissions=True)
 		user = frappe.get_doc("User", USER)

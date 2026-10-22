@@ -1,0 +1,21 @@
+{
+ "agent_name": "ERP Operations Agent",
+ "allow_actions": 1,
+ "allow_customization": 0,
+ "compact_session": "Session purpose: ERP document preparation and approved operations.\nSession rules: build one clean payload per target document, use approval tools for writes, group missing prerequisite records, and keep prior chat separate from current tool evidence.",
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "Operations agent that can prepare and request approved document changes",
+ "docstatus": 0,
+ "doctype": "AI Agent",
+ "enabled": 1,
+ "idx": 0,
+ "is_default": 0,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "ERP Operations Agent",
+ "owner": "Administrator",
+ "read_only": 0,
+ "reasoning_effort": "medium",
+ "require_approval_for_all_writes": 1,
+ "system_instructions": "You are an ERP operations agent. You can prepare documents and request changes, but all write operations require user approval. When multiple missing records must be created, group them into one bulk approval instead of requesting approval one record at a time."
+}

@@ -4,7 +4,7 @@ from ai_agent.query.validator import QueryValidator, validate_filter_value
 from ai_agent.runtime.exceptions import QueryValidationError
 from ai_agent.query.cost_guard import QueryCostGuard
 from ai_agent.query.v16_adapter import V16Adapter
-from ai_agent.runtime.constants import SENSITIVE_FIELD_PATTERNS
+from ai_agent.runtime.masking import is_secret_field
 from ai_agent.runtime.artifact_service import ArtifactService
 
 
@@ -124,11 +124,7 @@ def _load_readable_document(doc_type, name, permission_context):
 
 
 def _is_blocked_field(field):
-    fieldname = (field.fieldname or "").lower()
-    return (
-        field.fieldtype in ("Password", "Password Hash")
-        or any(p in fieldname for p in SENSITIVE_FIELD_PATTERNS)
-    )
+    return is_secret_field(field.fieldname, field.fieldtype)
 
 
 def _child_rows(child_doctype, parent_doctype, children, permission_context, limit=None):
@@ -292,9 +288,7 @@ def _redact_sensitive_fields(doc_type, rows, permission_context):
     meta = frappe.get_meta(doc_type)
     blocked = set()
     for field in meta.fields:
-        if field.fieldtype in ("Password", "Password Hash"):
-            blocked.add(field.fieldname)
-        if any(p in (field.fieldname or "").lower() for p in SENSITIVE_FIELD_PATTERNS):
+        if is_secret_field(field.fieldname, field.fieldtype):
             blocked.add(field.fieldname)
         if not permission_context.check_field_access(doc_type, field.fieldname, "read"):
             blocked.add(field.fieldname)

@@ -22,7 +22,7 @@ def is_mcp_client(client):
     """Cached per client: registration source and redirect URIs do not change during a token's life."""
     if not client:
         return False
-    cache = frappe.cache()
+    cache = frappe.cache
     known = cache.hget(CACHE_KEY, client)
     if known is not None:
         return bool(known)
@@ -49,4 +49,4 @@ def restrict_mcp_tokens():
 
 
 def clear_cache(doc=None, method=None):
-    frappe.cache().delete_value(CACHE_KEY)
+    frappe.cache.delete_value(CACHE_KEY)

@@ -21,7 +21,7 @@
  ],
  "fields": [
   {
-   "default": "1",
+   "default": "0",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
@@ -95,7 +95,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-01 00:00:00.000000",
+ "modified": "2026-10-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "Gemini OCR Settings",

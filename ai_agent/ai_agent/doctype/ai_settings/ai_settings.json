@@ -111,7 +111,7 @@
    "label": "Provider"
   },
   {
-   "default": "1",
+   "default": "0",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
@@ -276,7 +276,7 @@
    "label": "Approvals"
   },
   {
-   "default": "30",
+   "default": "1440",
    "fieldname": "default_approval_ttl_minutes",
    "fieldtype": "Int",
    "label": "Default Approval TTL (minutes)"
@@ -517,10 +517,11 @@
   {
    "fieldname": "enable_memory",
    "fieldtype": "Check",
-   "label": "Enable Memory"
+   "label": "Enable Memory",
+   "default": "1"
   },
   {
-   "default": "30",
+   "default": "90",
    "depends_on": "eval:doc.enable_memory",
    "fieldname": "memory_retention_days",
    "fieldtype": "Int",
@@ -688,7 +689,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-19 21:00:00.000000",
+ "modified": "2026-10-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

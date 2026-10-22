@@ -1,7 +1,7 @@
 """Client Script checks through node + acorn (docs/customization/01 §3.3.3).
 
 ``analyze(src, view, doctype) -> list[Check]``. node comes from ``site_config.node_path`` or PATH;
-acorn from ``apps/frappe/node_modules``. When either is missing the check is critical (fail closed, D7).
+acorn from ``vendor/acorn`` (8.x), else ``apps/frappe/node_modules``. When either is missing the check is critical (fail closed, D7).
 """
 
 from __future__ import annotations
@@ -43,8 +43,14 @@ def node_path():
 
 
 def acorn_path():
-	path = os.path.abspath(frappe.get_app_path("frappe", "..", "node_modules", "acorn", "dist", "acorn.js"))
-	return path if os.path.exists(path) else None
+	"""The acorn shipped with this app (vendor/acorn), else Frappe's (acorn 7, which stops at ES2021)."""
+	for path in (
+		os.path.join(os.path.dirname(__file__), "vendor", "acorn", "acorn.js"),
+		os.path.abspath(frappe.get_app_path("frappe", "..", "node_modules", "acorn", "dist", "acorn.js")),
+	):
+		if os.path.exists(path):
+			return path
+	return None
 
 
 def child_doctypes(doctype):

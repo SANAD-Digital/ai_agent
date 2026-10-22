@@ -283,14 +283,13 @@ class ListSettingsKind:
 		return preview
 
 	def _dry_run(self, spec, user):
-		from ai_agent.customization.kinds.workspace import dry_run, frappe_error
 
 		collect = _base.capture_messages()
 		try:
-			with dry_run(), _base.as_user(user):
+			with _base.dry_run(), _base.as_user(user):
 				self._apply(spec["doctype"], self.plan(spec))
 		except Exception as exc:
-			return [Check("list_settings.frappe", "critical", _("Frappe refuses the change: {0}").format(frappe_error(exc, collect())))]
+			return [Check("list_settings.frappe", "critical", _("Frappe refuses the change: {0}").format(_base.frappe_error(exc, collect())))]
 		collect()
 		return [Check("list_settings.frappe", "ok", _("Frappe's own validation passes (dry run, rolled back)"))]
 

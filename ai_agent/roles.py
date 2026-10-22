@@ -23,10 +23,3 @@ def has_role(roles, user=None):
 def assert_role(roles, user=None):
 	if not has_role(roles, user):
 		frappe.throw(_("You do not have access to the assistant here. Ask your administrator for the role."), frappe.PermissionError)
-
-
-def ensure_roles():
-	"""Create the access roles (no ERP permissions of their own)."""
-	for role in APP_ROLES:
-		if not frappe.db.exists("Role", role):
-			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 1}).insert(ignore_permissions=True)

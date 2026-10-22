@@ -1,0 +1,19 @@
+{
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "A PDF report with a title, a summary and a table",
+ "docstatus": 0,
+ "doctype": "AI Plugin",
+ "enabled": 1,
+ "icon": "file-text",
+ "idx": 0,
+ "instructions": "Get the rows the request needs, then call export.pdf once with a clear `title`, a `summary` of 2-5 short findings (one per line, numbers included) and the table via `artifact` or `query`. Keep only the columns a reader needs (at most 8). Reply briefly; the user downloads the file.",
+ "is_standard": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "pdf",
+ "output": "PDF",
+ "owner": "Administrator",
+ "plugin_name": "pdf",
+ "title": "PDF Report",
+ "tool": "export.pdf"
+}

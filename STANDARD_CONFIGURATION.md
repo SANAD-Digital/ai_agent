@@ -4,22 +4,26 @@ This app ships its baseline agent configuration as app-managed data so every cus
 
 ## Source of Truth
 
-- Standard agents are defined in `ai_agent/install.py` in `_standard_agents()`.
+- Standard agents, plugins and preset providers are files Frappe syncs on migrate:
+  `ai_agent/ai_agent/ai_agent/<name>/<name>.json`, `ai_agent/ai_agent/ai_plugin/…` and `ai_agent/ai_agent/ai_provider/…`
+  (`importable_doctypes` in `hooks.py`). Raise a file's `modified` to ship a change. On re-import, the site keeps
+  what it owns (`ai_agent/standard_records.py`): an agent's switch, provider and model; a plugin's switch; a
+  preset provider entirely (key and models included).
 - Standard skills are stored as app files in `ai_agent/skills/*/SKILL.md`.
-- Standard skill grants are created by `ai_agent/install.py` in `create_default_skill_grants()`.
-- Safe AI Settings defaults are created by `ai_agent/install.py` in `create_default_settings()`.
+- Standard skill grants are created by `grant_standard_skills()` in `ai_agent/ai_agent/doctype/ai_skill_grant/ai_skill_grant.py`.
+- AI Settings defaults are the defaults in its DocType JSON; `install.store_single_defaults` saves them once on a new site.
+- The access roles are created by Frappe from the DocType permissions that name them.
 
 ## What Syncs Automatically
 
-The app runs `ai_agent.install.ensure_standard_configuration` after install and after migrate.
+The app runs `ai_agent.install.sync` after install and after migrate, after Frappe has synced the files above.
 
 It will:
 
-- Create or refresh the standard agents.
 - Sync every app-file skill from `SKILL.md`.
 - Re-enable trusted app-file skills when they are part of the shipped baseline.
 - Grant app-file skills to the standard agents for all users, except role-granted skills (below).
-- Fill missing safe settings defaults.
+- Create or refresh the support chatbot agent and the default metrics.
 
 It will not:
 
@@ -38,7 +42,7 @@ bench --site <site-name> migrate
 Or run the sync directly:
 
 ```bash
-bench --site <site-name> execute ai_agent.install.ensure_standard_configuration
+bench --site <site-name> execute ai_agent.install.sync
 ```
 
 ## Adding a Standard Skill
@@ -55,7 +59,7 @@ allow_implicit_invocation: 1
 ```
 
 3. Put the agent instructions below the frontmatter.
-4. Run migrate or execute `ai_agent.install.ensure_standard_configuration`.
+4. Run migrate or execute `ai_agent.install.sync`.
 
 The skill will then be available on every customer site after app update.
 
@@ -71,10 +75,9 @@ What the sync does:
 - Syncs `ai_agent/skills/customization/SKILL.md` and its five references (`fields`, `properties`, `server-scripts`,
   `client-scripts`, `reports`) like every other app skill. The skill is loaded on demand, never always-on.
 - Grants it **only by role**: one `AI Skill Grant` with `grant_type = Role`, `role = System Manager` on each standard
-  agent that may act (ERP Operations Agent, ERP Power Operator). It is never granted to "All Users" and never to the
-  read-only ERP Analyst (`install.ROLE_GRANTED_SKILLS`). An admin who disables that grant keeps it disabled.
-- Seeds `customization_max_requests_per_hour = 20` once the field exists; every other customization setting stays at
-  its default **off**.
+  agent that allows customization (the Implementation agent). It is never granted to "All Users" and never to the
+  read-only ERP Analyst (`ROLE_GRANTED_SKILLS` in `ai_skill_grant.py`). An admin who disables that grant keeps it disabled.
+- `customization_max_requests_per_hour` defaults to 20; every other customization setting stays at its default **off**.
 
 AI Settings (section "Customization"), all off by default:
 

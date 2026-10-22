@@ -13,6 +13,7 @@ import re
 import frappe
 
 from ai_agent.presentation.i18n import t
+from ai_agent.runtime.tool_names import wire_name
 
 # Only requests that themselves go through the approval / permission path can be chained.
 ALLOWED_TOOLS = {"actions__request_create_draft", "actions__request_bulk_create"}
@@ -30,7 +31,7 @@ def clean(then):
     """Validate the model-supplied next step. Raises ContinuationError with a message the model can act on."""
     if not isinstance(then, dict):
         raise ContinuationError("`then` must be an object {goal, tool, arguments}.")
-    tool = str(then.get("tool") or "").replace(".", "__")
+    tool = wire_name(then.get("tool"))
     goal = str(then.get("goal") or "").strip()[:300]
     arguments = then.get("arguments")
     if tool not in ALLOWED_TOOLS:
@@ -69,7 +70,7 @@ def take(approval_name):
     """Claim the next step exactly once. Marks it consumed before it runs so a repeated approval cannot run it twice."""
     # Two concurrent approvals (double click, host retry) both read "not consumed": only the one that sets
     # this key first may take the step.
-    cache = frappe.cache()
+    cache = frappe.cache
     if not cache.set(cache.make_key(f"ai_agent:continuation:{approval_name}"), 1, ex=600, nx=True):
         return None
     name, data = _find(approval_name)

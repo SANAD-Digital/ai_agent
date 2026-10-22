@@ -576,9 +576,9 @@ class DocTypeKind:
 				out.append(Check("field.reqd_existing", "warning",
 					_("{0} existing {1} records will ask for {2} the next time they are saved").format(count, spec["name"], f["fieldname"])))
 			if f.get("unique") and old is not None and count and frappe.db.has_column(spec["name"], f["fieldname"]):
+				tab, col = _base.table(spec["name"]), _base.column(spec["name"], f["fieldname"])
 				dupes = frappe.db.sql(
-					f"select count(*) from (select `{f['fieldname']}` from `tab{spec['name']}` where ifnull(`{f['fieldname']}`, '') != '' "
-					f"group by `{f['fieldname']}` having count(*) > 1) d")[0][0]
+					f"select count(*) from (select {col} from {tab} where ifnull({col}, '') != '' group by {col} having count(*) > 1) d")[0][0]
 				if dupes:
 					out.append(Check("field.unique_existing", "warning", _("{0} values of {1} are already repeated; making it unique will fail").format(dupes, f["fieldname"])))
 		if (spec.get("properties") or {}).get("is_submittable") is not None and count:
@@ -723,8 +723,8 @@ class DocTypeKind:
 				if not cint(frappe.db.get_value("DocType", name, "custom")):
 					frappe.throw(_("{0} is a standard DocType").format(name))
 				frappe.delete_doc("DocType", name)
-			if frappe.db.table_exists(name) and not frappe.db.sql(f"select 1 from `tab{name}` limit 1"):
-				frappe.db.sql_ddl(f"drop table if exists `tab{name}`")
+			if frappe.db.table_exists(name) and not frappe.db.sql(f"select 1 from {_base.table(name)} limit 1"):
+				frappe.db.sql_ddl(f"drop table if exists {_base.table(name)}")
 		except Exception:
 			if not quiet:
 				raise

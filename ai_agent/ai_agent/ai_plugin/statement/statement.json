@@ -1,0 +1,19 @@
+{
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "A customer or supplier statement as a PDF: opening, transactions and closing balance",
+ "docstatus": 0,
+ "doctype": "AI Plugin",
+ "enabled": 1,
+ "icon": "file-text",
+ "idx": 0,
+ "instructions": "Call export.statement directly with party_type, party exactly as the user wrote it (ID or name; the tool resolves it), the period the user asked for (default: last 12 months to today) and language = the language the user writes in. If it returns candidates, ask the user which one in one line. Reply with the closing balance in one sentence (\u0644\u0647/\u0639\u0644\u064a\u0647) and nothing else.",
+ "is_standard": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "statement",
+ "output": "PDF",
+ "owner": "Administrator",
+ "plugin_name": "statement",
+ "title": "Account Statement",
+ "tool": "export.statement"
+}

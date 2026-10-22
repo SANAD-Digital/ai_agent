@@ -23,30 +23,8 @@ def ensure_chatbot_configuration():
     """Create the System Chatbot agent and default settings."""
     agent = ensure_chatbot_agent()
     ensure_settings(agent)
-    move_allowed_roles_to_table()
     frappe.db.commit()
     return agent
-
-
-def move_allowed_roles_to_table():
-    """Allowed Roles was a text field (one role per line); it is now a multi-select of Has Role rows.
-
-    On migrate, a value still stored the old way is turned into rows once and then removed, so the
-    setting carries over without a patch. Unknown role names are dropped."""
-    old = frappe.db.sql(
-        "select value from `tabSingles` where doctype=%s and field='allowed_roles'", settings.SETTINGS_DOCTYPE
-    )
-    if not old:
-        return
-    if not frappe.get_all("Has Role", filters={"parenttype": settings.SETTINGS_DOCTYPE, "parentfield": "allowed_roles"}, limit=1):
-        doc = frappe.get_single(settings.SETTINGS_DOCTYPE)
-        for role in re.split(r"[,;\n]+", str(old[0][0] or "")):
-            role = role.strip()
-            if role and frappe.db.exists("Role", role) and role not in [r.role for r in doc.allowed_roles]:
-                doc.append("allowed_roles", {"role": role})
-        doc.flags.ignore_validate = True
-        doc.save(ignore_permissions=True)
-    frappe.db.sql("delete from `tabSingles` where doctype=%s and field='allowed_roles'", settings.SETTINGS_DOCTYPE)
 
 
 def ensure_chatbot_agent() -> str:

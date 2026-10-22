@@ -239,9 +239,9 @@ class CustomFieldKind:
 				checks += self._check_fetch(meta, merged)
 			checks += self._check_depends(meta, f, [])
 			if f.get("unique") and frappe.db.has_column(spec["doctype"], f["fieldname"]):
+				tab, col = _base.table(spec["doctype"]), _base.column(spec["doctype"], f["fieldname"])
 				dupes = frappe.db.sql(
-					f"select count(*) from (select `{f['fieldname']}` from `tab{spec['doctype']}` where ifnull(`{f['fieldname']}`, '') != '' "
-					f"group by `{f['fieldname']}` having count(*) > 1) d")[0][0]
+					f"select count(*) from (select {col} from {tab} where ifnull({col}, '') != '' group by {col} having count(*) > 1) d")[0][0]
 				if dupes:
 					checks.append(Check("field.unique_existing", "warning", _("{0} values of {1} are already repeated; making it unique will fail").format(dupes, f["fieldname"])))
 		return checks
@@ -254,10 +254,10 @@ class CustomFieldKind:
 				checks.append(Check("field.admin_owned", "critical",
 					_("{0} was created by Administrator and only Administrator can remove it").format(f["fieldname"])))
 			if row.get("fieldtype") not in NO_VALUE_TYPES and frappe.db.has_column(spec["doctype"], f["fieldname"]):
-				filled = frappe.db.sql(
-					f"select count(*) from `tab{spec['doctype']}` where `{f['fieldname']}` is not null and `{f['fieldname']}` != ''")[0][0] \
+				tab, col = _base.table(spec["doctype"]), _base.column(spec["doctype"], f["fieldname"])
+				filled = frappe.db.sql(f"select count(*) from {tab} where {col} is not null and {col} != ''")[0][0] \
 					if row.get("fieldtype") not in ("Int", "Float", "Currency", "Percent", "Check") else \
-					frappe.db.sql(f"select count(*) from `tab{spec['doctype']}` where ifnull(`{f['fieldname']}`, 0) != 0")[0][0]
+					frappe.db.sql(f"select count(*) from {tab} where ifnull({col}, 0) != 0")[0][0]
 				if filled:
 					checks.append(Check("field.has_data", "warning",
 						_("{0} records have a value in {1}; the column stays orphaned in the database").format(filled, f["fieldname"])))

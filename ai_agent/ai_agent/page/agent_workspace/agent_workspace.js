@@ -1,27 +1,15 @@
 /**
  * agent-workspace — Desk page entry.
  *
- * Responsibility: create the Frappe app page, load the chat stylesheet and the
- * chat modules (public/js/chat/*) strictly in order, then mount `window.AIChat`.
+ * Responsibility: create the Frappe app page, load the chat bundles
+ * (chat.bundle.css / chat.bundle.js, built from public/js/chat/*), then mount `window.AIChat`.
  * Everything else (state, transport, rendering) lives in those modules.
  *
  * Route options `{prompt, agent, company, auto_submit}` are honoured so another
  * page can hand a prompt over with `frappe.set_route("agent-workspace", {...})`.
  */
 
-const AI_CHAT_MODULES = [
-    "core",
-    "store",
-    "transport",
-    "viewhost",
-    "blocks",
-    "message",
-    "composer",
-    "sidebar",
-    "memory",
-    "list",
-    "app",
-];
+const AI_CHAT_BUNDLES = ["chat.bundle.css", "chat.bundle.js"];
 
 frappe.pages["agent-workspace"].on_page_load = async function (wrapper) {
     // Capture the hand-over before any await: another page may have set it.
@@ -42,13 +30,12 @@ frappe.pages["agent-workspace"].on_page_load = async function (wrapper) {
     page.main.empty();
 
     // chat_bubble.js (on every Desk page) loads without frappe.require's #freeze
-    // backdrop, which flashed once per file and made the page shake; the scripts
-    // download together and run in order. Fallback: one frappe.require per file.
-    const paths = ["/assets/ai_agent/css/chat.css"].concat(AI_CHAT_MODULES.map((name) => `/assets/ai_agent/js/chat/${name}.js`));
+    // backdrop, which flashed and made the page shake. Fallback: frappe.require
+    // (it resolves the bundle names; the stylesheet is the LTR build either way).
     if (window.aiAgentAssets) {
-        await window.aiAgentAssets.load(paths);
+        await window.aiAgentAssets.load(AI_CHAT_BUNDLES);
     } else {
-        for (const path of paths) await frappe.require(path);
+        await frappe.require(AI_CHAT_BUNDLES);
     }
 
     if (!window.AIChat || typeof window.AIChat.mount !== "function") {

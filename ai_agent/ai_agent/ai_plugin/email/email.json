@@ -1,0 +1,19 @@
+{
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "Emails the result or the file after you approve",
+ "docstatus": 0,
+ "doctype": "AI Plugin",
+ "enabled": 1,
+ "icon": "mail",
+ "idx": 0,
+ "instructions": "Prepare what to send first (e.g. export.statement, export.print or export.excel) unless a file from this conversation already fits. Find the recipient's email: use the address the user gave, otherwise the party's Contact (data.query on Contact Email / the party's email_id); never guess an address. Then call messaging.request_email once with recipients, a short subject, a short polite message in the user's language and the file_url values as attachments. The email goes out only after the user approves the card.",
+ "is_standard": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "email",
+ "output": "Other",
+ "owner": "Administrator",
+ "plugin_name": "email",
+ "title": "Send by Email",
+ "tool": "messaging.request_email"
+}

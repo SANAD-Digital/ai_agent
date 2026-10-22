@@ -2,6 +2,7 @@ import re
 import frappe
 from ai_agent.runtime.constants import ALLOWED_AGGREGATES, ALLOWED_OPERATORS
 from ai_agent.runtime.exceptions import QueryValidationError
+from ai_agent.runtime.masking import KEEP_KEYS
 
 
 FIELDNAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -42,18 +43,17 @@ def _pay_doctype(doc_type):
 
 
 # Output keys that masking never touches in a pay document; an alias there may not borrow them.
-RESERVED_ALIASES = frozenset({"name", "doctype", "docstatus", "idx", "count", "row_count", "total_rows", "employee", "employee_name"})
+RESERVED_ALIASES = KEEP_KEYS  # names masking passes through unmasked
 
 
 def is_protected_field(doc_type, fieldname):
     """Masked or redacted on output (salaries, IBANs, IDs, passwords): never renamed, aggregated, filtered or sorted."""
-    from ai_agent.runtime.constants import SENSITIVE_FIELD_PATTERNS
-    from ai_agent.runtime.masking import is_sensitive_field
+    from ai_agent.runtime.masking import is_secret_field, is_sensitive_field
 
     name = str(fieldname or "").lower()
     if not name or not doc_type:
         return False
-    if is_sensitive_field(name, doc_type) or any(p in name for p in SENSITIVE_FIELD_PATTERNS):
+    if is_sensitive_field(name, doc_type) or is_secret_field(name):
         return True
     try:
         df = frappe.get_meta(doc_type).get_field(name)

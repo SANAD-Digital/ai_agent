@@ -1,0 +1,19 @@
+{
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "A PNG image of a chart or a short table, to share",
+ "docstatus": 0,
+ "doctype": "AI Plugin",
+ "enabled": 1,
+ "icon": "image",
+ "idx": 0,
+ "instructions": "Prefer a chart: compute the aggregated values (at most ~15 labels) and call export.image with `chart` {type, labels, datasets}. For a short list (\u226430 rows) pass the table via `artifact`/`query`/`rows` instead. Reply briefly.",
+ "is_standard": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "image",
+ "output": "Image",
+ "owner": "Administrator",
+ "plugin_name": "image",
+ "title": "Image",
+ "tool": "export.image"
+}

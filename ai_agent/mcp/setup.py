@@ -27,30 +27,6 @@ def allowed_roles(settings=None):
 	return roles or list(DEFAULT_ROLES)
 
 
-def move_allowed_roles_to_table():
-	"""Allowed Roles was a text field (one role per line); it is now a multi-select of Has Role rows.
-
-	On migrate, a value still stored the old way is turned into rows once and then removed, so the
-	setting carries over without a patch (unknown role names are dropped). A site with no rows gets
-	the defaults as rows, so the form shows what actually applies."""
-	if not frappe.db.exists("DocType", "AI Settings"):
-		return
-	old = frappe.db.sql("select value from `tabSingles` where doctype='AI Settings' and field='mcp_allowed_roles'")
-	has_rows = frappe.get_all("Has Role", filters={"parenttype": "AI Settings", "parentfield": "mcp_allowed_roles"}, limit=1)
-	if not has_rows:
-		names = re.split(r"[,;\n]+", str(old[0][0] or "")) if old else []
-		roles = [r.strip() for r in names if r.strip() and frappe.db.exists("Role", r.strip())] or list(DEFAULT_ROLES)
-		doc = frappe.get_single("AI Settings")
-		for role in dict.fromkeys(roles):
-			if frappe.db.exists("Role", role):
-				doc.append("mcp_allowed_roles", {"role": role})
-		doc.flags.ignore_validate = True
-		doc.flags.ignore_mandatory = True
-		doc.save(ignore_permissions=True)
-	if old:
-		frappe.db.sql("delete from `tabSingles` where doctype='AI Settings' and field='mcp_allowed_roles'")
-
-
 def _origins(oauth):
 	return [o.strip().rstrip("/") for o in (oauth.allowed_public_client_origins or "").splitlines() if o.strip()]
 

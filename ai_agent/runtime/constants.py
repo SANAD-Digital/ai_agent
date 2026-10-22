@@ -40,11 +40,6 @@ DENYLIST_DOCTYPES = frozenset({
     "File", "Print Format",
 })
 
-SENSITIVE_FIELD_PATTERNS = frozenset({
-    "password", "secret", "token", "api_key", "api_secret",
-    "access_token", "refresh_token", "authorization",
-})
-
 RUN_STATUS_QUEUED = "Queued"
 RUN_STATUS_PLANNING = "Planning"
 RUN_STATUS_RUNNING = "Running"

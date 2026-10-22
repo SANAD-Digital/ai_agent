@@ -21,6 +21,9 @@ auth_hooks = ["ai_agent.mcp.token_scope.restrict_mcp_tokens"]
 app_include_css = "ai_agent.bundle.css"
 app_include_js = "ai_agent.bundle.js"
 
+# Records the app ships as files in ai_agent/ai_agent/<doctype>/<name>/<name>.json (ai_agent/standard_records.py)
+importable_doctypes = ["AI Agent", "AI Plugin", "AI Provider"]
+
 # Installation
 after_install = "ai_agent.install.after_install"
 after_migrate = "ai_agent.install.after_migrate"

@@ -18,6 +18,7 @@ from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
 from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.tool_gateway import ToolGateway
 from ai_agent.runtime.approval_engine import ApprovalEngine
+from ai_agent.runtime.tool_names import registry_name, wire_name
 from ai_agent.runtime.tool_registry import ToolRegistry
 from ai_agent.runtime.untrusted import RULE as UNTRUSTED_RULE
 
@@ -809,11 +810,11 @@ class MCPService:
 
     @staticmethod
     def _external_name(name):
-        return name.replace(".", "__")
+        return wire_name(name)
 
     @staticmethod
     def _internal_name(name):
-        return name.replace("__", ".")
+        return registry_name(name)
 
     @staticmethod
     def _input_schema(tool):

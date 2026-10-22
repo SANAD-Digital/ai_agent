@@ -84,7 +84,7 @@ def handle_read(arguments, permission_context):
     doc = frappe.get_doc("File", file_name)
     match = {"file": doc.name, "file_name": doc.file_name}
     if arguments.get("refresh"):
-        frappe.cache().delete_value(f"ai_agent:file_summary:{doc.name}:{doc.modified}")
+        frappe.cache.delete_value(f"ai_agent:file_summary:{doc.name}:{doc.modified}")
     text = extracted_text(doc) or ""
     truncated = len(text) > MAX_CHARS
     return {"file": match["file"], "file_name": match["file_name"], "content": text[:MAX_CHARS], "truncated": truncated}

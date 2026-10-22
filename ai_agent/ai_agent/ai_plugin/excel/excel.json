@@ -1,0 +1,19 @@
+{
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "Get the result as an Excel file ready to download",
+ "docstatus": 0,
+ "doctype": "AI Plugin",
+ "enabled": 1,
+ "icon": "file-spreadsheet",
+ "idx": 0,
+ "instructions": "Get the rows the request needs (data.query, reports.run or metrics.query), then call export.excel once. Pass `artifact` when the result has artifact.artifact_name, otherwise pass the same `query`; send inline `rows` only for a few computed lines. Columns in a sensible order with the user's language labels. Reply with one or two sentences about what the file holds.",
+ "is_standard": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "excel",
+ "output": "Excel",
+ "owner": "Administrator",
+ "plugin_name": "excel",
+ "title": "Excel",
+ "tool": "export.excel"
+}

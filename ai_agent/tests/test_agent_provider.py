@@ -7,7 +7,6 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.chat import api
-from ai_agent.install import link_model_providers
 from ai_agent.runtime import policy
 
 P1, P2 = "Agent Test Provider One", "Agent Test Provider Two"
@@ -41,8 +40,3 @@ class TestAgentProvider(IntegrationTestCase):
 	def test_another_provider_does_not_take_the_agents_model(self):
 		provider, model = api._resolve_provider_model(P1, None, self.agent.name)
 		self.assertEqual((provider, model), (P1, "one-b"), "the provider's default model, not the agent's two-a")
-
-	def test_migrate_gives_a_lone_model_its_provider(self):
-		frappe.db.set_value("AI Agent", self.agent.name, {"provider": None, "model": "two-b"})
-		link_model_providers()
-		self.assertEqual(frappe.db.get_value("AI Agent", self.agent.name, "provider"), P2)

@@ -7,6 +7,7 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent import install
+from ai_agent.ai_agent.doctype.ai_skill_grant.ai_skill_grant import grant_standard_skills
 from ai_agent.runtime.skill_registry import SKILLS_DIR, SkillRegistry
 from ai_agent.runtime.tool_registry import ToolRegistry
 
@@ -92,34 +93,25 @@ class TestCustomizationSkillInstall(IntegrationTestCase):
 		self.assertIn("customize.request_server_script", [row.tool_name for row in skill.tools])
 
 	def test_granted_to_system_manager_only(self):
-		install.create_default_skill_grants()
+		grant_standard_skills()
 		grants = frappe.get_all("AI Skill Grant", filters={"skill": SKILL}, fields=["agent", "grant_type", "role", "enabled"])
 		self.assertFalse([g for g in grants if g.grant_type != "Role"], "never an All Users / User grant from the app")
 		self.assertTrue(grants)
 		self.assertEqual({g.role for g in grants}, {"System Manager"})
-		analyst = install._get_agent_docname("ERP Analyst")
+		analyst = frappe.db.exists("AI Agent", "ERP Analyst")
 		self.assertFalse([g for g in grants if g.agent == analyst], "the read-only analyst never gets it")
-		operations = install._get_agent_docname("ERP Operations Agent")
+		operations = frappe.db.exists("AI Agent", "ERP Operations Agent")
 		if operations:
 			self.assertIn(operations, {g.agent for g in grants})
 		# idempotent: a second run adds nothing
-		install.create_default_skill_grants()
+		grant_standard_skills()
 		self.assertEqual(len(frappe.get_all("AI Skill Grant", filters={"skill": SKILL})), len(grants))
 
 	def test_not_offered_without_the_role(self):
-		install.create_default_skill_grants()
-		operations = install._get_agent_docname("ERP Operations Agent")
+		grant_standard_skills()
+		operations = frappe.db.exists("AI Agent", "ERP Operations Agent")
 		if not operations:
 			self.skipTest("no ERP Operations Agent on this site")
 		with patch.object(frappe, "get_roles", return_value=["Accounts User"]):
 			grants = SkillRegistry()._get_matching_grants("someone@example.com", operations)
 		self.assertNotIn(SKILL, {g.skill for g in grants})
-
-	def test_seeds_rate_limit_only_when_the_field_exists(self):
-		if not frappe.get_meta("AI Settings").has_field("customization_max_requests_per_hour"):
-			install.ensure_new_setting_defaults()  # must not write an unknown field
-			self.assertFalse(frappe.db.sql("select 1 from `tabSingles` where doctype='AI Settings' and field='customization_max_requests_per_hour'"))
-			return
-		frappe.db.sql("delete from `tabSingles` where doctype='AI Settings' and field='customization_max_requests_per_hour'")
-		install.ensure_new_setting_defaults()
-		self.assertEqual(frappe.db.get_single_value("AI Settings", "customization_max_requests_per_hour"), 20)

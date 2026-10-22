@@ -4,6 +4,14 @@ from frappe.model.document import Document
 
 
 class AIProvider(Document):
+	@staticmethod
+	def prepare_for_import(docdict):
+		"""A preset provider (ai_agent/ai_agent/ai_provider/*.json) is created once; the site's key, models and
+		switches are never replaced."""
+		from ai_agent.standard_records import keep_site_values
+
+		keep_site_values(docdict, keep_all=True)
+
 	def validate(self):
 		if self.provider_type in ("OpenAI Compatible",) and not (self.base_url or "").strip():
 			frappe.throw(_("Base URL is required for an OpenAI Compatible provider."))

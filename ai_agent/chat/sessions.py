@@ -13,6 +13,7 @@ from ai_agent.ai_agent.doctype.ai_provider.ai_provider import chat_capable
 from ai_agent.engine import runner
 from ai_agent.permissions import owner_filters
 from ai_agent.runtime import policy
+from ai_agent.runtime.tool_names import registry_name
 from ai_agent.chat.common import (
     SURFACE,
     USAGE_KEYS,
@@ -207,7 +208,7 @@ def export_session(session):
     tools = {}
     if messages:
         for row in frappe.get_all("AI Message Block", filters={"message": ("in", [m.name for m in messages]), "block_type": "tool_use"}, fields=["message", "tool_name"], order_by="seq asc"):
-            tools.setdefault(row.message, []).append((row.tool_name or "").replace("__", "."))
+            tools.setdefault(row.message, []).append(registry_name(row.tool_name))
     lines = [f"# {doc.title or _('Conversation')}", "", f"*{doc.agent or ''} · {frappe.utils.format_datetime(doc.creation)}*", ""]
     for m in messages:
         who = _("You") if m.role == "user" else (_("Assistant") + (f" ({m.model})" if m.model else ""))

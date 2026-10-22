@@ -1,0 +1,19 @@
+{
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "The document as a PDF in its official print format: invoice, order, voucher",
+ "docstatus": 0,
+ "doctype": "AI Plugin",
+ "enabled": 1,
+ "icon": "printer",
+ "idx": 0,
+ "instructions": "Find the exact document the user means (data.query on its DocType with the customer/date/number they gave; ask only if several match), then call export.print once with doctype and name. Use the default print format unless the user named one. Reply with one line naming the document.",
+ "is_standard": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "print",
+ "output": "PDF",
+ "owner": "Administrator",
+ "plugin_name": "print",
+ "title": "Print a Document",
+ "tool": "export.print"
+}

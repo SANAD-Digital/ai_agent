@@ -62,7 +62,7 @@ def _with_tail(row, blocks):
     if row.get("status") != "streaming":
         return blocks
     try:
-        tail = frappe.cache().hgetall(runner.TAIL_KEY.format(row.name)) or {}
+        tail = frappe.cache.hgetall(runner.TAIL_KEY.format(row.name)) or {}
     except Exception:
         return blocks
     if not tail:

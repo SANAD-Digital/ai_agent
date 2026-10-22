@@ -648,7 +648,7 @@ cf.save_customization()
 | أدوار Frappe المطلوبة للنوع: System Manager، وفوقه **Script Manager** للخادم وQuery Report. Administrator مسموح | للطالب عند الطلب، و**للمعتمِد** عند التنفيذ |
 | الوكيل: `allow_actions=1` و`read_only=0` | `ToolExecutor.allowed` و`MCPService._is_exposed` |
 | السطح: Desk chat (`surface="Desk"`) دائماً عند التفعيل. MCP فقط إن كان `customization_allow_mcp=1` (افتراضي 0). فقاعة الدعم (`Chatbot`) وواتساب: **أبداً** | `policy.available(user, surface)` |
-| مهارة `customization` تُمنح بـ `AI Skill Grant(grant_type=Role, role="System Manager")` فقط، ولا تُمنح لـ "ERP Analyst" | `install.create_default_skill_grants` |
+| مهارة `customization` تُمنح بـ `AI Skill Grant(grant_type=Role, role="System Manager")` فقط، ولا تُمنح لـ "ERP Analyst" | `ai_skill_grant.grant_standard_skills` |
 
 **لا دور جديد** (القرار D3). أدوار Frappe هي حد الصلاحية الحقيقي، فـ Frappe نفسه يرفض حفظ Server Script لمن لا يحمل Script Manager. إضافة دور يكررها، ولا تضيف حماية.
 

@@ -1,32 +1,25 @@
 """The job that produces one assistant message.
 
-Wires provider, tools, skills, memory and history into the pure loop, then
-consumes its events: blocks are persisted (batched), every event is published
-over realtime with its payload, and the message / run / session records are
+Wires provider, tools, skills, memory and history into the pure loop (run_setup.RunSetup), then
+consumes its events: blocks are persisted (block_store.BlockStore), every event is published
+over realtime with its payload (publisher.Publisher), and the message / run / session records are
 brought to their final state. Cancellation is checked between events through
 a Redis flag set by the API plus the run's cancel_requested column.
 """
 
 from __future__ import annotations
 
-import json
 import time
 
 import frappe
 from frappe.utils import cint, now_datetime
 
-from ai_agent.engine import memory as memory_mod
 from ai_agent.engine import skills as skills_mod
-from ai_agent.engine.context import files as files_mod
-from ai_agent.engine.context import history as history_mod
-from ai_agent.engine.context import system_prompt
-from ai_agent.engine.context.compactor import Compactor, budget_for
+from ai_agent.engine.block_store import BlockStore, stored_kind  # noqa: F401 (stored_kind: re-exported)
 from ai_agent.engine.errors import user_message
 from ai_agent.engine.events import (
     ApprovalAutoExecuted,
     ApprovalRequested,
-    QuestionAsked,
-    SuggestionsShown,
     ArtifactCreated,
     BlockDelta,
     BlockDone,
@@ -38,56 +31,26 @@ from ai_agent.engine.events import (
     MessageFailed,
     MessageStarted,
     ProviderError,
+    QuestionAsked,
     SkillLoaded,
+    SuggestionsShown,
     ToolResultEvent,
     UsageEvent,
 )
-from ai_agent.engine.loop import Loop, LoopConfig, summarizer
 from ai_agent.engine.providers.base import CancelToken
 from ai_agent.engine.providers.factory import provider_for
-from ai_agent.engine.tools import ToolExecutor
+from ai_agent.engine.publisher import TAIL_KEY, Publisher  # noqa: F401 (re-exported: runner.Publisher, runner.TAIL_KEY)
+from ai_agent.engine.run_setup import CANCEL_KEY, RunSetup, run_options
 from ai_agent.engine.types import TEXT, Block, Usage
-from ai_agent.runtime.permission_context import PermissionContext
 from ai_agent.runtime.run_control import run_timeout_seconds
 
-REALTIME_EVENT = "ai_agent:chat"
 JOB_PREFIX = "ai-chat-msg-"
-CANCEL_KEY = "ai:chat:cancel:{}"
-TAIL_SECONDS = 0.3
 # Provider failures that say the chosen model cannot be used now; anything else (a bug, a timeout) still fails.
 FALLBACK_KINDS = frozenset({"auth", "quota", "model", "not_chat", "no_tools", "rate_limit"})
-TAIL_KEY = "ai:chat:tail:{}"
-FLUSH_SECONDS = 2.0
-DELTA_COALESCE_CHARS = 24
-DELTA_COALESCE_SECONDS = 0.06
-
-
-def run_options(route):
-    """`skill:x;thinking:adaptive` on AI Run.route -> dict."""
-    out = {}
-    for part in (route or "").split(";"):
-        key, _, value = part.partition(":")
-        if key and value:
-            out[key.strip()] = value.strip()
-    return out
 
 
 def job_id(message):
     return f"{JOB_PREFIX}{message}"
-
-
-def stored_kind(kind):
-    """The block type as the site's schema knows it. Code deployed before `bench migrate` may emit a type the
-    Select field does not list yet; storing it would fail the whole reply ("Block Type cannot be ..."), so it is
-    kept as a status block and logged once per type instead."""
-    options = (frappe.get_meta("AI Message Block").get_field("block_type").options or "").split("\n")
-    if kind in options:
-        return kind
-    key = f"ai_agent:unknown_block_type:{kind}"
-    if not frappe.cache().get_value(key):
-        frappe.cache().set_value(key, 1, expires_in_sec=3600)
-        frappe.log_error(f"Block type '{kind}' is not in AI Message Block.block_type on this site: run bench migrate.", "AI Chat schema behind code")
-    return "status"
 
 
 def job_is_alive(message):
@@ -139,7 +102,7 @@ def fail_orphaned_message(message, error):
 
 
 def request_cancel(message):
-    frappe.cache().set_value(CANCEL_KEY.format(message), "1", expires_in_sec=3600)
+    frappe.cache.set_value(CANCEL_KEY.format(message), "1", expires_in_sec=3600)
 
 
 def execute_message(message, user=None, resume=False):
@@ -152,48 +115,7 @@ def execute_message(message, user=None, resume=False):
     Runner(doc).run(resume=resume)
 
 
-class Publisher:
-    """Realtime publisher with delta coalescing and a monotonic event sequence."""
-
-    def __init__(self, session, message, user, start_seq=0):
-        self.session, self.message, self.user = session, message, user
-        self.seq = start_seq
-        self._delta = None      # (block_seq, text, t0)
-
-    def publish(self, event):
-        if isinstance(event, BlockDelta):
-            if self._delta and self._delta[0] == event.block_seq and len(self._delta[1]) < DELTA_COALESCE_CHARS and time.monotonic() - self._delta[2] < DELTA_COALESCE_SECONDS:
-                self._delta = (event.block_seq, self._delta[1] + event.delta, self._delta[2])
-                return
-            self.flush()
-            self._delta = (event.block_seq, event.delta, time.monotonic())
-            if len(event.delta) >= DELTA_COALESCE_CHARS:
-                self.flush()
-            return
-        self.flush()
-        self._send(event.to_dict())
-
-    def flush(self):
-        if self._delta:
-            block_seq, text, _ = self._delta
-            self._delta = None
-            self._send({"type": "block.delta", "block_seq": block_seq, "delta": text})
-
-    def _send(self, payload):
-        self.seq += 1
-        try:
-            frappe.publish_realtime(REALTIME_EVENT, {"session": self.session, "message": self.message, "seq": self.seq, "event": payload}, user=self.user)
-        except Exception:
-            pass   # realtime is best-effort: the browser resyncs from the saved blocks
-        # The live sequence rides in the delta tail so a resync (get_message) can
-        # tell the client exactly which realtime events are already included.
-        try:
-            frappe.cache().hset(TAIL_KEY.format(self.message), "_seq", self.seq)
-        except Exception:
-            pass   # cache hint only: a resync without it replays from the saved blocks
-
-
-class Runner:
+class Runner(RunSetup, BlockStore):
     def __init__(self, message_doc):
         self.msg = message_doc
         self.session = frappe.get_doc("AI Chat Session", self.msg.session)
@@ -208,153 +130,6 @@ class Runner:
         self.last_flush = time.monotonic()
         self.started = time.monotonic()
         self.tail = TAIL_KEY.format(self.msg.name)
-
-    # -- setup ---------------------------------------------------------------------
-
-    def cancel_token(self):
-        cache = frappe.cache()
-        key = CANCEL_KEY.format(self.msg.name)
-        run_name = self.run_doc.name if self.run_doc else None
-
-        def check():
-            # use_local_cache=False: the first miss is otherwise kept in frappe.local.cache for the whole job,
-            # and the Stop button's flag (set by the web worker) is never seen.
-            if cache.get_value(key, use_local_cache=False):
-                return True
-            return bool(run_name and frappe.db.get_value("AI Run", run_name, "cancel_requested"))
-
-        return CancelToken(check=check)
-
-    def build(self, resume):
-        provider, provider_name, model = provider_for(*(getattr(self, "override", None) or (self.session.provider, self.session.model)))
-        caps = provider.caps(model)
-        ctx = PermissionContext(self.user, self.agent.name, self.session.company)
-        executor = ToolExecutor(ctx, self.agent, self.run_doc.name if self.run_doc else None, settings=self.settings, session=self.session.name)
-
-        granted = skills_mod.granted(ctx)
-        implicit, advertised = skills_mod.split(granted, ctx)
-        catalog = ""
-        if executor.allowed("metrics.query"):
-            try:
-                from ai_agent.metrics.catalog import metric_catalog_text
-
-                catalog = metric_catalog_text() or ""
-            except Exception:
-                frappe.log_error(frappe.get_traceback(), "AI chat: metric catalog for the prompt")
-                catalog = ""
-        static = system_prompt.static_prompt(
-            self.agent.agent_name or self.agent.name,
-            agent_instructions=self.agent.system_instructions or "",
-            site_instructions=self.site_instructions(),
-            implicit_skills=implicit,
-            advertised_skills=advertised,
-            metric_catalog=catalog,
-            tool_groups=executor.groups_for_prompt(),
-        )
-
-        user_msg = frappe.get_doc("AI Chat Message", self.msg.parent_message) if self.msg.parent_message else None
-        prompt_text = (user_msg.text if user_msg else "") or ""
-        document_context = ""
-        if user_msg and user_msg.context_doctype and user_msg.context_name:
-            try:
-                from ai_agent.runtime.document_context import build as build_doc_context
-
-                document_context = build_doc_context(user_msg.context_doctype, user_msg.context_name, self.user) or ""
-            except Exception:
-                frappe.log_error(frappe.get_traceback(), f"AI chat: document context {user_msg.context_doctype} {user_msg.context_name}")
-                document_context = ""
-        dynamic = system_prompt.dynamic_prompt(
-            self.user,
-            frappe.db.get_value("User", self.user, "full_name"),
-            frappe.utils.nowdate(),
-            company=self.session.company,
-            memory_text=memory_mod.recall(ctx, self.agent, prompt_text),
-            document_context=document_context,
-        )
-
-        # History: every finished turn before this one, then the current user turn.
-        exclude = {self.msg.name}
-        if user_msg:
-            exclude.add(user_msg.name)
-        messages = history_mod.load(self.session.name, exclude=exclude)
-        current_turn = []
-        if user_msg:
-            user_blocks = [Block(kind=TEXT, text=prompt_text)] if prompt_text else []
-            user_blocks += self.attachment_blocks(user_msg.name, caps)
-            current_turn.append(("user", user_msg.seq, user_msg.name, user_blocks))
-        start_seq = 0
-        if resume:
-            own = frappe.get_all("AI Message Block", filters={"message": self.msg.name}, fields=["seq", "block_type", "status", "content", "content_json", "tool_call_id", "tool_name", "signature"], order_by="seq asc")
-            own_blocks = [history_mod.block_from_row(r) for r in own]
-            current_turn.append(("assistant", self.msg.seq, self.msg.name, own_blocks))
-            start_seq = (max((b.seq for b in own_blocks), default=-1) + 1)
-        messages = messages + history_mod.to_messages(current_turn)
-
-        cancel = self.cancel_token()
-        options = run_options(self.run_doc.route if self.run_doc else "")
-        thinking = options.get("thinking") or self.agent.get("thinking") or "off"
-        if not caps.supports_thinking:
-            thinking = "off"
-        config = LoopConfig(
-            model=model,
-            provider_name=provider_name,
-            max_steps=cint(self.agent.maximum_steps) or cint(self.settings.maximum_steps) or 20,
-            max_tool_calls=cint(self.agent.maximum_tool_calls) or cint(self.settings.maximum_tool_calls) or 40,
-            # The model row's Max Output Tokens (AI Provider > Models), else the family default.
-            max_tokens=cint(caps.max_output_tokens) or 8192,
-            thinking=thinking,
-            thinking_budget=cint(self.agent.get("thinking_budget_tokens")),
-            effort=(self.agent.reasoning_effort or self.settings.get("default_reasoning_effort") or ""),
-        )
-        # A long possible reply must not starve the history: reserve at most a quarter of the window for it.
-        budget = budget_for(caps.context_window, min(config.max_tokens, (caps.context_window or 0) // 4 or config.max_tokens))
-        compactor = Compactor(budget, summarize=summarizer(provider, model, cancel))
-        loop = Loop(provider, executor, compactor, cancel, config, static, dynamic)
-        self.caps = caps
-        self.provider_name, self.model = provider_name, model
-        return loop, executor, messages, start_seq
-
-    def site_instructions(self):
-        """Organisation instructions, plus the support desk's own prompt when
-        this conversation comes from the floating support bubble."""
-        parts = [self.settings.system_instructions or ""]
-        if self.session.get("surface") == "Chatbot":
-            try:
-                from ai_agent.chatbot import settings as bot_settings
-
-                parts.append(bot_settings.system_prompt())
-                parts.append(
-                    "You are answering inside a small floating support panel: keep replies short and practical, "
-                    "one step at a time, and when the user has a document open (see 'Document the user has open') "
-                    "assume their question is about it."
-                )
-            except Exception:
-                frappe.log_error(frappe.get_traceback(), "AI chat: chatbot system prompt")
-        return "\n\n".join(p for p in parts if p)
-
-    def attachment_blocks(self, message_name, caps):
-        """Attachment blocks of a user message. Read once (OCR is slow), then kept
-        on the message as `document` blocks so later turns replay the same text
-        from history instead of losing it. Native image/PDF payloads are not
-        stored (size); a note points the model at files__read instead."""
-        stored = frappe.get_all(
-            "AI Message Block",
-            filters={"message": message_name, "block_type": ("in", ("document", "image"))},
-            fields=["seq", "block_type", "status", "content", "content_json", "tool_call_id", "tool_name", "signature"],
-            order_by="seq asc",
-        )
-        if stored:
-            return [history_mod.block_from_row(r) for r in stored]
-        blocks = files_mod.blocks_for(message_name, caps)
-        for i, b in enumerate(blocks, start=1):
-            native = bool(b.data.get("data"))
-            text = b.text if not native else f"[{b.name} was shown to the model as an {'image' if b.kind == 'image' else 'attached PDF'} when it was uploaded; call files__read to read its text again.]"
-            doc = frappe.get_doc({"doctype": "AI Message Block", "message": message_name, "seq": i, "block_type": "document", "status": "completed", "tool_name": b.name or None})
-            doc.insert(ignore_permissions=True)
-            frappe.db.set_value("AI Message Block", doc.name, "content", text, update_modified=False)   # verbatim, no HTML sanitising
-        if blocks:
-            frappe.db.commit()
-        return blocks
 
     # -- run -------------------------------------------------------------------------
 
@@ -403,8 +178,8 @@ class Runner:
         finally:
             self.pub.flush()
             try:
-                frappe.cache().delete_value(self.tail)
-                frappe.cache().delete_value(CANCEL_KEY.format(self.msg.name))
+                frappe.cache.delete_value(self.tail)
+                frappe.cache.delete_value(CANCEL_KEY.format(self.msg.name))
             except Exception:
                 pass   # cache cleanup only: both keys expire on their own
 
@@ -490,110 +265,7 @@ class Runner:
         current = cint(frappe.db.get_value("AI Chat Session", self.session.name, "summary_through_seq"))
         return max(current, cint(getattr(event, "summary_through_seq", 0)))
 
-    # -- block persistence ----------------------------------------------------------------
-
-    def open_block(self, seq, kind, id="", name=""):
-        doc = frappe.get_doc({
-            "doctype": "AI Message Block",
-            "message": self.msg.name,
-            "seq": seq,
-            "block_type": stored_kind(kind),
-            "status": "streaming",
-            "tool_call_id": id or None,
-            "tool_name": name or None,
-            "started_at": now_datetime(),
-        })
-        doc.insert(ignore_permissions=True)
-        self.blocks[seq] = {"name": doc.name, "kind": kind, "text": "", "started": time.monotonic(), "dirty": False}
-
-    def close_block(self, seq, block):
-        entry = self.blocks.get(seq)
-        if entry is None:
-            self.insert_block(seq, block)
-            return
-        values = {
-            "status": "failed" if block.get("is_error") else "completed",
-            "content": block.get("text") or entry["text"],
-            "completed_at": now_datetime(),
-            "duration_ms": int((time.monotonic() - entry["started"]) * 1000),
-        }
-        if block.get("data"):
-            values["content_json"] = json.dumps(block["data"], ensure_ascii=False, default=str)
-        if block.get("signature"):
-            values["signature"] = block["signature"]
-        if block.get("name") and not entry.get("named"):
-            values["tool_name"] = block["name"]
-        if block.get("id"):
-            values["tool_call_id"] = block["id"]
-        frappe.db.set_value("AI Message Block", entry["name"], values, update_modified=False)
-        entry["dirty"] = False
-        entry["closed"] = True
-        self.tail_delete(seq)
-        frappe.db.commit()
-
-    def insert_block(self, seq, block, extra=None):
-        extra = extra or {}
-        # Document.insert() would HTML-sanitize the content ("<<<UNTRUSTED_DATA" markers,
-        # JSON with "<"), so text lands through db.set_value, which stores it verbatim.
-        doc = frappe.get_doc({
-            "doctype": "AI Message Block",
-            "message": self.msg.name,
-            "seq": seq,
-            "block_type": stored_kind(block.get("kind")),
-            "status": "failed" if block.get("is_error") else "completed",
-            "tool_call_id": block.get("id") or None,
-            "tool_name": block.get("name") or None,
-            "tool_call": extra.get("tool_call") or None,
-            "approval": extra.get("approval") or None,
-            "artifact": (block.get("data") or {}).get("artifact") if block.get("kind") == "artifact" else None,
-            "started_at": now_datetime(),
-            "completed_at": now_datetime(),
-            "duration_ms": cint(extra.get("duration_ms")),
-        })
-        doc.insert(ignore_permissions=True)
-        frappe.db.set_value("AI Message Block", doc.name, {
-            "content": block.get("text") or "",
-            "content_json": json.dumps(block["data"], ensure_ascii=False, default=str) if block.get("data") else None,
-        }, update_modified=False)
-        self.blocks[seq] = {"name": doc.name, "kind": block.get("kind"), "text": block.get("text") or "", "started": time.monotonic(), "dirty": False, "closed": True}
-
-    def maybe_flush(self, force=False):
-        if not force and time.monotonic() - self.last_flush < FLUSH_SECONDS:
-            return
-        self.last_flush = time.monotonic()
-        dirty = False
-        for entry in self.blocks.values():
-            if entry.get("dirty") and not entry.get("closed"):
-                frappe.db.set_value("AI Message Block", entry["name"], "content", entry["text"], update_modified=False)
-                entry["dirty"] = False
-                dirty = True
-        if dirty:
-            frappe.db.commit()
-
-    def tail_write(self, seq, text):
-        """The live text a reconnecting browser reads. It is the whole block each time, so it is written at most
-        every TAIL_SECONDS: per delta it grew quadratically with long answers (128K-token replies)."""
-        now = time.monotonic()
-        stamps = self.__dict__.setdefault("tail_at", {})
-        if now - stamps.get(seq, 0) < TAIL_SECONDS:
-            return
-        stamps[seq] = now
-        try:
-            frappe.cache().hset(self.tail, str(seq), text)
-        except Exception:
-            pass   # live tail is a reconnect hint; the block itself is saved
-
-    def tail_delete(self, seq):
-        try:
-            frappe.cache().hdel(self.tail, str(seq))
-        except Exception:
-            pass   # cache cleanup only: the tail key expires on its own
-
     # -- terminal states --------------------------------------------------------------------
-
-    def message_text(self):
-        rows = frappe.get_all("AI Message Block", filters={"message": self.msg.name, "block_type": "text"}, fields=["content"], order_by="seq asc")
-        return "\n\n".join(r.content for r in rows if r.content)
 
     def usage_values(self):
         return {

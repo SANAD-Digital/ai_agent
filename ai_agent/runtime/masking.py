@@ -9,8 +9,13 @@ import re
 
 import frappe
 
+from ai_agent.runtime.tool_names import registry_name
+
 MASK = "[محجوب]"
 
+# Substrings of fieldnames that hold credentials: such fields are dropped from output, not masked.
+SECRET_FIELD_PARTS = ("password", "secret", "token", "api_key", "authorization")
+SECRET_FIELD_TYPES = ("Password", "Password Hash")
 # Substrings of fieldnames whose values are always masked.
 SENSITIVE_FIELD_PARTS = (
 	# Bank identifiers. Not "account_number": that is the chart-of-accounts code.
@@ -43,6 +48,12 @@ def _setting_lines(fieldname):
 
 def salary_doctypes():
 	return SALARY_DOCTYPES | set(_setting_lines("masking_extra_doctypes"))
+
+
+def is_secret_field(fieldname, fieldtype=None):
+	"""A credential: never returned, renamed, aggregated or filtered on."""
+	name = str(fieldname or "").lower()
+	return fieldtype in SECRET_FIELD_TYPES or any(part in name for part in SECRET_FIELD_PARTS)
 
 
 def is_sensitive_field(fieldname, doctype=None):
@@ -81,7 +92,7 @@ def _mask(value, doctype, pay_document):
 
 def result_doctype(tool_name, arguments):
 	arguments = arguments or {}
-	if str(tool_name or "").replace("__", ".") in ("reports.run", "reports.describe"):
+	if registry_name(tool_name) in ("reports.run", "reports.describe"):
 		# A report has no doctype argument: its reference DocType decides (Salary Register -> Salary Slip, so
 		# every amount in it is masked as pay).
 		name = arguments.get("report_name") or arguments.get("name") or arguments.get("report")

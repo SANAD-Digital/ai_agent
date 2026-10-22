@@ -8,7 +8,7 @@ from frappe.tests import IntegrationTestCase
 
 from ai_agent.chat import api, support
 from ai_agent.chatbot import settings as bot_settings
-from ai_agent.engine import runner
+from ai_agent.engine import run_setup, runner
 from ai_agent.engine.providers.fake import FakeProvider
 from ai_agent.tests.utils import ensure_test_agent
 
@@ -81,7 +81,7 @@ class TestChatSupport(IntegrationTestCase):
         company = frappe.get_all("Company", pluck="name", limit=1)[0]
         out = self._send("ما هذا المستند؟", context_doctype="Company", context_name=company)
         provider = FakeProvider([[("text", "هذه شركة")], [("text", "عنوان")]])
-        with patch.object(runner, "provider_for", lambda *a, **k: (provider, "Default", "fake-1")), patch("frappe.publish_realtime", lambda *a, **k: None), \
+        with patch.object(run_setup, "provider_for", lambda *a, **k: (provider, "Default", "fake-1")), patch.object(runner, "provider_for", lambda *a, **k: (provider, "Default", "fake-1")), patch("frappe.publish_realtime", lambda *a, **k: None), \
              patch.object(bot_settings, "system_prompt", return_value="SUPPORT-DESK-PROMPT"):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         req = provider.requests[0]

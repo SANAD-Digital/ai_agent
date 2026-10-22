@@ -35,7 +35,7 @@ from frappe.utils import cint, cstr, flt
 from ai_agent.customization.analyzers.python_code import protected_doctype
 from ai_agent.customization.contract import Check, CustomizationError
 from ai_agent.customization.kinds import _base
-from ai_agent.customization.kinds import workspace as ws
+from ai_agent.customization.kinds import workspace_spec as ws
 
 TOP_KEYS = ("operation", "object", "name", "definition", "workspace", "purpose")
 OPERATIONS = ("create", "update", "delete")
@@ -626,21 +626,21 @@ class DashboardKind:
 		if not any(c.level == "critical" for c in checks):
 			collect = _base.capture_messages()
 			try:
-				with ws.dry_run():
+				with _base.dry_run():
 					self._delete(spec, state)
 				checks.append(Check("dashboard.frappe", "ok", _("It can be deleted (dry run, rolled back)")))
 			except Exception as exc:
-				checks.append(Check("dashboard.frappe", "critical", _("Frappe refuses the change: {0}").format(ws.frappe_error(exc, collect()))))
+				checks.append(Check("dashboard.frappe", "critical", _("Frappe refuses the change: {0}").format(_base.frappe_error(exc, collect()))))
 			collect()
 		return checks
 
 	def _dry_save(self, spec, d, user):
 		collect = _base.capture_messages()
 		try:
-			with ws.dry_run(), _base.as_user(user):
+			with _base.dry_run(), _base.as_user(user):
 				self._save(spec, d)
 		except Exception as exc:
-			return [Check("dashboard.frappe", "critical", _("Frappe refuses the change: {0}").format(ws.frappe_error(exc, collect())))]
+			return [Check("dashboard.frappe", "critical", _("Frappe refuses the change: {0}").format(_base.frappe_error(exc, collect())))]
 		collect()
 		return [Check("dashboard.frappe", "ok", _("Frappe's own validation passes (dry run, rolled back)"))]
 
@@ -658,7 +658,7 @@ class DashboardKind:
 					return [Check("dashboard.preview", "ok", _("The card computes for {0}: {1}").format(user, preview["value"]))]
 				data = self._chart_data(d)
 		except Exception as exc:
-			return [Check("dashboard.preview", "critical", _("It fails to compute: {0}").format(ws.frappe_error(exc)))]
+			return [Check("dashboard.preview", "critical", _("It fails to compute: {0}").format(_base.frappe_error(exc)))]
 		if sensitive:
 			for dataset in data.get("datasets") or []:
 				dataset["values"] = [masking.MASK for _v in dataset.get("values") or []]
@@ -864,7 +864,7 @@ class DashboardKind:
 					self._chart_data(state["definition"])
 				checks.append(Check("verify.dashboard", "ok", _("{0} is saved and computes").format(name)))
 			except Exception as exc:
-				checks.append(Check("verify.run", "critical", _("It does not compute: {0}").format(ws.frappe_error(exc))))
+				checks.append(Check("verify.run", "critical", _("It does not compute: {0}").format(_base.frappe_error(exc))))
 		return checks
 
 	def summary(self, spec):

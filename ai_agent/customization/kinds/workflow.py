@@ -484,7 +484,7 @@ class WorkflowKind:
 		"""Frappe's update_default_workflow_status gives every document with an empty state the first state of its
 		docstatus; documents whose docstatus has no state keep an empty state."""
 		out = []
-		counts = {cstr(r[0]): cint(r[1]) for r in frappe.db.sql(f"select docstatus, count(*) from `tab{doctype}` group by docstatus")}
+		counts = {cstr(r[0]): cint(r[1]) for r in frappe.db.sql(f"select docstatus, count(*) from {_base.table(doctype)} group by docstatus")}
 		with_state = {s["doc_status"] for s in states}
 		first = {}
 		for s in states:
@@ -501,7 +501,8 @@ class WorkflowKind:
 			empty = total
 			if has_column:
 				empty = cint(frappe.db.sql(
-					f"select count(*) from `tab{doctype}` where docstatus = %s and ifnull(`{state_field}`, '') = ''", (cint(status),))[0][0])
+					f"select count(*) from {_base.table(doctype)} where docstatus = %s and ifnull({_base.column(doctype, state_field)}, '') = ''",
+					(cint(status),))[0][0])
 			if empty:
 				out.append(_("{0} {1} document(s) ({2}) without a state are set to {3}").format(empty, doctype, label, first[status]))
 		return out

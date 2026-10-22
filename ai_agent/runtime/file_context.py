@@ -115,7 +115,7 @@ class FileContextService:
     def summarize_file(self, file_doc, progress_run=None):
         cache_key = f"ai_agent:file_summary:{file_doc.name}:{file_doc.modified}"
         try:
-            cached = frappe.cache().get_value(cache_key)
+            cached = frappe.cache.get_value(cache_key)
         except Exception:
             # Cache only: the file is read again below.
             cached = None
@@ -124,7 +124,7 @@ class FileContextService:
         summary = self._summarize_file_uncached(file_doc, progress_run=progress_run)
         if summary and ("extraction: OCR" in summary or "text_preview" in summary):
             try:
-                frappe.cache().set_value(cache_key, summary, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
+                frappe.cache.set_value(cache_key, summary, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
             except Exception:
                 # Cache only: the summary is still returned.
                 pass
@@ -745,7 +745,6 @@ class FileContextService:
             import fitz
 
             path = get_file_path(file_doc.name)
-            filename = file_doc.file_name or file_doc.name
             document = fitz.open(path)
             total = min(len(document), MAX_OCR_PDF_PAGES)
             pages = []
@@ -794,7 +793,6 @@ class FileContextService:
 
             if is_gemini_ocr_enabled() or not claude_ocr.available():
                 return ""
-            filename = file_doc.file_name or file_doc.name
             text = claude_ocr.read_pdf(get_file_path(file_doc.name), FINANCIAL_ATTACHMENT_OCR_PROMPT)
             self._read_by_claude = bool(text)
             return text

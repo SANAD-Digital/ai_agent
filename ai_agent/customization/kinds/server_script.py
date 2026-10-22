@@ -464,7 +464,7 @@ class ServerScriptKind(ScriptKind):
 		"""(SQL of the list query, row count) for ``user``; the count runs under a 5-second statement limit."""
 		sql = str(frappe.get_list(reference, fields=["name"], limit=20, order_by="creation desc", user=user, run=0))
 		count_query = str(frappe.get_list(reference, fields=[{"COUNT": "*", "as": "n"}], user=user, run=0, order_by=""))
-		rows = frappe.db.sql(f"SET STATEMENT max_statement_time=5 FOR {count_query}")
+		rows = _base.statement_limited(count_query)
 		return sql, cint(rows[0][0]) if rows else 0
 
 	def _preview_permission_query(self, spec, merged, reference, user, preview, impact):

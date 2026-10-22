@@ -1,18 +1,13 @@
 /**
  * chat_bubble.js — loader for the floating support chat (every Desk page).
  * Tiny and dependency-free: asks ai_agent.chat.support.bootstrap once after
- * idle, draws the FAB, and lazy-loads chat.css + the chat modules on first open.
+ * idle, draws the FAB, and lazy-loads the chat bundles (chat.bundle.css/js) on first open.
  */
 (function () {
     "use strict";
 
     var KEY = "ai_agent:bubble_open";
-    var BASE = "/assets/ai_agent/";
-    // [module file, key on window.AIChat proving it is already loaded]
-    var MODULES = [
-        ["core", "h"], ["store", "store"], ["transport", "transport"], ["viewhost", "viewHost"], ["blocks", "blocks"],
-        ["message", "message"], ["composer", "composer"], ["list", "messageList"], ["bubble", "bubble"],
-    ];
+    var BUNDLES = ["chat.bundle.css", "chat.bundle.js"];
     // the Musaed launcher robot (musaed-brand/components/chat-widget-demo.html): white head on the clay button
     var ROBOT = '<svg class="acb-icon acb-robot ms-robot" data-state="idle" viewBox="0 0 100 100" aria-hidden="true" focusable="false">' +
         '<g transform="translate(50 50) scale(0.95) translate(-50 -42)"><g class="ms-body">' +
@@ -46,21 +41,20 @@
     }
 
     /**
-     * Insert one asset the way frappe.require does, without its frappe.dom.freeze():
-     * each require call fades the #freeze backdrop in and out, so ten of them made
-     * the page flicker before the panel showed. Scripts use async=false so they
-     * download in parallel but run in insertion order (the modules depend on each
-     * other). The path goes into frappe.assets._executed so the agent-workspace
-     * page, which still uses frappe.require, never runs a module twice.
+     * Insert one bundle the way frappe.require does, without its frappe.dom.freeze()
+     * (the #freeze backdrop flickered before the panel showed). The name resolves to
+     * its hashed file; the stylesheet is always the LTR build, which the chat CSS is
+     * written for (logical properties). The path goes into frappe.assets._executed so
+     * a frappe.require of the same bundle never runs it twice.
      */
     var inflight = {}; // path -> promise, so the bubble and the page never insert a file twice
 
-    function insert(path) {
+    function insert(name) {
         var assets = frappe.assets;
+        var path = assets && assets.bundled_asset ? assets.bundled_asset(name, false) : name;
         if (assets && assets._executed && assets._executed.indexOf(path) !== -1) return Promise.resolve();
         if (inflight[path]) return inflight[path];
-        var v = frappe.boot.developer_mode ? Date.now() : window._version_number;
-        var url = path + (v ? "?v=" + encodeURIComponent(v) : "");
+        var url = path;
         var css = /\.css$/.test(path);
         inflight[path] = new Promise(function (resolve, reject) {
             var el = document.createElement(css ? "link" : "script");
@@ -77,30 +71,26 @@
             };
             el.onerror = function () {
                 delete inflight[path]; // a later call may retry
-                reject(new Error("ai_agent: failed to load " + path));
+                reject(new Error("ai_agent: failed to load " + name));
             };
             document.head.appendChild(el);
         });
         return inflight[path];
     }
 
-    /** Shared with the agent-workspace page: load assets without the #freeze flicker. */
+    /** Shared with the agent-workspace page: load the chat bundles without the #freeze flicker. */
     window.aiAgentAssets = {
-        load: function (paths) {
-            return Promise.all(paths.map(insert));
+        BUNDLES: BUNDLES,
+        load: function (names) {
+            return Promise.all((names || BUNDLES).map(insert));
         },
     };
 
-    /** Load chat.css and the missing modules together; mount once all have run. */
+    /** Load the chat bundles; mount once they have run. */
     function load() {
         if (loading) return loading;
         loading = (async function () {
-            var items = [insert(BASE + "css/chat.css")];
-            for (var i = 0; i < MODULES.length; i++) {
-                if (window.AIChat && window.AIChat[MODULES[i][1]]) continue;
-                items.push(insert(BASE + "js/chat/" + MODULES[i][0] + ".js"));
-            }
-            await Promise.all(items);
+            await window.aiAgentAssets.load();
             if (!window.AIChat || !window.AIChat.bubble) throw new Error("ai_agent: chat bubble failed to load");
             window.AIChat.bubble.mount(boot);
             return window.AIChat.bubble;

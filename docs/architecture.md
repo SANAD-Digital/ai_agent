@@ -4,8 +4,9 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
 
 ## 1. Chat engine (`engine/`)
 - **`runner.py`** runs one assistant message as a background job (`execute_message`).
-  - Streams blocks into `AI Message Block` and publishes realtime events to the owner only.
-  - Handles stop, the fallback model, and compaction.
+  - Handles the loop's events, stop, the fallback model, compaction and the final state of the message.
+  - `run_setup.py` wires provider, tools, skills, prompt, memory, history and attachments into the loop.
+  - `block_store.py` streams blocks into `AI Message Block`; `publisher.py` sends realtime events to the owner only.
 - **`loop.py`** is the model ↔ tools loop.
   - Covers steps, tool budgets, the repeated-error guard, the max-tokens handling, and one nudge when tools ran but no answer was written.
 - **`providers/`** holds the providers: Anthropic (native streaming, adaptive thinking with summarized display) and OpenAI-compatible. `factory.provider_for()` picks one from **AI Provider**.
@@ -13,7 +14,8 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
   - Wraps every tool result as untrusted data and masks sensitive fields.
   - Turns `actions.*` / `customize.*` calls into approval requests.
 - **`context/`** builds the system prompt (with the untrusted-data rule), history, compaction, and files.
-- The Desk UI is `public/js/chat/*` (plain JS, no build step). The API is `chat/api.py`. The support bubble is `chat/support.py`.
+- The Desk UI is `public/js/chat/*` (plain JS modules), built by `bench build` into `chat.bundle.js` and
+  `chat.bundle.css`. The page and the support bubble load the bundles on demand (`chat_bubble.js`). The API is `chat/api.py`. The support bubble is `chat/support.py`.
 
 ## 2. MCP server (`mcp/`)
 - **`api.handle`** is the MCP endpoint for Claude, ChatGPT and other hosts.
@@ -25,20 +27,32 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
 ## 3. Runtime and tools (`runtime/`, `tools/`, `query/`)
 - **`tool_gateway.py`** checks agent, skill and argument rules, then runs the tool handler.
   - Writes one `AI Tool Call` audit row per call (Executed, Failed or Denied).
-- **`approval_engine.py`** handles request → approve → execute → verify.
+- **`approval_engine.py`** handles request → approve → execute → verify. `decide()` is the only decision path.
+  - `approval_checks.py`: who may request or execute; `approval_execution.py`: one executor per action type.
   - Covers four-eyes, expiry, payload hash, unchanged-document checks, and the MCP retry de-duplication.
 - **`policy.py`** decides what can never be written: the code, access and agent-configuration DocTypes, and the provider policy.
-- **`masking.py`** hides salaries, IBANs and IDs. **`query/validator.py`** keeps protected fields from being renamed, aggregated or filtered.
+- **`masking.py`** hides salaries, IBANs and IDs, and holds the one list of credential fields (`is_secret_field`). **`query/validator.py`** keeps protected fields from being renamed, aggregated or filtered.
+- **Tool names:** `data.query` in the registry and `AI Tool Call`; `data__query` at providers and MCP hosts and in `AI Message Block`. Convert only through `runtime/tool_names.py`.
 
 ## 4. Customization (`customization/`)
 - **`kinds/*`** covers fields, properties, client and server scripts, reports, print formats, notifications, workflows, workspaces, dashboards, list settings, naming, permissions, web pages and forms, and custom DocTypes.
   - Each kind describes itself in `kinds/<kind>_tool.json`.
+  - Large kinds keep their request data apart: `workspace_spec.py` for workspaces, `analyzers/web_content.py` for web pages.
 - **`analyzers/*`** are the static checks that run before a human approves:
   - Python: `safe_exec` rules, aliases, computed DocTypes.
-  - JavaScript: acorn.
+  - JavaScript: acorn 8, shipped in `analyzers/vendor/acorn` (node comes from `site_config.node_path`, then PATH, then nvm).
   - SQL: sqlglot.
   - Jinja.
 - They are owned by the **Implementation** agent. Each kind has an AI Settings switch, and the Frappe roles of the kind apply.
+- Raw SQL in a kind quotes names only through `kinds/_base.table()` / `column()`, which refuse a table or column that does not exist.
+
+## Install and migrate
+- Frappe syncs the app's content from its own places: the workspace, `desktop_icon/`, `workspace_sidebar/`,
+  the roles (from the DocType permissions) and the standard agents, plugins and preset providers
+  (`ai_agent/ai_agent/{ai_agent,ai_plugin,ai_provider}/`, `importable_doctypes`). A re-import keeps what the site
+  owns (`standard_records.py`).
+- `install.sync` (after install and migrate) handles only what comes from code: tool options, skills and their
+  grants, the support chatbot agent and the default metrics. Details: `STANDARD_CONFIGURATION.md`.
 
 ## Operations
 - **AI Agent Health report and hourly alert:** `runtime/health.py`.

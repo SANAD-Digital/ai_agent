@@ -4,6 +4,7 @@ import time
 
 import frappe
 from ai_agent.runtime.exceptions import ToolDenied
+from ai_agent.runtime.tool_names import registry_name
 
 
 def coerce_to_schema(schema, values):
@@ -62,7 +63,7 @@ class ToolGateway:
 
     def _authorize_and_execute(self, tool_name, arguments, run_name=None, step_name=None, agent_doc=None):
         """Authorize a tool call and execute it."""
-        tool_name = tool_name.replace("__", ".")
+        tool_name = registry_name(tool_name)
         if tool_name.startswith("repo."):
             tool_name = tool_name[5:]
         elif tool_name.startswith("tools."):
@@ -127,7 +128,7 @@ class ToolGateway:
 
     def create_approval(self, tool_name, arguments, run_name, step_name, agent_doc):
         """Create an approval request for a write action."""
-        tool_name = tool_name.replace("__", ".")
+        tool_name = registry_name(tool_name)
         if tool_name.startswith("repo."):
             tool_name = tool_name[5:]
         elif tool_name.startswith("tools."):

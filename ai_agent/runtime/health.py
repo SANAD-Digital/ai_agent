@@ -86,9 +86,9 @@ def check_and_alert():
 
 def _notify(key, text):
     cache_key = f"ai_agent:health_alert:{key}"
-    if frappe.cache().get_value(cache_key):
+    if frappe.cache.get_value(cache_key):
         return
-    frappe.cache().set_value(cache_key, 1, expires_in_sec=6 * 3600)
+    frappe.cache.set_value(cache_key, 1, expires_in_sec=6 * 3600)
     users = frappe.get_all("Has Role", filters={"role": "System Manager", "parenttype": "User", "parent": ("not in", ("Administrator", "Guest"))}, pluck="parent")
     users = [u for u in set(users) if frappe.db.get_value("User", u, "enabled")] or ["Administrator"]
     for user in users:

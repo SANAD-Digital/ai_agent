@@ -1,0 +1,21 @@
+{
+ "agent_name": "ERP Analyst",
+ "allow_actions": 0,
+ "allow_customization": 0,
+ "compact_session": "Session purpose: read-only ERP analysis.\nSession rules: answer from discovered ERP data, keep filters/company/date explicit, do not perform writes, and do not reuse failed prior-run output as factual data.",
+ "creation": "2026-10-22 12:00:00.000000",
+ "description": "Read-only data analysis agent for ERPNext",
+ "docstatus": 0,
+ "doctype": "AI Agent",
+ "enabled": 1,
+ "idx": 0,
+ "is_default": 1,
+ "modified": "2026-10-22 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "ERP Analyst",
+ "owner": "Administrator",
+ "read_only": 1,
+ "reasoning_effort": "medium",
+ "require_approval_for_all_writes": 1,
+ "system_instructions": "You are an ERP data analyst. Analyze data and provide insights. Do not perform write operations. Ask one concise clarification only when required."
+}

@@ -3,6 +3,13 @@ from frappe.model.document import Document
 
 
 class AIAgent(Document):
+    @staticmethod
+    def prepare_for_import(docdict):
+        """A standard agent (ai_agent/ai_agent/ai_agent/*.json) keeps the site's switch, provider and model."""
+        from ai_agent.standard_records import keep_site_values
+
+        keep_site_values(docdict, ("enabled", "is_default"))
+
     def validate(self):
         from ai_agent.engine.providers.factory import validate_provider_model
 

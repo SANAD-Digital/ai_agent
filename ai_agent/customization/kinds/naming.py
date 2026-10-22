@@ -444,19 +444,20 @@ class NamingKind:
 		if fieldname not in frappe.db.get_table_columns(doctype):
 			checks.append(Check("naming.field", "critical", _("{0} is not stored in the database").format(fieldname)))
 			return []
+		tab, col = _base.table(doctype), _base.column(doctype, fieldname)
 		dupes = frappe.db.sql(
-			f"""select `{fieldname}`, count(*) from `tab{doctype}` where ifnull(`{fieldname}`, '') != ''
-			group by `{fieldname}` having count(*) > 1 order by count(*) desc limit 5""")
+			f"""select {col}, count(*) from {tab} where ifnull({col}, '') != ''
+			group by {col} having count(*) > 1 order by count(*) desc limit 5""")
 		if dupes:
 			total = cint(frappe.db.sql(
-				f"""select count(*) from (select 1 from `tab{doctype}` where ifnull(`{fieldname}`, '') != ''
-				group by `{fieldname}` having count(*) > 1) d""")[0][0])
+				f"""select count(*) from (select 1 from {tab} where ifnull({col}, '') != ''
+				group by {col} having count(*) > 1) d""")[0][0])
 			sample = ", ".join(f"{cstr(v)} ({n})" for v, n in dupes)
 			checks.append(Check("naming.field_duplicates", "critical",
 				_("{0} value(s) of {1}.{2} repeat in existing documents (e.g. {3}); Frappe makes the field unique, which fails").format(total, doctype, fieldname, sample)))
 		else:
 			checks.append(Check("naming.field_unique", "info", _("{0} becomes unique (Frappe adds a unique index: a schema change)").format(fieldname)))
-		empty = cint(frappe.db.sql(f"select count(*) from `tab{doctype}` where ifnull(`{fieldname}`, '') = ''")[0][0])
+		empty = cint(frappe.db.sql(f"select count(*) from {tab} where ifnull({col}, '') = ''")[0][0])
 		if not cint(df.reqd):
 			checks.append(Check("naming.field_optional", "warning",
 				_("{0} is optional: a new document without it fails with '{1} is required'").format(fieldname, df.label or fieldname)))

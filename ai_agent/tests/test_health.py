@@ -10,10 +10,10 @@ from ai_agent.runtime import health
 
 class TestHealth(IntegrationTestCase):
 	def setUp(self):
-		frappe.cache().delete_keys("ai_agent:health_alert:")
+		frappe.cache.delete_keys("ai_agent:health_alert:")
 
 	def tearDown(self):
-		frappe.cache().delete_keys("ai_agent:health_alert:")
+		frappe.cache.delete_keys("ai_agent:health_alert:")
 		frappe.db.delete("Notification Log", {"subject": ["like", "%AI assistant%test-stuck%"]})
 
 	def test_report_runs(self):

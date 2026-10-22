@@ -1,13 +1,14 @@
 """Integration tests for the chat API and the runner, with a scripted
 provider in place of the real model. Tools run for real through the gateway."""
 
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.chat import api
-from ai_agent.engine import runner
+from ai_agent.engine import run_setup, runner
 from ai_agent.engine.errors import user_message
 from ai_agent.engine.providers.base import CancelToken
 from ai_agent.engine.providers.fake import FakeProvider
@@ -21,6 +22,13 @@ def fake_provider(scripts):
         return provider, "Default", model or "fake-1"
 
     return provider, _provider_for
+
+
+@contextmanager
+def providers(provider_for):
+    """The runner resolves the model in run_setup (build) and in runner (fallback, title)."""
+    with patch.object(run_setup, "provider_for", provider_for), patch.object(runner, "provider_for", provider_for):
+        yield
 
 
 class TestChatApi(IntegrationTestCase):
@@ -75,7 +83,7 @@ class TestChatApi(IntegrationTestCase):
             [("text", "عدد الشركات معروف الآن."), ("stop", "end_turn")],
         ])
         published = []
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: published.append(a[1])):
+        with providers(provider_for), patch("frappe.publish_realtime", lambda *a, **k: published.append(a[1])):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         published = [p for p in published if isinstance(p, dict) and "event" in p]   # drop Frappe's own doc-update pings
         msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
@@ -105,7 +113,7 @@ class TestChatApi(IntegrationTestCase):
         with patch.object(runner, "enqueue"):
             second = api.send_message(text="شكراً", session=out["session"]["name"])
         provider2, provider_for2 = fake_provider([[("text", "عفواً")]])
-        with patch.object(runner, "provider_for", provider_for2), patch("frappe.publish_realtime", lambda *a, **k: None):
+        with providers(provider_for2), patch("frappe.publish_realtime", lambda *a, **k: None):
             runner.execute_message(second["assistant_message"]["name"], user="Administrator")
         roles = [m.role for m in provider2.requests[0].messages]
         self.assertEqual(roles, ["user", "assistant", "user", "assistant", "user"])
@@ -115,7 +123,7 @@ class TestChatApi(IntegrationTestCase):
         out = self._send("hi")
         provider, provider_for = fake_provider([[("error", "invalid api key", "auth", False)]])
         # No other model to fall back to (the default is the one that failed).
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None), \
+        with providers(provider_for), patch("frappe.publish_realtime", lambda *a, **k: None), \
                 patch.object(runner.Runner, "can_fall_back", return_value=False):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
@@ -130,7 +138,7 @@ class TestChatApi(IntegrationTestCase):
     def test_retry_resets_and_edit_truncates(self):
         out = self._send("hi")
         provider, provider_for = fake_provider([[("text", "first answer")]])
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+        with providers(provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         with patch.object(runner, "enqueue"):
             res = api.retry_message(out["assistant_message"]["name"])
@@ -175,7 +183,7 @@ class TestChatApi(IntegrationTestCase):
         doc = frappe.get_doc("AI Chat Message", name)
         token = runner.Runner(doc).cancel_token()
         self.assertFalse(token.cancelled)   # first read: a miss
-        cache = frappe.cache()
+        cache = frappe.cache
         cache.set(cache.make_key(runner.CANCEL_KEY.format(name)), pickle.dumps("1"))   # no local cache update
         token._last = 0.0
         self.assertTrue(token.cancelled)
@@ -205,7 +213,7 @@ class TestChatApi(IntegrationTestCase):
                 return default, "Default", "default-model"
             return (broken, "Broken", "bad-model") if model != "default-model" else (default, "Default", "default-model")
 
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+        with providers(provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
             runner.execute_message(out["assistant_message"]["name"], user="Administrator")
         msg = frappe.get_doc("AI Chat Message", out["assistant_message"]["name"])
         self.assertEqual(msg.status, "completed")
@@ -325,7 +333,7 @@ class TestChatAttachments(IntegrationTestCase):
 
         # reply, the auto-title call, then the second reply
         provider, provider_for = fake_provider([[("text", "قرأته")], [("text", "عنوان")], [("text", "ما زلت أراه")]])
-        with patch.object(runner, "provider_for", provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
+        with providers(provider_for), patch("frappe.publish_realtime", lambda *a, **k: None):
             runner.execute_message(self.out["assistant_message"]["name"], user="Administrator")
             with patch.object(runner, "enqueue"):
                 second = api.send_message(text="أدخله", session=self.session)

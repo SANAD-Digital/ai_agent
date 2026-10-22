@@ -8,7 +8,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import cint, nowdate
+from frappe.utils import cint, cstr, nowdate
 
 from ai_agent.customization.contract import Check, CheckReport, CustomizationError
 
@@ -28,6 +28,34 @@ def as_user(user):
 		yield
 	finally:
 		frappe.set_user(current)
+
+
+def table(doctype):
+	"""``tabDocType`` quoted for raw SQL; refuses a name that has no table or could break out of the quotes."""
+	if not doctype or "`" in doctype or not frappe.db.table_exists(doctype):
+		raise CustomizationError(f"'{doctype}' has no table.")
+	return f"`tab{doctype}`"
+
+
+def column(doctype, fieldname):
+	"""``fieldname`` quoted for raw SQL; refuses a column the table does not have."""
+	if not fieldname or "`" in fieldname or not frappe.db.has_column(doctype, fieldname):
+		raise CustomizationError(f"'{doctype}' has no column '{fieldname}'.")
+	return f"`{fieldname}`"
+
+
+def statement_limited(query, seconds=5):
+	"""Run ``query`` under a statement time limit: per statement on MariaDB, per session elsewhere (restored after)."""
+	if frappe.db.db_type == "mariadb":
+		return frappe.db.sql(f"SET STATEMENT max_statement_time={cint(seconds)} FOR {query}")
+	from frappe.database.database import get_query_execution_timeout
+
+	frappe.db.set_execution_timeout(seconds)
+	try:
+		return frappe.db.sql(query)
+	finally:
+		with contextlib.suppress(Exception):
+			frappe.db.set_execution_timeout(get_query_execution_timeout())
 
 
 def has_roles(user, roles):
@@ -165,3 +193,33 @@ def capture_messages():
 		return out
 
 	return collect
+
+
+DRY_RUN_SAVEPOINT = "ai_customize_dry_run"
+
+
+@contextlib.contextmanager
+def dry_run():
+	"""Run Frappe's own insert/save validation and roll it back: a savepoint, with ``frappe.db.commit``
+	disabled meanwhile so nothing the controllers do can become permanent."""
+	point = f"{DRY_RUN_SAVEPOINT}_{frappe.generate_hash(length=6)}"
+	frappe.db.savepoint(point)
+	commit = frappe.db.commit
+	frappe.db.commit = lambda *args, **kwargs: None
+	flags = frappe.flags.get("ai_customize_dry_run")
+	frappe.flags.ai_customize_dry_run = True
+	try:
+		yield
+	finally:
+		frappe.db.commit = commit
+		frappe.flags.ai_customize_dry_run = flags
+		try:
+			frappe.db.rollback(save_point=point)
+		except Exception:
+			frappe.db.rollback()  # the error ended the transaction (deadlock, lost connection): nothing survives
+
+
+def frappe_error(exc, messages=None):
+	text = frappe.utils.strip_html(cstr(getattr(exc, "message", None) or exc or ""))
+	extra = [m for m in (messages or []) if m and m not in text]
+	return "; ".join([t for t in [text.strip()] + extra if t])[:400] or exc.__class__.__name__

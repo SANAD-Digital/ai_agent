@@ -61,8 +61,8 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
 
 ## Removed
 - WhatsApp support, together with the old orchestrator agent loop (`runtime/orchestrator.py` and its helpers), was removed on 2026-10-22.
-- The step plumbing (gateway `step_name`, the interceptor's step hooks) and the fields linking to `AI Run Step`
-  were removed on 2026-10-22. The DocType's files go in a second change after a migrate: before it, the site's
-  AI Run still lists the child table and every new run needs the controller.
+- `AI Run Step`, its links and the step plumbing (gateway `step_name`, the interceptor's step hooks) were removed
+  on 2026-10-22, in two changes with a migrate between them: while a site's AI Run still lists the child table,
+  every new run needs its controller. The old rows stay in their table.
 - The connection fields of AI Settings from before AI Provider (`provider_type`, `base_url`, `api_key`,
   `default_model`, `strict_tool_calling`) were removed the same day.

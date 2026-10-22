@@ -72,10 +72,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install MariaDB Client
+      # wkhtmltopdf: Frappe's get_pdf (export.pdf, export.print, export.statement)
+      - name: Install MariaDB Client and wkhtmltopdf
         run: |
           sudo apt update
-          sudo apt-get install mariadb-client
+          sudo apt-get install mariadb-client wkhtmltopdf
 
       - name: Setup bench
         run: |

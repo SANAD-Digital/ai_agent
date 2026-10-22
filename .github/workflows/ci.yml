@@ -95,10 +95,11 @@ jobs:
       - name: Run tests
         working-directory: /home/runner/frappe-bench
         run: |
+          set -o pipefail
+          exec > >(tee -a /tmp/tests.log) 2>&1
           bench --site test_site set-config allow_tests true
           bench --site test_site execute ai_agent.tests.utils.seed_ci_site
-          set -o pipefail
-          bench --site test_site run-tests --app ai_agent 2>&1 | tee /tmp/tests.log
+          bench --site test_site run-tests --app ai_agent
         env:
           TYPE: server
 

@@ -4,7 +4,10 @@ the failing tests, each with the last line of its error."""
 import re
 import sys
 
-log = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+try:
+	log = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+except OSError:
+	log = ""
 log = re.sub(r"\x1b\[[0-9;]*m", "", log)
 
 failed = re.findall(r"^\s*✖\s+(\S+)", log, re.M)
@@ -27,3 +30,8 @@ chunk = max(1, -(-len(lines) // 10))
 for i in range(0, len(lines), chunk):
 	text = " | ".join(lines[i : i + chunk]).replace("%", "%25").replace("\n", " ")
 	print(f"::error title=Failed tests {i + 1}-{min(i + chunk, len(lines))} of {len(lines)}::{text}")
+if not lines:
+	# no test report (a setup command failed): the end of the log says why
+	tail = [l for l in log.strip().splitlines() if l.strip()][-40:]
+	for i in range(0, len(tail), 4):
+		print("::error title=Log tail " + str(i // 4 + 1) + "::" + " / ".join(tail[i : i + 4]).replace("%", "%25"))

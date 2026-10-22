@@ -98,7 +98,8 @@ jobs:
           set -o pipefail
           exec > >(tee -a /tmp/tests.log) 2>&1
           bench --site test_site set-config allow_tests true
-          bench --site test_site execute ai_agent.tests.utils.seed_ci_site
+          # ERPNext's own CI step: the setup wizard's preset records and its test companies, customers and items
+          bench --site test_site run-tests --lightmode --module erpnext.tests.bootstrap_test_data
           bench --site test_site run-tests --app ai_agent
         env:
           TYPE: server

@@ -111,21 +111,3 @@ def cleanup_leftovers():
 		db.sql("delete from `tabAI Run` where name in %s", (tuple(runs),))
 	db.sql("delete from `tabAI Approval Request` where requested_by like '%%@example.com' and status != 'Pending'")
 	db.commit()
-
-
-CI_COMPANIES = (("CI Company A", "CCA"), ("CI Company B", "CCB"))
-
-
-def seed_ci_site():
-	"""A fresh CI site (no setup wizard) has no Company; the tests read one or two. Creates two once; a site
-	that already has a Company is left alone. Run with ``bench --site <site> execute
-	ai_agent.tests.utils.seed_ci_site``."""
-	if frappe.get_all("Company", limit=1):
-		return
-	frappe.set_user("Administrator")
-	for name, abbr in CI_COMPANIES:
-		frappe.get_doc({"doctype": "Company", "company_name": name, "abbr": abbr, "default_currency": "YER",
-			"country": "Yemen", "create_chart_of_accounts_based_on": "Standard Template",
-			"chart_of_accounts": "Standard"}).insert(ignore_permissions=True)
-	frappe.db.set_default("company", CI_COMPANIES[0][0])
-	frappe.db.commit()

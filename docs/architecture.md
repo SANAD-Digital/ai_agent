@@ -57,7 +57,7 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
 ## Operations
 - **CI** (`.github/workflows/ci.yml`, on every push to main and every pull request): `ruff` (undefined names,
   unused imports, syntax), then the full test suite on a fresh bench with Frappe and ERPNext 16;
-  `tests.utils.seed_ci_site` gives the fresh site two companies.
+  the fresh site gets ERPNext's test data first (`erpnext.tests.bootstrap_test_data`, as ERPNext's own CI does).
 - **AI Agent Health report and hourly alert:** `runtime/health.py`.
 - **Retention through Log Settings:** `AI Tool Call` after 90 days. `AI Run` after 180 days, only for runs outside a conversation.
 - **Personal data deletion:** `user_data_fields` in `hooks.py`.

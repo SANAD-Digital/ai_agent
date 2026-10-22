@@ -13,9 +13,11 @@ log = re.sub(r"\x1b\[[0-9;]*m", "", log)
 failed = re.findall(r"^\s*✖\s+(\S+)", log, re.M)
 # Frappe's report: " ERROR  test_x (module.Class.test_x)" / " FAIL  ...", then the traceback (with locals) up to
 # the next "=====" line; the error is the last line that starts with an exception name.
-blocks = re.findall(r"^\s*(?:ERROR|FAIL)\s+(\S+) \(([^)]+)\)\n-+\n(.*?)(?=\n={20,}|\n-{20,}\nRan |\Z)", log, re.M | re.S)
+# (a failing subTest adds its parameters after the name: "FAIL  test_x (module.Class.test_x) (query='…')")
+blocks = re.findall(r"^\s*(?:ERROR|FAIL)\s+(\S+) \(([^)]+)\)([^\n]*)\n-+\n(.*?)(?=\n={20,}|\n-{20,}\nRan |\Z)", log, re.M | re.S)
 lines = []
-for test, where, trace in blocks:
+for test, where, sub, trace in blocks:
+	test = test + sub.strip()[:120]
 	errors = [l.strip() for l in trace.splitlines() if re.match(r"^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b", l)]
 	last = errors[-1] if errors else ([l for l in trace.strip().splitlines() if l.strip()] or [""])[-1].strip()
 	# where it was raised: the last frame of the traceback ("File …/apps/<app>/…", line N, in fn)

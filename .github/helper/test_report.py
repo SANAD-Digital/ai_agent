@@ -28,6 +28,8 @@ summary = ["## Tests", "", *[f"- {t}" for t in totals], "", f"{len(failed)} fail
 summary += [f"- `{l}`" for l in lines] or [f"- `{t}`" for t in failed]
 with open(sys.argv[2], "a", encoding="utf-8") as out:
 	out.write("\n".join(summary) + "\n")
+# the totals, always (the job summary is not readable without a sign-in)
+print("::error title=Totals::" + " / ".join(totals) + f" / {len(failed)} marked failed: " + ", ".join(failed)[:3000])
 # GitHub keeps 10 error annotations per step: put several failures in each
 chunk = max(1, -(-len(lines) // 10))
 for i in range(0, len(lines), chunk):

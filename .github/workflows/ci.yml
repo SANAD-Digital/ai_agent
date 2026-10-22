@@ -95,6 +95,9 @@ jobs:
           bench new-site --db-root-password root --admin-password admin test_site
           bench --site test_site install-app erpnext
           bench --site test_site install-app ai_agent
+          # assets are not built (--skip-assets): Frappe's bundled_asset() reads assets.json when a page or a
+          # PDF is rendered; an empty map makes it keep the plain names
+          mkdir -p sites/assets && echo '{}' > sites/assets/assets.json
         env:
           CI: 'Yes'
 

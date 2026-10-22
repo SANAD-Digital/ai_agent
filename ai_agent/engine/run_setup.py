@@ -60,7 +60,7 @@ class RunSetup:
         catalog = ""
         if executor.allowed("metrics.query"):
             try:
-                from ai_agent.metrics.catalog import metric_catalog_text
+                from ai_agent.metrics.catalog import catalog_text as metric_catalog_text
 
                 catalog = metric_catalog_text() or ""
             except Exception:

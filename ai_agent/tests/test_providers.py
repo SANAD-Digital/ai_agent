@@ -1,4 +1,6 @@
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests import IntegrationTestCase
 
@@ -42,7 +44,11 @@ class TestProviders(IntegrationTestCase):
 		super().tearDownClass()
 
 	def test_available_providers_exposes_models_not_secrets(self):
-		providers = available_providers()
+		from ai_agent.runtime import policy
+
+		# the test provider is OpenAI-compatible: listed whatever the site's provider policy (managed mode allows Anthropic only)
+		with patch.object(policy, "provider_allowed", return_value=True):
+			providers = available_providers()
 		mine = next((p for p in providers if p["name"] == PROVIDER), None)
 		self.assertIsNotNone(mine)
 		self.assertEqual([m["model_name"] for m in mine["models"]], ["unit-model", "unit-vision"])

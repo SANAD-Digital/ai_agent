@@ -113,4 +113,8 @@ jobs:
       # Job logs need a GitHub sign-in; the summary and annotations are public.
       - name: Report failures
         if: failure()
-        run: python $GITHUB_WORKSPACE/.github/helper/test_report.py /tmp/tests.log "$GITHUB_STEP_SUMMARY"
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench --site test_site execute frappe.get_all --kwargs '{"doctype": "Error Log", "fields": ["method", "error"], "order_by": "creation desc", "limit": 8}' \
+            | python -c "import sys,json; print('\n=====\n'.join(r['method'] + '\n' + r['error'] for r in json.load(sys.stdin)))" > /tmp/error_log.txt || true
+          python $GITHUB_WORKSPACE/.github/helper/test_report.py /tmp/tests.log "$GITHUB_STEP_SUMMARY" /tmp/error_log.txt

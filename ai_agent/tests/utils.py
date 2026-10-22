@@ -96,7 +96,7 @@ def restore_users(states):
 		frappe.db.set_value("User", user, "enabled", 1 if enabled else 0, update_modified=False)
 
 
-TEST_PROVIDER = "Unit Test Provider"
+TEST_PROVIDER = "CI Test Provider"
 
 
 def ensure_test_provider():
@@ -130,3 +130,17 @@ def cleanup_leftovers():
 		db.sql("delete from `tabAI Run` where name in %s", (tuple(runs),))
 	db.sql("delete from `tabAI Approval Request` where requested_by like '%%@example.com' and status != 'Pending'")
 	db.commit()
+
+
+def mcp_on(testcase):
+	"""Turn the MCP server on for one test (a fresh site has it off) and back off after it."""
+	if frappe.db.get_single_value("AI Settings", "enable_mcp"):
+		return
+
+	def switch(value):
+		frappe.db.set_single_value("AI Settings", "enable_mcp", value)
+		frappe.clear_document_cache("AI Settings", "AI Settings")
+		frappe.db.commit()  # the HTTP tests call the endpoint from another thread and connection
+
+	switch(1)
+	testcase.addCleanup(switch, 0)

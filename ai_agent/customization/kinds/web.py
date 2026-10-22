@@ -565,6 +565,8 @@ class WebKind:
 		except frappe.Redirect:
 			return [Check("web.preview", "info", _("The page redirects to {0}").format(frappe.local.flags.get("redirect_location") or "?"))]
 		except Exception as e:
+			# the check shows the message only; the traceback says where Frappe's renderer failed
+			frappe.log_error(frappe.get_traceback(), "ai_agent customize: web page preview failed")
 			message = frappe.utils.strip_html(str(e))[:300] or e.__class__.__name__
 			return [Check("web.preview", "critical", _("The page does not render: {0}").format(message))]
 		markers = ('<div class="web-form', '<form', '<main', 'class="page-content', '<body') if spec["doctype"] == "Web Form" \

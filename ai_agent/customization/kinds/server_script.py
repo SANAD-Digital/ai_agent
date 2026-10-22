@@ -104,7 +104,8 @@ def validate_condition(text, label, doctype=None):
 	if len(parsed) != 1 or not isinstance(parsed[0], exp.Select) or not parsed[0].args.get("where"):
 		return [Check("script.pq_syntax", "critical", _("For {0} the condition is not one SQL expression").format(label))]
 	root = parsed[0]
-	extra = sorted(k for k, v in root.args.items() if v and k not in ("expressions", "from", "where"))
+	# sqlglot names the FROM clause "from" up to 27 and "from_" from 28 on
+	extra = sorted(k for k, v in root.args.items() if v and k not in ("expressions", "from", "from_", "where"))
 	if extra:
 		return [Check("script.pq_structure", "critical", _("For {0} the condition adds {1} to Frappe's query; only a WHERE expression is allowed").format(label, ", ".join(extra).upper()))]
 	condition = root.args["where"].this

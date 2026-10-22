@@ -12,7 +12,7 @@ from ai_agent.engine import run_setup, runner
 from ai_agent.engine.errors import user_message
 from ai_agent.engine.providers.base import CancelToken
 from ai_agent.engine.providers.fake import FakeProvider
-from ai_agent.tests.utils import ensure_test_agent
+from ai_agent.tests.utils import ensure_test_agent, mcp_on
 
 
 def fake_provider(scripts):
@@ -253,6 +253,7 @@ class TestChatViewHost(IntegrationTestCase):
 
     def setUp(self):
         ensure_test_agent()
+        mcp_on(self)
         frappe.set_user("Administrator")
         with patch.object(runner, "enqueue"):
             self.out = api.send_message(text="عملاء", agent="Unit Test Agent")

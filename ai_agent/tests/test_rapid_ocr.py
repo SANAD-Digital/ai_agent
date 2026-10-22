@@ -22,6 +22,12 @@ class TestRapidOcrText(IntegrationTestCase):
 
 
 class TestOcrRouting(IntegrationTestCase):
+    def setUp(self):
+        # routing only: the optional rapidocr package (pyproject extra "ocr") need not be installed
+        installed = patch.object(rapid_ocr, "available", return_value=True)
+        installed.start()
+        self.addCleanup(installed.stop)
+
     def _settings(self, engine):
         import frappe
 

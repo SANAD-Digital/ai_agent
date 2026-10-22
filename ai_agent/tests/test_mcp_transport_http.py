@@ -8,6 +8,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
+from ai_agent.tests.utils import mcp_on
 
 ENDPOINT = "/api/method/ai_agent.mcp.api.handle"
 
@@ -39,6 +40,9 @@ class TestStreamableHttpEndpoint(IntegrationTestCase):
 		frappe.local.login_manager.login_as("Administrator")
 		cls.sid = frappe.session.sid
 		cls.site = frappe.local.site
+
+	def setUp(self):
+		mcp_on(self)
 
 	def _call(self, method, **kwargs):
 		t = _Request(self.site, self.sid, method, **kwargs)

@@ -100,9 +100,9 @@ class TestCustomizationSkillInstall(IntegrationTestCase):
 		self.assertEqual({g.role for g in grants}, {"System Manager"})
 		analyst = frappe.db.exists("AI Agent", "ERP Analyst")
 		self.assertFalse([g for g in grants if g.agent == analyst], "the read-only analyst never gets it")
-		operations = frappe.db.exists("AI Agent", "ERP Operations Agent")
-		if operations:
-			self.assertIn(operations, {g.agent for g in grants})
+		# customization belongs to the agent that allows it (Implementation), not to the other acting agents
+		self.assertIn("Implementation", {g.agent for g in grants if g.enabled})
+		self.assertNotIn("ERP Operations Agent", {g.agent for g in grants if g.enabled})
 		# idempotent: a second run adds nothing
 		grant_standard_skills()
 		self.assertEqual(len(frappe.get_all("AI Skill Grant", filters={"skill": SKILL})), len(grants))

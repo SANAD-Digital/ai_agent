@@ -18,7 +18,10 @@ lines = []
 for test, where, trace in blocks:
 	errors = [l.strip() for l in trace.splitlines() if re.match(r"^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b", l)]
 	last = errors[-1] if errors else ([l for l in trace.strip().splitlines() if l.strip()] or [""])[-1].strip()
-	lines.append(f"{where.rsplit('.', 2)[-2]}.{test}: {last[:300]}")
+	# where it was raised: the last frame of the traceback ("File …/apps/<app>/…", line N, in fn)
+	frames = re.findall(r'File "[^"]*/apps/([^"]+)", line (\d+), in (\S+)', trace)
+	at = f" [at {frames[-1][0]}:{frames[-1][1]} {frames[-1][2]}]" if frames else ""
+	lines.append(f"{where.rsplit('.', 2)[-2]}.{test}: {last[:300]}{at}")
 totals = re.findall(r"^(Ran \d+ tests.*|FAILED \(.*\)|OK.*)$", log, re.M)
 
 summary = ["## Tests", "", *[f"- {t}" for t in totals], "", f"{len(failed)} failed", ""]
@@ -35,3 +38,15 @@ if not lines:
 	tail = [l for l in log.strip().splitlines() if l.strip()][-40:]
 	for i in range(0, len(tail), 4):
 		print("::error title=Log tail " + str(i // 4 + 1) + "::" + " / ".join(tail[i : i + 4]).replace("%", "%25"))
+
+# Errors the code caught and logged (Error Log), which a test only sees as a message: the end of each traceback.
+if len(sys.argv) > 3:
+	try:
+		logged = open(sys.argv[3], encoding="utf-8", errors="replace").read().strip()
+	except OSError:
+		logged = ""
+	for i, entry in enumerate([e for e in logged.split("\n=====\n") if e.strip()][:8], start=1):
+		keep = [l.strip() for l in entry.strip().splitlines()
+			if l.strip().startswith('File "') or re.match(r"^[A-Za-z_][\w.]*(Error|Exception)\b", l.strip())]
+		tail = [entry.strip().splitlines()[0]] + keep[-5:]
+		print(f"::error title=Error Log {i}::" + " / ".join(tail).replace("%", "%25"))

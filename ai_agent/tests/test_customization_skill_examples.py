@@ -102,6 +102,10 @@ class TestCustomizationSkillExamples(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		self.form_dict = frappe.local.form_dict
 		self.addCleanup(setattr, frappe.local, "form_dict", self.form_dict)
+		# the workflow examples submit and cancel: allowed here whatever the site's AI Settings say
+		allowed = patch("ai_agent.runtime.policy.submit_cancel_allowed", return_value=True)
+		allowed.start()
+		self.addCleanup(allowed.stop)
 
 	def run_rolled_back(self, fn):
 		frappe.db.savepoint(SAVEPOINT)

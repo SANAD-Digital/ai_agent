@@ -17,6 +17,9 @@ SINGLES_WITH_DEFAULTS = ("AI Settings", "Gemini OCR Settings")
 
 
 def after_install():
+    from ai_agent.standard_records import import_all
+
+    import_all()
     sync()
 
 

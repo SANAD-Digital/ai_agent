@@ -1,3 +1,4 @@
+import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.query.validator import QueryValidator
@@ -133,6 +134,8 @@ class TestProtectedFieldsAndChildTables(IntegrationTestCase):
 
 	def setUp(self):
 		self.validator = QueryValidator(PermissionContext("Administrator"))
+		if "child_table" not in self._testMethodName and not frappe.db.exists("DocType", "Salary Slip"):
+			self.skipTest("HRMS is not installed: the pay document these cases use does not exist")
 
 	def _refused(self, spec, text):
 		with self.assertRaises(QueryValidationError) as cm:

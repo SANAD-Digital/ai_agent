@@ -77,3 +77,11 @@ class TestStandardRecords(IntegrationTestCase):
 		meta = frappe.get_meta("Gemini OCR Settings")
 		for field in ("request_timeout", "max_output_chars", "model"):
 			self.assertEqual(str(frappe.db.get_single_value("Gemini OCR Settings", field)), meta.get_field(field).default, field)
+
+	def test_install_imports_the_files_frappe_skips_on_install(self):
+		"""On install Frappe syncs the app before it is installed, so importable_doctypes is not read yet."""
+		from ai_agent.standard_records import import_all
+
+		frappe.delete_doc("AI Plugin", "csv", force=True, ignore_permissions=True)
+		import_all()
+		self.assertTrue(frappe.db.exists("AI Plugin", "csv"))

@@ -94,9 +94,26 @@ def restore_users(states):
 		frappe.db.set_value("User", user, "enabled", 1 if enabled else 0, update_modified=False)
 
 
+TEST_PROVIDER = "Unit Test Provider"
+
+
+def ensure_test_provider():
+	"""A site with no enabled AI Provider (a fresh CI site) gets one for the tests; the tests replace the model
+	with a scripted one, so it is never called. A site that has a provider keeps its own."""
+	if frappe.get_all("AI Provider", filters={"enabled": 1}, limit=1):
+		return
+	frappe.get_doc({"doctype": "AI Provider", "provider_name": TEST_PROVIDER, "provider_type": "Anthropic", "enabled": 1,
+		"is_default": 1, "api_key": "test-key", "default_model": "claude-test",
+		"models": [{"model_name": "claude-test", "model_type": "Chat", "supports_tools": 1, "is_default": 1}],
+	}).insert(ignore_permissions=True)
+	frappe.db.commit()
+
+
 def cleanup_leftovers():
 	"""hooks.before_tests: remove what earlier test runs left behind (runs, conversations and finished approvals
-	of the test agent and the @example.com test users), so a development site does not fill up with them."""
+	of the test agent and the @example.com test users), so a development site does not fill up with them.
+	A site without an AI Provider gets the test one (ensure_test_provider)."""
+	ensure_test_provider()
 	db = frappe.db
 	sessions = db.sql_list("select name from `tabAI Chat Session` where agent='Unit Test Agent' or user like '%%@example.com'")
 	if sessions:

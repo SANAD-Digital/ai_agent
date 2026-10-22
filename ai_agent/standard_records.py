@@ -3,6 +3,8 @@ hooks.py). On migrate Frappe re-imports a file whose ``modified`` is newer than 
 and inserting the file. Each controller's ``prepare_for_import`` calls ``keep_site_values`` so what the site owns
 survives that: fields the file does not carry, the fields named site-owned, and stored passwords."""
 
+import os
+
 import frappe
 from frappe.model import no_value_fields, table_fields
 
@@ -27,3 +29,18 @@ def keep_site_values(docdict, site_owned=(), keep_all=False):
 			docdict[field] = existing.get_password(field, raise_exception=False) or ""
 		elif df.fieldtype not in no_value_fields:
 			docdict[field] = existing.get(field)
+
+
+def import_all():
+	"""Import the files of every importable DocType of this app. Needed after install only: Frappe syncs an app's
+	files before adding it to the installed apps, so ``importable_doctypes`` is not read yet then; every migrate
+	imports them itself. A file older than its record is skipped (Frappe's own rule)."""
+	from frappe.modules.import_file import import_file_by_path
+
+	base = frappe.get_app_path("ai_agent", "ai_agent")
+	for doctype in frappe.get_hooks("importable_doctypes", app_name="ai_agent"):
+		folder = os.path.join(base, frappe.scrub(doctype))
+		for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+			path = os.path.join(folder, name, name + ".json")
+			if os.path.exists(path):
+				import_file_by_path(path)

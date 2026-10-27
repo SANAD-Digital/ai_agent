@@ -221,21 +221,29 @@
 		window.addEventListener("pageshow", function (event) {
 			if (event.persisted) window.location.reload();
 		});
-		// The account may have changed in another tab since this page was built: Allow then reloads the page for
-		// whoever is signed in now instead of sending the old token.
+		// Allow carries the session's CSRF token from when this page was built. The session can change meanwhile
+		// (signed in again in another tab, renewed, another account): Frappe then refuses the POST with 400. So
+		// Allow first rebuilds this request for the current session and sends its fresh token, or, when someone
+		// else is signed in now, shows the page for them instead.
 		var form = document.querySelector("form.allow-wrap");
+		var me = {{ user | tojson }};
+		var again = {{ authorize_path | tojson }};
 		if (form) {
 			form.addEventListener("submit", function (event) {
-				if (form.dataset.checked) return;
+				if (form.dataset.fresh) return;
 				event.preventDefault();
-				fetch("/api/method/frappe.auth.get_logged_user", {headers: {"Accept": "application/json"}, credentials: "same-origin"})
-					.then(function (r) { return r.ok ? r.json() : {}; })
-					.then(function (r) {
-						if (r.message && r.message !== {{ user | tojson }}) return window.location.reload();
-						form.dataset.checked = "1";
+				fetch(again, {credentials: "same-origin", headers: {"Accept": "text/html"}, cache: "no-store"})
+					.then(function (r) { return r.text(); })
+					.then(function (html) {
+						var page = new DOMParser().parseFromString(html, "text/html");
+						var token = page.querySelector("form.allow-wrap input[name=csrf_token]");
+						var who = page.querySelector(".oc-account-mail");
+						if (!token || !who || who.textContent.trim() !== me) return window.location.reload();
+						form.querySelector("input[name=csrf_token]").value = token.value;
+						form.dataset.fresh = "1";
 						form.submit();
 					})
-					.catch(function () { form.dataset.checked = "1"; form.submit(); });
+					.catch(function () { form.dataset.fresh = "1"; form.submit(); });
 			});
 		}
 		// "Not you?": sign out, then sign in and return to this same request (Frappe's /logout ends on /login).

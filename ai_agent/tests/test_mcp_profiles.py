@@ -120,3 +120,70 @@ class TestMcpProfiles(IntegrationTestCase):
 		frappe.clear_document_cache("AI Settings", "AI Settings")
 		svc = MCPService(USER, desk=True)
 		self.assertIsNone(svc.agent)  # the Desk chat sets its own agent
+
+
+class TestMcpCompanyLock(IntegrationTestCase):
+	"""A connection limited to one company: lists, documents and reports keep to it, as the connection's user."""
+
+	def setUp(self):
+		from ai_agent.mcp import company_lock
+
+		self.lock = company_lock
+		self.companies = frappe.get_all("Company", pluck="name", order_by="creation asc", limit=2)
+		if len(self.companies) < 2:
+			self.skipTest("needs two companies")
+		frappe.set_user("Administrator")
+		if not frappe.db.exists("User", USER):
+			frappe.get_doc({"doctype": "User", "email": USER, "first_name": "MCP Profile", "send_welcome_email": 0}).insert(ignore_permissions=True)
+		frappe.get_doc("User", USER).add_roles("Accounts User")
+		self.addCleanup(lambda: (frappe.set_user("Administrator"), frappe.get_doc("User", USER).remove_roles("Accounts User")))
+		self.addCleanup(self.lock.set_lock, None)
+		self.mine, self.other = self.companies
+
+	def test_lists_keep_to_the_company(self):
+		frappe.set_user(USER)
+		self.lock.set_lock(self.mine)
+		self.assertEqual(frappe.get_list("Company", pluck="name"), [self.mine])
+		accounts = frappe.get_list("Account", fields=["company"], limit=200)
+		self.assertTrue(accounts)
+		self.assertEqual({a.company for a in accounts}, {self.mine})
+		self.lock.set_lock(None)
+		self.assertGreater(len(frappe.get_list("Company", pluck="name")), 1, "no lock: every readable company")
+
+	def test_documents_of_another_company_are_refused(self):
+		other_account = frappe.db.get_value("Account", {"company": self.other}, "name")
+		frappe.set_user(USER)
+		self.lock.set_lock(self.mine)
+		self.assertFalse(frappe.has_permission("Company", "read", self.other))
+		self.assertTrue(frappe.has_permission("Company", "read", self.mine))
+		if other_account:
+			self.assertFalse(frappe.has_permission("Account", "read", other_account))
+			with self.assertRaises(frappe.PermissionError):
+				frappe.get_doc("Account", other_account).check_permission("read")
+		new = frappe.new_doc("Cost Center")
+		new.company = self.other
+		self.assertFalse(frappe.has_permission("Cost Center", "create", new))
+
+	def test_reports_run_for_the_company(self):
+		from ai_agent.tools import reports
+
+		report = frappe._dict(name="X", report_type="Script Report")
+		self.lock.set_lock(self.mine)
+		self.assertEqual(reports._locked_company(report, []), self.mine)
+		self.assertEqual(reports._locked_company(report, [{"fieldname": "company"}]), self.mine)
+		with self.assertRaises(frappe.ValidationError):
+			reports._locked_company(report, [{"fieldname": "from_date"}])
+		self.assertIsNone(reports._locked_company(frappe._dict(name="Y", report_type="Report Builder"), []))
+
+	def test_the_service_locks_the_request(self):
+		frappe.set_user("Administrator")
+		mcp_on(self)
+		for name in frappe.get_all("AI MCP", filters={"user": USER}, pluck="name"):
+			frappe.delete_doc("AI MCP", name, force=True, ignore_permissions=True)
+		profiles.clear_cache()
+		doc = frappe.get_doc({"doctype": "AI MCP", "title": "locked", "user": USER, "agent": ensure_test_agent().name,
+			"company": self.mine, "enabled": 1}).insert(ignore_permissions=True)
+		self.addCleanup(lambda: frappe.delete_doc("AI MCP", doc.name, force=True, ignore_permissions=True))
+		with patch.object(events, "oauth_client", return_value=None):
+			svc = MCPService(USER)
+		self.assertEqual((svc.company, self.lock.current()), (self.mine, self.mine))

@@ -196,6 +196,10 @@ class MCPService:
         if not desk:
             self.profile = self._profile()
             self._assert_access()
+            # a connection limited to one company works on that company only (mcp/company_lock.py)
+            from ai_agent.mcp import company_lock
+
+            company_lock.set_lock(self.profile.company if self.profile else None)
         self.agent = None if desk else self._get_agent()
         self.company = None if desk else self._company()
         self.registry = ToolRegistry()

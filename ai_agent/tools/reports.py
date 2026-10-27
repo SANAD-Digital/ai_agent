@@ -100,6 +100,11 @@ def handle_run(arguments, permission_context):
         filters = _normalize_filters(filters)
         declared_filters = _declared_report_filters(report)
         filters, filter_warnings = _map_filter_keys(filters, declared_filters)
+        locked = _locked_company(report, declared_filters)
+        if locked:
+            filters["company"] = locked
+            if prepared_report_name and _prepared_company(prepared_report_name) != locked:
+                prepared_report_name = None  # computed for another company: run it again for this one
         if prepared_report_name:
             filters["prepared_report_name"] = prepared_report_name
 
@@ -148,6 +153,27 @@ def _normalize_filters(filters):
     if not isinstance(filters, dict):
         return {}
     return dict(filters)
+
+
+def _locked_company(report, declared_filters):
+    """On an MCP connection limited to one company (mcp/company_lock.py), the company a report's own SQL is run
+    for. Report Builder reads through get_list, where the permission hook already applies. Refuses a report that
+    declares its filters and has no company filter: its rows could come from any company."""
+    from ai_agent.mcp import company_lock
+
+    company = company_lock.current()
+    if not company or report.report_type == "Report Builder":
+        return None
+    if declared_filters and "company" not in {f.get("fieldname") for f in declared_filters}:
+        frappe.throw(frappe._("{0} has no company filter: it is not available on a connection limited to {1}").format(report.name, company))
+    return company
+
+
+def _prepared_company(name):
+    try:
+        return (json.loads(frappe.db.get_value("Prepared Report", name, "filters") or "{}") or {}).get("company")
+    except ValueError:
+        return None
 
 
 def _declared_report_filters(report):

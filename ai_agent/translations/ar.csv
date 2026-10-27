@@ -3404,3 +3404,5 @@ for this connection,لهذا الاتصال
 for all connections,لكل الاتصالات
 {0} already has an enabled MCP record {1}: {2},لدى {0} اتصال MCP مفعّل {1}: {2}
 Notes,ملاحظات
+Set: this connection sees and works on this company only. Empty: every company the user may read,محددة: يرى هذا الاتصال هذه الشركة فقط ويعمل عليها. فارغة: كل الشركات التي يحق للمستخدم قراءتها
+{0} has no company filter: it is not available on a connection limited to {1},{0} لا يحتوي فلتر شركة: غير متاح على اتصال مقصور على {1}

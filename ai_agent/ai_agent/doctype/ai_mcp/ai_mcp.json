@@ -61,7 +61,7 @@
    "reqd": 1
   },
   {
-   "description": "Empty: the user's default company",
+   "description": "Set: this connection sees and works on this company only. Empty: every company the user may read",
    "fieldname": "company",
    "fieldtype": "Link",
    "label": "Company",
@@ -103,7 +103,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-27 22:30:00.000000",
+ "modified": "2026-10-28 01:30:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI MCP",

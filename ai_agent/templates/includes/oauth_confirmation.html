@@ -17,6 +17,10 @@
 	or ("/assets/erpnext/images/erpnext-favicon.svg" if frappe.db.exists("Module Def", "Selling") else "") -%}
 {%- set app_name = (client_id or "App") | string -%}
 {%- set redirect_host = ((failure_url or "") | string).split("/")[2] if "://" in (failure_url or "") | string else "" -%}
+{#- This authorize request, to come back to after switching account: success_url is the same request sent to
+	approve instead of authorize (oauth2.authorize builds it from the request's parameters). Relative, so the
+	login page follows it. -#}
+{%- set authorize_path = ((success_url or "") | string).replace("oauth2.approve?", "oauth2.authorize?", 1) or "/" -%}
 {%- macro t(en, ar_text) -%}{{ ar_text if ar else en }}{%- endmacro -%}
 {%- macro initials(name) -%}{{ (name or "?")[:1] | upper }}{%- endmacro -%}
 
@@ -159,7 +163,7 @@
 				<div class="oc-account-name">{{ full_name | e }}</div>
 				<div class="oc-account-mail">{{ user | e }}</div>
 			</div>
-			<a class="oc-switch" href="/logout">{{ t("Not you?", "لست أنت؟") }}</a>
+			<a class="oc-switch" href="/login?redirect-to={{ authorize_path | urlencode }}" data-switch>{{ t("Not you?", "لست أنت؟") }}</a>
 		</div>
 
 		<p class="oc-section">{{ t("This will allow it to", "سيتمكن من") }}</p>
@@ -210,3 +214,42 @@
 	{% endif %}
 	</div>
 </div>
+<script>
+	(function () {
+		// Allow is a POST carrying this session's CSRF token: a page kept from before an account switch (the back
+		// button restores it from memory) would be refused with 400. Rebuild it for the current session instead.
+		window.addEventListener("pageshow", function (event) {
+			if (event.persisted) window.location.reload();
+		});
+		// The account may have changed in another tab since this page was built: Allow then reloads the page for
+		// whoever is signed in now instead of sending the old token.
+		var form = document.querySelector("form.allow-wrap");
+		if (form) {
+			form.addEventListener("submit", function (event) {
+				if (form.dataset.checked) return;
+				event.preventDefault();
+				fetch("/api/method/frappe.auth.get_logged_user", {headers: {"Accept": "application/json"}, credentials: "same-origin"})
+					.then(function (r) { return r.ok ? r.json() : {}; })
+					.then(function (r) {
+						if (r.message && r.message !== {{ user | tojson }}) return window.location.reload();
+						form.dataset.checked = "1";
+						form.submit();
+					})
+					.catch(function () { form.dataset.checked = "1"; form.submit(); });
+			});
+		}
+		// "Not you?": sign out, then sign in and return to this same request (Frappe's /logout ends on /login).
+		var link = document.querySelector(".oc-switch[data-switch]");
+		if (!link) return;
+		link.addEventListener("click", function (event) {
+			event.preventDefault();
+			fetch("/api/method/logout", {
+				method: "POST",
+				headers: {"X-Frappe-CSRF-Token": {{ (csrf_token or "") | tojson }}, "Accept": "application/json"},
+				credentials: "same-origin",
+			}).finally(function () {
+				window.location.href = link.getAttribute("href");
+			});
+		});
+	})();
+</script>

@@ -187,12 +187,17 @@ VIEW_TOOLS = {
 
 
 class MCPService:
-    def __init__(self, user=None):
+    def __init__(self, user=None, desk=False):
+        """``desk``: the Desk chat renders its views through this service; the external-access rules (MCP switch,
+        roles, the user's AI MCP record) do not apply there, and the caller sets the agent and company."""
         self.user = user or frappe.session.user
         self.settings = frappe.get_cached_doc("AI Settings")
-        self._assert_access()
-        self.agent = self._get_agent()
-        self.company = self._company()
+        self.profile = None
+        if not desk:
+            self.profile = self._profile()
+            self._assert_access()
+        self.agent = None if desk else self._get_agent()
+        self.company = None if desk else self._company()
         self.registry = ToolRegistry()
 
     def instructions(self):
@@ -687,11 +692,21 @@ class MCPService:
         if not cint(self.settings.get("enable_mcp")):
             raise MCPProtocolError(-32002, "MCP server is disabled")
 
-        from ai_agent.mcp.setup import allowed_roles as mcp_allowed_roles
+        if self.profile is not None:
+            # the user's AI MCP record decides: enabled is an explicit grant, disabled an explicit refusal
+            if not cint(self.profile.enabled):
+                raise MCPProtocolError(-32003, f"MCP is turned off for this user ({self.profile.title})")
+            from ai_agent.mcp import profiles
 
-        allowed_roles = set(mcp_allowed_roles(self.settings))
-        if allowed_roles and not allowed_roles.intersection(frappe.get_roles(self.user)):
-            raise MCPProtocolError(-32003, "The authenticated user is not allowed to use MCP")
+            profiles.touch(self.profile.name)
+        elif cint(self.settings.get("mcp_require_profile")):
+            raise MCPProtocolError(-32003, "This user has no AI MCP record: an administrator adds one to allow MCP")
+        else:
+            from ai_agent.mcp.setup import allowed_roles as mcp_allowed_roles
+
+            allowed_roles = set(mcp_allowed_roles(self.settings))
+            if allowed_roles and not allowed_roles.intersection(frappe.get_roles(self.user)):
+                raise MCPProtocolError(-32003, "The authenticated user is not allowed to use MCP")
         # Every request (handshakes, view loads, resource reads) only against a wide flood guard; the
         # configured per-minute limit counts the model's tool calls (check_tool_rate_limit). Views made ~10
         # requests per real tool call and used up the limit on their own.
@@ -700,9 +715,18 @@ class MCPService:
     def check_tool_rate_limit(self):
         self._check_rate_limit(bucket="tools")
 
+    def _profile(self):
+        """The user's AI MCP record for this connection (or their general one), None when they have none."""
+        from ai_agent.mcp import profiles
+
+        return profiles.resolve(self.user, events.oauth_client())
+
     def _company(self):
-        """The user's own default company when they may read it (multi-company sites: each user works in theirs),
-        else the site-wide MCP company from AI Settings."""
+        """The company of the user's AI MCP record, else the user's own default company when they may read it
+        (multi-company sites: each user works in theirs), else the site-wide MCP company from AI Settings."""
+        profile = getattr(self, "profile", None)
+        if profile and profile.company and frappe.has_permission("Company", "read", profile.company, user=self.user):
+            return profile.company
         own = frappe.defaults.get_user_default("Company", self.user)
         if own and frappe.has_permission("Company", "read", own, user=self.user):
             return own
@@ -719,7 +743,8 @@ class MCPService:
             raise MCPProtocolError(-32000, "MCP request rate limit exceeded")
 
     def _get_agent(self):
-        agent_name = self.settings.get("mcp_agent") or "ERP Analyst"
+        profile = getattr(self, "profile", None)
+        agent_name = (profile and profile.agent) or self.settings.get("mcp_agent") or "ERP Analyst"
         if not frappe.db.exists("AI Agent", {"name": agent_name, "enabled": 1}):
             raise MCPProtocolError(-32002, "The configured MCP agent is missing or disabled")
         return frappe.get_doc("AI Agent", agent_name)

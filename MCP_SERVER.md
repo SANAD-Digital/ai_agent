@@ -36,6 +36,29 @@ decides it: with the card's signed Approve button, or in ERPNext (the AI Approva
 Request form has Approve / Reject buttons). Typing «موافق» in the chat does not approve:
 the model is told to point the user to the card. See "Approval lifecycle" below.
 
+## Per-user connections (AI MCP)
+
+Each person can have their own MCP setup: **AI > MCP Connections** (DocType `AI MCP`), one record per user, or one
+per user and connected app.
+
+| Field | Meaning |
+|---|---|
+| User | Whose connection it is |
+| Agent | The agent the connection works with: its tools, skills, limits and read-only / actions mode |
+| Company | The company the connection works in (empty: the user's default company) |
+| Connection | The app the user connected (its OAuth client: Claude, ChatGPT…). Empty: all of the user's connections without their own record |
+| Enabled | Off: this user, or this connection, cannot use MCP |
+
+Which record a request uses: the user's record for the app that sent it, else the user's general record.
+- An enabled record is an explicit grant: the user connects even without the roles in **Allowed MCP Roles**.
+- A disabled record refuses MCP, and a disabled record for an app does not fall back to the general one.
+- A user with no record works as before: **MCP Agent**, **MCP Company** and the roles from AI Settings.
+- **Only users with an AI MCP record** (AI Settings) turns that last case off: only users with an enabled record connect.
+
+One person can use MCP in more than one way: for example the ERP Analyst from ChatGPT and an operations agent from
+Claude, each with its own record. The Connection field lists the apps the user has already connected; connect the
+app once, then add its record. The Desk chat is not subject to these records.
+
 ## OAuth for ChatGPT and other remote clients
 
 Frappe v16 provides OAuth 2.1-compatible authorization-code + PKCE metadata.

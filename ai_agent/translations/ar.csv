@@ -3386,3 +3386,21 @@ Opening balance: {0} · Closing balance: {1} {2},الرصيد الافتتاحي
 "owed by the party (debit, they owe us)",عليه (مدين لنا),
 "owed to the party (credit, we owe them)",له (دائن، نحن مدينون له),
 zero,صفر,
+AI MCP,اتصال MCP
+MCP Connections,اتصالات MCP
+Last Used On,آخر استخدام
+e.g. Accountant — Claude,مثال: المحاسب — Claude
+Off: this user (or this connection) cannot use MCP,معطّل: لا يستطيع هذا المستخدم (أو هذا الاتصال) استخدام MCP
+"Its tools, skills and limits apply to everything this connection does",أدواته ومهاراته وحدوده تنطبق على كل ما يفعله هذا الاتصال
+Empty: the user's default company,فارغ: الشركة الافتراضية للمستخدم
+"The app the user connected (Claude, ChatGPT…). Empty: every connection of this user without its own record",التطبيق الذي ربطه المستخدم (Claude، ChatGPT…). فارغ: كل اتصالات هذا المستخدم التي ليس لها سجل خاص
+Only users with an AI MCP record,المستخدمون الذين لهم اتصال MCP فقط
+"On: a user connects only through an enabled AI MCP record (their agent, company and switch). Off: users without a record use the agent and company above and the roles.",مفعّل: لا يتصل المستخدم إلا عبر اتصال MCP مفعّل خاص به (وكيله وشركته وتفعيله). معطّل: من ليس له اتصال يستخدم الوكيل والشركة أعلاه والأدوار.
+Users without an AI MCP record need one of these roles to connect. Empty: AI MCP User and System Manager.,من ليس له اتصال MCP يحتاج أحد هذه الأدوار ليتصل. فارغ: AI MCP User ومدير النظام.
+Rules applied to every request from external tools. Default: ERP Analyst. Used by users without an AI MCP record.,القواعد المطبقة على كل طلب من الأدوات الخارجية. الافتراضي: ERP Analyst. يُستخدم لمن ليس له اتصال MCP.
+Agent {0} is disabled.,الوكيل {0} معطّل.
+{0} cannot read company {1}.,{0} لا يستطيع قراءة الشركة {1}.
+for this connection,لهذا الاتصال
+for all connections,لكل الاتصالات
+{0} already has an enabled MCP record {1}: {2},لدى {0} اتصال MCP مفعّل {1}: {2}
+Notes,ملاحظات

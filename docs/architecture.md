@@ -21,6 +21,8 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
 - **`api.handle`** is the MCP endpoint for Claude, ChatGPT and other hosts.
   - OAuth tokens of AI connectors are confined to it (`token_scope.py`).
 - **`service.py`** exposes the tools and creates one `AI Run` per tool call.
+- **`profiles.py`** picks the user's `AI MCP` record for the request (the one for its OAuth client, else the user's
+  general one): its agent, company and switch. No record: the AI Settings agent, company and roles.
 - The MCP App view is `mcp/ui/src/*`. It is rendered by the host and in the Desk chat (`viewhost.js`).
 - **Approval from MCP:** only the card's signed Approve button, or ERPNext. Text in the chat never approves.
 

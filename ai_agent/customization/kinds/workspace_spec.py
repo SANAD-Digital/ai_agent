@@ -16,7 +16,7 @@ from ai_agent.customization.contract import Check, CustomizationError
 from ai_agent.customization.kinds import _base
 
 TOP_KEYS = ("operation", "name", "title", "public", "icon", "indicator_color", "parent_page", "roles",
-	"shortcuts", "cards", "number_cards", "charts", "content", "sidebar", "desktop_icon", "copy_from", "purpose")
+	"shortcuts", "cards", "number_cards", "charts", "content", "sidebar", "desktop_icon", "copy_from", "module", "purpose")
 OPERATIONS = ("create", "update", "disable", "enable", "delete")
 SECTIONS = ("shortcuts", "cards", "number_cards", "charts")
 META_KEYS = ("icon", "indicator_color", "parent_page", "roles")
@@ -145,9 +145,9 @@ def target_exists(link_type, link_to):
 
 
 def is_standard_workspace(row):
-	"""App-owned: it has a module/app (saving it in developer mode exports it into the app, and migrate
-	re-imports it over local edits)."""
-	return bool(row.get("module") or row.get("app"))
+	"""App-owned: standard (Frappe 16.53+: every workspace has a module, an app's own ones are standard; saving
+	one in developer mode exports it into the app, and migrate re-imports it over local edits)."""
+	return bool(cint(row.get("standard")) or row.get("app"))
 
 
 def is_standard_sidebar(row):
@@ -251,7 +251,7 @@ def current(name):
 			content = []
 		state.update({
 			"title": doc.title, "public": cint(doc.public), "for_user": doc.for_user or "", "module": doc.module or "",
-			"app": doc.app or "", "icon": doc.icon or "", "indicator_color": doc.indicator_color or "",
+			"standard": cint(doc.get("standard")), "app": doc.get("app") or "", "icon": doc.icon or "", "indicator_color": doc.indicator_color or "",
 			"parent_page": doc.parent_page or "", "roles": sorted(r.role for r in doc.roles), "is_hidden": cint(doc.is_hidden),
 			"shortcuts": [{k: cstr(s.get(k)) for k in SHORTCUT_KEYS if s.get(k)} for s in doc.shortcuts],
 			"cards": _cards_from_links(doc.links),

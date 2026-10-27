@@ -12,6 +12,7 @@
       "title": {"type": "string"},
       "public": {"type": "integer", "enum": [0, 1], "description": "create: 1 (default) for everyone, 0 for the requester only (listed in My Workspaces)"},
       "copy_from": {"type": "string", "description": "create: start from a copy of this workspace and its sidebar (the way to change an app workspace)"},
+      "module": {"type": "string", "description": "create: the module whose sidebar lists the workspace (a Module Def). Omit: a private page goes to Private, a shared one to Custom Workspaces"},
       "icon": {"type": "string", "description": "A Frappe icon name (lucide: home, users, receipt-text, chart-column…) or an emoji"},
       "indicator_color": {"type": "string"},
       "parent_page": {"type": "string"},
@@ -35,7 +36,7 @@
     },
     "required": ["operation", "name"]
   },
-  "get_fields": ["name", "title", "public", "for_user", "module", "app", "icon", "indicator_color", "parent_page", "is_hidden", "content"],
+  "get_fields": ["name", "title", "public", "for_user", "module", "standard", "icon", "indicator_color", "parent_page", "is_hidden", "content"],
   "get_doctype": "Workspace",
   "get_source": "ai_agent.customization.kinds.workspace.KIND.get_source",
   "inspect_part": null

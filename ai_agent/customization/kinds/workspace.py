@@ -99,6 +99,11 @@ class WorkspaceKind:
 						hints=[_("Frappe lists private workspaces in the user's 'My Workspaces' sidebar; send public: 1 for a shared one")])
 			else:
 				spec["desktop_icon"] = _bit(1 if args.get("desktop_icon") is None else args.get("desktop_icon"))
+			if args.get("module"):
+				module = cstr(args["module"]).strip()
+				if not frappe.db.exists("Module Def", module):
+					raise CustomizationError(_("There is no module {0}").format(module))
+				spec["module"] = module
 			if args.get("copy_from"):
 				self._copy(spec, cstr(args["copy_from"]))
 		else:
@@ -462,7 +467,8 @@ class WorkspaceKind:
 			if op == "create":
 				doc = frappe.new_doc("Workspace")
 				doc.update({"label": spec["name"], "title": merged["title"], "public": merged["public"],
-					"for_user": merged.get("for_user") or "", "type": "Workspace"})
+					"for_user": merged.get("for_user") or "", "type": "Workspace", "standard": 0,
+					"module": spec.get("module") or _site_module(merged.get("for_user"))})
 				from frappe.desk.doctype.workspace.workspace import last_sequence_id
 
 				doc.sequence_id = last_sequence_id(doc) + 1
@@ -484,8 +490,12 @@ class WorkspaceKind:
 			doc.content = json.dumps(merged["content"])
 			if op == "create":
 				doc.insert()
-				if not merged["public"]:
-					self._add_to_my_workspaces(doc)
+				if merged["public"]:
+					# Frappe 16.53: a shared page is reachable through a row in its module's sidebar, which the
+					# creating path adds (a private one gets its rows in Workspace.after_insert)
+					from frappe.desk.doctype.workspace.workspace import add_to_sidebar
+
+					add_to_sidebar(doc)
 			else:
 				doc.save()
 		if merged.get("public"):
@@ -535,27 +545,6 @@ class WorkspaceKind:
 		from frappe.desk.doctype.desktop_icon.desktop_icon import clear_desktop_icons_cache
 
 		clear_desktop_icons_cache()
-
-	def _add_to_my_workspaces(self, doc):
-		"""Frappe's ``add_to_my_workspace`` (workspace_sidebar.py:200-235) clones the standard 'My Workspaces'
-		sidebar with standard=1/app=frappe, which in developer mode writes a JSON file into apps/frappe; this
-		does the same with standard=0 and no app."""
-		user = doc.for_user
-		name = f"My Workspaces-{user}"
-		if frappe.db.exists("Workspace Sidebar", name):
-			sidebar = frappe.get_doc("Workspace Sidebar", name)
-		else:
-			sidebar = frappe.new_doc("Workspace Sidebar")
-			sidebar.title = name
-			sidebar.for_user = user
-			sidebar.header_icon = frappe.db.get_value("Workspace Sidebar", "My Workspaces", "header_icon")
-		sidebar.standard = 0
-		sidebar.app = None
-		sidebar.append("items", {"label": doc.title, "type": "Link", "link_to": doc.name, "link_type": "Workspace",
-			"icon": doc.icon, "collapsible": 1})
-		sidebar.save() if not sidebar.is_new() else sidebar.insert()
-		if sidebar.owner != user:
-			frappe.db.set_value("Workspace Sidebar", sidebar.name, "owner", user, update_modified=False)
 
 	def _delete(self, spec, state):
 		name = spec["name"]
@@ -676,6 +665,14 @@ class WorkspaceKind:
 		if state.get("sidebar"):
 			state["sidebar"]["preview"] = sidebar_text(state["sidebar"]["items"])
 		return state
+
+
+def _site_module(for_user=None):
+	"""Where a workspace goes when the request names no module (Workspace.module is mandatory from Frappe 16.53):
+	Frappe's own answer, a site module no app owns ("Private" for a private page, "Custom Workspaces" otherwise)."""
+	from frappe.desk.doctype.workspace.workspace import triage_module
+
+	return triage_module(for_user or None)
 
 
 KIND = WorkspaceKind()

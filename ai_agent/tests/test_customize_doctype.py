@@ -5,14 +5,17 @@ Each test makes DocTypes named ``Zz DT Test <hash> …`` and removes them (and t
 
 import json
 import os
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.customization.contract import CustomizationError
+from ai_agent.customization.kinds import doctype as doctype_kind
 from ai_agent.customization.kinds.doctype import KIND, definition
 
 ADMIN = "Administrator"
+DEFAULT_MODULE = doctype_kind._default_module  # the real one, before setUp patches it
 
 
 def critical(report):
@@ -39,6 +42,20 @@ class TestCustomizeDocType(IntegrationTestCase):
 		self.prefix = f"Zz DT Test {frappe.generate_hash(length=6)}"
 		self.made = []
 		self.addCleanup(self.cleanup)
+		# the default module is "Custom" on a site without custom modules of its own (test_default_module covers
+		# the other cases): this site's own modules are not these tests' concern
+		default = patch.object(doctype_kind, "_default_module", return_value="Custom")
+		default.start()
+		self.addCleanup(default.stop)
+
+	def test_default_module(self):
+		"""One custom module: that one; several: the request must name one; none: the standard "Custom"."""
+		with patch.object(frappe, "get_all", return_value=["Field Ops"]):
+			self.assertEqual(DEFAULT_MODULE(), "Field Ops")
+		with patch.object(frappe, "get_all", return_value=["A", "B"]), self.assertRaises(CustomizationError):
+			DEFAULT_MODULE()
+		with patch.object(frappe, "get_all", return_value=[]), patch.object(frappe.db, "exists", return_value=True):
+			self.assertEqual(DEFAULT_MODULE(), "Custom")
 
 	def name(self, suffix="Visit"):
 		name = f"{self.prefix} {suffix}"

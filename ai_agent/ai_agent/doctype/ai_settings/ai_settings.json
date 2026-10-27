@@ -76,6 +76,7 @@
   "mcp_company",
   "column_break_mcp",
   "mcp_allowed_roles",
+  "mcp_require_profile",
   "mcp_max_requests_per_minute",
   "section_mcp_actions",
   "mcp_enable_action_requests",
@@ -511,7 +512,7 @@
   },
   {
    "depends_on": "eval:doc.enable_mcp",
-   "description": "Rules applied to every request from external tools. Default: ERP Analyst.",
+   "description": "Rules applied to every request from external tools. Default: ERP Analyst. Used by users without an AI MCP record.",
    "fieldname": "mcp_agent",
    "fieldtype": "Link",
    "label": "Agent",
@@ -531,11 +532,19 @@
   },
   {
    "depends_on": "eval:doc.enable_mcp",
-   "description": "A user needs one of these roles to connect. Empty: AI MCP User and System Manager.",
+   "description": "Users without an AI MCP record need one of these roles to connect. Empty: AI MCP User and System Manager.",
    "fieldname": "mcp_allowed_roles",
    "fieldtype": "Table MultiSelect",
    "label": "Allowed Roles",
    "options": "Has Role"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enable_mcp",
+   "description": "On: a user connects only through an enabled AI MCP record (their agent, company and switch). Off: users without a record use the agent and company above and the roles.",
+   "fieldname": "mcp_require_profile",
+   "fieldtype": "Check",
+   "label": "Only users with an AI MCP record"
   },
   {
    "default": "60",
@@ -648,7 +657,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-22 18:00:00.000000",
+ "modified": "2026-10-27 22:30:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

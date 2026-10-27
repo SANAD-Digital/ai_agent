@@ -106,6 +106,10 @@ class TestCustomizationSkillExamples(IntegrationTestCase):
 		allowed = patch("ai_agent.runtime.policy.submit_cancel_allowed", return_value=True)
 		allowed.start()
 		self.addCleanup(allowed.stop)
+		# the DocType examples take the default module: "Custom", whatever custom modules this site has
+		module = patch("ai_agent.customization.kinds.doctype._default_module", return_value="Custom")
+		module.start()
+		self.addCleanup(module.stop)
 
 	def run_rolled_back(self, fn):
 		frappe.db.savepoint(SAVEPOINT)

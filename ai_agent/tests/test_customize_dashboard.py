@@ -40,8 +40,10 @@ class TestCustomizeDashboard(IntegrationTestCase):
 	def workspace(self):
 		"""A plain (non-app) public workspace to place widgets on."""
 		title = f"AI Dash WS {self.suffix}"
+		from ai_agent.customization.kinds.workspace import _site_module
+
 		doc = frappe.get_doc({"doctype": "Workspace", "label": title, "title": title, "public": 1, "type": "Workspace",
-			"content": json.dumps([{"id": "h1", "type": "header", "data": {"text": "Hi", "col": 12}}])})
+			"module": _site_module(), "content": json.dumps([{"id": "h1", "type": "header", "data": {"text": "Hi", "col": 12}}])})
 		doc.insert(ignore_permissions=True)
 		self.addCleanup(lambda: frappe.db.exists("Workspace", title) and frappe.delete_doc(
 			"Workspace", title, force=True, ignore_permissions=True, ignore_on_trash=True))

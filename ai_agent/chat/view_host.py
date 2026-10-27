@@ -23,7 +23,7 @@ MAX_VIEW_BYTES = 400_000
 def service_for(agent_doc, company=None, user=None):
     from ai_agent.mcp.service import MCPService
 
-    service = MCPService(user or frappe.session.user)
+    service = MCPService(user or frappe.session.user, desk=True)
     service.agent = agent_doc                 # the chat session's agent, not the MCP connector's
     service.company = company
     service.ui_supported = True

@@ -1,6 +1,6 @@
 # Field and form properties (customize.request_properties) — Frappe v16
 
-Verified against `frappe/custom/doctype/customize_form/customize_form.py` (Frappe 16.28). Every example below
+Verified against `frappe/custom/doctype/customize_form/customize_form.py` (Frappe 16.53). Every example below
 passes `customize.check` (kind `properties`) on a live site.
 
 Arguments: `doctype`, `doctype_properties` `{property: value}`, `field_properties` `{fieldname: {property: value}}`,
@@ -46,7 +46,8 @@ Everything Customize Form accepts (`docfield_properties`):
 `translatable`, `mandatory_depends_on`, `read_only_depends_on`, `depends_on`, `description`, `default`, `precision`,
 `read_only`, `length`, `columns`, `remember_last_selected_value`, `allow_bulk_edit`, `auto_repeat`,
 `allow_in_quick_entry`, `hide_border`, `hide_days`, `hide_seconds`, `is_virtual`, `link_filters`, `placeholder`,
-`button_color`, `mask`, `set_only_once`.
+`button_color`, `mask`, `set_only_once`, `in_import_template` (Frappe 16.53: include the field in the Data Import
+template).
 
 Offered by this tool: `label hidden reqd read_only bold in_list_view in_standard_filter in_global_search in_preview
 allow_on_submit default options description depends_on mandatory_depends_on read_only_depends_on collapsible

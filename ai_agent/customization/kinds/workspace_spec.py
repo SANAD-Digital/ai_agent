@@ -212,12 +212,34 @@ def _cards_from_links(rows):
 	return cards
 
 
-def _sidebar_state(title):
-	if not title or not frappe.db.exists("Workspace Sidebar", title):
+# Frappe 16.53 navigation: a workspace lists in its module's sidebar, and a site's own sidebar for a module is the
+# site layer of Custom Sidebar (frappe/desk/doctype/custom_sidebar). A workspace has a sidebar of its own when it
+# sits in a module of its own: a custom Module Def that is not one of Frappe's triage modules.
+TRIAGE_MODULES = ("Custom Workspaces", "Private")
+
+
+def own_module(module):
+	"""``module`` when it is a workspace's own (custom, not a triage module), else None."""
+	if not module or module in TRIAGE_MODULES:
 		return None
-	doc = frappe.get_doc("Workspace Sidebar", title)
+	return module if cint(frappe.db.get_value("Module Def", module, "custom")) else None
+
+
+def _site_layer(module):
+	return frappe.db.get_value("Custom Sidebar", {"module": module, "user": ("in", ("", None))}, "name") \
+		or frappe.db.get_value("Custom Sidebar", {"module": module, "user": ("is", "not set")}, "name")
+
+
+def _sidebar_state(module):
+	"""The site layer of ``module``'s sidebar: the rows this kind adds (added=1) in their order."""
+	name = _site_layer(module) if own_module(module) else None
+	if not name:
+		return None
+	doc = frappe.get_doc("Custom Sidebar", name)
 	items = []
-	for row in sorted(doc.items, key=lambda r: r.idx):
+	for row in sorted(doc.sidebar_items, key=lambda r: r.idx):
+		if not cint(row.added) or cint(row.hidden):
+			continue
 		item = {"type": row.type or "Link", "label": row.label or ""}
 		for key in ("link_type", "link_to", "url", "icon", "filters", "route_options"):
 			if row.get(key) and not (key == "link_type" and item["type"] != "Link"):
@@ -228,7 +250,7 @@ def _sidebar_state(title):
 		if not cint(row.collapsible):
 			item["collapsible"] = 0
 		items.append(item)
-	return {"title": doc.name, "standard": cint(doc.standard), "app": doc.app or "", "for_user": doc.for_user or "",
+	return {"title": doc.label or module, "module": module, "standard": 0, "app": "", "for_user": "",
 		"header_icon": doc.header_icon or "", "items": items}
 
 
@@ -260,7 +282,8 @@ def current(name):
 			"content": content,
 		})
 	title = state.get("title") or name
-	state["sidebar"] = _sidebar_state(title) if state.get("public", 1) else None
+	# an existing page's sidebar is its module's; a name not created yet: the module it would get (its title)
+	state["sidebar"] = _sidebar_state(state.get("module") if state["exists"] else title) if state.get("public", 1) else None
 	state["desktop_icon"] = _icon_state(title) if state.get("public", 1) else None
 	return json.loads(json.dumps(state, default=str))
 

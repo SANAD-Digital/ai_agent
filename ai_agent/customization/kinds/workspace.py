@@ -1,26 +1,22 @@
-"""Workspaces and their sidebars (Frappe 16): ``customize.request_workspace``.
+"""Workspaces and their sidebars (Frappe 16.53): ``customize.request_workspace``.
 
-Frappe 16 splits the desk into three records, all read here from Frappe's own code:
+Frappe 16.53 navigation, read here from Frappe's own code:
 
-- **Workspace** (``frappe/desk/doctype/workspace``): the page. ``content`` is a JSON list of blocks
-  (``{"id", "type": "shortcut|card|number_card|chart|header|spacer|…", "data": {"<type>_name": <label>, "col"}}``)
-  whose names point at the *labels* of the child rows ``shortcuts``, ``links`` (Card Break + Link rows),
-  ``number_cards`` and ``charts`` (``public/js/frappe/views/workspace/blocks/*.js``).
-- **Workspace Sidebar** (``frappe/desk/doctype/workspace_sidebar``): the left menu. Items are ``Link`` /
-  ``Section Break`` / ``Spacer`` rows; a Section Break with ``indent=1`` is a collapsible group and the rows
-  after it with ``child=1`` belong to it. ``boot.get_sidebar_items`` drops every item the user cannot open
-  (``DeskViews.is_item_allowed``) and the whole sidebar when no Link survives (boot.py:485-497).
-  ``sidebar.js resolve_sidebar`` shows the sidebar whose title is the route's workspace, else one that links
-  the current DocType/Report/Page.
-- **Desktop Icon** (``frappe/desk/doctype/desktop_icon``): the tile on /desk; a non-standard icon is listed
-  only for its owner and Administrator-owned icons (``get_desktop_icons`` desktop_icon.py:155-163).
+- **Workspace** (``frappe/desk/doctype/workspace``): the page. ``content`` is a JSON list of blocks whose names point
+  at the *labels* of the child rows ``shortcuts``, ``links`` (Card Break + Link rows), ``number_cards`` and ``charts``.
+  ``module`` is mandatory; an app's own pages are ``standard``.
+- **Module sidebar**: a sidebar belongs to a module, not to a page. An app ships it (``Sidebar``); the site and each
+  user arrange it in layers (``Custom Sidebar``, ``frappe/desk/doctype/custom_sidebar``). A shared page gets a row in
+  its module's site layer (``add_to_sidebar``), a private one in its owner's (``Workspace.after_insert``). The old
+  ``Workspace Sidebar`` is a read-only archive.
+- **Desktop Icon** (``frappe/desk/doctype/desktop_icon``): the tile on /desk; it names the workspace and the desk
+  routes it through the module sidebar.
 
-Files in app folders: with ``developer_mode`` (acc.dev has it) Frappe writes JSON into the app when a
-*public Workspace with a module* is saved (workspace.py:123-125), a *standard Sidebar with an app*
-(workspace_sidebar.py:53-63) or a *standard Desktop Icon with an app* (desktop_icon.py:71-81). This kind only
-writes records without ``module``/``app`` and with ``standard=0``, so none of those branches can run, and it
-refuses to edit app-owned records in place (copy them with ``copy_from``). It never relies on
-``frappe.flags.in_import`` (that flag also skips validations).
+A page with a sidebar of its own sits in a custom module of its own (Frappe makes the page a new custom module opens
+on, and this kind fills it in); its sidebar is that module's site layer, saved through Frappe's ``save_site_sidebar``.
+Without one, a page goes to the module asked for or Frappe's triage module. This kind writes only non-standard
+records, so developer mode never exports them into an app, and it refuses to edit app-owned pages in place (copy them
+with ``copy_from``). It never relies on ``frappe.flags.in_import`` (that flag also skips validations).
 """
 
 from __future__ import annotations
@@ -48,6 +44,7 @@ from ai_agent.customization.kinds.workspace_spec import (  # noqa: F401 (current
 	desk_roles,
 	icon_check,
 	is_standard_sidebar,
+	own_module,
 	is_standard_workspace,
 	ITEM_FIELDS,
 	META_KEYS,
@@ -96,7 +93,7 @@ class WorkspaceKind:
 				spec["for_user"] = user
 				if args.get("sidebar") or cint(args.get("desktop_icon")):
 					raise CustomizationError(_("A private workspace has no sidebar or desktop icon of its own"),
-						hints=[_("Frappe lists private workspaces in the user's 'My Workspaces' sidebar; send public: 1 for a shared one")])
+						hints=[_("Frappe lists a private workspace in its owner's own sidebar; send public: 1 for a shared one")])
 			else:
 				spec["desktop_icon"] = _bit(1 if args.get("desktop_icon") is None else args.get("desktop_icon"))
 			if args.get("module"):
@@ -112,7 +109,7 @@ class WorkspaceKind:
 				private = workspace_name(name, 0, user)
 				if frappe.db.exists("Workspace", private):
 					name = private
-				elif not (operation == "update" and frappe.db.exists("Workspace Sidebar", name)):
+				else:
 					raise CustomizationError(_("There is no workspace {0}").format(name),
 						hints=[_("Use operation create, or the exact name from the Workspace list")])
 			spec["name"] = name
@@ -161,13 +158,22 @@ class WorkspaceKind:
 				spec["sidebar"] = {"remove": 1}
 			else:
 				_base.require(sidebar, ("items",), "sidebar")
-				spec["sidebar"] = {"items": _norm_items(sidebar["items"]), "header_icon": cstr(sidebar.get("header_icon"))}
+				items = _norm_items(sidebar["items"])
+				if not any(i.get("link_type") == "Workspace" and i.get("link_to") == spec["name"] for i in items):
+					# the page itself is the first way in: a module opens on the first item of its sidebar
+					items.insert(0, {"type": "Link", "label": "Home", "link_type": "Workspace", "link_to": spec["name"], "icon": "home"})
+				spec["sidebar"] = {"items": items, "header_icon": cstr(sidebar.get("header_icon"))}
+		if operation == "create" and spec.get("sidebar") and spec.get("public"):
+			# Frappe 16.53: a sidebar belongs to a module, so a page with a sidebar of its own sits in a module of
+			# its own (named after it unless the request names one)
+			spec["module"] = spec.get("module") or spec["title"]
+			if frappe.db.exists("Module Def", spec["module"]) and not own_module(spec["module"]):
+				raise CustomizationError(_("{0} is not a custom module of the site: its sidebar is not this page's own").format(spec["module"]),
+					hints=[_("Leave module empty: the page gets a module of its own named after it")])
 		if operation == "update" and args.get("desktop_icon") is not None:
 			spec["desktop_icon"] = _bit(args["desktop_icon"])
 		if operation == "update" and not (set(spec) & set(SECTIONS + META_KEYS + ("content", "sidebar", "desktop_icon"))):
 			raise CustomizationError(_("Nothing to change"), hints=[_("Send the sections to replace: shortcuts, cards, number_cards, charts, sidebar, icon, roles…")])
-		if not frappe.db.exists("Workspace", spec["name"]) and operation == "update" and (set(spec) & set(SECTIONS + META_KEYS + ("content",))):
-			raise CustomizationError(_("{0} is a sidebar without a workspace: only sidebar can change").format(spec["name"]))
 		return spec
 
 	def _copy(self, spec, source):
@@ -179,7 +185,7 @@ class WorkspaceKind:
 		for key in ("icon", "indicator_color"):
 			spec[key] = state.get(key) or ""
 		spec["roles"] = state.get("roles") or []
-		sidebar = _sidebar_state(state.get("title"))
+		sidebar = _sidebar_state(state.get("module"))
 		if spec.get("public") and sidebar:
 			items = [dict(i) for i in sidebar["items"]]
 			for item in items:  # the copied Home link must open the copy
@@ -223,9 +229,6 @@ class WorkspaceKind:
 			sidebar = None if spec["sidebar"].get("remove") else {"title": out.get("title") or spec["name"], "standard": 0, "app": "",
 				"header_icon": spec["sidebar"].get("header_icon") or (sidebar or {}).get("header_icon") or out.get("icon") or "",
 				"items": spec["sidebar"]["items"]}
-		elif spec["operation"] == "create" and out["public"] and not sidebar:
-			sidebar = {"title": spec["title"], "standard": 0, "app": "", "header_icon": out.get("icon") or "",
-				"items": [{"type": "Link", "label": "Home", "link_type": "Workspace", "link_to": spec["name"], "icon": "home"}]}
 		out["sidebar"] = sidebar
 		out["desktop_icon"] = spec.get("desktop_icon", 1 if state.get("desktop_icon") else 0)
 		return out
@@ -272,10 +275,10 @@ class WorkspaceKind:
 			checks.append(Check("workspace.standard", "critical",
 				_("{0} belongs to the app {1}: it is not edited in place (developer mode would write the change into the app, migrate would overwrite it). Create a copy: operation create with copy_from {0}").format(
 					spec["name"], state.get("app") or state.get("module"))))
-		if op == "update" and "sidebar" in spec and state.get("sidebar") and is_standard_sidebar(state["sidebar"]):
-			checks.append(Check("workspace.standard", "critical",
-				_("The sidebar {0} belongs to the app {1}: create a copy (operation create with copy_from) instead of editing it").format(
-					state["sidebar"]["title"], state["sidebar"].get("app") or "-")))
+		if op == "update" and "sidebar" in spec and state["exists"] and not own_module(state.get("module")):
+			checks.append(Check("workspace.shared_sidebar", "critical",
+				_("{0} lists in the sidebar of the module {1}, which other pages share: arrange it in Desk (the sidebar's Customize), or create a copy with a sidebar of its own (operation create with copy_from and sidebar)").format(
+					spec["name"], state.get("module") or "-")))
 		if op in ("disable", "enable") and state["exists"] and not state.get("public"):
 			checks.append(Check("workspace.private", "critical", _("A private workspace cannot be hidden; delete it instead")))
 
@@ -465,13 +468,17 @@ class WorkspaceKind:
 		touches_workspace = op == "create" or bool(set(spec) & set(SECTIONS + META_KEYS + ("content",)))
 		if touches_workspace:
 			if op == "create":
-				doc = frappe.new_doc("Workspace")
-				doc.update({"label": spec["name"], "title": merged["title"], "public": merged["public"],
-					"for_user": merged.get("for_user") or "", "type": "Workspace", "standard": 0,
-					"module": spec.get("module") or _site_module(merged.get("for_user"))})
-				from frappe.desk.doctype.workspace.workspace import last_sequence_id
+				module = self._module_for(spec, merged)
+				if frappe.db.exists("Workspace", spec["name"]) and frappe.db.get_value("Workspace", spec["name"], "module") == module:
+					# Frappe 16.53 makes the page a new custom module opens on, named after the module: this is it
+					doc = frappe.get_doc("Workspace", spec["name"])
+				else:
+					doc = frappe.new_doc("Workspace")
+					from frappe.desk.doctype.workspace.workspace import last_sequence_id
 
-				doc.sequence_id = last_sequence_id(doc) + 1
+					doc.sequence_id = last_sequence_id(doc) + 1
+				doc.update({"label": spec["name"], "title": merged["title"], "public": merged["public"],
+					"for_user": merged.get("for_user") or "", "type": "Workspace", "standard": 0, "module": module})
 			else:
 				doc = frappe.get_doc("Workspace", spec["name"])
 			doc.icon = merged.get("icon") or ("grid" if op == "create" else doc.icon)
@@ -488,7 +495,7 @@ class WorkspaceKind:
 			doc.set("number_cards", [{"number_card_name": r["name"], "label": r.get("label") or r["name"]} for r in merged["number_cards"]])
 			doc.set("charts", [{"chart_name": r["name"], "label": r.get("label") or r["name"]} for r in merged["charts"]])
 			doc.content = json.dumps(merged["content"])
-			if op == "create":
+			if op == "create" and doc.is_new():
 				doc.insert()
 				if merged["public"]:
 					# Frappe 16.53: a shared page is reachable through a row in its module's sidebar, which the
@@ -499,31 +506,42 @@ class WorkspaceKind:
 			else:
 				doc.save()
 		if merged.get("public"):
-			if "sidebar" in spec or op == "create":
-				self._write_sidebar(merged.get("sidebar"), state.get("sidebar"))
+			if "sidebar" in spec:
+				module = spec.get("module") if op == "create" else state.get("module")
+				self._write_sidebar(module, merged.get("sidebar"), merged.get("title") or spec["name"])
 			if "desktop_icon" in spec:
 				self._write_icon(spec, merged, state)
 
-	def _write_sidebar(self, wanted, before):
+	@staticmethod
+	def _module_for(spec, merged):
+		"""The page's module (Workspace.module is mandatory from Frappe 16.53): the one asked for or, for a page
+		with a sidebar of its own, one of its own (made here as a custom module); else Frappe's triage module."""
+		module = spec.get("module")
+		if not module:
+			return _site_module(merged.get("for_user"))
+		if not frappe.db.exists("Module Def", module):
+			made = frappe.get_doc({"doctype": "Module Def", "module_name": module, "custom": 1})
+			made.flags.page_icon = merged.get("icon") or None  # Frappe puts it on the page the module opens on
+			made.insert()
+		return module
+
+	@staticmethod
+	def _write_sidebar(module, wanted, title):
+		"""The page's own sidebar is the site layer of its module's sidebar (Frappe 16.53 Custom Sidebar), saved
+		through Frappe's own call for it (a Workspace Manager's save for everyone)."""
+		from frappe.desk.doctype.custom_sidebar import custom_sidebar
+
+		if not own_module(module):
+			raise CustomizationError(_("{0} is not a module of this page's own: its sidebar is shared").format(module or "-"))
 		if wanted is None:
-			if before and not is_standard_sidebar(before):
-				frappe.delete_doc("Workspace Sidebar", before["title"], ignore_missing=True)
+			custom_sidebar.reset_site_sidebar(module)
 			return
-		if frappe.db.exists("Workspace Sidebar", wanted["title"]):
-			doc = frappe.get_doc("Workspace Sidebar", wanted["title"])
-		else:
-			doc = frappe.new_doc("Workspace Sidebar")
-			doc.title = wanted["title"]
-		# standard=0 and no app: never exported into an app folder (workspace_sidebar.py:53-63)
-		doc.standard = 0
-		doc.app = None
-		doc.header_icon = wanted.get("header_icon") or None
-		doc.set("items", [])
+		rows = []
 		for item in wanted["items"]:
 			row = {k: item.get(k) for k in ITEM_FIELDS if item.get(k) not in (None, "")}
 			row.setdefault("collapsible", 1)
-			doc.append("items", row)
-		doc.save() if not doc.is_new() else doc.insert()
+			rows.append({**row, "added": 1})
+		custom_sidebar.save_site_sidebar(module, items=rows, label=title, header_icon=wanted.get("header_icon") or "")
 
 	def _write_icon(self, spec, merged, state):
 		label = merged.get("title") or spec["name"]
@@ -535,9 +553,12 @@ class WorkspaceKind:
 		if existing:
 			return
 		icon = frappe.new_doc("Desktop Icon")
-		icon.update({"label": label, "icon_type": "Link", "link_type": "Workspace Sidebar", "link_to": label,
+		# Frappe 16.53 (desktop_icon.add_workspace_to_desktop): the icon names the workspace and the desk routes it
+		# through the module sidebar; link_type is an inert column naming the archived Workspace Sidebar, hence
+		# ignore_links
+		icon.update({"label": label, "icon_type": "Link", "link_type": "Workspace Sidebar", "link_to": spec["name"],
 			"icon": merged.get("icon") or None, "standard": 0, "app": None})
-		icon.insert()
+		icon.insert(ignore_links=True)
 		# A non-standard icon is listed only for its owner and for Administrator-owned icons
 		# (desktop_icon.py get_desktop_icons): own it by Administrator, as Frappe's own non-standard icons are,
 		# so every user who can see the sidebar gets the tile. The approval keeps who made it.
@@ -548,23 +569,19 @@ class WorkspaceKind:
 
 	def _delete(self, spec, state):
 		name = spec["name"]
-		if not state.get("public") and state.get("for_user"):
-			mine = f"My Workspaces-{state['for_user']}"
-			if frappe.db.exists("Workspace Sidebar", mine):
-				sidebar = frappe.get_doc("Workspace Sidebar", mine)
-				keep = [r for r in sidebar.items if not (r.link_type == "Workspace" and r.link_to == name)]
-				if len(keep) != len(sidebar.items):
-					sidebar.set("items", keep)
-					sidebar.save()
 		icon = state.get("desktop_icon")
 		if icon and not icon.get("standard") and not icon.get("app"):
 			frappe.delete_doc("Desktop Icon", icon["name"], ignore_missing=True)
-		sidebar = state.get("sidebar")
-		if sidebar and not is_standard_sidebar(sidebar):
-			frappe.delete_doc("Workspace Sidebar", sidebar["title"], ignore_missing=True)
-		# ignore_on_trash: Workspace.on_trash deletes any sidebar/icon titled like the workspace (even someone
-		# else's public one for a private workspace) and the *session* user's My Workspaces row; done above instead.
-		frappe.delete_doc("Workspace", name, ignore_on_trash=True)
+		# Frappe 16.53 Workspace.on_trash takes the page out of every sidebar layer that lists it and drops its icon
+		frappe.delete_doc("Workspace", name)
+		module = own_module(state.get("module"))
+		if module and state.get("sidebar"):
+			from frappe.desk.doctype.custom_sidebar import custom_sidebar
+
+			custom_sidebar.reset_site_sidebar(module)
+			# the page's own module goes with it when nothing else lives in it
+			if not any(frappe.db.exists(dt, {"module": module}) for dt in ("Workspace", "DocType", "Report", "Page", "Print Format")):
+				frappe.delete_doc("Module Def", module, ignore_missing=True)
 
 	# -- execute / verify ---------------------------------------------------------------------------
 	def execute(self, spec, user, approval=None):
@@ -616,6 +633,8 @@ class WorkspaceKind:
 			spec["for_user"] = state.get("for_user")
 		for key in META_KEYS + SECTIONS + ("content",):
 			spec[key] = state.get(key) if state.get(key) is not None else ""
+		if state.get("module"):
+			spec["module"] = state["module"]
 		if state.get("sidebar") and spec["public"] and not is_standard_sidebar(state["sidebar"]):
 			spec["sidebar"] = {"items": state["sidebar"]["items"], "header_icon": state["sidebar"].get("header_icon") or ""}
 		spec["desktop_icon"] = 1 if state.get("desktop_icon") and spec["public"] else 0
@@ -644,9 +663,9 @@ class WorkspaceKind:
 				if json.dumps(wanted, sort_keys=True) != json.dumps(got, sort_keys=True):
 					checks.append(Check("verify.sidebar", "critical", _("The sidebar differs from the approved one")))
 			if op == "create" and not spec.get("public") and spec.get("for_user"):
-				mine = _sidebar_state(f"My Workspaces-{spec['for_user']}")
-				if not mine or not any(i.get("link_to") == spec["name"] for i in mine["items"]):
-					checks.append(Check("verify.my_workspaces", "warning", _("The workspace is not listed in {0}'s My Workspaces").format(spec["for_user"])))
+				listed = frappe.db.exists("Sidebar Item", {"parenttype": "Custom Sidebar", "link_type": "Workspace", "link_to": spec["name"]})
+				if not listed:
+					checks.append(Check("verify.my_workspaces", "warning", _("The workspace is not listed in {0}'s sidebar").format(spec["for_user"])))
 		if not checks:
 			checks.append(Check("verify.workspace", "ok", _("{0} is in place").format(spec["name"])))
 		return checks
@@ -657,7 +676,7 @@ class WorkspaceKind:
 		return _("{0} workspace {1}{2}").format(verb, spec["name"], private)
 
 	def get_source(self, name, user=None):
-		if not frappe.db.exists("Workspace", name) and not frappe.db.exists("Workspace Sidebar", name):
+		if not frappe.db.exists("Workspace", name):
 			raise frappe.DoesNotExistError(_("There is no workspace {0}").format(name))
 		state = current(name)
 		state["kind"] = self.name

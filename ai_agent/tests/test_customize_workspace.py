@@ -1,4 +1,5 @@
-"""Workspace kind: Workspace + Workspace Sidebar + Desktop Icon (customize.request_workspace)."""
+"""Workspace kind on Frappe 16.53: Workspace, its module (and that module's site sidebar layer) and Desktop Icon
+(customize.request_workspace)."""
 
 import json
 import os
@@ -45,15 +46,14 @@ class TestCustomizeWorkspace(IntegrationTestCase):
 
 		def remove():
 			frappe.set_user(ADMIN)
-			for doctype in ("Desktop Icon", "Workspace Sidebar"):
-				if frappe.db.exists(doctype, title):
-					frappe.delete_doc(doctype, title, force=True, ignore_permissions=True)
+			if frappe.db.exists("Desktop Icon", title):
+				frappe.delete_doc("Desktop Icon", title, force=True, ignore_permissions=True)
 			if frappe.db.exists("Workspace", name):
-				frappe.delete_doc("Workspace", name, force=True, ignore_permissions=True, ignore_on_trash=True)
-			if private_for and frappe.db.exists("Workspace Sidebar", f"My Workspaces-{private_for}"):
-				doc = frappe.get_doc("Workspace Sidebar", f"My Workspaces-{private_for}")
-				doc.set("items", [r for r in doc.items if r.link_to != name])
-				doc.save(ignore_permissions=True)
+				frappe.delete_doc("Workspace", name, force=True, ignore_permissions=True)
+			for layer in frappe.get_all("Custom Sidebar", filters={"module": title}, pluck="name"):
+				frappe.delete_doc("Custom Sidebar", layer, force=True, ignore_permissions=True)
+			if frappe.db.get_value("Module Def", title, "custom"):
+				frappe.delete_doc("Module Def", title, force=True, ignore_permissions=True)
 
 		self.addCleanup(remove)
 		return title
@@ -113,7 +113,9 @@ class TestCustomizeWorkspace(IntegrationTestCase):
 		self.assertFalse([c for c in verify if c.level == "critical"], [c.message for c in verify])
 		state = current(title)
 		self.assertTrue(state["exists"])
-		self.assertEqual((state["module"], state["app"]), ("", ""))  # never exported into an app
+		# a page with a sidebar of its own sits in a custom module of its own (never an app's, never exported)
+		self.assertEqual((state["module"], state["app"], state["standard"]), (title, "", 0))
+		self.assertEqual(frappe.db.get_value("Module Def", title, "custom"), 1)
 		self.assertEqual(state["sidebar"]["standard"], 0)
 		self.assertEqual(state["sidebar"]["app"], "")
 		self.assertEqual(state["desktop_icon"]["owner"], "Administrator")
@@ -129,7 +131,8 @@ class TestCustomizeWorkspace(IntegrationTestCase):
 		undo2 = KIND.execute(delete, ADMIN)
 		self.assertFalse([c for c in KIND.verify(delete, undo2) if c.level == "critical"])
 		self.assertFalse(frappe.db.exists("Workspace", title))
-		self.assertFalse(frappe.db.exists("Workspace Sidebar", title))
+		self.assertFalse(frappe.db.exists("Module Def", title), "its own module goes with it")
+		self.assertFalse(frappe.db.exists("Custom Sidebar", {"module": title}))
 		self.assertFalse(frappe.db.exists("Desktop Icon", title))
 		restore = undo2["undo"]
 		self.assertEqual(restore["operation"], "create")
@@ -182,14 +185,13 @@ class TestCustomizeWorkspace(IntegrationTestCase):
 		self.assertIn(f"Only {ADMIN}", " ".join(report.impact))
 		result = KIND.execute(spec, ADMIN)
 		self.assertFalse([c for c in KIND.verify(spec, result) if c.level == "critical"])
-		mine = frappe.get_doc("Workspace Sidebar", f"My Workspaces-{ADMIN}")
-		self.assertTrue(any(r.link_to == name for r in mine.items))
-		self.assertEqual((mine.standard, mine.app or ""), (0, ""))
-		self.assertFalse(frappe.db.exists("Workspace Sidebar", title))
+		# Frappe 16.53 lists a private page in its owner's own sidebar layer
+		listed = {"parenttype": "Custom Sidebar", "link_type": "Workspace", "link_to": name}
+		self.assertTrue(frappe.db.exists("Sidebar Item", listed))
+		self.assertEqual(frappe.db.get_value("Workspace", name, "module"), "Private")
 		KIND.execute(result["undo"], ADMIN)
 		self.assertFalse(frappe.db.exists("Workspace", name))
-		mine.reload()
-		self.assertFalse(any(r.link_to == name for r in mine.items))
+		self.assertFalse(frappe.db.exists("Sidebar Item", listed))
 
 	def test_disable_enable(self):
 		title = self.track(f"AI WS Hide {self.suffix}")
@@ -205,33 +207,38 @@ class TestCustomizeWorkspace(IntegrationTestCase):
 
 	# -- checks -------------------------------------------------------------------------------------------
 	def test_app_workspace_is_not_edited_in_place(self):
-		standard = frappe.get_all("Workspace", filters={"module": ("is", "set"), "public": 1}, pluck="name", limit=1)
+		standard = frappe.get_all("Workspace", filters={"standard": 1, "public": 1}, pluck="name", limit=1)
 		if not standard:
 			self.skipTest("no app workspace on this site")
 		spec = KIND.normalize({"operation": "update", "name": standard[0], "icon": "home"}, ADMIN)
 		self.assertIn("workspace.standard", critical(KIND.check(spec, ADMIN)))
 		spec = KIND.normalize({"operation": "disable", "name": standard[0]}, ADMIN)
 		self.assertIn("workspace.standard", critical(KIND.check(spec, ADMIN)))
-		sidebar = frappe.get_all("Workspace Sidebar", filters={"standard": 1, "for_user": ("is", "not set")}, pluck="name", limit=1)
-		if sidebar:
-			spec = KIND.normalize({"operation": "update", "name": sidebar[0], "sidebar": {"items": [{"label": "ToDo", "link_to": "ToDo"}]}}, ADMIN)
-			self.assertIn("workspace.standard", critical(KIND.check(spec, ADMIN)))
+		# its sidebar is its app module's, which other pages share: arranged in Desk, not here
+		spec = KIND.normalize({"operation": "update", "name": standard[0], "sidebar": {"items": [{"label": "ToDo", "link_to": "ToDo"}]}}, ADMIN)
+		self.assertIn("workspace.shared_sidebar", critical(KIND.check(spec, ADMIN)))
 
 	def test_copy_from_app_workspace(self):
-		source = next((w for w in frappe.get_all("Workspace", filters={"module": ("is", "set"), "public": 1}, pluck="name")
-			if frappe.db.exists("Workspace Sidebar", w)), None)
-		if not source:
-			self.skipTest("no app workspace with a sidebar")
-		title = self.track(f"AI WS Copy {self.suffix}")
+		standard = frappe.get_all("Workspace", filters={"standard": 1, "public": 1}, pluck="name", limit=1)
+		if standard:  # an app page: its sections are copied; its sidebar is its app module's and stays there
+			title = self.track(f"AI WS Copy {self.suffix}")
+			spec = KIND.normalize({"operation": "create", "name": title, "copy_from": standard[0]}, ADMIN)
+			self.assertEqual(spec["copied_from"], standard[0])
+			self.assertEqual(spec["shortcuts"], current(standard[0])["shortcuts"])
+			self.assertNotIn("sidebar", spec)
+			report = KIND.check(spec, ADMIN)
+			self.assertNotIn("workspace.standard", critical(report))
+			self.assertEqual(report.preview["copied_from"], standard[0])
+		# a page with a sidebar of its own: the copy gets one too, opening on the copy
+		source = self.track(f"AI WS Src {self.suffix}")
+		KIND.execute(KIND.normalize(self.create_args(source), ADMIN), ADMIN)
+		title = self.track(f"AI WS Copy2 {self.suffix}")
 		spec = KIND.normalize({"operation": "create", "name": title, "copy_from": source}, ADMIN)
-		self.assertEqual(spec["copied_from"], source)
 		src = current(source)
-		self.assertEqual(spec["shortcuts"], src["shortcuts"])
 		self.assertEqual(len(spec["sidebar"]["items"]), len(src["sidebar"]["items"]))
 		self.assertFalse([i for i in spec["sidebar"]["items"] if i.get("link_type") == "Workspace" and i.get("link_to") == source])
-		report = KIND.check(spec, ADMIN)
-		self.assertNotIn("workspace.standard", critical(report))
-		self.assertEqual(report.preview["copied_from"], source)
+		self.assertEqual(spec["module"], title)
+		self.assertFalse(KIND.check(spec, ADMIN).critical())
 
 	def test_check_catches_bad_targets_icons_and_labels(self):
 		title = f"AI WS Bad {self.suffix}"
@@ -245,7 +252,8 @@ class TestCustomizeWorkspace(IntegrationTestCase):
 		found = critical(report)
 		for code in ("workspace.icon", "workspace.duplicate", "workspace.link_missing", "workspace.url"):
 			self.assertIn(code, found)
-		self.assertIn("workspace.sidebar_empty", codes(report, "warning"))
+		# a sidebar always opens on its page: the Home link is added when the request has none
+		self.assertEqual(spec["sidebar"]["items"][0], {"type": "Link", "label": "Home", "link_type": "Workspace", "link_to": title, "icon": "home"})
 		self.assertNotIn("workspace.frappe", codes(report, "ok"))  # no dry run with criticals
 		emoji = KIND.normalize({"operation": "create", "name": f"AI WS Emoji {self.suffix}", "icon": "📊"}, ADMIN)
 		self.assertNotIn("workspace.icon", critical(KIND.check(emoji, ADMIN)))

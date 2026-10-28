@@ -155,7 +155,7 @@ class TestCustomizeDashboard(IntegrationTestCase):
 			self.assertIn("dashboard.name_taken", critical(KIND.check(spec, ADMIN)))
 			spec = KIND.normalize({"operation": "update", "object": "number_card", "name": standard[0], "definition": {"color": "#ff0000"}}, ADMIN)
 			self.assertIn("dashboard.standard", critical(KIND.check(spec, ADMIN)))
-		app_ws = frappe.get_all("Workspace", filters={"module": ("is", "set")}, pluck="name", limit=1)
+		app_ws = frappe.get_all("Workspace", filters={"standard": 1}, pluck="name", limit=1)  # an app's own page
 		if app_ws:
 			spec = KIND.normalize({"operation": "create", "object": "number_card", "name": f"AI X {self.suffix}",
 				"definition": {"document_type": "ToDo"}, "workspace": app_ws[0]}, ADMIN)

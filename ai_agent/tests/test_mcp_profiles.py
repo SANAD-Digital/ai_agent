@@ -187,3 +187,46 @@ class TestMcpCompanyLock(IntegrationTestCase):
 		with patch.object(events, "oauth_client", return_value=None):
 			svc = MCPService(USER)
 		self.assertEqual((svc.company, self.lock.current()), (self.mine, self.mine))
+
+	# -- what the model sends on a locked connection ----------------------------------------------
+	def test_write_requests_are_bound_to_the_company(self):
+		from ai_agent.runtime.exceptions import PermissionDenied
+
+		self.lock.set_lock(self.mine)
+		bound = self.lock.bind_payload("Create", "Cost Center", {"cost_center_name": "x"})
+		self.assertEqual(bound["company"], self.mine, "a new document goes to the locked company")
+		with self.assertRaises(PermissionDenied):
+			self.lock.bind_payload("Create", "Cost Center", {"cost_center_name": "x", "company": self.other})
+		with self.assertRaises(PermissionDenied):
+			self.lock.bind_payload("Update", "Cost Center", {"company": self.other})
+		self.assertNotIn("company", self.lock.bind_payload("Update", "Cost Center", {"disabled": 1}))
+		bulk = self.lock.bind_payload("Bulk Create", None, {"documents": [
+			{"doctype": "Cost Center", "payload": {"cost_center_name": "a"}}, {"doctype": "Customer", "payload": {"customer_name": "b"}}]})
+		self.assertEqual(bulk["documents"][0]["payload"]["company"], self.mine)
+		self.assertNotIn("company", bulk["documents"][1]["payload"], "Customer has no company field")
+		with self.assertRaises(PermissionDenied):
+			self.lock.bind_payload("Bulk Create", None, {"documents": [{"doctype": "Cost Center", "payload": {"company": self.other}}]})
+		self.lock.set_lock(None)
+		self.assertEqual(self.lock.bind_payload("Create", "Cost Center", {"company": self.other})["company"], self.other)
+
+	def test_statement_and_artifacts_keep_to_the_company(self):
+		from ai_agent.tools import exports
+		from ai_agent.tests.utils import make_test_run
+
+		customer = frappe.db.get_value("Customer", {}, "name")
+		self.lock.set_lock(self.mine)
+		if customer:
+			out = exports.handle_statement({"party_type": "Customer", "party": customer, "company": self.other},
+				frappe._dict(user="Administrator"))
+			self.assertIn("works on", out.get("error", ""))
+		run = make_test_run()
+		frappe.db.set_value("AI Run", run.name, "company", self.other)
+		art = frappe.get_doc({"doctype": "AI Artifact", "parent": run.name, "parenttype": "AI Run", "parentfield": "artifacts",
+			"run": run.name, "artifact_type": "Table", "title": "t",
+			"content_json": '{"rows": [{"a": 1}], "columns": ["a"]}'}).insert(ignore_permissions=True)
+		_c, _r, error = exports._source({"artifact": art.name}, frappe._dict(user="Administrator"))
+		self.assertTrue(error, "a table computed for another company is not exported on this connection")
+		frappe.db.set_value("AI Run", run.name, "company", self.mine)
+		_c, rows, error = exports._source({"artifact": art.name}, frappe._dict(user="Administrator"))
+		self.assertFalse(error)
+		self.assertEqual(rows, [{"a": 1}])

@@ -36,8 +36,13 @@ def _source(arguments, ctx):
         doc = frappe.db.get_value("AI Artifact", arguments["artifact"], ["run", "content_json", "artifact_type"], as_dict=True)
         if not doc or doc.artifact_type != "Table":
             return None, None, "artifact not found or not a table"
-        owner = frappe.db.get_value("AI Run", doc.run, "user")
+        owner, run_company = frappe.db.get_value("AI Run", doc.run, ["user", "company"]) or (None, None)
         if owner != getattr(ctx, "user", frappe.session.user):
+            return None, None, "artifact not found or not a table"
+        from ai_agent.mcp import company_lock
+
+        if company_lock.current() and run_company != company_lock.current():
+            # rows computed in a session that was not limited to this connection's company
             return None, None, "artifact not found or not a table"
         content = json.loads(doc.content_json or "{}")
         rows = content.get("rows") or []
@@ -284,7 +289,16 @@ def handle_statement(arguments, ctx):
         return {"error": f"no {party_type} matches '{arguments.get('party')}'"}
     if not frappe.has_permission(party_type, "read", doc=party, user=user):
         return {"error": f"no read permission on {party_type} {party}"}
-    company = arguments.get("company") or frappe.defaults.get_user_default("Company", user) or frappe.db.get_single_value("Global Defaults", "default_company")
+    from ai_agent.mcp import company_lock
+
+    locked = company_lock.current()
+    if locked and arguments.get("company") and arguments["company"] != locked:
+        return {"error": f"this connection works on {locked} only"}
+    company = locked or arguments.get("company") or frappe.defaults.get_user_default("Company", user) \
+        or frappe.db.get_single_value("Global Defaults", "default_company")
+    # the company comes from the model: the General Ledger runs its own SQL, so the read right is checked here
+    if not company or not frappe.has_permission("Company", "read", company, user=user):
+        return {"error": f"no read permission on company {company}"}
     to_date = str(getdate(arguments.get("to_date") or today()))
     from_date = str(getdate(arguments.get("from_date") or add_months(to_date, -12)))
     filters = {"company": company, "from_date": from_date, "to_date": to_date, "party_type": party_type, "party": [party],

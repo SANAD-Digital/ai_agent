@@ -34,6 +34,9 @@ class ApprovalEngine(ApprovalChecks, ApprovalExecution):
         so the requester's permissions and the payload fields are checked
         before anything is queued for approval.
         """
+        from ai_agent.mcp import company_lock
+
+        payload = company_lock.bind_payload(action_type, doctype_name, payload)
         target = self.assert_action_allowed(
             action_type, doctype_name, document_name, payload, self.ctx.user
         )

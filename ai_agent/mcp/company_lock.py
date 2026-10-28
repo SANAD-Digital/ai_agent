@@ -74,3 +74,36 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 	if doc.get("parenttype") and doc.get("parent") and _company_field(doc.parenttype):
 		return frappe.db.get_value(doc.parenttype, doc.parent, "company") in (None, company)
 	return True
+
+
+def bind_payload(action_type, doctype, payload):
+	"""A write request made on a locked connection: a new document goes to the locked company, and a payload naming
+	another company is refused. Done before the request is checked and hashed, so the approved payload is the bound
+	one even when it is approved later from Desk, where no lock is active."""
+	company = current()
+	if not company or not isinstance(payload, dict):
+		return payload
+	if action_type == "Bulk Create":
+		documents = payload.get("documents")
+		if isinstance(documents, list):
+			payload = dict(payload)
+			payload["documents"] = [
+				{**d, "payload": _bind_one("Create", d.get("doctype") or (d.get("payload") or {}).get("doctype"), d.get("payload"), company)}
+				if isinstance(d, dict) else d for d in documents]
+		return payload
+	if action_type in ("Create", "Update"):
+		return _bind_one(action_type, doctype, payload, company)
+	return payload
+
+
+def _bind_one(action_type, doctype, payload, company):
+	from ai_agent.runtime.exceptions import PermissionDenied
+
+	if not isinstance(payload, dict) or not doctype or not _company_field(doctype):
+		return payload
+	named = payload.get("company")
+	if named and named != company:
+		raise PermissionDenied(f"This connection works on {company} only: {doctype} for {named} is not allowed.")
+	if action_type == "Create" and not named:
+		payload = {**payload, "company": company}
+	return payload

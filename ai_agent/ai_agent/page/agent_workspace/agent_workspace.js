@@ -2,14 +2,14 @@
  * agent-workspace — Desk page entry.
  *
  * Responsibility: create the Frappe app page, load the chat bundles
- * (chat.bundle.css / chat.bundle.js, built from public/js/chat/*), then mount `window.AIChat`.
+ * (ai_agent_chat.bundle.css / .js, built from public/js/chat/*), then mount `window.AIChat`.
  * Everything else (state, transport, rendering) lives in those modules.
  *
  * Route options `{prompt, agent, company, auto_submit}` are honoured so another
  * page can hand a prompt over with `frappe.set_route("agent-workspace", {...})`.
  */
 
-const AI_CHAT_BUNDLES = ["chat.bundle.css", "chat.bundle.js"];
+const AI_CHAT_BUNDLES = ["ai_agent_chat.bundle.css", "ai_agent_chat.bundle.js"];
 
 frappe.pages["agent-workspace"].on_page_load = async function (wrapper) {
     // Capture the hand-over before any await: another page may have set it.

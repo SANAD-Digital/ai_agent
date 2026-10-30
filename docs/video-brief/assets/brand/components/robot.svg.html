@@ -1,0 +1,39 @@
+<!--
+  Musaed robot — inline SVG with all state layers.
+  Paste inline (not <img>) so motion.css can animate it.
+  Change state with:  el.dataset.state = "processing"
+  Colours read from tokens.css. Set width/height as needed (min 16px;
+  below 32px prefer assets/svg/icon/icon-small.svg).
+-->
+<svg class="ms-robot" data-state="idle" viewBox="0 0 100 100" width="40" height="40" role="img" aria-label="مساعد">
+  <rect width="100" height="100" rx="23" fill="var(--ms-clay-500)"/>
+  <g transform="translate(50 50) scale(0.86) translate(-50 -42)">
+    <g class="ms-body">
+      <circle class="ms-ping ms-fb" cx="50" cy="18" r="4.5" fill="var(--ms-petrol-700)"/>
+      <line x1="50" y1="30" x2="50" y2="20" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+      <circle class="ms-ball" cx="50" cy="18" r="4.5" fill="var(--ms-petrol-700)"/>
+      <rect x="21" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/>
+      <rect x="73" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/>
+      <rect x="26" y="30" width="48" height="40" rx="14" fill="#FFFFFF"/>
+      <rect x="32" y="39" width="36" height="20" rx="10" fill="var(--ms-petrol-700)"/>
+      <g class="ms-eyes ms-fb">
+        <rect class="ms-eye ms-eye-start ms-fb" x="40" y="44" width="5" height="10" rx="2.5" fill="var(--ms-clay-500)"/>
+        <rect class="ms-eye ms-fb" x="55" y="44" width="5" height="10" rx="2.5" fill="var(--ms-clay-500)"/>
+      </g>
+      <g class="ms-dots">
+        <circle class="ms-dot ms-fb" cx="42" cy="49" r="2.6" fill="var(--ms-clay-500)"/>
+        <circle class="ms-dot ms-fb" cx="50" cy="49" r="2.6" fill="var(--ms-clay-500)"/>
+        <circle class="ms-dot ms-fb" cx="58" cy="49" r="2.6" fill="var(--ms-clay-500)"/>
+      </g>
+      <g class="ms-smile ms-fb">
+        <path d="M39 52 Q42.5 45 46 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M54 52 Q57.5 45 61 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/>
+      </g>
+      <path class="ms-wink" d="M39 52 Q42.5 45 46 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/>
+      <g class="ms-sleep">
+        <rect x="39" y="50" width="7" height="2.5" rx="1.25" fill="var(--ms-clay-500)"/>
+        <rect x="54" y="50" width="7" height="2.5" rx="1.25" fill="var(--ms-clay-500)"/>
+      </g>
+    </g>
+  </g>
+</svg>

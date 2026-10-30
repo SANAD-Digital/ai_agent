@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مساعد — مكوّن المحادثة (مرجع)</title>
+<link rel="icon" href="../assets/favicon/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../motion/motion.css">
+<style>
+  /* Reference implementation of the Musaed chat widget.
+     Everything is driven by tokens.css — no hard-coded colours below. */
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--ms-bg); color: var(--ms-text); font-family: var(--ms-font-ui); }
+
+  .demo-controls { padding: 24px; padding-inline-end: 440px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .demo-controls span { font-size: var(--ms-text-sm); color: var(--ms-text-muted); margin-inline-end: 8px; }
+  .demo-controls button { font: inherit; font-size: var(--ms-text-sm); padding: 8px 14px; min-height: 36px; border-radius: var(--ms-radius-pill); border: 1px solid var(--ms-border); background: var(--ms-surface); color: var(--ms-heading); cursor: pointer; }
+
+  /* ---- Floating launcher (bottom-start in RTL = bottom-left) ---- */
+  .ms-launcher { position: fixed; left: 24px; bottom: 24px; width: 64px; height: 64px; border: 0; padding: 0; border-radius: 20px; background: var(--ms-accent); box-shadow: var(--ms-shadow-launcher); cursor: pointer; display: grid; place-items: center; }
+  .ms-launcher svg { width: 56px; height: 56px; }
+  .ms-launcher:focus-visible { outline: 3px solid var(--ms-petrol-500); outline-offset: 3px; }
+
+  /* ---- Panel ---- */
+  .ms-panel { position: fixed; left: 24px; bottom: 104px; width: min(390px, calc(100vw - 48px)); height: min(640px, calc(100vh - 140px)); background: var(--ms-bg); border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); box-shadow: var(--ms-shadow-card); display: flex; flex-direction: column; overflow: hidden; }
+  .ms-panel[hidden] { display: none; }
+  .ms-header { background: var(--ms-surface); border-bottom: 1px solid var(--ms-border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  .ms-header svg { width: 40px; height: 40px; flex-shrink: 0; }
+  .ms-title { font-family: var(--ms-font-brand); font-weight: 700; font-size: var(--ms-text-lg); color: var(--ms-heading); line-height: 1.3; }
+  .ms-status { font-size: var(--ms-text-xs); color: var(--ms-status-online); }
+  .ms-close { margin-inline-start: auto; width: 36px; height: 36px; border: 0; border-radius: var(--ms-radius-pill); background: transparent; color: var(--ms-text-muted); cursor: pointer; font-size: 20px; }
+
+  .ms-log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .ms-msg { max-width: 82%; padding: 12px 14px; font-size: var(--ms-text-md); line-height: var(--ms-leading); }
+  .ms-msg--user { align-self: flex-start; background: var(--ms-bubble-user); color: var(--ms-bubble-user-text); border-radius: var(--ms-bubble-radius-user); }
+  .ms-row { align-self: flex-end; display: flex; align-items: flex-end; gap: 8px; max-width: 92%; }
+  .ms-row svg { width: 28px; height: 28px; flex-shrink: 0; }
+  .ms-msg--agent { background: var(--ms-bubble-agent); border: 1px solid var(--ms-border); border-radius: var(--ms-bubble-radius-agent); max-width: none; }
+  .ms-figure { font-family: var(--ms-font-brand); font-weight: 600; font-size: var(--ms-text-xl); color: var(--ms-heading); }
+  .ms-muted { font-size: var(--ms-text-xs); color: var(--ms-text-muted); }
+  .ms-msg a { color: var(--ms-link); font-weight: 600; }
+
+  .ms-composer { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ms-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ms-chip { font: inherit; font-size: var(--ms-text-sm); background: var(--ms-surface); border: 1px solid var(--ms-border); color: var(--ms-heading); border-radius: var(--ms-radius-pill); padding: 8px 14px; min-height: 36px; cursor: pointer; }
+  .ms-input { display: flex; align-items: center; gap: 8px; background: var(--ms-surface); border: 1px solid var(--ms-border); border-radius: var(--ms-radius-pill); padding: 6px; }
+  .ms-input input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: var(--ms-text-md); color: var(--ms-text); padding: 0 12px; min-height: 44px; }
+  .ms-send { width: 44px; height: 44px; border: 0; border-radius: var(--ms-radius-pill); background: var(--ms-accent); display: grid; place-items: center; cursor: pointer; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<div class="demo-controls" role="group" aria-label="حالات الروبوت">
+  <span>جرّب حالات الروبوت:</span>
+  <button type="button" data-set="idle">ينتبه</button>
+  <button type="button" data-set="welcome">يرحّب</button>
+  <button type="button" data-set="listening">يستقبل</button>
+  <button type="button" data-set="processing">يعالج</button>
+  <button type="button" data-set="thinking">يفكّر</button>
+  <button type="button" data-set="done">أنجز</button>
+  <button type="button" data-set="sleep">خامل</button>
+</div>
+
+<section class="ms-panel" id="ms-panel" aria-label="محادثة مساعد">
+  <header class="ms-header">
+    <!-- robot: same markup as components/robot.svg.html -->
+    <svg class="ms-robot" id="ms-head-robot" data-state="welcome" viewBox="0 0 100 100" aria-hidden="true">
+      <rect width="100" height="100" rx="23" fill="var(--ms-clay-500)"/>
+      <g transform="translate(50 50) scale(0.86) translate(-50 -42)"><g class="ms-body">
+        <circle class="ms-ping ms-fb" cx="50" cy="18" r="4.5" fill="var(--ms-petrol-700)"/>
+        <line x1="50" y1="30" x2="50" y2="20" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+        <circle class="ms-ball" cx="50" cy="18" r="4.5" fill="var(--ms-petrol-700)"/>
+        <rect x="21" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/><rect x="73" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/>
+        <rect x="26" y="30" width="48" height="40" rx="14" fill="#FFFFFF"/>
+        <rect x="32" y="39" width="36" height="20" rx="10" fill="var(--ms-petrol-700)"/>
+        <g class="ms-eyes ms-fb"><rect class="ms-eye ms-eye-start ms-fb" x="40" y="44" width="5" height="10" rx="2.5" fill="var(--ms-clay-500)"/><rect class="ms-eye ms-fb" x="55" y="44" width="5" height="10" rx="2.5" fill="var(--ms-clay-500)"/></g>
+        <g class="ms-dots"><circle class="ms-dot ms-fb" cx="42" cy="49" r="2.6" fill="var(--ms-clay-500)"/><circle class="ms-dot ms-fb" cx="50" cy="49" r="2.6" fill="var(--ms-clay-500)"/><circle class="ms-dot ms-fb" cx="58" cy="49" r="2.6" fill="var(--ms-clay-500)"/></g>
+        <g class="ms-smile ms-fb"><path d="M39 52 Q42.5 45 46 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/><path d="M54 52 Q57.5 45 61 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/></g>
+        <path class="ms-wink" d="M39 52 Q42.5 45 46 52" fill="none" stroke="var(--ms-clay-500)" stroke-width="3.5" stroke-linecap="round"/>
+        <g class="ms-sleep"><rect x="39" y="50" width="7" height="2.5" rx="1.25" fill="var(--ms-clay-500)"/><rect x="54" y="50" width="7" height="2.5" rx="1.25" fill="var(--ms-clay-500)"/></g>
+      </g></g>
+    </svg>
+    <div>
+      <div class="ms-title">مساعد</div>
+      <div class="ms-status">● متصل بنظامك</div>
+    </div>
+    <button type="button" class="ms-close" aria-label="إغلاق" id="ms-close">×</button>
+  </header>
+
+  <div class="ms-log" aria-live="polite">
+    <div class="ms-row">
+      <div class="ms-msg ms-msg--agent">أهلاً! أنا مساعد، اسألني عن أي شيء في نظامك.</div>
+      <img src="../assets/svg/icon/avatar-round.svg" alt="" width="28" height="28">
+    </div>
+    <div class="ms-msg ms-msg--user">كم رصيد صنف «أسمنت مقاوم» في مستودع الرياض؟</div>
+    <div class="ms-row">
+      <div class="ms-msg ms-msg--agent">
+        <div class="ms-muted">الرصيد الحالي</div>
+        <div><span class="ms-figure">[الكمية]</span> <span class="ms-muted">كيس</span></div>
+        <a href="#">فتح دفتر المخزون</a>
+      </div>
+      <img src="../assets/svg/icon/avatar-round.svg" alt="" width="28" height="28">
+    </div>
+  </div>
+
+  <form class="ms-composer" onsubmit="return false">
+    <div class="ms-chips">
+      <button type="button" class="ms-chip">رصيد عميل</button>
+      <button type="button" class="ms-chip">فاتورة مبيعات</button>
+      <button type="button" class="ms-chip">تقرير اليوم</button>
+    </div>
+    <div class="ms-input">
+      <label for="ms-q" class="sr-only">سؤالك</label>
+      <input id="ms-q" type="text" placeholder="اسأل مساعد…" autocomplete="off">
+      <button type="submit" class="ms-send" aria-label="إرسال">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ms-on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
+      </button>
+    </div>
+  </form>
+</section>
+
+<button type="button" class="ms-launcher" id="ms-launcher" aria-label="افتح مساعد" aria-controls="ms-panel" aria-expanded="true">
+  <svg class="ms-robot" data-state="idle" viewBox="0 0 100 100" aria-hidden="true">
+    <g transform="translate(50 50) scale(0.95) translate(-50 -42)"><g class="ms-body">
+      <circle class="ms-ball" cx="50" cy="18" r="5.5" fill="var(--ms-petrol-700)"/>
+      <line x1="50" y1="30" x2="50" y2="20" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="50" cy="18" r="5.5" fill="var(--ms-petrol-700)"/>
+      <rect x="20" y="44" width="7" height="12" rx="3.5" fill="#FFFFFF"/><rect x="73" y="44" width="7" height="12" rx="3.5" fill="#FFFFFF"/>
+      <rect x="26" y="30" width="48" height="40" rx="14" fill="#FFFFFF"/>
+      <rect x="32" y="38" width="36" height="22" rx="11" fill="var(--ms-petrol-700)"/>
+      <g class="ms-eyes ms-fb"><rect class="ms-eye ms-fb" x="39" y="43" width="7" height="12" rx="3.5" fill="var(--ms-clay-500)"/><rect class="ms-eye ms-fb" x="54" y="43" width="7" height="12" rx="3.5" fill="var(--ms-clay-500)"/></g>
+    </g></g>
+  </svg>
+</button>
+
+<script>
+  // Demo wiring only — in Frappe, set data-state from the real request lifecycle:
+  // typing → listening, request sent → processing, streaming → thinking, reply shown → done,
+  // panel opened → welcome, 2 min without activity → sleep, otherwise idle.
+  const head = document.getElementById('ms-head-robot');
+  document.querySelectorAll('[data-set]').forEach(b =>
+    b.addEventListener('click', () => { head.dataset.state = b.dataset.set; }));
+  const panel = document.getElementById('ms-panel');
+  const launcher = document.getElementById('ms-launcher');
+  function toggle(open) { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); }
+  launcher.addEventListener('click', () => toggle(panel.hidden));
+  document.getElementById('ms-close').addEventListener('click', () => toggle(false));
+  const q = document.getElementById('ms-q');
+  q.addEventListener('input', () => { head.dataset.state = q.value ? 'listening' : 'idle'; });
+</script>
+</body>
+</html>

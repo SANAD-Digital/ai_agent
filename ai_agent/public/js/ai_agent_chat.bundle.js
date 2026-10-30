@@ -1,4 +1,4 @@
-// chat.bundle.js — the chat client (public/js/chat/*), loaded on demand by the agent-workspace page and by the
+// ai_agent_chat.bundle.js — the chat client (public/js/chat/*), loaded on demand by the agent-workspace page and by the
 // support bubble (chat_bubble.js). One hashed file instead of twelve: a build always reaches browsers despite
 // the year-long /assets cache, and the modules run once, in this order (each extends window.AIChat).
 import "./chat/core.js";

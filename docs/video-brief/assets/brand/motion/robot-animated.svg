@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="مساعد">
+<style>
+.fb{transform-box:fill-box;transform-origin:center}
+.float{animation:m-float 3s ease-in-out infinite}
+.eyes{animation:m-eyes 9s linear infinite}
+.look{animation:m-look 9s ease-in-out infinite}
+.blink{animation:m-blink 9s linear infinite}
+.dots{opacity:0;animation:m-dots 9s linear infinite}
+.smile{opacity:0;animation:m-smile 9s linear infinite}
+.d1{animation:m-dot .9s ease-in-out infinite}
+.d2{animation:m-dot .9s ease-in-out .15s infinite}
+.d3{animation:m-dot .9s ease-in-out .3s infinite}
+.ping{animation:m-ping 1.8s ease-out infinite}
+@keyframes m-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+@keyframes m-eyes{0%,40%{opacity:1}43%,90%{opacity:0}93%,100%{opacity:1}}
+@keyframes m-dots{0%,41%{opacity:0}44%,69%{opacity:1}72%,100%{opacity:0}}
+@keyframes m-smile{0%,70%{opacity:0}73%,90%{opacity:1}93%,100%{opacity:0}}
+@keyframes m-look{0%,20%{transform:translateX(0)}24%,28%{transform:translateX(-3px)}31%,35%{transform:translateX(3px)}38%,100%{transform:translateX(0)}}
+@keyframes m-blink{0%,10%,13%,100%{transform:scaleY(1)}11.5%{transform:scaleY(.12)}}
+@keyframes m-dot{0%,100%{transform:translateY(0);opacity:.45}50%{transform:translateY(-2.5px);opacity:1}}
+@keyframes m-ping{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.dots,.smile,.ping{opacity:0}}
+</style>
+<rect width="100" height="100" rx="23" fill="#D97757"/>
+<g transform="translate(50 50) scale(0.86) translate(-50 -42)"><g class="float">
+<circle class="fb ping" cx="50" cy="18" r="4.5" fill="#0F3D3E"/>
+<line x1="50" y1="30" x2="50" y2="20" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+<circle cx="50" cy="18" r="4.5" fill="#0F3D3E"/>
+<rect x="21" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/><rect x="73" y="44" width="6" height="12" rx="3" fill="#FFFFFF"/>
+<rect x="26" y="30" width="48" height="40" rx="14" fill="#FFFFFF"/>
+<rect x="32" y="39" width="36" height="20" rx="10" fill="#0F3D3E"/>
+<g class="eyes"><g class="look"><rect class="fb blink" x="40" y="44" width="5" height="10" rx="2.5" fill="#D97757"/><rect class="fb blink" x="55" y="44" width="5" height="10" rx="2.5" fill="#D97757"/></g></g>
+<g class="dots"><circle class="fb d1" cx="42" cy="49" r="2.6" fill="#D97757"/><circle class="fb d2" cx="50" cy="49" r="2.6" fill="#D97757"/><circle class="fb d3" cx="58" cy="49" r="2.6" fill="#D97757"/></g>
+<g class="smile"><path d="M39 52 Q42.5 45 46 52" fill="none" stroke="#D97757" stroke-width="3.5" stroke-linecap="round"/><path d="M54 52 Q57.5 45 61 52" fill="none" stroke="#D97757" stroke-width="3.5" stroke-linecap="round"/></g>
+</g></g></svg>

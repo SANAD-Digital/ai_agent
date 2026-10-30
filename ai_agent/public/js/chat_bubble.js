@@ -1,13 +1,14 @@
 /**
  * chat_bubble.js — loader for the floating support chat (every Desk page).
  * Tiny and dependency-free: asks ai_agent.chat.support.bootstrap once after
- * idle, draws the FAB, and lazy-loads the chat bundles (chat.bundle.css/js) on first open.
+ * idle, draws the FAB, and lazy-loads the chat bundles (ai_agent_chat.bundle.css/js) on first open.
  */
 (function () {
     "use strict";
 
     var KEY = "ai_agent:bubble_open";
-    var BUNDLES = ["chat.bundle.css", "chat.bundle.js"];
+    // prefixed: bundle names are one namespace across the bench (the Frappe "chat" app ships chat.bundle.*)
+    var BUNDLES = ["ai_agent_chat.bundle.css", "ai_agent_chat.bundle.js"];
     // the Musaed launcher robot (musaed-brand/components/chat-widget-demo.html): white head on the clay button
     var ROBOT = '<svg class="acb-icon acb-robot ms-robot" data-state="idle" viewBox="0 0 100 100" aria-hidden="true" focusable="false">' +
         '<g transform="translate(50 50) scale(0.95) translate(-50 -42)"><g class="ms-body">' +

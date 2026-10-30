@@ -14,8 +14,8 @@ Musaed is an ERP assistant inside Frappe/ERPNext v16. It has four parts. All wri
   - Wraps every tool result as untrusted data and masks sensitive fields.
   - Turns `actions.*` / `customize.*` calls into approval requests.
 - **`context/`** builds the system prompt (with the untrusted-data rule), history, compaction, and files.
-- The Desk UI is `public/js/chat/*` (plain JS modules), built by `bench build` into `chat.bundle.js` and
-  `chat.bundle.css`. The page and the support bubble load the bundles on demand (`chat_bubble.js`). The API is `chat/api.py`. The support bubble is `chat/support.py`.
+- The Desk UI is `public/js/chat/*` (plain JS modules), built by `bench build` into `ai_agent_chat.bundle.js` and
+  `ai_agent_chat.bundle.css` (prefixed: bundle names are shared by every app on the bench). The page and the support bubble load the bundles on demand (`chat_bubble.js`). The API is `chat/api.py`. The support bubble is `chat/support.py`.
 
 ## 2. MCP server (`mcp/`)
 - **`api.handle`** is the MCP endpoint for Claude, ChatGPT and other hosts.

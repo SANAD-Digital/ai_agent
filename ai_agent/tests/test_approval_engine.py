@@ -136,7 +136,9 @@ class TestApprovalEngine(IntegrationTestCase):
 		self._cleanup["Note"].append(result["document_name"])
 		self.assertTrue(frappe.db.exists("Note", result["document_name"]))
 		self.assertEqual(
-			frappe.db.get_value("AI Approval Request", approval.name, "status"), "Executed"
+			frappe.db.get_value("AI Approval Request", approval.name, ["status", "document_name"]),
+			("Executed", result["document_name"]),
+			"the request names the document it created",
 		)
 
 	def test_executed_approval_cannot_be_approved_again(self):

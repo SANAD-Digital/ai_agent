@@ -65,6 +65,7 @@ class ApprovalExecution:
         doc = frappe.get_doc({**payload, "doctype": approval.doctype_name})
         doc.insert(ignore_permissions=False)
 
+        approval.document_name = doc.name  # the request names the document it created, as the others name theirs
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
         approval.execution_result = json.dumps({"document_name": doc.name, "doctype": approval.doctype_name}, default=str)

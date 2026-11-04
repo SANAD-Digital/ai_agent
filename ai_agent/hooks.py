@@ -100,3 +100,7 @@ has_permission = {
 
 # Override whitelisted methods if needed
 # override_whitelisted_methods = {}
+
+# version-15 branch only (BRANCHES.md): the OAuth discovery documents and CORS answers Frappe 16 has built in
+page_renderer = ["ai_agent.compat_v15_oauth.WellKnown"]
+after_request = [*after_request, "ai_agent.compat_v15_oauth.after_request"]

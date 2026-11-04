@@ -1,0 +1,126 @@
+name: CI (Frappe 15)
+
+on:
+  push:
+    branches:
+      - version-15
+  pull_request:
+    branches:
+      - version-15
+
+concurrency:
+  group: ci15-ai_agent-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04  # pinned: ubuntu-latest moved to 26.04, which lacks packages this job installs (wkhtmltopdf)
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      # Undefined names, unused imports and syntax errors (the checks the code is kept clean of).
+      - run: pip install ruff==0.15.22
+      - run: ruff check --select F,E9 --output-format github ai_agent
+
+  tests:
+    name: Server tests
+    runs-on: ubuntu-24.04  # pinned: ubuntu-latest moved to 26.04, which lacks packages this job installs (wkhtmltopdf)
+    timeout-minutes: 60
+    # Frappe 15.125 and ERPNext 15.124, the Frappe 15 test bench (BRANCHES.md); the oldest Python Frappe 15 customers run here.
+    env:
+      FRAPPE_SHA: e7458ff33c8c1b81f812d521a17df790804eed6d
+      ERPNEXT_SHA: 9f33fd5d32ae8a75156b2e7c2f8be02503fcc248
+
+    services:
+      redis-cache:
+        image: redis:alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:alpine
+        ports:
+          - 11000:6379
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      # node runs the client script analyzer (customization/analyzers/js_check.mjs)
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # wkhtmltopdf: Frappe's get_pdf (export.pdf, export.print, export.statement)
+      - name: Install MariaDB Client and wkhtmltopdf
+        run: |
+          sudo apt update
+          sudo apt-get install mariadb-client wkhtmltopdf
+
+      - name: Setup bench
+        run: |
+          pip install frappe-bench
+          bench init --skip-redis-config-generation --skip-assets --frappe-branch version-15 --python "$(which python)" ~/frappe-bench
+          cd ~/frappe-bench/apps/frappe && git fetch -q --depth 1 https://github.com/frappe/frappe $FRAPPE_SHA && git checkout -q $FRAPPE_SHA
+
+      # ai_agent's tests read and write ERPNext documents (Sales Invoice, Customer, Company, ...).
+      - name: Install
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app --branch version-15 --skip-assets erpnext
+          (cd apps/erpnext && git fetch -q --depth 1 https://github.com/frappe/erpnext $ERPNEXT_SHA && git checkout -q $ERPNEXT_SHA)
+          bench get-app --skip-assets ai_agent $GITHUB_WORKSPACE
+          bench setup requirements --dev
+          bench set-config -g server_script_enabled 1
+          bench new-site --db-root-password root --admin-password admin test_site
+          bench --site test_site install-app erpnext
+          bench --site test_site install-app ai_agent
+          # assets are not built (--skip-assets): Frappe's bundled_asset() reads assets.json when a page or a
+          # PDF is rendered; an empty map makes it keep the plain names
+          mkdir -p sites/assets && echo '{}' > sites/assets/assets.json
+        env:
+          CI: 'Yes'
+
+      - name: Run tests
+        working-directory: /home/runner/frappe-bench
+        run: |
+          set -o pipefail
+          exec > >(tee -a /tmp/tests.log) 2>&1
+          bench --site test_site set-config allow_tests true
+          # ERPNext 15's before_tests (the setup wizard and its preset records); the test runner runs it only for erpnext
+          bench --site test_site execute erpnext.setup.utils.before_tests
+          bench --site test_site run-tests --app ai_agent
+        env:
+          TYPE: server
+
+      # Job logs need a GitHub sign-in; the summary and annotations are public.
+      - name: Report failures
+        if: failure()
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench --site test_site execute frappe.get_all --kwargs '{"doctype": "Error Log", "fields": ["method", "error"], "order_by": "creation desc", "limit": 8}' \
+            | python -c "import sys,json; print('\n=====\n'.join(r['method'] + '\n' + r['error'] for r in json.load(sys.stdin)))" > /tmp/error_log.txt || true
+          python $GITHUB_WORKSPACE/.github/helper/test_report.py /tmp/tests.log "$GITHUB_STEP_SUMMARY" /tmp/error_log.txt

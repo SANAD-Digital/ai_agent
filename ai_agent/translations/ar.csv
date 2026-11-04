@@ -430,6 +430,7 @@ Debit balances for {0} suppliers,أرصدة مدينة لدى {0} من المو�
 Debit balances total {0}; the largest is {1} at {2}.,إجمالي الأرصدة المدينة {0}؛ أعلاها {1} بمبلغ {2}.,AI View
 December,ديسمبر,AI View
 Decided At,وقت القرار,AI Approval Request
+Default Settings,الإعدادات الافتراضية
 Default,افتراضي,AI Provider Model
 Default Approval TTL (minutes),مدة صلاحية الموافقة الافتراضية (بالدقائق),AI Settings
 Default Company,الشركة الافتراضية,AI Settings

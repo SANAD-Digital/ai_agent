@@ -1,7 +1,7 @@
 """Install and migrate hooks.
 
 App content ships in Frappe's own places and is synced by Frappe:
-- the AI workspace, ``desktop_icon/`` and ``workspace_sidebar/``;
+- the AI workspace, ``desktop_icon/`` and the module sidebar (``ai_agent/ai_agent/sidebar/``);
 - the access roles: created from the DocType permissions that name them;
 - standard agents, plugins and preset providers: ``ai_agent/ai_agent/{ai_agent,ai_plugin,ai_provider}/``
   (``importable_doctypes`` in hooks.py; ``standard_records.keep_site_values`` keeps what the site owns);

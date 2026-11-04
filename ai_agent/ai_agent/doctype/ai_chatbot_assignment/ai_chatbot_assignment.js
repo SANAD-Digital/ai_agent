@@ -13,8 +13,16 @@ function paint_provider_models(frm) {
 	});
 }
 
+// What a user without an assignment gets: the site's defaults, reached from here (not from the sidebar).
+function open_defaults() {
+	frappe.set_route("Form", "AI Chatbot Settings");
+}
+
 frappe.ui.form.on("AI Chatbot Assignment", {
-	refresh: paint_provider_models,
+	refresh(frm) {
+		paint_provider_models(frm);
+		frm.add_custom_button(__("Default Settings"), open_defaults);
+	},
 	provider(frm) {
 		frm.set_value("model", "");
 		paint_provider_models(frm);

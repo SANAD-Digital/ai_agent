@@ -26,11 +26,34 @@ def _origins(oauth):
 	return [o.strip().rstrip("/") for o in (oauth.allowed_public_client_origins or "").splitlines() if o.strip()]
 
 
+# What AI tools need from Frappe's OAuth Settings (Frappe 16): metadata, dynamic client registration and, for ChatGPT,
+# its origin among the allowed public clients. Kept in these functions so a Frappe without OAuth Settings can answer
+# them its own way.
+def oauth_ready():
+	oauth = frappe.get_single("OAuth Settings")
+	return all(cint(oauth.get(f)) for f in OAUTH_FLAGS)
+
+
+def chatgpt_allowed():
+	origins = _origins(frappe.get_single("OAuth Settings"))
+	return CHATGPT_ORIGIN in origins or "*" in origins
+
+
+def enable_oauth(name):
+	"""name: oauth (metadata + registration) | chatgpt_origin."""
+	oauth = frappe.get_single("OAuth Settings")
+	if name == "oauth":
+		for f in OAUTH_FLAGS:
+			oauth.set(f, 1)
+	elif CHATGPT_ORIGIN not in _origins(oauth):
+		oauth.allowed_public_client_origins = "\n".join(_origins(oauth) + [CHATGPT_ORIGIN])
+	oauth.save(ignore_permissions=True)
+
+
 @frappe.whitelist()
 def get_status():
 	frappe.only_for("System Manager")
 	settings = frappe.get_single("AI Settings")
-	oauth = frappe.get_single("OAuth Settings")
 	allowed = allowed_roles(settings)
 	role_users = frappe.get_all(
 		"Has Role",
@@ -41,8 +64,8 @@ def get_status():
 	return {
 		"checks": {
 			"mcp_enabled": bool(cint(settings.enable_mcp)),
-			"oauth": all(cint(oauth.get(f)) for f in OAUTH_FLAGS),
-			"chatgpt_origin": CHATGPT_ORIGIN in _origins(oauth) or "*" in _origins(oauth),
+			"oauth": oauth_ready(),
+			"chatgpt_origin": chatgpt_allowed(),
 			"my_role": bool(set(allowed) & set(frappe.get_roles())),
 		},
 		"agent": settings.mcp_agent or "ERP Analyst",
@@ -79,13 +102,7 @@ def fix(item):
 		if name == "mcp_enabled":
 			frappe.db.set_single_value("AI Settings", "enable_mcp", 1)
 		elif name in ("oauth", "chatgpt_origin"):
-			oauth = frappe.get_single("OAuth Settings")
-			if name == "oauth":
-				for f in OAUTH_FLAGS:
-					oauth.set(f, 1)
-			elif CHATGPT_ORIGIN not in _origins(oauth):
-				oauth.allowed_public_client_origins = "\n".join(_origins(oauth) + [CHATGPT_ORIGIN])
-			oauth.save(ignore_permissions=True)
+			enable_oauth(name)
 		elif name == "my_role":
 			_ensure_role(frappe.session.user)
 		else:

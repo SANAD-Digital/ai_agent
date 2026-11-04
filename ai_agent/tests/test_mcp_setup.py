@@ -13,6 +13,8 @@ class TestMCPSetup(IntegrationTestCase):
 		frappe.set_user("Administrator")
 
 	def test_fix_all_makes_every_check_ready(self):
+		if not frappe.db.exists("DocType", "OAuth Settings"):
+			self.skipTest("Frappe 15 has no OAuth Settings; the version-15 branch answers the OAuth checks itself")
 		frappe.db.set_single_value("AI Settings", "enable_mcp", 0)
 		frappe.db.set_single_value("OAuth Settings", "enable_dynamic_client_registration", 0)
 		frappe.db.set_single_value("OAuth Settings", "allowed_public_client_origins", "https://example.com")

@@ -76,9 +76,9 @@ def take(approval_name):
     name, data = _find(approval_name)
     if not data or data.get("consumed"):
         return None
-    marked = dict(data, consumed=True)
+    marked = json.dumps(dict(data, consumed=True), ensure_ascii=False).replace("-->", "--\\u003e")
     frappe.db.set_value("Comment", name, "content",
-                        t("Original goal after approval: {0} (done)", data["goal"]) + f"\n<!--{MARK}:{json.dumps(marked, ensure_ascii=False).replace('-->', '--\\u003e')}-->",
+                        t("Original goal after approval: {0} (done)", data["goal"]) + f"\n<!--{MARK}:{marked}-->",
                         update_modified=False)
     frappe.db.commit()
     return data

@@ -89,8 +89,15 @@ def bootstrap():
 def send_message(text=None, session=None, files=None, skill=None, plugin=None, context_doctype=None, context_name=None):
     _assert_access()
     if session:
-        if frappe.db.get_value("AI Chat Session", session, "surface") != SURFACE:
+        row = frappe.db.get_value("AI Chat Session", session, ["surface", "user", "provider", "model"], as_dict=True)
+        if not row or row.surface != SURFACE:
             frappe.throw(_("This is not a support conversation."), frappe.PermissionError)
+        if row.user == frappe.session.user:
+            # the bubble's user never picks a model: each message uses the support window's setting as it is now,
+            # so a provider changed there applies to conversations already open
+            provider, model = api._resolve_provider_model(bot_settings.provider(), bot_settings.model(), _agent())
+            if (row.provider, row.model) != (provider, model):
+                frappe.db.set_value("AI Chat Session", session, {"provider": provider, "model": model}, update_modified=False)
     else:
         agent = _agent()
         provider, model = api._resolve_provider_model(bot_settings.provider(), bot_settings.model(), agent)

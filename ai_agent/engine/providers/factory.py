@@ -96,11 +96,30 @@ def resolve_provider_doc(provider_name=None):
     return frappe.get_cached_doc("AI Provider", default_name)
 
 
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1", "0.0.0.0", "host.docker.internal")
+
+
+def _needs_key(config):
+    """Every hosted provider needs a key; Ollama and an OpenAI-compatible server on this machine may not."""
+    from urllib.parse import urlparse
+
+    if config["type"] == "Ollama":
+        return False
+    if config["type"] in ("OpenAI", "Anthropic"):
+        return True
+    host = (urlparse(config.get("base_url") or "").hostname or "").lower()
+    return bool(host) and host not in LOCAL_HOSTS and not host.endswith(".local")
+
+
 def provider_for(provider_name=None, model=None):
     """Provider instance plus the resolved (provider name, model)."""
     doc = resolve_provider_doc(provider_name)
     policy.assert_provider_allowed(doc.provider_type or "OpenAI Compatible")
     config = provider_config(doc, model)
+    if not config["api_key"] and _needs_key(config):
+        # without this the request goes out with a placeholder key and the model's host answers a bare 401
+        frappe.throw(frappe._("AI Provider {0} has no API key: add it in AI Provider {0}, or choose another provider.").format(doc.name),
+            title=frappe._("No API key"))
     if (doc.provider_type or "") == "Anthropic":
         provider = AnthropicProvider(config)
     else:

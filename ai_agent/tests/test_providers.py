@@ -136,3 +136,29 @@ class TestStrictToolSchemas(IntegrationTestCase):
 		from ai_agent.engine.tools import drop_nulls
 
 		self.assertEqual(drop_nulls({"a": None, "b": 1, "c": {"d": None, "e": [{"f": None, "g": 2}]}}), {"b": 1, "c": {"e": [{"g": 2}]}})
+
+
+class TestProviderKey(IntegrationTestCase):
+	"""No request goes out with a placeholder key: a hosted provider without one fails before calling it."""
+
+	def test_hosted_providers_need_a_key(self):
+		from ai_agent.engine.providers.factory import _needs_key
+
+		self.assertTrue(_needs_key({"type": "OpenAI", "base_url": "https://api.openai.com/v1"}))
+		self.assertTrue(_needs_key({"type": "Anthropic", "base_url": ""}))
+		self.assertTrue(_needs_key({"type": "OpenAI Compatible", "base_url": "https://api.deepseek.com"}))
+		self.assertFalse(_needs_key({"type": "Ollama", "base_url": ""}))
+		self.assertFalse(_needs_key({"type": "OpenAI Compatible", "base_url": "http://localhost:8000/v1"}))
+		self.assertFalse(_needs_key({"type": "OpenAI Compatible", "base_url": "http://127.0.0.1:1234/v1"}))
+
+	def test_provider_without_a_key_is_refused_with_its_name(self):
+		from ai_agent.engine.providers import factory
+
+		name = "Keyless Test Provider"
+		frappe.get_doc({"doctype": "AI Provider", "provider_name": name, "provider_type": "OpenAI Compatible", "enabled": 1,
+			"base_url": "https://api.example.com/v1", "models": [{"model_name": "m", "model_type": "Chat", "supports_tools": 1}]}).insert(ignore_permissions=True)
+		self.addCleanup(lambda: frappe.delete_doc("AI Provider", name, force=True, ignore_permissions=True))
+		with patch("ai_agent.runtime.policy.assert_provider_allowed", lambda *_: None):
+			with self.assertRaises(frappe.ValidationError) as cm:
+				factory.provider_for(name, "m")
+		self.assertIn(name, str(cm.exception))

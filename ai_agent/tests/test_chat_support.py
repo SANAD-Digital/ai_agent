@@ -89,3 +89,21 @@ class TestChatSupport(IntegrationTestCase):
         self.assertIn("floating support panel", req.system)
         self.assertIn("Document the user has open", req.system_dynamic)
         self.assertIn(company, req.system_dynamic)
+
+    def test_an_open_conversation_follows_the_support_window_provider(self):
+        """The bubble's user never picks a model: a provider changed in AI Chatbot Settings applies to the
+        conversation already open (one opened before the change kept failing on the old provider)."""
+        made = []
+        for name, model in (("Support Test Provider One", "one-model"), ("Support Test Provider Two", "two-model")):
+            frappe.get_doc({"doctype": "AI Provider", "provider_name": name, "provider_type": "Ollama", "enabled": 1,
+                "models": [{"model_name": model, "model_type": "Chat", "supports_tools": 1, "is_default": 1}]}).insert(ignore_permissions=True)
+            made.append(name)
+        self.addCleanup(lambda: [frappe.delete_doc("AI Provider", n, force=True, ignore_permissions=True) for n in made])
+        with patch("ai_agent.runtime.policy.assert_provider_allowed", lambda *_: None):
+            with patch.object(bot_settings, "provider", return_value=made[0]):
+                name = self._send("أول رسالة")["session"]["name"]
+            self.assertEqual(frappe.db.get_value("AI Chat Session", name, ["provider", "model"]), (made[0], "one-model"))
+            frappe.db.set_value("AI Chat Message", {"session": name, "role": "assistant"}, "status", "completed")
+            with patch.object(bot_settings, "provider", return_value=made[1]):
+                self._send("رسالة ثانية", session=name)
+            self.assertEqual(frappe.db.get_value("AI Chat Session", name, ["provider", "model"]), (made[1], "two-model"))

@@ -89,6 +89,11 @@ class SkillRegistry:
         """Scan the skills directory and sync SKILL.md files to AI Skill DocType."""
         if not os.path.isdir(SKILLS_DIR):
             return
+        from ai_agent.runtime.tool_registry import ToolRegistry
+
+        # a skill may name a tool this site does not offer (a Frappe version or an app it lacks): left out,
+        # since AI Skill Tool accepts only registered names and would reject the whole skill
+        known = {tool["name"] for tool in ToolRegistry().list_tools()}
 
         for entry in os.listdir(SKILLS_DIR):
             skill_dir = os.path.join(SKILLS_DIR, entry)
@@ -108,7 +113,7 @@ class SkillRegistry:
             allow_implicit_invocation = self._as_bool(meta.get("allow_implicit_invocation"))
             instructions = self._extract_instructions(content)
             content_hash = hashlib.sha256(content.encode()).hexdigest()
-            declared_tools = self._parse_csv(meta.get("tools")) if "tools" in meta else None
+            declared_tools = [t for t in self._parse_csv(meta.get("tools")) if t in known] if "tools" in meta else None
             tool_call_limits = self._parse_int_mapping(meta.get("tool_call_limits"))
             tool_result_limits = self._parse_int_mapping(meta.get("tool_result_limits"))
 

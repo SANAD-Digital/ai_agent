@@ -8,6 +8,7 @@ from frappe.tests import IntegrationTestCase
 
 from ai_agent import install
 from ai_agent.ai_agent.doctype.ai_skill_grant.ai_skill_grant import grant_standard_skills
+from ai_agent.customization.registry import NOT_OFFERED
 from ai_agent.runtime.skill_registry import SKILLS_DIR, SkillRegistry
 from ai_agent.runtime.tool_registry import ToolRegistry
 
@@ -38,7 +39,7 @@ class TestCustomizationSkillFiles(IntegrationTestCase):
 	def test_every_declared_tool_is_registered(self):
 		registry, meta = _frontmatter()
 		registered = {tool["name"] for tool in ToolRegistry().list_tools()}
-		missing = [t for t in registry._parse_csv(meta["tools"]) if t not in registered]
+		missing = [t for t in registry._parse_csv(meta["tools"]) if t not in registered and t not in NOT_OFFERED]
 		self.assertEqual(missing, [], "a skill row naming an unregistered tool fails the skill sync on migrate")
 
 	def test_references(self):

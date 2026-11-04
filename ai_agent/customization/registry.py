@@ -76,6 +76,10 @@ UNDO_TOOL = "customize.request_undo"
 READ_TOOLS = ("customize.inspect", "customize.get", "customize.check")
 ALL_TOOLS = READ_TOOLS + tuple(REQUEST_TOOLS) + (UNDO_TOOL,)
 
+# request tools a skill may name that this site does not offer (a Frappe version without what the kind needs);
+# the skill sync leaves them out
+NOT_OFFERED = set()
+
 # kinds whose approver must never be their requester, whatever customization_require_four_eyes says
 ALWAYS_FOUR_EYES = ("permissions",)
 

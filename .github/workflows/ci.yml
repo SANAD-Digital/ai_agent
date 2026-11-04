@@ -13,7 +13,7 @@ concurrency:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned: ubuntu-latest moved to 26.04, which lacks packages this job installs (wkhtmltopdf)
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -25,7 +25,7 @@ jobs:
 
   tests:
     name: Server tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned: ubuntu-latest moved to 26.04, which lacks packages this job installs (wkhtmltopdf)
     timeout-minutes: 60
     # The Frappe and ERPNext the sites run (Frappe 16.53, ERPNext 16.29 on the dev bench): update both when the bench is updated.
     env:

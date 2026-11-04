@@ -318,7 +318,8 @@ class DocTypeKind:
 
 	def _doc_dict(self, spec):
 		props = dict(spec.get("properties") or {})
-		return {"doctype": "DocType", "name": spec["name"], "module": spec["module"], "custom": 1, **props,
+		# is_virtual explicitly 0: Frappe 15 compares it with each child table's and None is not 0
+		return {"doctype": "DocType", "name": spec["name"], "module": spec["module"], "custom": 1, "is_virtual": 0, **props,
 			"fields": [{k: v for k, v in f.items() if k in FIELD_KEYS} for f in spec["fields"]],
 			"permissions": [dict(r) for r in spec.get("permissions") or []]}
 

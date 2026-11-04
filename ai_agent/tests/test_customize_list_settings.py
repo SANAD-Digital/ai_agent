@@ -96,7 +96,7 @@ class TestCustomizeListSettings(IntegrationTestCase):
 		self.assertEqual(frappe.get_meta(DOCTYPE, cached=False).get_field("notify_on_login").in_list_view, 0)
 
 	def test_reset_and_undo(self):
-		KIND.execute(KIND.normalize({"operation": "update", "doctype": DOCTYPE, "settings": {"show_tags": 1}}, ADMIN), ADMIN)
+		KIND.execute(KIND.normalize({"operation": "update", "doctype": DOCTYPE, "settings": {"disable_comment_count": 1}}, ADMIN), ADMIN)
 		before = state(DOCTYPE)
 		spec = KIND.normalize({"operation": "reset", "doctype": DOCTYPE}, ADMIN)
 		self.assertFalse(KIND.check(spec, ADMIN).critical())
@@ -105,7 +105,7 @@ class TestCustomizeListSettings(IntegrationTestCase):
 		self.assertFalse(frappe.db.exists("List View Settings", DOCTYPE))
 		KIND.execute(result["undo"], ADMIN)
 		self.assertEqual(state(DOCTYPE), before)
-		self.assertEqual(frappe.db.get_value("List View Settings", DOCTYPE, "show_tags"), 1)
+		self.assertEqual(frappe.db.get_value("List View Settings", DOCTYPE, "disable_comment_count"), 1)
 
 	def test_checks(self):
 		if frappe.db.exists("List View Settings", DOCTYPE):

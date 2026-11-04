@@ -245,6 +245,10 @@ class TestCustomizationSkillExamples(IntegrationTestCase):
 		for file, _lang, _tag, attrs, code, previous_sql in of("customize"):
 			label = f"{file}: {code[:80]}"
 			with self.subTest(example=label):
+				if attrs["kind"] not in kinds:
+					# a kind this Frappe does not offer (registry.NOT_OFFERED) is skipped; a mistyped kind still fails here
+					self.assertIn(f"customize.request_{attrs['kind']}", kind_registry.NOT_OFFERED, label)
+					continue
 				kind = kinds[attrs["kind"]]
 				args = json.loads(code)
 				if args.get("query") == QUERY_PLACEHOLDER:

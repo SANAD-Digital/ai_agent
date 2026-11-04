@@ -18,7 +18,8 @@ class TestDescribeDoctype(IntegrationTestCase):
 		result = schema.handle_describe_doctype({"doctype": "Sales Invoice"}, self.ctx)
 		self.assertLessEqual(len(result["fields"]), schema.DEFAULT_FIELD_LIMIT)
 		self.assertGreater(result["fields_omitted"], 0)
-		first = [f["fieldname"] for f in result["fields"][:10]]
+		# ERPNext 15 does not mark customer required, so it ranks a few places lower than on 16
+		first = [f["fieldname"] for f in result["fields"][:20]]
 		self.assertIn("customer", first)
 		self.assertIn("posting_date", first)
 

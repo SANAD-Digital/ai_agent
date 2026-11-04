@@ -89,6 +89,7 @@ In DocType Events `frappe.db.commit`, `frappe.db.rollback` and `frappe.db.add_in
 | `getattr`, `hasattr`, `type`, `map`, `filter`, `reversed`, `next`, `iter`, `open`, `eval` | `NameError` | comprehensions, `sorted(..., reverse=True)`, `isinstance` |
 | `some_date.strftime(...)` | `KeyError: '__import__'` | `frappe.utils.formatdate(d, "dd-MM-yyyy")`, `frappe.utils.getdate(d).year` |
 | arithmetic on an empty field | `TypeError: unsupported operand type(s) for *: 'NoneType' and 'float'` | `frappe.utils.flt(doc.x)`, `cint(...)` |
+| a comprehension that reads a variable the script set (`[c for c in chosen if c in allowed]`) | `NameError: name 'allowed' is not defined` on servers running Python 3.10 or 3.11 (common with Frappe 15) | a `for` loop that appends; a comprehension over its own loop variable alone (`[r.name for r in rows]`) works everywhere |
 
 Builtins: `abs all any bool bytes callable chr complex dict divmod enumerate float hash hex id int isinstance
 issubclass len list max min oct ord pow range repr round set setattr slice sorted str sum tuple zip`, the standard

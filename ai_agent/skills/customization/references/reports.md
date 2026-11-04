@@ -216,7 +216,10 @@ full_name = {c.name: c.company_name or c.name for c in allowed}
 chosen = filters.get("company") or []
 if isinstance(chosen, str):
     chosen = [chosen]
-companies = [c for c in chosen if c in full_name] if chosen else list(full_name)
+companies = []
+for c in chosen or list(full_name):  # a loop, not a comprehension: works on Python 3.10/3.11 servers too
+    if c in full_name:
+        companies.append(c)
 
 columns = [
     {"fieldname": "company", "label": _("Company"), "fieldtype": "Link", "options": "Company", "width": 200},

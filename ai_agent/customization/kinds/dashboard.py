@@ -600,7 +600,7 @@ class DashboardKind:
 			if not frappe.db.exists("Workspace", name):
 				checks.append(Check("dashboard.workspace", "critical", _("There is no workspace {0}").format(name)))
 				continue
-			row = frappe.db.get_value("Workspace", name, ["module", "standard", "public", "for_user"], as_dict=True)
+			row = ws.workspace_row(name)
 			if ws.is_standard_workspace(row):
 				checks.append(Check("dashboard.workspace", "critical",
 					_("{0} belongs to the app {1}: copy it first (customize.request_workspace with copy_from) and place the widget on the copy").format(name, row.module)))
@@ -618,7 +618,7 @@ class DashboardKind:
 	def _delete_checks(self, spec, state):
 		checks = []
 		for p in state.get("placements") or []:
-			row = frappe.db.get_value("Workspace", p["workspace"], ["module", "standard"], as_dict=True) or {}
+			row = ws.workspace_row(p["workspace"])
 			if ws.is_standard_workspace(row):
 				checks.append(Check("dashboard.in_use", "critical", _("The app workspace {0} shows it: it cannot be deleted").format(p["workspace"])))
 		for dashboard in state.get("dashboards") or []:

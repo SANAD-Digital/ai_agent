@@ -38,6 +38,10 @@ def app_files(title):
 
 class TestCustomizeWorkspace(IntegrationTestCase):
 	def setUp(self):
+		from ai_agent.customization import registry
+
+		if "workspace" not in registry.KINDS:
+			self.skipTest("this Frappe has no module sidebars (15): customize.request_workspace is not offered")
 		frappe.set_user(ADMIN)
 		self.suffix = frappe.generate_hash(length=6)
 

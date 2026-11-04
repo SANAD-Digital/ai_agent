@@ -150,6 +150,18 @@ def is_standard_workspace(row):
 	return bool(cint(row.get("standard")) or row.get("app"))
 
 
+def workspace_row(name):
+	"""What decides who owns a workspace: module, audience and, where Workspace has it (Frappe 16.53), ``standard``.
+	{} when it does not exist."""
+	fields = ["module", "public", "for_user"] + (["standard"] if frappe.get_meta("Workspace").has_field("standard") else [])
+	return frappe.db.get_value("Workspace", name, fields, as_dict=True) or {}
+
+
+def app_workspaces(limit=1):
+	"""Names of app-owned workspaces (is_standard_workspace)."""
+	return frappe.get_all("Workspace", filters={"standard": 1}, pluck="name", limit=limit)
+
+
 def is_standard_sidebar(row):
 	return bool(cint(row.get("standard")) or row.get("app"))
 

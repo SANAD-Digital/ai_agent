@@ -6,6 +6,7 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from ai_agent.customization.contract import CustomizationError
+from ai_agent.customization.kinds import workspace_spec
 from ai_agent.customization.kinds.dashboard import KIND, norm_filters
 
 ADMIN = "Administrator"
@@ -155,7 +156,7 @@ class TestCustomizeDashboard(IntegrationTestCase):
 			self.assertIn("dashboard.name_taken", critical(KIND.check(spec, ADMIN)))
 			spec = KIND.normalize({"operation": "update", "object": "number_card", "name": standard[0], "definition": {"color": "#ff0000"}}, ADMIN)
 			self.assertIn("dashboard.standard", critical(KIND.check(spec, ADMIN)))
-		app_ws = frappe.get_all("Workspace", filters={"standard": 1}, pluck="name", limit=1)  # an app's own page
+		app_ws = workspace_spec.app_workspaces()  # an app's own page
 		if app_ws:
 			spec = KIND.normalize({"operation": "create", "object": "number_card", "name": f"AI X {self.suffix}",
 				"definition": {"document_type": "ToDo"}, "workspace": app_ws[0]}, ADMIN)

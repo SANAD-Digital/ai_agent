@@ -31,14 +31,14 @@ It changes the list **for every user**. A user's own sort or column width choice
 | Key | Format |
 |---|---|
 | `columns` | fieldnames in display order, after the title column: `["customer", "grand_total", "due_date"]`. Not Table/Section/HTML fields; not virtual fields |
-| `settings` | `disable_count`, `disable_comment_count`, `disable_sidebar_stats`, `disable_auto_refresh`, `disable_automatic_recency_filters` (the automatic "last 90 days" filter on big tables), `disable_scrolling`, `show_tags`, `allow_edit` — each 0 or 1 |
+| `settings` | `disable_count`, `disable_comment_count`, `disable_sidebar_stats`, `disable_auto_refresh`, `disable_automatic_recency_filters` (the automatic "last 90 days" filter on big tables), `disable_scrolling`, `show_tags` (both Frappe 16 only), `allow_edit` — each 0 or 1 |
 | `sort_field` | a fieldname, `creation` or `modified` (comma-separated for several) |
 | `sort_order` | `ASC` or `DESC` |
 
 ```json customize kind=list_settings
 {"operation": "update", "doctype": "ToDo",
  "columns": ["status", "priority", "date", "allocated_to"],
- "settings": {"disable_comment_count": 1, "show_tags": 1},
+ "settings": {"disable_comment_count": 1, "disable_sidebar_stats": 1},
  "sort_field": "date", "sort_order": "ASC",
  "purpose": "Tasks list: due date first, with owner and priority"}
 ```

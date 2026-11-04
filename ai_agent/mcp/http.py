@@ -18,10 +18,12 @@ def after_request(response, request):
         if getattr(frappe.session, "user", "Guest") == "Guest":
             response.status_code = 401
         value = f'Bearer resource_metadata="{origin}{metadata_path}"'
-        # Frappe adds its origin-level challenge after after_request hooks.
-        # response_headers is applied last, so the MCP-specific resource wins.
-        frappe.local.response_headers["WWW-Authenticate"] = value
         response.headers["WWW-Authenticate"] = value
+        # Frappe 16 adds its origin-level challenge after after_request hooks; response_headers is applied
+        # last, so the MCP-specific resource wins. Frappe 15 has neither.
+        headers = getattr(frappe.local, "response_headers", None)
+        if headers is not None:
+            headers["WWW-Authenticate"] = value
         return
 
     if request.method != "GET" or request.path != metadata_path or response.status_code != 200:

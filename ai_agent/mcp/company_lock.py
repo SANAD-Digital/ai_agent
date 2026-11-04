@@ -31,7 +31,9 @@ def _company_field(doctype):
 
 def _parents_with_company(child_doctype):
 	"""Parent DocTypes with a company field that hold ``child_doctype`` in a table (cached per request)."""
-	cache = frappe.local.__dict__.setdefault("ai_agent_company_lock_parents", {})
+	cache = getattr(frappe.local, "ai_agent_company_lock_parents", None)
+	if cache is None:
+		cache = frappe.local.ai_agent_company_lock_parents = {}  # frappe.local has no __dict__
 	if child_doctype not in cache:
 		parents = frappe.get_all("DocField", filters={"options": child_doctype, "fieldtype": ("in", ("Table", "Table MultiSelect"))},
 			pluck="parent", distinct=True)

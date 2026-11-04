@@ -20,8 +20,10 @@ CHATBOT_SKILLS = (
 
 def ensure_chatbot_configuration():
     """Create the System Chatbot agent and default settings."""
-    agent = ensure_chatbot_agent()
-    ensure_settings(agent)
+    # the shared agent takes the site's settings, never the migrating user's own assignment
+    with settings.site_level():
+        agent = ensure_chatbot_agent()
+        ensure_settings(agent)
     frappe.db.commit()
     return agent
 

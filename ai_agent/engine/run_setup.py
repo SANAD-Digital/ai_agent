@@ -128,7 +128,7 @@ class RunSetup:
             max_tokens=cint(caps.max_output_tokens) or 8192,
             thinking=thinking,
             thinking_budget=cint(self.agent.get("thinking_budget_tokens")),
-            effort=(self.agent.reasoning_effort or self.settings.get("default_reasoning_effort") or ""),
+            effort=(self._chatbot_effort() or self.agent.reasoning_effort or self.settings.get("default_reasoning_effort") or ""),
         )
         # A long possible reply must not starve the history: reserve at most a quarter of the window for it.
         budget = budget_for(caps.context_window, min(config.max_tokens, (caps.context_window or 0) // 4 or config.max_tokens))
@@ -137,6 +137,14 @@ class RunSetup:
         self.caps = caps
         self.provider_name, self.model = provider_name, model
         return loop, executor, messages, start_seq
+
+    def _chatbot_effort(self):
+        """A support (bubble) conversation thinks as its settings say: the user's assignment, else the site's."""
+        if self.session.get("surface") != "Chatbot":
+            return None
+        from ai_agent.chatbot import settings as bot_settings
+
+        return bot_settings.reasoning_effort()
 
     def site_instructions(self):
         """Organisation instructions, plus the support desk's own prompt when

@@ -3406,3 +3406,20 @@ for all connections,لكل الاتصالات
 Notes,ملاحظات
 Set: this connection sees and works on this company only. Empty: every company the user may read,محددة: يرى هذا الاتصال هذه الشركة فقط ويعمل عليها. فارغة: كل الشركات التي يحق للمستخدم قراءتها
 {0} has no company filter: it is not available on a connection limited to {1},{0} لا يحتوي فلتر شركة: غير متاح على اتصال مقصور على {1}
+AI Chatbot Assignment,إسناد مساعد الدعم
+Support Window per User,نافذة الدعم لكل مستخدم
+"On: this user gets the support window, even without the roles in AI Chatbot Settings. Off: not for this user",مفعّل: يحصل هذا المستخدم على نافذة الدعم حتى بدون الأدوار في إعدادات المساعد. معطّل: لا تظهر له
+Empty: the agent of AI Chatbot Settings,فارغ: وكيل إعدادات المساعد العامة
+Empty: the company of AI Chatbot Settings,فارغ: شركة إعدادات المساعد العامة
+Empty: the provider of AI Chatbot Settings,فارغ: مزوّد إعدادات المساعد العامة
+Empty: the provider's default model,فارغ: النموذج الافتراضي للمزوّد
+Empty: as in AI Chatbot Settings,فارغ: كما في إعدادات المساعد العامة
+Empty: the system prompt of AI Chatbot Settings,فارغ: تعليمات إعدادات المساعد العامة
+Texts,النصوص
+"AI Provider {0} has no API key: add it in AI Provider {0}, or choose another provider.",مزوّد الذكاء الاصطناعي {0} بلا مفتاح API: أضفه في AI Provider {0} أو اختر مزوّداً آخر.
+No API key,لا يوجد مفتاح API
+Voice typing,الكتابة بالصوت,AI Chat
+Stop voice typing,إيقاف الكتابة بالصوت,AI Chat
+Allow the microphone for this site to type by voice,اسمح للموقع باستخدام الميكروفون لتكتب بالصوت,AI Chat
+Voice typing needs an internet connection,الكتابة بالصوت تحتاج اتصالاً بالإنترنت,AI Chat
+Voice typing stopped: {0},توقفت الكتابة بالصوت: {0},AI Chat

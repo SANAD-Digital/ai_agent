@@ -107,3 +107,61 @@ class TestChatSupport(IntegrationTestCase):
             with patch.object(bot_settings, "provider", return_value=made[1]):
                 self._send("رسالة ثانية", session=name)
             self.assertEqual(frappe.db.get_value("AI Chat Session", name, ["provider", "model"]), (made[1], "two-model"))
+
+
+class TestChatbotAssignment(IntegrationTestCase):
+    """AI Chatbot Assignment: the support window of one user, with the settings of AI Chatbot Settings at the
+    user's level (an empty field keeps the site's value)."""
+
+    USER = "ai-bubble-assign@example.com"
+
+    def setUp(self):
+        frappe.set_user("Administrator")
+        ensure_test_agent()
+        if not frappe.db.exists("User", self.USER):
+            frappe.get_doc({"doctype": "User", "email": self.USER, "first_name": "Bubble Assign", "send_welcome_email": 0}).insert(ignore_permissions=True)
+        self.addCleanup(self.cleanup)
+
+    def cleanup(self):
+        frappe.set_user("Administrator")
+        if frappe.db.exists("AI Chatbot Assignment", self.USER):
+            frappe.delete_doc("AI Chatbot Assignment", self.USER, force=True, ignore_permissions=True)
+        frappe.local.ai_chatbot_assignments = {}
+
+    def assign(self, **values):
+        doc = frappe.get_doc({"doctype": "AI Chatbot Assignment", "user": self.USER, "company": "", **values})
+        doc.insert(ignore_permissions=True)
+        frappe.local.ai_chatbot_assignments = {}
+        return doc
+
+    def as_user(self):
+        frappe.set_user(self.USER)
+        frappe.local.ai_chatbot_assignments = {}
+
+    def test_the_users_values_win_and_empty_ones_keep_the_site(self):
+        site_title = bot_settings.widget_title()
+        self.assign(agent="Unit Test Agent", welcome_message="أهلاً بك يا فريق المبيعات")
+        self.as_user()
+        self.assertEqual(bot_settings.agent_name(), "Unit Test Agent")
+        self.assertEqual(bot_settings.welcome_message(), "أهلاً بك يا فريق المبيعات")
+        self.assertEqual(bot_settings.widget_title(), site_title, "an empty field keeps the site's value")
+
+    def test_assignment_decides_access(self):
+        self.as_user()
+        self.assertFalse(bot_settings.can_access(), "no role, no assignment")
+        frappe.set_user("Administrator")
+        self.assign()
+        self.as_user()
+        self.assertTrue(bot_settings.can_access(), "an enabled assignment grants it without the roles")
+        frappe.set_user("Administrator")
+        frappe.db.set_value("AI Chatbot Assignment", self.USER, "enabled", 0)
+        self.as_user()
+        self.assertFalse(bot_settings.can_access())
+        self.assertNotEqual(bot_settings.agent_name(), "x", "a disabled assignment sets nothing")
+
+    def test_site_level_ignores_the_session_users_assignment(self):
+        self.assign(system_prompt="فقط لهذا المستخدم")
+        self.as_user()
+        self.assertEqual(bot_settings.system_prompt(), "فقط لهذا المستخدم")
+        with bot_settings.site_level():
+            self.assertNotEqual(bot_settings.system_prompt(), "فقط لهذا المستخدم")

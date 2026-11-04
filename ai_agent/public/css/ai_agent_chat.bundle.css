@@ -1720,6 +1720,17 @@ body[data-route^="agent-workspace/"] .main-section {
 .ac-tool-btn-text:empty {
     display: none;
 }
+.ac-tool-btn.is-recording {
+    color: var(--ac-danger, #c0392b);
+    background: var(--ac-danger-soft, rgba(192, 57, 43, 0.1));
+    animation: ac-mic-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ac-mic-pulse {
+    50% { box-shadow: 0 0 0 4px var(--ac-danger-soft, rgba(192, 57, 43, 0.12)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ac-tool-btn.is-recording { animation: none; }
+}
 .ac-tool-btn[data-state="on"],
 .ac-tool-btn[data-state="adaptive"],
 .ac-tool-btn[data-state="auto"] {

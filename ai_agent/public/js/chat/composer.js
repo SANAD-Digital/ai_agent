@@ -149,6 +149,7 @@
         const fileInput = h("input.ac-visually-hidden", { type: "file", multiple: true, tabindex: -1, aria: { hidden: "true" } });
 
         const btnAttach = toolBtn("paperclip", __("Attach a file"), () => fileInput.click());
+        const dictation = createDictation();
         const btnAgent = toolBtn("bot", __("Agent"), () => toggleAgentPicker(), true);
         const btnModel = toolBtn("zap", __("Model"), () => toggleModelPicker(), true);
         const btnThinking = toolBtn("brain", __("Thinking"), () => cycleThinking(), true);
@@ -166,7 +167,7 @@
         const errorLine = h("div.ac-composer-error", { role: "alert" }, icon("alert"), errorText, errorRetry);
         errorLine.hidden = true;
 
-        const tools = h("div.ac-composer-tools", btnAttach, pickers ? [btnAgent, btnModel, btnThinking, btnApproval] : null, compact ? info : null);
+        const tools = h("div.ac-composer-tools", btnAttach, dictation ? dictation.button : null, pickers ? [btnAgent, btnModel, btnThinking, btnApproval] : null, compact ? info : null);
         const bar = h("div.ac-composer-bar", tools, h("div.ac-composer-right", btnSend));
         const box = h("div.ac-composer-box", chips, ta, bar);
         const dropHint = h("div.ac-drop-hint", icon("paperclip"), h("span", { text: __("Drop files here") }));
@@ -179,6 +180,94 @@
         let atQuery = null; // {start, end, query}
 
         /* ---- helpers ---- */
+
+        /* ---- voice typing ---- */
+
+        /**
+         * Speech to text with the browser's own recognition (Web Speech API): no server, no model, words appear in
+         * the box as they are heard and stay editable before sending. Browsers without it (Firefox) get no button.
+         * The recognition runs in the browser vendor's service (Chrome: Google), as the button's title says.
+         */
+        function createDictation() {
+            const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!Recognition) return null;
+            const button = toolBtn("mic", __("Voice typing"), () => (rec ? stop() : start()));
+            let rec = null;
+            let before = "";
+            let heard = "";
+            let pending = ""; // words shown but not final yet: kept when the recognition ends on them
+
+            function speechLang() {
+                const lang = String((window.frappe && frappe.boot && frappe.boot.lang) || document.documentElement.lang || "ar").toLowerCase();
+                if (lang.startsWith("ar")) return "ar-SA";
+                if (lang.startsWith("en")) return "en-US";
+                return lang;
+            }
+
+            function paint(on) {
+                button.dataset.state = on ? "recording" : "";
+                button.classList.toggle("is-recording", on);
+                const label = on ? __("Stop voice typing") : __("Voice typing");
+                button.title = label;
+                button.setAttribute("aria-label", label);
+                button.setAttribute("aria-pressed", on ? "true" : "false");
+            }
+
+            function show(interim) {
+                const spoken = (heard + interim).trim();
+                setText(before + (before && spoken && !/\s$/.test(before) ? " " : "") + spoken, { keepCaret: true });
+            }
+
+            function start() {
+                before = ta.value;
+                heard = "";
+                pending = "";
+                rec = new Recognition();
+                rec.lang = speechLang();
+                rec.continuous = true;
+                rec.interimResults = true;
+                rec.onresult = (event) => {
+                    let interim = "";
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const part = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) heard += part + " ";
+                        else interim += part;
+                    }
+                    pending = interim;
+                    show(interim);
+                };
+                rec.onerror = (event) => {
+                    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                        AIChat.toast(__("Allow the microphone for this site to type by voice"), "orange");
+                    } else if (event.error === "network") {
+                        AIChat.toast(__("Voice typing needs an internet connection"), "orange");
+                    } else if (event.error !== "no-speech" && event.error !== "aborted") {
+                        AIChat.toast(__("Voice typing stopped: {0}", [event.error]), "orange");
+                    }
+                };
+                rec.onend = () => {
+                    heard += pending;
+                    pending = "";
+                    show("");
+                    rec = null;
+                    paint(false);
+                    focus();
+                };
+                try {
+                    rec.start();
+                    paint(true);
+                } catch (e) {
+                    rec = null;
+                    paint(false);
+                }
+            }
+
+            function stop() {
+                if (rec) rec.stop();
+            }
+
+            return { button, stop, active: () => !!rec };
+        }
 
         function toolBtn(name, label, onClick, withText) {
             const b = h("button.ac-tool-btn", { type: "button", title: label, aria: { label } }, icon(name), withText ? h("span.ac-tool-btn-text") : null);
@@ -646,6 +735,7 @@
         /* ---- submit ---- */
 
         function submit() {
+            if (dictation && dictation.active()) dictation.stop(); // what was heard so far is in the box: send it
             if (!canSend()) return Promise.resolve();
             const text = ta.value.trim();
             const payload = {

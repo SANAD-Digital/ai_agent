@@ -151,7 +151,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Settings",
-   "link_count": 5,
+   "link_count": 6,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -198,6 +198,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Support Window per User",
+   "link_count": 0,
+   "link_to": "AI Chatbot Assignment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Image Reading (OCR)",
    "link_count": 0,
    "link_to": "Gemini OCR Settings",
@@ -206,7 +216,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-10-27 23:00:00.000000",
+ "modified": "2026-11-04 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI",

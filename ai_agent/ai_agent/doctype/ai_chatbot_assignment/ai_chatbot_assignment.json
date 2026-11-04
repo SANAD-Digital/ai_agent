@@ -1,0 +1,159 @@
+{
+ "actions": [],
+ "autoname": "field:user",
+ "creation": "2026-11-04 21:00:00.000000",
+ "description": "إسناد مساعد الدعم الفني (الفقاعة) لمستخدم: نفس إعدادات AI Chatbot Settings على مستوى المستخدم. الحقل الفارغ يأخذ قيمة الإعدادات العامة.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "enabled",
+  "column_break_user",
+  "agent",
+  "company",
+  "section_model",
+  "provider",
+  "model",
+  "column_break_model",
+  "reasoning_effort",
+  "section_texts",
+  "widget_title",
+  "welcome_message",
+  "column_break_texts",
+  "error_reply",
+  "section_prompt",
+  "system_prompt"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "description": "On: this user gets the support window, even without the roles in AI Chatbot Settings. Off: not for this user",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "column_break_user",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Empty: the agent of AI Chatbot Settings",
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "AI Agent",
+   "options": "AI Agent"
+  },
+  {
+   "description": "Empty: the company of AI Chatbot Settings",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "section_model",
+   "fieldtype": "Section Break",
+   "label": "Model"
+  },
+  {
+   "description": "Empty: the provider of AI Chatbot Settings",
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Provider",
+   "options": "AI Provider"
+  },
+  {
+   "description": "Empty: the provider's default model",
+   "fieldname": "model",
+   "fieldtype": "Autocomplete",
+   "label": "Model"
+  },
+  {
+   "fieldname": "column_break_model",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Empty: as in AI Chatbot Settings",
+   "fieldname": "reasoning_effort",
+   "fieldtype": "Select",
+   "label": "Intelligence",
+   "options": "\nlow\nmedium\nhigh"
+  },
+  {
+   "fieldname": "section_texts",
+   "fieldtype": "Section Break",
+   "label": "Texts"
+  },
+  {
+   "description": "Empty: as in AI Chatbot Settings",
+   "fieldname": "widget_title",
+   "fieldtype": "Data",
+   "label": "Widget Title"
+  },
+  {
+   "fieldname": "welcome_message",
+   "fieldtype": "Text",
+   "label": "Welcome Message"
+  },
+  {
+   "fieldname": "column_break_texts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "error_reply",
+   "fieldtype": "Small Text",
+   "label": "Error Reply"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_prompt",
+   "fieldtype": "Section Break",
+   "label": "System Prompt"
+  },
+  {
+   "description": "Empty: the system prompt of AI Chatbot Settings",
+   "fieldname": "system_prompt",
+   "fieldtype": "Long Text",
+   "label": "System Prompt"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-04 21:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI Chatbot Assignment",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "agent,provider",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

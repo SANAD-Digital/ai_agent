@@ -7,6 +7,7 @@ does not stop at "customer created". Placeholders such as ``$created.Customer`` 
 created. Each continuation runs once.
 """
 
+import html
 import json
 import re
 
@@ -56,7 +57,8 @@ def _find(approval_name):
                                                    "content": ["like", f"%{MARK}:%"]}, fields=["name", "content"], order_by="creation desc", limit=1):
         match = _COMMENT.search(row.content or "")
         if match:
-            return row.name, json.loads(match.group("json"))
+            # Frappe 15 stores a comment's quotes as &quot; (its HTML sanitizer); 16 keeps them
+            return row.name, json.loads(html.unescape(match.group("json")))
     return None, None
 
 

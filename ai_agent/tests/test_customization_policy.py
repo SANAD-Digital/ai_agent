@@ -13,6 +13,7 @@ from ai_agent.customization import policy as cpolicy
 from ai_agent.customization import tools as ctools
 from ai_agent.engine.tools import TOOL_GROUPS, ToolExecutor
 from ai_agent.engine.types import TOOL_USE, Block
+from ai_agent.mcp import profiles
 from ai_agent.runtime import policy
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
@@ -79,8 +80,7 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 		with open(path) as f:
 			fields = {d["fieldname"]: d for d in json.load(f)["fields"]}
 		for name in ("allow_customization_actions", "allow_customize_fields", "allow_customize_client_scripts",
-				"allow_customize_server_scripts", "allow_customize_reports", "customization_allow_mcp",
-				"customization_require_four_eyes"):
+				"allow_customize_server_scripts", "allow_customize_reports", "customization_require_four_eyes"):
 			self.assertEqual(fields[name]["default"], "0", name)
 		self.assertEqual(fields["customization_max_requests_per_hour"]["default"], "20")
 
@@ -116,8 +116,9 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 		self.assertTrue(cpolicy.available("Administrator", "Desk"))
 		for surface in ("Chatbot", "API", None, ""):
 			self.assertFalse(cpolicy.available("Administrator", surface), surface)
-		self.assertFalse(cpolicy.available("Administrator", "MCP"), "MCP is off by default")
-		fx.set_settings(customization_allow_mcp=1)
+		self.assertFalse(cpolicy.available("Administrator", "MCP"), "MCP is off without a record that allows it")
+		self.addCleanup(profiles.use, None)
+		profiles.use(frappe._dict(allow_customization=1))
 		self.assertTrue(cpolicy.available("Administrator", "MCP"))
 
 	def test_frappe_roles_decide(self):
@@ -173,20 +174,21 @@ class TestSwitchesRolesSurfaces(CustomizationTestCase):
 
 		svc = MCPService.__new__(MCPService)
 		svc.user, svc.agent, svc.registry = "Administrator", acting_agent(), ToolRegistry()
-		fx.set_settings(mcp_enable_action_requests=1)
 		svc.settings = frappe.get_cached_doc("AI Settings")
+		self.addCleanup(profiles.use, None)
+		profiles.use(frappe._dict(allow_action_requests=1, allow_customization=0))
 		inspect, request = svc.registry.get_tool("customize.inspect"), svc.registry.get_tool("customize.request_client_script")
-		self.assertFalse(svc._is_exposed(inspect), "customization_allow_mcp is off")
+		self.assertFalse(svc._is_exposed(inspect), "the record does not allow customization")
 		self.assertFalse(svc._is_exposed(request))
-		fx.set_settings(customization_allow_mcp=1)
+		profiles.use(frappe._dict(allow_action_requests=1, allow_customization=1))
 		self.assertTrue(svc._is_exposed(inspect))
 		self.assertTrue(svc._is_exposed(request))
-		fx.set_settings(mcp_enable_action_requests=0)
-		svc.settings = frappe.get_cached_doc("AI Settings")
+		profiles.use(frappe._dict(allow_action_requests=0, allow_customization=1))
 		self.assertTrue(svc._is_exposed(inspect))
-		self.assertFalse(svc._is_exposed(request), "requests also need MCP action requests")
-		fx.set_settings(mcp_enable_action_requests=1, allow_customization_actions=0)
-		self.assertFalse(svc._is_exposed(inspect))
+		self.assertFalse(svc._is_exposed(request), "requests also need action requests on the record")
+		profiles.use(frappe._dict(allow_action_requests=1, allow_customization=1))
+		fx.set_settings(allow_customization_actions=0)
+		self.assertFalse(svc._is_exposed(inspect), "the site's master switch still decides")
 
 
 class TestNeverWithoutAPerson(CustomizationTestCase):
@@ -238,7 +240,8 @@ class TestNeverWithoutAPerson(CustomizationTestCase):
 	def test_mcp_without_require_approval_still_waits(self):
 		from ai_agent.mcp.service import MCPService
 
-		fx.set_settings(customization_allow_mcp=1, mcp_enable_action_requests=1, mcp_require_approval=0)
+		self.addCleanup(profiles.use, None)
+		profiles.use(frappe._dict(allow_customization=1, allow_action_requests=1, require_approval=0))
 		svc = MCPService.__new__(MCPService)
 		svc.user, svc.agent, svc.registry, svc.company = "Administrator", acting_agent(), ToolRegistry(), None
 		svc.settings = frappe.get_cached_doc("AI Settings")

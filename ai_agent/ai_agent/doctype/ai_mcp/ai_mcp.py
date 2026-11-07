@@ -1,5 +1,6 @@
-"""AI MCP: one MCP connection of a user, with the agent and company it works with (mcp/profiles.py picks the
-record for a request: the one for its connection first, then the user's general one)."""
+"""AI MCP: one MCP connection of a user: the agent and company it works with, what it may do (action requests,
+approval, card buttons, customization) and its request rate (mcp/profiles.py picks the record for a request: the one
+for its connection first, then the user's general one)."""
 
 import frappe
 from frappe import _
@@ -12,6 +13,8 @@ class AIMCP(Document):
 			frappe.throw(_("Agent {0} is disabled.").format(self.agent))
 		if self.company and not frappe.has_permission("Company", "read", self.company, user=self.user):
 			frappe.throw(_("{0} cannot read company {1}.").format(self.user, self.company))
+		if self.max_requests_per_minute is not None and self.max_requests_per_minute < 1:
+			frappe.throw(_("{0}: this value must be at least 1.").format(_("Requests per Minute")))
 		if self.enabled:
 			self._one_enabled_record_per_connection()
 

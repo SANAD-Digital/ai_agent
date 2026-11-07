@@ -7,7 +7,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from ai_agent.mcp import approvals, continuation
+from ai_agent.mcp import approvals, continuation, profiles
 from ai_agent.mcp.service import MCPService
 from ai_agent.runtime.tool_registry import ToolRegistry
 from ai_agent.tests.utils import delete_docs
@@ -358,33 +358,28 @@ class TestOriginalGoal(LifecycleCase):
 
 
 class TestApprovalSwitch(IntegrationTestCase):
-	"""An unset switch must mean "approval required": it is only ever turned off on purpose."""
+	"""An unset switch must mean "approval required": it is only ever turned off on purpose, on a record."""
 
-	def _with(self, value):
-		doc = frappe._dict(mcp_require_approval=value)
-		doc.get = lambda key, default=None: dict.get(doc, key, default)
-		return patch("frappe.get_cached_doc", return_value=doc)
+	def setUp(self):
+		self.addCleanup(profiles.use, None)
+
+	def test_no_record_means_required(self):
+		profiles.use(None)
+		self.assertIs(approvals.approval_required(), True)
 
 	def test_unset_or_empty_means_required(self):
 		for value in (None, "", 1, "1"):
-			with self._with(value):
-				self.assertTrue(approvals.approval_required(), repr(value))
+			profiles.use(frappe._dict(require_approval=value))
+			self.assertIs(approvals.approval_required(), True, repr(value))
 
 	def test_only_an_explicit_zero_switches_it_off(self):
 		for value in (0, "0"):
-			with self._with(value):
-				self.assertFalse(approvals.approval_required(), repr(value))
-
-
-class TestSafeDefaults(IntegrationTestCase):
-	def test_unset_setting_means_approval_is_required(self):
-		for value, expected in ((None, True), ("", True), (1, True), ("1", True), (0, False), ("0", False)):
-			with patch("frappe.get_cached_doc", return_value=frappe._dict(mcp_require_approval=value)):
-				self.assertIs(approvals.approval_required(), expected, repr(value))
+			profiles.use(frappe._dict(require_approval=value))
+			self.assertIs(approvals.approval_required(), False, repr(value))
 
 
 class TestDirectModeLimits(IntegrationTestCase):
-	"""With mcp_require_approval off, only Create / Bulk Create / Update run without the card."""
+	"""With Require Approval off, only Create / Bulk Create / Update run without the card."""
 
 	def test_only_auto_types_run_directly(self):
 		for action_type, human in (("Create", False), ("Bulk Create", False), ("Update", False), ("Submit", True),

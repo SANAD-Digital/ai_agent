@@ -14,7 +14,7 @@ import json
 import frappe
 from frappe.utils import cint
 
-from ai_agent.mcp import events
+from ai_agent.mcp import events, profiles
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
 from ai_agent.presentation.i18n import t
@@ -49,16 +49,14 @@ class ApprovalUiError(Exception):
 
 
 def approval_required():
-    """Does a write need a human decision at all? Off = requests run at once under the requester's own permissions."""
-    value = frappe.get_cached_doc("AI Settings").get("mcp_require_approval")
-    # Unset (field not migrated yet, or never saved) means REQUIRED: approval is only ever switched off on purpose.
-    return True if value is None or value == "" else bool(cint(value))
+    """Does a write need a human decision at all? Off (on the connection's AI MCP record) = requests run at once
+    under the requester's own permissions. Without a record it is always on."""
+    return profiles.flag("require_approval")
 
 
 def app_approval_enabled():
     """Are the card's Approve / Cancel buttons allowed? (Independent of whether approval is required, and of text approval.)"""
-    settings = frappe.get_cached_doc("AI Settings")
-    return bool(cint(settings.get("mcp_enable_action_requests")) and cint(settings.get("mcp_enable_app_approval", 0)) and approval_required())
+    return profiles.flag("allow_action_requests") and profiles.flag("approval_buttons") and approval_required()
 
 
 def _secret():

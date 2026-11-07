@@ -15,10 +15,10 @@ SWITCHES = (
 	"allow_customization_actions", "allow_customize_fields", "allow_customize_client_scripts",
 	"allow_customize_server_scripts", "allow_customize_reports", "allow_customize_print_formats",
 	"allow_customize_notifications", "allow_customize_workflows", "allow_customize_dashboards", "allow_customize_web",
-	"allow_customize_permissions", "allow_customize_doctypes", "customization_allow_mcp",
+	"allow_customize_permissions", "allow_customize_doctypes",
 	"customization_require_four_eyes", "customization_max_requests_per_hour",
 	"default_approval_ttl_minutes", "require_four_eyes", "allow_auto_approval",
-	"mcp_enable_action_requests", "mcp_require_approval", "enable_mcp",
+	"enable_mcp",
 )
 SM_USER = "cust-sm@example.com"  # System Manager only
 SCRIPT_USER = "cust-script@example.com"  # System Manager + Script Manager
@@ -85,7 +85,7 @@ def set_settings(**values):
 def enable_all(**extra):
 	set_settings(
 		allow_customization_actions=1, allow_customize_fields=1, allow_customize_client_scripts=1,
-		allow_customize_server_scripts=1, allow_customize_reports=1, customization_allow_mcp=0,
+		allow_customize_server_scripts=1, allow_customize_reports=1,
 		customization_require_four_eyes=0, customization_max_requests_per_hour=1000, require_four_eyes=0,
 		**extra,
 	)

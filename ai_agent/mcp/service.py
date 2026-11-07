@@ -8,7 +8,7 @@ import time
 import frappe
 from frappe.utils import cint
 
-from ai_agent.mcp import approvals, continuation, diagnostics, events, hosts, paging, refs
+from ai_agent.mcp import approvals, continuation, diagnostics, events, hosts, paging, profiles, refs
 from ai_agent.mcp.protocol import MCPProtocolError, tool_result
 from ai_agent.presentation import errors as friendly_errors
 from ai_agent.presentation import present, schema, text as presentation_text
@@ -192,9 +192,9 @@ class MCPService:
         roles, the user's AI MCP record) do not apply there, and the caller sets the agent and company."""
         self.user = user or frappe.session.user
         self.settings = frappe.get_cached_doc("AI Settings")
-        self.profile = None
+        self.profile = None if desk else self._profile()
+        profiles.use(self.profile)
         if not desk:
-            self.profile = self._profile()
             self._assert_access()
             # a connection limited to one company works on that company only (mcp/company_lock.py)
             from ai_agent.mcp import company_lock
@@ -578,7 +578,7 @@ class MCPService:
 
     @staticmethod
     def _always_human(approval_id):
-        """With mcp_require_approval off, only what Desk auto mode runs without a person (Create, Bulk Create,
+        """With Require Approval off on the record, only what Desk auto mode runs without a person (Create, Bulk Create,
         Update) runs directly; Submit, Cancel, Workflow, email and Customize still wait for the card."""
         from ai_agent.runtime import policy
 
@@ -600,7 +600,7 @@ class MCPService:
 
     def _direct_execute(self, approval_id, internal_name, run_name):
         """Approval not required: run the requester's own request now, verify, and continue its `then`."""
-        events.log("approval_skipped", user=self.user, tool=internal_name, approval_id=approval_id, reason="mcp_require_approval=0")
+        events.log("approval_skipped", user=self.user, tool=internal_name, approval_id=approval_id, reason="require_approval=0")
         engine = ApprovalEngine(PermissionContext(self.user))
         approval = frappe.get_doc("AI Approval Request", approval_id)
         try:
@@ -700,8 +700,6 @@ class MCPService:
             # the user's AI MCP record decides: enabled is an explicit grant, disabled an explicit refusal
             if not cint(self.profile.enabled):
                 raise MCPProtocolError(-32003, f"MCP is turned off for this user ({self.profile.title})")
-            from ai_agent.mcp import profiles
-
             profiles.touch(self.profile.name)
         elif cint(self.settings.get("mcp_require_profile")):
             raise MCPProtocolError(-32003, "This user has no AI MCP record: an administrator adds one to allow MCP")
@@ -721,8 +719,6 @@ class MCPService:
 
     def _profile(self):
         """The user's AI MCP record for this connection (or their general one), None when they have none."""
-        from ai_agent.mcp import profiles
-
         return profiles.resolve(self.user, events.oauth_client())
 
     def _company(self):
@@ -737,9 +733,11 @@ class MCPService:
         return self.settings.get("mcp_company") or None
 
     def _check_rate_limit(self, bucket="tools", factor=1):
-        limit = max(1, cint(self.settings.get("mcp_max_requests_per_minute")) or 60) * factor
+        limit = max(1, cint(profiles.setting("max_requests_per_minute")) or profiles.DEFAULTS["max_requests_per_minute"]) * factor
         window = int(time.time()) // 60
-        key = frappe.cache.make_key(f"ai-agent-mcp-rate:{bucket}:{self.user}:{window}")
+        # each record has its own limit, so its own count; two connections of one user do not eat each other's
+        profile = getattr(self, "profile", None)
+        key = frappe.cache.make_key(f"ai-agent-mcp-rate:{bucket}:{profile.name if profile else self.user}:{window}")
         count = frappe.cache.incrby(key, 1)
         if count == 1:
             frappe.cache.expire(key, 120)
@@ -755,7 +753,7 @@ class MCPService:
 
     def _action_requests_enabled(self):
         return bool(
-            cint(self.settings.get("mcp_enable_action_requests"))
+            profiles.flag("allow_action_requests")
             and not cint(self.agent.get("read_only"))
             and cint(self.agent.get("allow_actions"))
         )
@@ -770,8 +768,8 @@ class MCPService:
         if tool["name"].startswith("customize.") and not cint(self.agent.get("allow_customization")):
             return False
         if tool["name"].startswith("customize."):
-            # Off unless AI Settings allows customization over MCP (customization_allow_mcp) and the user holds
-            # the roles; requests also need action requests enabled for MCP. Approval is from Desk only.
+            # Off unless the connection's AI MCP record allows customization and the user holds the roles;
+            # requests also need action requests on that record. Approval is from Desk only.
             from ai_agent.customization import policy as customization_policy
 
             if not customization_policy.tool_available(tool["name"], self.user, customization_policy.MCP):

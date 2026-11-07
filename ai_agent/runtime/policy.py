@@ -58,7 +58,7 @@ def _settings():
 AUTO_APPROVE_TYPES = frozenset({"Create", "Bulk Create", "Update"})
 APPROVAL_MODES = ("Ask", "Auto")
 # Never executed without a person deciding, by any path: auto mode, "approve always", MCP with
-# mcp_require_approval off, or execute_direct. Customize runs code or changes the system; Approved Method sends email.
+# Require Approval off on its AI MCP record, or execute_direct. Customize runs code or changes the system; Approved Method sends email.
 ALWAYS_HUMAN_TYPES = frozenset({"Customize", "Approved Method"})
 
 

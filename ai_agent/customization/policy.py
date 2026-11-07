@@ -3,7 +3,7 @@
 - Master switch ``allow_customization_actions`` plus one switch per kind, all off by default.
 - Frappe's own roles (D3): System Manager, plus Script Manager for server-side code. Administrator passes.
   Checked for the requester at request time and for the approver at execution (who executes it).
-- Surfaces: Desk chat when enabled; MCP only with ``customization_allow_mcp``; never the support bubble
+- Surfaces: Desk chat when enabled; MCP only when the connection's AI MCP record allows it; never the support bubble
   (Chatbot), WhatsApp, the API or an unknown surface.
 - Never executed without a person: ``Customize`` is in ``runtime.policy.ALWAYS_HUMAN_TYPES``.
 - Limits: ``customization_max_requests_per_hour`` (20), 5 pending per user, one pending per target,
@@ -19,11 +19,11 @@ from frappe.utils import add_to_date, cint, now_datetime
 
 from ai_agent.customization import registry
 from ai_agent.customization.contract import required_roles_for
+from ai_agent.mcp import profiles
 from ai_agent.runtime.exceptions import PermissionDenied
 
 ACTION_TYPE = "Customize"
 MASTER_SETTING = "allow_customization_actions"
-MCP_SETTING = "customization_allow_mcp"
 FOUR_EYES_SETTING = "customization_require_four_eyes"
 RATE_SETTING = "customization_max_requests_per_hour"
 DEFAULT_MAX_PER_HOUR = 20
@@ -85,7 +85,7 @@ def surface_allowed(surface):
 	if surface == DESK:
 		return True
 	if surface == MCP:
-		return _flag(MCP_SETTING)
+		return profiles.flag("allow_customization")  # the connection's AI MCP record
 	return False  # Chatbot (support bubble), WhatsApp, API, unknown: never
 
 

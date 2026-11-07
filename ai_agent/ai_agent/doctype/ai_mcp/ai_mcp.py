@@ -8,6 +8,10 @@ from frappe.model.document import Document
 
 
 class AIMCP(Document):
+	def __setup__(self):
+		# Frappe fills an empty Company with the creator's default; here a company is a lock, and empty means none
+		self.dont_update_if_missing = ["company"]
+
 	def validate(self):
 		if not frappe.db.get_value("AI Agent", self.agent, "enabled"):
 			frappe.throw(_("Agent {0} is disabled.").format(self.agent))

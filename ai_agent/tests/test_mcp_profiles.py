@@ -175,6 +175,18 @@ class TestMcpProfiles(IntegrationTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			self.record("no rate", max_requests_per_minute=0)
 
+	def test_an_empty_company_stays_empty_whoever_creates_the_record(self):
+		"""Frappe fills an empty Company from the creator's defaults; here a company is a lock nobody asked for."""
+		company = frappe.get_all("Company", pluck="name", limit=1)
+		if not company:
+			self.skipTest("needs a company")
+		frappe.local.new_doc_templates.pop("AI MCP", None)  # Frappe caches the defaults of a new document
+		self.addCleanup(lambda: frappe.local.new_doc_templates.pop("AI MCP", None))
+		with patch.object(frappe.defaults, "get_defaults", return_value=frappe._dict(company=company[0])):
+			doc = frappe.get_doc({"doctype": "AI MCP", "title": "no lock", "user": USER, "agent": self.agent, "company": None})
+			doc.insert(ignore_permissions=True)  # what the form sends after clearing the field: None, not ""
+		self.assertFalse(doc.company)
+
 	def test_one_enabled_record_per_connection(self):
 		self.record("first")
 		with self.assertRaises(frappe.ValidationError):

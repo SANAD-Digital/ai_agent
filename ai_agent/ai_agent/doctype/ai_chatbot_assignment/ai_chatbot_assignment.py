@@ -7,6 +7,10 @@ from frappe.model.document import Document
 
 
 class AIChatbotAssignment(Document):
+	def __setup__(self):
+		# Frappe fills an empty Company with the creator's default; empty here means the site's company
+		self.dont_update_if_missing = ["company"]
+
 	def validate(self):
 		from ai_agent.engine.providers.factory import validate_provider_model
 

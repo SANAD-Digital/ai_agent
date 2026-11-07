@@ -128,6 +128,17 @@ class TestChatbotAssignment(IntegrationTestCase):
             frappe.delete_doc("AI Chatbot Assignment", self.USER, force=True, ignore_permissions=True)
         frappe.local.ai_chatbot_assignments = {}
 
+    def test_an_empty_company_is_not_filled_with_the_creators_default(self):
+        company = frappe.get_all("Company", pluck="name", limit=1)
+        if not company:
+            self.skipTest("needs a company")
+        frappe.local.new_doc_templates.pop("AI Chatbot Assignment", None)  # Frappe caches a new document's defaults
+        self.addCleanup(lambda: frappe.local.new_doc_templates.pop("AI Chatbot Assignment", None))
+        with patch.object(frappe.defaults, "get_defaults", return_value=frappe._dict(company=company[0])):
+            doc = frappe.get_doc({"doctype": "AI Chatbot Assignment", "user": self.USER, "company": None})
+            doc.insert(ignore_permissions=True)
+        self.assertFalse(doc.company)
+
     def assign(self, **values):
         doc = frappe.get_doc({"doctype": "AI Chatbot Assignment", "user": self.USER, "company": "", **values})
         doc.insert(ignore_permissions=True)

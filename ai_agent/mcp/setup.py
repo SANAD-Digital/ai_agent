@@ -69,7 +69,6 @@ def get_status():
 			"my_role": bool(set(allowed) & set(frappe.get_roles())),
 		},
 		"agent": settings.mcp_agent or "ERP Analyst",
-		"action_requests": bool(cint(settings.mcp_enable_action_requests)),
 		"role_users": len(set(role_users)),
 		"clients": _connected_clients(),
 	}

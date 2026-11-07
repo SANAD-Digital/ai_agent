@@ -3396,7 +3396,7 @@ Off: this user (or this connection) cannot use MCP,معطّل: لا يستطيع
 Empty: the user's default company,فارغ: الشركة الافتراضية للمستخدم
 "The app the user connected (Claude, ChatGPT…). Empty: every connection of this user without its own record",التطبيق الذي ربطه المستخدم (Claude، ChatGPT…). فارغ: كل اتصالات هذا المستخدم التي ليس لها سجل خاص
 Only users with an AI MCP record,المستخدمون الذين لهم اتصال MCP فقط
-"On: a user connects only through an enabled AI MCP record (their agent, company and switch). Off: users without a record use the agent and company above and the roles.",مفعّل: لا يتصل المستخدم إلا عبر اتصال MCP مفعّل خاص به (وكيله وشركته وتفعيله). معطّل: من ليس له اتصال يستخدم الوكيل والشركة أعلاه والأدوار.
+"On: a user connects only through an enabled AI MCP record (their agent, company, approvals and limits). Off: users without a record use the agent and company above and the roles, and can only read.",مفعّل: لا يتصل المستخدم إلا عبر اتصال MCP مفعّل خاص به (وكيله وشركته وموافقاته وحدوده). معطّل: من ليس له اتصال يستخدم الوكيل والشركة أعلاه والأدوار، ويقرأ فقط.
 Users without an AI MCP record need one of these roles to connect. Empty: AI MCP User and System Manager.,من ليس له اتصال MCP يحتاج أحد هذه الأدوار ليتصل. فارغ: AI MCP User ومدير النظام.
 Rules applied to every request from external tools. Default: ERP Analyst. Used by users without an AI MCP record.,القواعد المطبقة على كل طلب من الأدوات الخارجية. الافتراضي: ERP Analyst. يُستخدم لمن ليس له اتصال MCP.
 Agent {0} is disabled.,الوكيل {0} معطّل.
@@ -3424,3 +3424,19 @@ Stop voice typing,إيقاف الكتابة بالصوت,AI Chat
 Allow the microphone for this site to type by voice,اسمح للموقع باستخدام الميكروفون لتكتب بالصوت,AI Chat
 Voice typing needs an internet connection,الكتابة بالصوت تحتاج اتصالاً بالإنترنت,AI Chat
 Voice typing stopped: {0},توقفت الكتابة بالصوت: {0},AI Chat
+Actions & Approvals,الإجراءات والموافقات,AI MCP
+Allow Action Requests,السماح بطلبات الإجراءات,AI MCP
+Require Approval,اشتراط الموافقة,AI MCP
+Approval Buttons in Cards,أزرار الموافقة في البطاقات,AI MCP
+Requests per Minute,الطلبات في الدقيقة,AI MCP
+Allow Customization Requests,السماح بطلبات التخصيص,AI MCP
+This connection can prepare documents and changes. Off: it can only read.,يمكن لهذا الاتصال تجهيز المستندات والتعديلات. عند الإيقاف: قراءة فقط.,AI MCP
+Every change waits for a person to approve it. Turn off only for trusted users.,كل تعديل ينتظر موافقة شخص. أوقفه فقط للمستخدمين الموثوقين.,AI MCP
+"Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",إظهار أزرار الموافقة والتعديل والإلغاء في بطاقات الموافقة، في الأدوات التي تعرضها (مثل ChatGPT).,AI MCP
+"This connection may request customizations (fields, scripts, reports). They are still approved in ERPNext only. Also needs Customization in AI Settings, and the agent to allow it.",يمكن لهذا الاتصال طلب التخصيصات (الحقول والسكربتات والتقارير). تبقى الموافقة عليها من ERPNext فقط. يحتاج أيضاً تفعيل التخصيص في إعدادات الذكاء الاصطناعي، وأن يسمح به الوكيل.,AI MCP
+Limit for this connection.,الحد لهذا الاتصال.,AI MCP
+"{0}: this value must be at least 1.",{0}: يجب ألا تقل هذه القيمة عن 1.
+"Actions, approvals and limits are set per user.",الإجراءات والموافقات والحدود تُضبط لكل مستخدم.,AI Settings
+Open AI MCP,فتح اتصالات MCP,AI Settings
+Agent,الوكيل,AI MCP
+Connection,الاتصال,AI MCP

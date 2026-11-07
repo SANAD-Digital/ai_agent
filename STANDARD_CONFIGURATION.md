@@ -88,18 +88,18 @@ AI Settings (section "Customization"), all off by default:
 | `allow_customize_client_scripts` | client scripts (form and list) |
 | `allow_customize_server_scripts` | server scripts; the approver also needs **Script Manager**, and `server_script_enabled` must be set for the bench (`bench set-config -g server_script_enabled 1`, read from common_site_config only) |
 | `allow_customize_reports` | Report Builder and Query Report (Query Report needs Script Manager) |
-| `customization_allow_mcp` | also offer the tools to external MCP clients (Claude, ChatGPT); requests only, approval stays in ERPNext |
 | `customization_require_four_eyes` | the requester cannot approve their own customization |
 | `customization_max_requests_per_hour` | per user (default 20) |
 
 Who can use it: the user holds the Frappe roles the change needs (System Manager; plus Script Manager for server
 scripts and Query Reports), the agent has `allow_actions = 1`, and the conversation is the Desk chat (MCP only with
-`customization_allow_mcp`; the support bubble and WhatsApp never).
+**Allow Customization Requests** on the connection's AI MCP record; requests only, approval stays in ERPNext; the
+support bubble and WhatsApp never).
 
 How approval works: every request is an `AI Approval Request` of type `Customize`. The card shows the before/after
 diff, the **full code** with line numbers (and a diff on updates), every analyzer finding with its severity and line,
 who and what it affects, and the undo plan. A critical finding hides the approve button. There is no "always approve"
-and no automatic execution in any mode (auto mode, `mcp_require_approval = 0`). Over MCP the card has no approve
+and no automatic execution in any mode (auto mode, Require Approval off on an AI MCP record). Over MCP the card has no approve
 button: it links to the request in ERPNext. After execution the card shows the verification, a link to the created
 record and an Undo action, which asks the assistant for a new (reverse) request.
 

@@ -50,7 +50,6 @@
   "allow_customize_permissions",
   "allow_customize_doctypes",
   "cb_customization",
-  "customization_allow_mcp",
   "customization_require_four_eyes",
   "customization_max_requests_per_hour",
   "tab_privacy",
@@ -77,11 +76,6 @@
   "column_break_mcp",
   "mcp_allowed_roles",
   "mcp_require_profile",
-  "mcp_max_requests_per_minute",
-  "section_mcp_actions",
-  "mcp_enable_action_requests",
-  "mcp_require_approval",
-  "mcp_enable_app_approval",
   "section_mcp_connect",
   "mcp_connect_html",
   "section_mcp_clients",
@@ -378,14 +372,6 @@
   {
    "default": "0",
    "depends_on": "allow_customization_actions",
-   "description": "External AI tools (MCP) may request customizations. They are still approved in ERPNext only.",
-   "fieldname": "customization_allow_mcp",
-   "fieldtype": "Check",
-   "label": "Allow Requests from External AI Tools"
-  },
-  {
-   "default": "0",
-   "depends_on": "allow_customization_actions",
    "description": "The person who requested a customization cannot approve it. Recommended when the site has two or more administrators.",
    "fieldname": "customization_require_four_eyes",
    "fieldtype": "Check",
@@ -541,48 +527,10 @@
   {
    "default": "0",
    "depends_on": "eval:doc.enable_mcp",
-   "description": "On: a user connects only through an enabled AI MCP record (their agent, company and switch). Off: users without a record use the agent and company above and the roles.",
+   "description": "On: a user connects only through an enabled AI MCP record (their agent, company, approvals and limits). Off: users without a record use the agent and company above and the roles, and can only read.",
    "fieldname": "mcp_require_profile",
    "fieldtype": "Check",
    "label": "Only users with an AI MCP record"
-  },
-  {
-   "default": "60",
-   "depends_on": "eval:doc.enable_mcp",
-   "description": "Limit per user.",
-   "fieldname": "mcp_max_requests_per_minute",
-   "fieldtype": "Int",
-   "label": "Requests per Minute"
-  },
-  {
-   "fieldname": "section_mcp_actions",
-   "fieldtype": "Section Break",
-   "label": "Actions & Approvals",
-   "depends_on": "eval:doc.enable_mcp"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:doc.enable_mcp",
-   "description": "External tools can prepare documents and changes. Nothing is saved until it is approved.",
-   "fieldname": "mcp_enable_action_requests",
-   "fieldtype": "Check",
-   "label": "Allow Action Requests"
-  },
-  {
-   "default": "1",
-   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests",
-   "description": "Every change waits for a person to approve it. Turn off only for trusted users.",
-   "fieldname": "mcp_require_approval",
-   "fieldtype": "Check",
-   "label": "Require Approval"
-  },
-  {
-   "default": "1",
-   "depends_on": "eval:doc.enable_mcp && doc.mcp_enable_action_requests && doc.mcp_require_approval",
-   "description": "Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",
-   "fieldname": "mcp_enable_app_approval",
-   "fieldtype": "Check",
-   "label": "Approval Buttons in Cards"
   },
   {
    "fieldname": "section_mcp_connect",
@@ -657,7 +605,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-27 22:30:00.000000",
+ "modified": "2026-11-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI Settings",

@@ -12,6 +12,13 @@
   "column_break_main",
   "agent",
   "company",
+  "section_actions",
+  "allow_action_requests",
+  "require_approval",
+  "approval_buttons",
+  "column_break_actions",
+  "allow_customization",
+  "max_requests_per_minute",
   "section_connection",
   "connection",
   "column_break_connection",
@@ -68,6 +75,53 @@
    "options": "Company"
   },
   {
+   "fieldname": "section_actions",
+   "fieldtype": "Section Break",
+   "label": "Actions & Approvals"
+  },
+  {
+   "default": "0",
+   "description": "This connection can prepare documents and changes. Off: it can only read.",
+   "fieldname": "allow_action_requests",
+   "fieldtype": "Check",
+   "label": "Allow Action Requests"
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.allow_action_requests",
+   "description": "Every change waits for a person to approve it. Turn off only for trusted users.",
+   "fieldname": "require_approval",
+   "fieldtype": "Check",
+   "label": "Require Approval"
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.allow_action_requests && doc.require_approval",
+   "description": "Show Approve, Edit and Cancel buttons on approval cards in tools that display them (such as ChatGPT).",
+   "fieldname": "approval_buttons",
+   "fieldtype": "Check",
+   "label": "Approval Buttons in Cards"
+  },
+  {
+   "fieldname": "column_break_actions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "This connection may request customizations (fields, scripts, reports). They are still approved in ERPNext only. Also needs Customization in AI Settings, and the agent to allow it.",
+   "fieldname": "allow_customization",
+   "fieldtype": "Check",
+   "label": "Allow Customization Requests"
+  },
+  {
+   "default": "60",
+   "description": "Limit for this connection.",
+   "fieldname": "max_requests_per_minute",
+   "fieldtype": "Int",
+   "label": "Requests per Minute",
+   "non_negative": 1
+  },
+  {
    "fieldname": "section_connection",
    "fieldtype": "Section Break",
    "label": "Connection"
@@ -103,7 +157,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-28 01:30:00.000000",
+ "modified": "2026-11-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "AI Agent",
  "name": "AI MCP",

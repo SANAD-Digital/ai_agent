@@ -18,8 +18,9 @@ legacy handshake protocol through `2025-11-25` for older clients.
 1. Run `bench --site YOUR-SITE migrate` after deploying this version.
 2. Open **AI Settings > MCP Server**.
 3. Enable **MCP Server**.
-4. Keep **MCP Agent** set to `ERP Analyst` for read-only access, or select an
-   operations agent and separately enable **MCP Action Requests**.
+4. Keep **MCP Agent** set to `ERP Analyst`: users without an AI MCP record read
+   only. To let a user prepare changes, add their AI MCP record with an
+   operations agent and **Allow Action Requests** ("Per-user connections" below).
 5. Assign the dedicated `AI MCP User` role to permitted users. **Allowed MCP
    Roles** accepts one role per line; the defaults are `AI MCP User` and
    `System Manager`. Existing ERP roles still determine which records each
@@ -27,8 +28,8 @@ legacy handshake protocol through `2025-11-25` for older clients.
 6. Leave **Allowed MCP Browser Origins** empty for server-to-server clients.
    If a trusted browser client sends an `Origin` header, add its exact HTTPS
    origin explicitly.
-7. Adjust **MCP Requests per Minute** if needed. The default is 60 per
-   authenticated user and is enforced through Redis across web workers.
+7. **Requests per Minute** is on each AI MCP record. The default, also for users
+   without a record, is 60, enforced through Redis across web workers.
 
 The endpoint never executes document-changing action tools directly. When
 action requests are enabled, they create an `AI Approval Request`, and a human
@@ -48,11 +49,17 @@ per user and connected app.
 | Company | The company the connection works in (empty: the user's default company) |
 | Connection | The app the user connected (its OAuth client: Claude, ChatGPT…). Empty: all of the user's connections without their own record |
 | Enabled | Off: this user, or this connection, cannot use MCP |
+| Allow Action Requests (default off) | The connection can prepare documents and changes. Off: it only reads. The agent must allow actions too |
+| Require Approval (default on, unset = on) | Off: the requester's own requests execute immediately under their ERPNext permissions, are still recorded as AI Approval Requests (`mode: direct`), and no approval card is shown. Submit, cancel, workflow, email and customization still wait for a person |
+| Approval Buttons in Cards (default on) | The card's buttons may decide. Off: approval happens in ERPNext only |
+| Allow Customization Requests (default off) | The connection may use `customize.*`; also needs the customization switches in AI Settings, the user's roles and an agent that allows it |
+| Requests per Minute (default 60) | The limit of this record, counted per record |
 
 Which record a request uses: the user's record for the app that sent it, else the user's general record.
 - An enabled record is an explicit grant: the user connects even without the roles in **Allowed MCP Roles**.
 - A disabled record refuses MCP, and a disabled record for an app does not fall back to the general one.
-- A user with no record works as before: **MCP Agent**, **MCP Company** and the roles from AI Settings.
+- A user with no record uses **MCP Agent**, **MCP Company** and the roles from AI Settings, and has the defaults
+  above: they read, and cannot prepare changes.
 - **Only users with an AI MCP record** (AI Settings) turns that last case off: only users with an enabled record connect.
 
 One person can use MCP in more than one way: for example the ERP Analyst from ChatGPT and an operations agent from
@@ -176,8 +183,8 @@ is model-visible so the assistant can verify an outcome.
 
 `actions__request_*` create the pending `AI Approval Request` exactly as before, and return an
 approval card: prepare, validate, preview, approval, execute, verify. Buttons are enabled only when
-**all** hold: action requests are enabled, **AI Settings > Allow Approval from MCP App** is on
-(default off), and the host declared MCP Apps support. Each button carries a token signed over the
+**all** hold: the connection's AI MCP record has **Allow Action Requests**, **Require Approval** and
+**Approval Buttons in Cards** on, and the host declared MCP Apps support. Each button carries a token signed over the
 approval, its payload hash, the user and the single action. It lives only in `_meta`. A decided or
 expired request cannot be replayed, and execution re-checks the approver's permissions. The card is a
 business confirmation; it does not replace any native approval a host applies to tool calls.
@@ -185,7 +192,7 @@ Otherwise the card shows the Frappe link and approval happens in the desk as bef
 
 ### Customization requests (`customize__request_*`)
 
-Offered over MCP only when **AI Settings > Customization > Allow over MCP** (`customization_allow_mcp`) is on, in
+Offered over MCP only when the connection's AI MCP record has **Allow Customization Requests** on, in
 addition to the customization switches, the user's Frappe roles and an agent that may act. Every MCP request is
 treated as following outside content (the host reads the web itself), so the card always carries the "make sure the
 request is yours" warning.
@@ -264,13 +271,8 @@ ends as `Failed` with its reason.
 After the request is approved and executed the server prepares that next step itself (placeholders such as
 `"$created.Customer"` become the names of the records just created) and returns the next request's card. A `then` runs once.
 
-**Three separate switches** (AI Settings > MCP):
-
-| Setting | Meaning |
-|---|---|
-| Enable MCP Action Requests | Write tools exist at all. |
-| MCP Actions Require Approval (`mcp_require_approval`, default on, unset = on) | Off: the requester's own requests execute immediately under their ERPNext permissions, are still recorded as AI Approval Requests (`mode: direct`), and no approval card is shown. |
-| Allow Approval from MCP App (`mcp_enable_app_approval`, default on) | The card's buttons may decide. Off: approval happens in ERPNext only. |
+**Three separate switches**, on each AI MCP record ("Per-user connections" above): Allow Action Requests, Require
+Approval and Approval Buttons in Cards.
 
 ## Diagnostics
 
@@ -306,13 +308,8 @@ created or changed documents are read back and the verdict is stored in `executi
 same checks) and returns its card; `$created.<DocType>` placeholders become the names of the records just created.
 Only request tools can be chained, and each continuation runs once.
 
-**Three separate settings**
-
-| Setting | Meaning |
-|---|---|
-| Enable MCP Action Requests | Write tools are offered at all |
-| MCP Actions Require Approval (default on; unset = on) | Off: the requester's own requests execute immediately under their ERPNext permissions, still recorded |
-| Allow Approval from MCP App | The card's buttons may decide. Off: approval happens in ERPNext only |
+**Three separate switches**, on each AI MCP record ("Per-user connections" above): Allow Action Requests, Require
+Approval and Approval Buttons in Cards.
 
 ## Diagnostics
 

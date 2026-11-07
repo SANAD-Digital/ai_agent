@@ -174,6 +174,7 @@ function draw_mcp_status(ui, $w) {
 		<ul class="mcp-checks">
 			${checks.map(([key, ok, bad, fix]) => row(c[key] ? "ok" : "todo", c[key] ? ok : bad, c[key] ? "" : mcp_btn("fix:" + key, fix, todo === 1 ? "primary" : ""))).join("")}
 			${row("info", `${__s("{0} users have access.", [st.role_users])} <a href="#" data-act="grant">${__s("Give a user access")}</a>`)}
+			${row("info", `${__s("Actions, approvals and limits are set per user.")} <a href="/app/ai-mcp">${__s("Open AI MCP")}</a>`)}
 		</ul>
 		${todo > 1 ? `<div class="mcp-actions" style="margin-top:12px">${mcp_btn("fix:all", __s("Fix all"), "primary")}</div>` : ""}
 	</div>`));

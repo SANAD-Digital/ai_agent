@@ -1,12 +1,12 @@
-"""AI MCP records: each user's MCP connection has its own agent, company and switch; the record for the request's
-connection wins over the user's general one; Desk views are not subject to them."""
+"""AI MCP records: each user's MCP connection has its own agent, company, approvals and limits; the record for the
+request's connection wins over the user's general one; Desk views are not subject to them."""
 
 from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from ai_agent.mcp import events, profiles
+from ai_agent.mcp import approvals, events, profiles
 from ai_agent.mcp.protocol import MCPProtocolError
 from ai_agent.mcp.service import MCPService
 from ai_agent.tests.utils import ensure_test_agent, mcp_on
@@ -32,14 +32,15 @@ class TestMcpProfiles(IntegrationTestCase):
 			frappe.delete_doc("AI MCP", name, force=True, ignore_permissions=True)
 		self.require(self.required)
 		profiles.clear_cache()
+		profiles.use(None)
 
 	def require(self, value):
 		frappe.db.set_single_value("AI Settings", "mcp_require_profile", value or 0)
 		frappe.clear_document_cache("AI Settings", "AI Settings")
 
-	def record(self, title, agent=None, connection=None, enabled=1, company=None):
+	def record(self, title, agent=None, connection=None, enabled=1, company=None, **switches):
 		doc = frappe.get_doc({"doctype": "AI MCP", "title": title, "user": USER, "agent": agent or self.agent,
-			"connection": connection, "enabled": enabled, "company": company or ""})
+			"connection": connection, "enabled": enabled, "company": company or "", **switches})
 		doc.flags.ignore_links = True  # the test connection is not a real OAuth client
 		return doc.insert(ignore_permissions=True)
 
@@ -94,6 +95,86 @@ class TestMcpProfiles(IntegrationTestCase):
 		self.record("allowed")
 		self.assertEqual(self.service().agent.name, self.agent)
 
+	def test_without_a_record_a_user_reads_and_nothing_changes_without_a_person(self):
+		svc = self.service()
+		self.assertFalse(svc._action_requests_enabled())
+		self.assertTrue(approvals.approval_required())
+		self.assertFalse(approvals.app_approval_enabled())
+		self.assertFalse(profiles.flag("allow_customization"))
+		self.assertEqual(profiles.setting("max_requests_per_minute"), 60)
+
+	def test_a_new_record_starts_read_only_with_approval_on(self):
+		doc = self.record("defaults")
+		self.assertEqual((doc.allow_action_requests, doc.require_approval, doc.approval_buttons, doc.allow_customization,
+			doc.max_requests_per_minute), (0, 1, 1, 0, 60))
+		self.assertFalse(self.service()._action_requests_enabled())
+
+	def actions_agent(self):
+		"""The switch on the record is what is being tested: the agent itself allows actions."""
+		agent = frappe.get_doc("AI Agent", self.agent)
+		before = (agent.read_only, agent.allow_actions)
+		frappe.db.set_value("AI Agent", self.agent, {"read_only": 0, "allow_actions": 1})
+		self.addCleanup(lambda: frappe.db.set_value("AI Agent", self.agent, {"read_only": before[0], "allow_actions": before[1]}))
+
+	def test_each_record_has_its_own_switches(self):
+		self.actions_agent()
+		self.record("general")
+		self.record("claude", connection=CLIENT, allow_action_requests=1, require_approval=0, allow_customization=1)
+		general = self.service()
+		self.assertFalse(general._action_requests_enabled())
+		self.assertTrue(approvals.approval_required())
+		self.assertFalse(profiles.flag("allow_customization"))
+		claude = self.service(CLIENT)
+		self.assertTrue(claude._action_requests_enabled())
+		self.assertFalse(approvals.approval_required())
+		self.assertTrue(profiles.flag("allow_customization"))
+		self.assertFalse(approvals.app_approval_enabled(), "no card buttons when nothing waits for approval")
+
+	def test_a_read_only_agent_stays_read_only_whatever_the_record_says(self):
+		frappe.db.set_value("AI Agent", self.agent, "read_only", 1)
+		self.addCleanup(lambda: frappe.db.set_value("AI Agent", self.agent, "read_only", 0))
+		self.record("general", allow_action_requests=1)
+		self.assertFalse(self.service()._action_requests_enabled())
+
+	def test_the_card_buttons_follow_the_record(self):
+		self.record("general", allow_action_requests=1, approval_buttons=0)
+		self.service()
+		self.assertTrue(approvals.approval_required())
+		self.assertFalse(approvals.app_approval_enabled())
+		frappe.db.set_value("AI MCP", {"user": USER}, "approval_buttons", 1)
+		profiles.clear_cache()
+		self.service()
+		self.assertTrue(approvals.app_approval_enabled())
+
+	def test_a_change_on_the_record_applies_at_once(self):
+		doc = self.record("general", allow_action_requests=1)
+		self.service()
+		self.assertTrue(profiles.flag("allow_action_requests"))
+		doc.allow_action_requests = 0
+		doc.save(ignore_permissions=True)
+		self.service()
+		self.assertFalse(profiles.flag("allow_action_requests"))
+
+	def test_the_rate_limit_is_the_records_and_counted_per_record(self):
+		self.record("general", max_requests_per_minute=2)
+		self.record("claude", connection=CLIENT, max_requests_per_minute=3)
+		self.addCleanup(frappe.cache.delete_keys, "ai-agent-mcp-rate")
+		general = self.service()
+		for _ in range(2):
+			general.check_tool_rate_limit()
+		with self.assertRaises(MCPProtocolError) as cm:
+			general.check_tool_rate_limit()
+		self.assertEqual(cm.exception.code, -32000)
+		claude = self.service(CLIENT)
+		for _ in range(3):
+			claude.check_tool_rate_limit()  # the other connection's count is not this one's
+		with self.assertRaises(MCPProtocolError):
+			claude.check_tool_rate_limit()
+
+	def test_a_rate_below_one_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.record("no rate", max_requests_per_minute=0)
+
 	def test_one_enabled_record_per_connection(self):
 		self.record("first")
 		with self.assertRaises(frappe.ValidationError):
@@ -120,6 +201,7 @@ class TestMcpProfiles(IntegrationTestCase):
 		frappe.clear_document_cache("AI Settings", "AI Settings")
 		svc = MCPService(USER, desk=True)
 		self.assertIsNone(svc.agent)  # the Desk chat sets its own agent
+		self.assertIsNone(svc.profile)
 
 
 class TestMcpCompanyLock(IntegrationTestCase):

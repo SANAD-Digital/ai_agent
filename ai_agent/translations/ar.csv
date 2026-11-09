@@ -3455,8 +3455,8 @@ doctype and document_name are required.,نوع المستند واسمه مطل�
 Name at least one file to attach.,حدد ملفاً واحداً على الأقل للإرفاق.
 The document was not found.,المستند غير موجود.
 You do not have permission to change {0} {1}.,ليست لديك صلاحية تعديل {0} {1}.
-Attached: ,أُرفق: 
-Will attach: ,سيُرفق: 
+Attached:,أُرفق:
+Will attach:,سيُرفق:
 Attached,أُرفق
 Files to attach,ملفات للإرفاق
 {0} is now the default provider. {1} was the default before; it no longer is.,أصبح {0} المزوّد الافتراضي. كان {1} هو الافتراضي من قبل، وأُلغي ذلك.

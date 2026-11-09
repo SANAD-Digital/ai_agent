@@ -218,7 +218,11 @@ def _rapid_ocr(data):
     if not rapid_ocr.available():
         _set_last_error((get_last_gemini_ocr_error() + " | " if get_last_gemini_ocr_error() else "") + "No local OCR engine is installed (rapidocr).")
         return ""
-    text = rapid_ocr.ocr_text(data)
+    try:
+        text = rapid_ocr.ocr_text(data, raise_errors=True)
+    except Exception as exc:
+        _set_last_error(f"Local OCR (RapidOCR) failed: {exc}")
+        return ""
     if not text:
         _set_last_error("Local OCR (RapidOCR) found no text in the image.")
     return text
@@ -235,16 +239,7 @@ def test_gemini_ocr_connection():
 
     ocr_engine = getattr(settings, "ocr_engine", None) or "Cloud API (Gemini OCR)"
     if ocr_engine == "Local Engine (PaddleOCR / PyMuPDF)":
-        try:
-            from ai_agent.runtime.local_ocr import run_local_ocr_bytes
-            test_img = _build_test_image()
-            text = run_local_ocr_bytes(test_img)
-            return {
-                "ok": True,
-                "message": _("Local OCR Engine (PaddleOCR) tested successfully. Text extracted: {0}").format((text or "OK")[:120]),
-            }
-        except Exception as exc:
-            return {"ok": False, "message": _("Local OCR Engine test failed: {0}").format(str(exc))}
+        return _test_local_engine()
 
     if not settings.get_password("api_key", raise_exception=False):
         return {"ok": False, "message": _("Gemini API Key is missing.")}
@@ -275,6 +270,30 @@ def test_gemini_ocr_connection():
         "ok": True,
         "message": _("Connected to Gemini OCR. Test text extracted: {0}").format(preview[:120]),
     }
+
+
+def _test_local_engine():
+    """The path a real read takes: the optional PaddleOCR environment when the server has one, else RapidOCR."""
+    test_img = _build_test_image()
+    if _paddle_runtime_installed():
+        try:
+            from ai_agent.runtime.local_ocr import run_local_ocr_bytes
+
+            text = run_local_ocr_bytes(test_img)
+            return {"ok": True, "message": _("Local OCR (PaddleOCR) works. Text read: {0}").format((text or "OK")[:120])}
+        except Exception:
+            pass  # a real read falls back to RapidOCR too
+    from ai_agent.runtime import rapid_ocr
+
+    if not rapid_ocr.available():
+        return {"ok": False, "message": _("The local OCR engine is not installed on this server. Run bench setup requirements, then restart the bench.")}
+    try:
+        text = rapid_ocr.ocr_text(test_img, raise_errors=True)
+    except Exception as exc:
+        return {"ok": False, "message": _("Local OCR (RapidOCR) failed: {0}. On first use it downloads its models from modelscope.cn: check that this server can reach it.").format(str(exc)[:300])}
+    if not (text or "").strip():
+        return {"ok": False, "message": _("Local OCR (RapidOCR) ran but read no text from the test image.")}
+    return {"ok": True, "message": _("Local OCR (RapidOCR) works. Text read: {0}").format(text.strip()[:120])}
 
 
 def _build_test_image():

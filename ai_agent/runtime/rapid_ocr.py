@@ -87,13 +87,16 @@ def ocr_bytes(data):
     return {"text": "\n".join(lines), "lines": len(lines), "uncertain": uncertain}
 
 
-def ocr_text(data):
+def ocr_text(data, raise_errors=False):
     """Plain text for callers that only take a string, with a note when some
-    lines are uncertain (typically handwriting)."""
+    lines are uncertain (typically handwriting). ``raise_errors``: the caller
+    reports the failure itself (a missing model download, a broken install)."""
     try:
         out = ocr_bytes(data)
     except Exception:
         frappe.log_error(frappe.get_traceback(), "RapidOCR failed")
+        if raise_errors:
+            raise
         return ""
     text = out["text"]
     if text and out["uncertain"]:

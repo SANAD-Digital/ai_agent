@@ -1,6 +1,7 @@
 [pre_model_sync]
-# One-time patches are executed once on the dev site and then deleted:
-# the app is under active development, fresh installs get everything from
-# the files Frappe syncs, install.sync and the current schema.
+# Patches carry a customer's site from an older version to this one; a fresh install gets everything from the
+# files Frappe syncs, install.sync and the current schema, and each patch does nothing there.
 
 [post_model_sync]
+ai_agent.patches.v0_2.remove_retired_records
+ai_agent.patches.v0_2.mcp_switches_to_ai_mcp

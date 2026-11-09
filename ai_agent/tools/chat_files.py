@@ -60,7 +60,7 @@ def _document_file(wanted, arguments, user):
     return name, None
 
 
-def _read_pages(doc, spec):
+def _read_pages(doc, spec, vision=None):
     """Some pages of a PDF: a long scanned file is read in passes, each within a time budget."""
     from ai_agent.runtime.file_context import FileContextService, _ranges, parse_pages
 
@@ -69,7 +69,7 @@ def _read_pages(doc, spec):
     pages = parse_pages(spec)
     if not pages:
         return {"error": f"`pages` must be page numbers and ranges such as \"11-21\" or \"1,4,7-9\", not {spec!r}."}
-    texts, read, total = FileContextService().read_pdf_pages(doc, pages)
+    texts, read, total = FileContextService(vision).read_pdf_pages(doc, pages)
     content, shown = "", []
     for n in read:
         part = f"[page {n}]\n{texts.get(n) or '(no text found on this page)'}\n\n"
@@ -108,10 +108,13 @@ def handle_read(arguments, permission_context):
 
     doc = frappe.get_doc("File", file_name)
     match = {"file": doc.name, "file_name": doc.file_name}
+    from ai_agent.runtime import vision_ocr
+
+    vision = vision_ocr.reader_of_run(getattr(permission_context, "run_name", None))
     if arguments.get("pages"):
-        return _read_pages(doc, arguments["pages"])
+        return _read_pages(doc, arguments["pages"], vision)
     if arguments.get("refresh"):
-        frappe.cache.delete_value(f"ai_agent:file_summary:{doc.name}:{doc.modified}")
-    text = extracted_text(doc) or ""
+        frappe.cache.delete_value(f"ai_agent:file_summary:{doc.name}:{doc.modified}:{vision_ocr.tag(vision)}")
+    text = extracted_text(doc, vision) or ""
     truncated = len(text) > MAX_CHARS
     return {"file": match["file"], "file_name": match["file_name"], "content": text[:MAX_CHARS], "truncated": truncated}

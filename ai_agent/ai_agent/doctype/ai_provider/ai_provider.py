@@ -3,6 +3,27 @@ from frappe import _
 from frappe.model.document import Document
 
 
+def make_default(name):
+	"""`name` becomes the only default provider (from its form or from AI Settings > Default Provider). The one that was
+	the default before stops being it, and the user is told which. Returns the providers that were the default."""
+	previous = frappe.get_all("AI Provider", filters={"is_default": 1, "name": ("!=", name)}, pluck="name")
+	for other in previous:
+		frappe.db.set_value("AI Provider", other, "is_default", 0)
+		frappe.clear_document_cache("AI Provider", other)
+	if not frappe.db.get_value("AI Provider", name, "is_default"):
+		frappe.db.set_value("AI Provider", name, "is_default", 1)
+	frappe.clear_document_cache("AI Provider", name)
+	# AI Settings > Default Provider and AI Provider.is_default (what the engine reads) always name the same provider
+	if frappe.db.get_single_value("AI Settings", "default_provider") != name:
+		frappe.db.set_single_value("AI Settings", "default_provider", name)
+	if previous:
+		frappe.msgprint(
+			_("{0} is now the default provider. {1} was the default before; it no longer is.").format(
+				frappe.bold(name), ", ".join(frappe.bold(p) for p in previous)),
+			title=_("Default provider changed"), indicator="green")
+	return previous
+
+
 class AIProvider(Document):
 	@staticmethod
 	def prepare_for_import(docdict):
@@ -29,14 +50,7 @@ class AIProvider(Document):
 
 	def on_update(self):
 		if self.is_default:
-			frappe.db.sql(
-				"update `tabAI Provider` set is_default = 0 where name != %s and is_default = 1",
-				self.name,
-			)
-			frappe.clear_document_cache("AI Provider", self.name)
-			# AI Settings > Default Provider shows the same choice
-			if frappe.db.get_single_value("AI Settings", "default_provider") != self.name:
-				frappe.db.set_single_value("AI Settings", "default_provider", self.name)
+			make_default(self.name)
 
 	def api_key_preview(self):
 		try:

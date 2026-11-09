@@ -62,11 +62,23 @@
                 finish,
                 note
             );
-            go.on("click", () => frappe.xcall(API + "start_sign_in").then((r) => {
-                window.open(r.url, "_blank", "noopener");
-                finish.prop("disabled", false);
-                note.text(__("The sign-in page opened in a new tab. Finish there, then paste the address here."));
-            }));
+            const link = $("<a class='btn btn-default btn-sm ml-2' target='_blank' rel='noopener noreferrer'>").text(__("Open the sign-in page")).hide();
+            go.after(link);
+            go.on("click", () => {
+                // opened now, inside the click: a window opened after waiting for the server is blocked by browsers
+                const tab = window.open("about:blank", "_blank");
+                frappe.xcall(API + "start_sign_in").then((r) => {
+                    link.attr("href", r.url).show();   // also a plain link, should the browser have blocked the tab
+                    if (tab && !tab.closed) {
+                        tab.opener = null;
+                        tab.location.href = r.url;
+                        note.text(__("The sign-in page opened in a new tab. Finish there, then paste the address here."));
+                    } else {
+                        note.text(__("Your browser blocked the new tab: use «Open the sign-in page»."));
+                    }
+                    finish.prop("disabled", false);
+                }).catch(() => tab && tab.close());
+            });
             finish.on("click", () => {
                 const value = (address.val() || "").trim();
                 if (!value) return;

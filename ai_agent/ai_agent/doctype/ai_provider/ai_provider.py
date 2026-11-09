@@ -34,6 +34,7 @@ class AIProvider(Document):
 		keep_site_values(docdict, keep_all=True)
 
 	def validate(self):
+		self._chatgpt_shared_account()
 		if self.provider_type in ("OpenAI Compatible",) and not (self.base_url or "").strip():
 			frappe.throw(_("Base URL is required for an OpenAI Compatible provider."))
 		if self.is_default and not self.enabled:
@@ -47,6 +48,19 @@ class AIProvider(Document):
 		bad = [name for name in [row.model_name for row in self.models or []] + [self.default_model or ""] if "embed" in (name or "").lower()]
 		if bad:
 			frappe.throw(_("{0} is an embedding model and cannot be used for chat. Use “Fetch Models from Provider” to pick chat models.").format(", ".join(sorted(set(bad)))))
+
+	def _chatgpt_shared_account(self):
+		"""One shared ChatGPT account: the person whose sign-in everyone uses; said plainly when they have not signed in yet."""
+		if self.provider_type != "ChatGPT Subscription" or self.chatgpt_account != "One shared account":
+			self.chatgpt_shared_user = None
+			return
+		if not self.chatgpt_shared_user:
+			frappe.throw(_("Choose who signs in with the shared ChatGPT account."))
+		from ai_agent.chatgpt import account
+
+		if not account.status(self.chatgpt_shared_user)["signed_in"]:
+			frappe.msgprint(_("{0} has not signed in with ChatGPT yet: they sign in from the chat (ChatGPT account), then everyone can use it.").format(self.chatgpt_shared_user),
+				indicator="orange", alert=True)
 
 	def on_update(self):
 		if self.is_default:
@@ -138,8 +152,9 @@ def _chatgpt_models(doc):
 	"""The models the signed-in person's ChatGPT plan offers (sign in first, from the chat's ChatGPT account)."""
 	from ai_agent.chatgpt import account
 
+	shared = doc.chatgpt_shared_user if doc.chatgpt_account == "One shared account" else None
 	try:
-		listed = account.models(frappe.session.user)
+		listed = account.models(shared or frappe.session.user)
 	except account.SignInRequired:
 		frappe.throw(_("Sign in with your ChatGPT account first (the chat, ChatGPT account), then fetch the models."))
 	existing = {row.model_name for row in doc.models or []}

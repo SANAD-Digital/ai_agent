@@ -206,3 +206,33 @@ class TestChatGPTProvider(IntegrationTestCase):
 		with patch("ai_agent.chatgpt.account.access_token", side_effect=account.SignInRequired("chatgpt_sign_in_required: x")):
 			out = list(self.provider().stream(self.request(), CancelToken()))
 		self.assertEqual(errors.kind_of(out[0].kind, out[0].message), "chatgpt_sign_in")
+
+
+class TestSharedAccount(IntegrationTestCase):
+	"""One shared account: every user's chat uses the sign-in of the person the provider names."""
+
+	def provider(self, shared="owner@example.com"):
+		return ChatGPTProvider({"name": "ChatGPT", "model": "gpt-test", "models": {}, "timeout": 30, "shared_user": shared})
+
+	def request(self):
+		return ModelRequest(model="gpt-test", system="s", system_dynamic="", messages=[Message(role="user", blocks=[Block(kind=TEXT, text="hi")])], tools=[])
+
+	def test_every_user_uses_the_shared_sign_in(self):
+		client = NS(responses=NS(create=lambda **p: FakeStream([ev("response.completed", response=NS(usage=None))])))
+		with patch("ai_agent.chatgpt.account.access_token", return_value="tok") as token, patch.object(ChatGPTProvider, "client", return_value=client):
+			list(self.provider().stream(self.request(), CancelToken()))
+		token.assert_called_once_with("owner@example.com")
+
+	def test_an_ended_shared_sign_in_tells_the_user_to_ask_the_administrator(self):
+		with patch("ai_agent.chatgpt.account.access_token", side_effect=account.SignInRequired("chatgpt_sign_in_required: x")):
+			out = list(self.provider().stream(self.request(), CancelToken()))
+		self.assertEqual(errors.kind_of(out[0].kind, out[0].message), "chatgpt_shared_sign_in")
+
+	def test_the_provider_names_who_signs_in(self):
+		doc = frappe.get_doc({"doctype": "AI Provider", "provider_name": "ChatGPT Shared Test", "provider_type": "ChatGPT Subscription",
+			"chatgpt_account": "One shared account"})
+		with self.assertRaises(frappe.ValidationError):
+			doc.validate()
+		doc.chatgpt_account, doc.chatgpt_shared_user = "Each user's own account", "Administrator"
+		doc.validate()
+		self.assertIsNone(doc.chatgpt_shared_user, "a per-user provider keeps no shared person")

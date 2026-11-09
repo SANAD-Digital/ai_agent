@@ -3504,3 +3504,15 @@ Access Expires On,انتهاء الصلاحية الحالية
 Registration,التسجيل
 Account Identity,هوية الحساب
 Granted Scopes,الصلاحيات الممنوحة
+Each user's own account,حساب لكل مستخدم
+One shared account,حساب واحد مشترك
+Each user's own account: everyone signs in from the chat (ChatGPT account). One shared account: one person signs in and everyone's chats use that account.,حساب لكل مستخدم: كل شخص يدخل من الشات (حساب ChatGPT). حساب واحد مشترك: شخص واحد يدخل، وكل المحادثات تستخدم حسابه.
+Shared Account Signed In By,الحساب المشترك يدخل به
+This person signs in from the chat (ChatGPT account); every user's chat with this provider then uses that sign-in and its plan limits. OpenAI's terms let only the account's owner use it: a shared account may be suspended.,هذا الشخص يدخل من الشات (حساب ChatGPT)، ثم تستخدم محادثات كل المستخدمين مع هذا المزوّد دخوله وحدود اشتراكه. شروط OpenAI تسمح باستخدام الحساب لصاحبه فقط، والحساب المشترك قد يُوقَف.
+Choose who signs in with the shared ChatGPT account.,اختر من يدخل بحساب ChatGPT المشترك.
+"{0} has not signed in with ChatGPT yet: they sign in from the chat (ChatGPT account), then everyone can use it.",{0} لم يدخل بحساب ChatGPT بعد: يدخل من الشات (حساب ChatGPT)، ثم يستطيع الجميع استخدامه.
+The shared ChatGPT account of this site needs to sign in again. Ask your administrator.,حساب ChatGPT المشترك في هذا الموقع يحتاج دخولاً جديداً. اطلب ذلك من المسؤول.
+This site uses one shared ChatGPT account for everyone. You do not need to sign in.,هذا الموقع يستخدم حساب ChatGPT واحداً مشتركاً للجميع، ولا تحتاج أن تدخل.
+"This site uses one shared ChatGPT account, which needs to sign in again. Ask your administrator.",هذا الموقع يستخدم حساب ChatGPT مشتركاً يحتاج دخولاً جديداً. اطلب ذلك من المسؤول.
+Everyone on this site uses this account (the provider's shared account).,كل من في الموقع يستخدم هذا الحساب (الحساب المشترك في المزوّد).
+ChatGPT: shared account,ChatGPT: حساب مشترك

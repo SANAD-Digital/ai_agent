@@ -19,6 +19,17 @@
         const done = () => onChange && onChange();
         function show(st) {
             const body = $(d.body).empty();
+            if (st.shared && !st.shared.is_me) {
+                // one account for the whole site: nobody else signs in
+                body.append($("<p>").text(st.shared.signed_in
+                    ? __("This site uses one shared ChatGPT account for everyone. You do not need to sign in.")
+                    : __("This site uses one shared ChatGPT account, which needs to sign in again. Ask your administrator.")));
+                if (st.shared.email) body.append($("<p class='bold'>").attr("dir", "auto").text(st.shared.email));
+                return;
+            }
+            if (st.signed_in && st.shared && st.shared.is_me) {
+                body.append($("<p class='text-muted small'>").text(__("Everyone on this site uses this account (the provider's shared account).")));
+            }
             if (st.signed_in) {
                 body.append($("<p>").text(__("Your chats with the ChatGPT provider use your own ChatGPT plan through this account:")));
                 body.append($("<p class='bold'>").attr("dir", "auto").text(st.email || "—"));

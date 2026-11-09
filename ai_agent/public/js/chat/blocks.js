@@ -828,8 +828,10 @@
             }
             if (s.attach_files && s.attach_files.length) {
                 // the files this request attaches to the document (its source, when it was made from one)
-                const label = st === "Executed" ? __("Attached: ") : __("Will attach: ");
-                kv.appendChild(h("div.ac-small.ac-approval-files", icon("paperclip"), " ", h("span", { text: label + s.attach_files.join("، ") })));
+                const label = st === "Executed" ? __("Attached:") : __("Will attach:");
+                // each name in its own direction (bdi): an Arabic name reads from the right, an English one from the left
+                const names = h("span.ac-approval-file-names", s.attach_files.map((name) => h("bdi", { text: name })));
+                kv.appendChild(h("div.ac-small.ac-approval-files", icon("paperclip"), h("span", { text: label }), names));
             }
             if (s.expires_at && st === "Pending") {
                 kv.appendChild(h("div.ac-small.ac-muted", icon("clock"), " ", h("span", { text: __("Expires {0}", [AIChat.relTime(s.expires_at) || s.expires_at]) })));

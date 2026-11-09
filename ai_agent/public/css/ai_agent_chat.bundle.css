@@ -1262,6 +1262,15 @@ body[data-route^="agent-workspace/"] .main-section {
     flex-direction: column;
     gap: 6px;
 }
+.ac-approval-files {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ac-text);
+}
+.ac-approval-files .ac-icon {
+    flex: none;
+}
 .ac-approval-reason {
     display: flex;
     flex-direction: column;

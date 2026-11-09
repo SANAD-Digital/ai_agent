@@ -12,7 +12,7 @@ def _customize_request_tools():
 
 
 @register("actions.request_create_draft", "actions.request_bulk_create", "actions.request_mapped_draft",
-          "actions.request_update", "actions.request_submit", "actions.request_cancel",
+          "actions.request_update", "actions.request_attach_files", "actions.request_submit", "actions.request_cancel",
           "actions.request_workflow_action",
           *_customize_request_tools())
 def present_request(tool, arguments, result, ctx):

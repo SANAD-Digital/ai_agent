@@ -6,6 +6,7 @@ import frappe
 
 from ai_agent.runtime.exceptions import ApprovalRequired, PermissionDenied
 from ai_agent.runtime.write_guard import blocked_fields, foreign_child_rows, replacement_hints
+from ai_agent.tools import file_attach
 
 PERMTYPE_BY_ACTION = {
     "Create": "create",
@@ -20,9 +21,12 @@ CUSTOMIZE = "Customize"
 
 def _approved_methods():
     """The only methods an "Approved Method" approval may run: name -> (check, execute)."""
-    from ai_agent.tools import messaging
+    from ai_agent.tools import file_attach, messaging
 
-    return {messaging.METHOD: (messaging.assert_email_allowed, messaging.send_email)}
+    return {
+        messaging.METHOD: (messaging.assert_email_allowed, messaging.send_email),
+        file_attach.METHOD: (file_attach.assert_attach_allowed, file_attach.run),
+    }
 
 
 class ApprovalChecks:
@@ -37,6 +41,8 @@ class ApprovalChecks:
         if action_type == CUSTOMIZE:
             self._assert_customize_allowed(payload, user, phase)
             return None
+        if action_type in file_attach.WITH_FILES and isinstance(payload, dict):
+            payload, _files = file_attach.split(payload)  # not document fields: checked when the request is made (bind)
 
         if action_type in ("Submit", "Cancel") and not policy.submit_cancel_allowed():
             raise PermissionDenied(

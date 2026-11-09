@@ -37,6 +37,10 @@ class ApprovalEngine(ApprovalChecks, ApprovalExecution):
         from ai_agent.mcp import company_lock
 
         payload = company_lock.bind_payload(action_type, doctype_name, payload)
+        from ai_agent.tools import file_attach
+
+        # the files a Create / Update attaches: this conversation's, or on documents the requester can read
+        payload = file_attach.bind(action_type, payload, self.ctx.user, run_name)
         target = self.assert_action_allowed(
             action_type, doctype_name, document_name, payload, self.ctx.user
         )

@@ -15,6 +15,7 @@ import frappe
 from frappe.utils import cint
 
 from ai_agent.mcp import events, profiles
+from ai_agent.tools import file_attach
 from ai_agent.presentation import formatters as fmt
 from ai_agent.presentation import schema
 from ai_agent.presentation.i18n import t
@@ -30,7 +31,7 @@ from ai_agent.runtime.permission_context import PermissionContext
 STEPS = (("prepare", "Prepare"), ("validate", "Validate"), ("preview", "Review"),
          ("approval", "Approval"), ("execute", "Execute"), ("verify", "Confirm"))
 ACTION_LABELS = {"Create": "Create", "Bulk Create": "Create several documents", "Update": "Edit", "Submit": "Submit",
-                 "Cancel": "Cancel", "Workflow": "Workflow action", "Customize": "Customization"}
+                 "Cancel": "Cancel", "Workflow": "Workflow action", "Customize": "Customization", "Approved Method": "Approved action"}
 # Customization is approved in ERPNext only (design D4): never by a model-driven approvals__decide, never by a card button.
 DESK_ONLY_TYPES = {"Customize"}
 EDITABLE_TOP = {
@@ -406,6 +407,12 @@ def build_card(approval, user, *, state=None, result=None, error=None):
             for key, value in payload.items() if isinstance(payload, dict) else []:
                 if key not in ("doctype", "name") and not isinstance(value, (list, dict)):
                     preview["fields"].append({"key": key, "label": label_for(key, doctype), "d": fmt.text(value)})
+    files = file_attach.names(payload)
+    if files:
+        if approval.action_type == "Approved Method" and approval.document_name:
+            preview["fields"].append({"key": "document", "label": t("Document"), "d": f"{type_label} {approval.document_name}"})
+        label = t("Attached") if state in ("executed", "verified") else t("Files to attach")
+        preview["fields"].append({"key": "attach_files", "label": label, "d": "، ".join(files)})
     if error:
         preview["warnings"].append(schema.warning("critical", error, "execution"))
     desk = doc_href("AI Approval Request", approval.name)

@@ -826,6 +826,11 @@
             if (s.document_name) {
                 kv.appendChild(h("div.ac-small.ac-muted", h("span", { text: __("Document: ") }), h("a", { href: formLink(s.doctype_name, s.document_name), target: "_blank", rel: "noopener", text: s.document_name })));
             }
+            if (s.attach_files && s.attach_files.length) {
+                // the files this request attaches to the document (its source, when it was made from one)
+                const label = st === "Executed" ? __("Attached: ") : __("Will attach: ");
+                kv.appendChild(h("div.ac-small.ac-approval-files", icon("paperclip"), " ", h("span", { text: label + s.attach_files.join("، ") })));
+            }
             if (s.expires_at && st === "Pending") {
                 kv.appendChild(h("div.ac-small.ac-muted", icon("clock"), " ", h("span", { text: __("Expires {0}", [AIChat.relTime(s.expires_at) || s.expires_at]) })));
             }

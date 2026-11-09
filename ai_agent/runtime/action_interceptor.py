@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 
 from ai_agent.runtime.exceptions import PermissionDenied, ToolDenied
+from ai_agent.tools import file_attach
 
 def _customize_request_tools():
     from ai_agent.customization import registry
@@ -28,6 +29,7 @@ KNOWN_ACTION_TOOLS = {
     "actions.request_cancel",
     "actions.request_workflow_action",
     "actions.request_mapped_draft",
+    "actions.request_attach_files",
     "messaging.request_email",
     # customization: each one becomes a "Customize" approval (ai_agent.customization.tools.route);
     # the list is the registry's, so a new kind needs no change here
@@ -53,7 +55,7 @@ class ActionInterceptor:
             return customization_tools.route(tool_name, arguments, self.ctx, self.run_name)
 
         if tool_name == "actions.request_create_draft":
-            payload = self._document_payload(arguments)
+            payload = file_attach.with_files(self._document_payload(arguments), arguments)
             approval = self._create_or_get_create_approval(arguments.get("doctype"), payload)
             return {"approval_required": True, "approval_id": approval.name}
 
@@ -93,7 +95,7 @@ class ActionInterceptor:
             return {"approval_required": True, "approval_id": approval.name}
 
         elif tool_name == "actions.request_update":
-            payload = self._document_payload(arguments, include_doctype=False)
+            payload = file_attach.with_files(self._document_payload(arguments, include_doctype=False), arguments)
             approval = self.approval_engine.create_approval_request(
                 run_name=self.run_name,
                 action_type="Update",
@@ -102,6 +104,22 @@ class ActionInterceptor:
                 action_summary=f"Update {arguments.get('doctype')} {arguments.get('document_name')}",
                 payload=payload,
                 expected_modified=arguments.get("expected_modified"),
+            )
+            return {"approval_required": True, "approval_id": approval.name}
+
+        elif tool_name == "actions.request_attach_files":
+            try:
+                payload = file_attach.build_payload(arguments, self.ctx.user, self.run_name)
+            except frappe.ValidationError as exc:
+                return {"error": str(exc)}
+            approval = self.approval_engine.create_approval_request(
+                run_name=self.run_name,
+                action_type="Approved Method",
+                doctype_name=payload["doctype"],
+                document_name=payload["name"],
+                action_summary=file_attach.summary(payload),
+                impact_summary=_("The files will be attached to the document; nothing else in it changes."),
+                payload=payload,
             )
             return {"approval_required": True, "approval_id": approval.name}
 

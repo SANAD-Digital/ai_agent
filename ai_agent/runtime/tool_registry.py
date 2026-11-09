@@ -7,6 +7,19 @@ DOCUMENT_PAYLOAD_SCHEMA = {
     "description": "Frappe document field values. Do not include ignore_permissions, user, run_as, or commit.",
 }
 
+# the files a create / update request also attaches to the document, after the write and in the same approval
+ATTACH_FILES_SCHEMA = {
+    "type": "array",
+    "items": {"type": "string"},
+    "maxItems": 10,
+    "description": (
+        "Files to attach to the document when the request runs: ids or names of this conversation's attachments "
+        "(files__read lists them) or of files on documents the user can read. When the document is made from data you "
+        "extracted from a file the user attached (an invoice PDF, a receipt photo), include that file and tell the user "
+        "it will be attached as the document's source."
+    ),
+}
+
 EXPORT_SOURCE = {
     "title": {"type": "string", "description": "Short title in the user's language; also used for the file name"},
     "artifact": {"type": "string", "description": "Preferred source: artifact_name of a table result in this conversation (data.query and reports.run return artifact.artifact_name). The rows are not sent again."},
@@ -418,6 +431,7 @@ TOOL_PARAMETER_SCHEMAS = {
         "properties": {
             "doctype": {"type": "string"},
             "payload": DOCUMENT_PAYLOAD_SCHEMA,
+            "attach_files": ATTACH_FILES_SCHEMA,
         },
         "required": ["doctype", "payload"],
     },
@@ -450,8 +464,19 @@ TOOL_PARAMETER_SCHEMAS = {
             "document_name": {"type": "string"},
             "payload": DOCUMENT_PAYLOAD_SCHEMA,
             "expected_modified": {"type": "string"},
+            "attach_files": ATTACH_FILES_SCHEMA,
         },
         "required": ["doctype", "document_name", "payload"],
+    },
+    "actions.request_attach_files": {
+        "type": "object",
+        "properties": {
+            "doctype": {"type": "string"},
+            "document_name": {"type": "string"},
+            "files": {"type": "array", "items": {"type": "string"}, "maxItems": 10,
+                      "description": "File ids or names: this conversation's attachments (files__read lists them) or files on documents the user can read (attachments__list)"},
+        },
+        "required": ["doctype", "document_name", "files"],
     },
     "actions.request_submit": {
         "type": "object",
@@ -751,6 +776,7 @@ class ToolRegistry:
             {"name": "actions.request_create_draft", "description": "Request approval to create a draft document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_create", "requires_approval": True},
             {"name": "actions.request_bulk_create", "description": "Request one approval to create multiple draft documents in one batch", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_bulk_create", "requires_approval": True},
             {"name": "actions.request_mapped_draft", "description": "Request approval to create a draft from an existing document with ERPNext's standard mapping (Sales Order → Sales Invoice / Delivery Note, Material Request → Purchase Order, Purchase Invoice → Purchase Receipt)", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.erpnext_native.handle_request_mapped_draft", "requires_approval": True},
+            {"name": "actions.request_attach_files", "description": "Request approval to attach files to an existing document: files the user attached in this chat, or files on another document they can read. When a document was created or updated from data you extracted from a file, offer to attach that file", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_attach_files", "requires_approval": True},
             {"name": "actions.request_update", "description": "Request approval to update a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_update", "requires_approval": True},
             {"name": "actions.request_submit", "description": "Request approval to submit a document", "access_level": "Write", "side_effect": "write", "handler": "ai_agent.tools.actions.handle_request_submit", "requires_approval": True},
             {"name": "actions.request_cancel", "description": "Request approval to cancel a document", "access_level": "Destructive", "side_effect": "destructive", "handler": "ai_agent.tools.actions.handle_request_cancel", "requires_approval": True},

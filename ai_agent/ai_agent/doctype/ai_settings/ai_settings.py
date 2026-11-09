@@ -21,6 +21,7 @@ class AISettings(Document):
 
         access.clear_cache()
         # the link and AI Provider.is_default (what the engine reads) always name the same provider
-        if self.default_provider and not frappe.db.get_value("AI Provider", self.default_provider, "is_default"):
-            frappe.db.sql("update `tabAI Provider` set is_default = (name = %s)", self.default_provider)
-            frappe.clear_document_cache("AI Provider", self.default_provider)
+        if self.default_provider:
+            from ai_agent.ai_agent.doctype.ai_provider.ai_provider import make_default
+
+            make_default(self.default_provider)

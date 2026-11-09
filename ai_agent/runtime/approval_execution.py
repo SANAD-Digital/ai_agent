@@ -9,6 +9,7 @@ import frappe
 from ai_agent.runtime.approval_checks import CUSTOMIZE, _approved_methods
 from ai_agent.runtime.exceptions import ApprovalRequired, ConcurrencyConflict, PermissionDenied
 from ai_agent.runtime.write_guard import foreign_child_rows
+from ai_agent.tools import file_attach
 
 
 def failure_text(exc):
@@ -45,7 +46,7 @@ class ApprovalExecution:
             return self._execute_workflow(approval, payload)
         elif approval.action_type == "Approved Method":
             _check, execute = _approved_methods()[payload.get("method")]
-            return execute(payload, approval)
+            return self._executed(approval, execute(payload, approval))
         elif approval.action_type == CUSTOMIZE:
             from ai_agent.customization import executor
 
@@ -62,17 +63,31 @@ class ApprovalExecution:
         """
         # The approved DocType is authoritative: request tools send the payload without a "doctype" key, and
         # assert_action_allowed has already refused a payload that names a different one.
+        payload, files = file_attach.split(payload)
         doc = frappe.get_doc({**payload, "doctype": approval.doctype_name})
         doc.insert(ignore_permissions=False)
+        attached = file_attach.attach(files, doc.doctype, doc.name)  # its source file, in the same transaction
 
         approval.document_name = doc.name  # the request names the document it created, as the others name theirs
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
-        approval.execution_result = json.dumps({"document_name": doc.name, "doctype": approval.doctype_name}, default=str)
+        result = {"document_name": doc.name, "doctype": approval.doctype_name}
+        if attached:
+            result["attached"] = attached
+        approval.execution_result = json.dumps(result, default=str)
         approval.save(ignore_permissions=True)
         frappe.db.commit()
 
-        return {"document_name": doc.name, "doctype": approval.doctype_name}
+        return result
+
+    def _executed(self, approval, result):
+        """An Approved Method ran: the request records it in the same commit, so a repeated decision never runs it twice."""
+        approval.status = "Executed"
+        approval.executed_at = frappe.utils.now_datetime()
+        approval.execution_result = json.dumps(result or {}, default=str)
+        approval.save(ignore_permissions=True)
+        frappe.db.commit()
+        return result
 
     def _execute_bulk_create(self, approval, payload):
         """Execute multiple create draft actions in one transaction."""
@@ -114,6 +129,7 @@ class ApprovalExecution:
         """Execute an update action."""
         doc_name = approval.document_name
         doc = frappe.get_doc(approval.doctype_name, doc_name)
+        payload, files = file_attach.split(payload)
 
         if approval.expected_modified and str(doc.modified) != str(approval.expected_modified):
             raise ConcurrencyConflict("Document was modified since the approval was requested.")
@@ -124,15 +140,22 @@ class ApprovalExecution:
         for key, val in payload.items():
             doc.set(key, val)
 
-        doc.save(ignore_permissions=False)
+        if payload:
+            doc.save(ignore_permissions=False)
+        elif not doc.has_permission("write"):
+            raise PermissionDenied(f"No permission to change {doc.doctype} {doc.name}.")
+        attached = file_attach.attach(files, doc.doctype, doc.name)
 
         approval.status = "Executed"
         approval.executed_at = frappe.utils.now_datetime()
-        approval.execution_result = json.dumps({"document_name": doc.name}, default=str)
+        result = {"document_name": doc.name, "doctype": approval.doctype_name}
+        if attached:
+            result["attached"] = attached
+        approval.execution_result = json.dumps(result, default=str)
         approval.save(ignore_permissions=True)
         frappe.db.commit()
 
-        return {"document_name": doc.name, "doctype": approval.doctype_name}
+        return result
 
     @staticmethod
     def _assert_unchanged(approval, doc):

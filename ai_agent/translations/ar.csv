@@ -3446,3 +3446,18 @@ Local OCR (RapidOCR) works. Text read: {0},القراءة المحلية (RapidO
 "The local OCR engine is not installed on this server. Run bench setup requirements, then restart the bench.","محرك القراءة المحلي غير مثبّت على هذا الخادم. شغّل bench setup requirements ثم أعد تشغيل الخادم."
 "Local OCR (RapidOCR) failed: {0}. On first use it downloads its models from modelscope.cn: check that this server can reach it.","فشلت القراءة المحلية (RapidOCR): {0}. عند أول استخدام تُنزَّل نماذجها من modelscope.cn: تأكد أن الخادم يصل إليه."
 Local OCR (RapidOCR) ran but read no text from the test image.,القراءة المحلية (RapidOCR) عملت لكنها لم تقرأ نصاً من صورة الاختبار.
+Attach {0} to {1} {2},إرفاق {0} بـ {1} {2}
+The files will be attached to the document; nothing else in it changes.,ستُرفق الملفات بالمستند، ولن يتغير فيه شيء آخر.
+At most {0} files per request.,{0} ملفات كحد أقصى في الطلب الواحد.
+No file {0} in this conversation or on a document you can read.,لا يوجد ملف {0} في هذه المحادثة ولا في مستند تستطيع قراءته.
+The file {0} no longer exists.,الملف {0} لم يعد موجوداً.
+doctype and document_name are required.,نوع المستند واسمه مطلوبان.
+Name at least one file to attach.,حدد ملفاً واحداً على الأقل للإرفاق.
+The document was not found.,المستند غير موجود.
+You do not have permission to change {0} {1}.,ليست لديك صلاحية تعديل {0} {1}.
+Attached: ,أُرفق: 
+Will attach: ,سيُرفق: 
+Attached,أُرفق
+Files to attach,ملفات للإرفاق
+{0} is now the default provider. {1} was the default before; it no longer is.,أصبح {0} المزوّد الافتراضي. كان {1} هو الافتراضي من قبل، وأُلغي ذلك.
+Default provider changed,تغيّر المزوّد الافتراضي

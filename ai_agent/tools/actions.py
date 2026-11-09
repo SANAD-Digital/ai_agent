@@ -1,6 +1,7 @@
 import frappe
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.exceptions import PermissionDenied
+from ai_agent.tools import file_attach
 
 
 NON_INPUT_FIELDTYPES = {
@@ -128,7 +129,7 @@ def handle_validate(arguments, permission_context):
 def handle_request_create(arguments, permission_context):
     """Handle actions.request_create_draft tool call."""
     doc_type = arguments.get("doctype")
-    payload = arguments.get("payload", {})
+    payload = file_attach.with_files(arguments.get("payload", {}), arguments)
 
     if not doc_type:
         return {"error": "doctype is required"}
@@ -199,7 +200,7 @@ def handle_request_update(arguments, permission_context):
     """Handle actions.request_update tool call."""
     doc_type = arguments.get("doctype")
     doc_name = arguments.get("document_name")
-    payload = arguments.get("payload", {})
+    payload = file_attach.with_files(arguments.get("payload", {}), arguments)
 
     if not all([doc_type, doc_name]):
         return {"error": "doctype and document_name are required"}
@@ -229,6 +230,26 @@ def handle_request_update(arguments, permission_context):
         "approval_id": approval.name,
         "action_summary": f"Update {doc_type} {doc_name}",
     }
+
+
+def handle_request_attach_files(arguments, permission_context):
+    """Handle actions.request_attach_files: files on an existing document, after a person approves."""
+    engine = ApprovalEngine(permission_context)
+    run_name = arguments.get("run")
+    try:
+        payload = file_attach.build_payload(arguments, permission_context.user, run_name)
+        approval = engine.create_approval_request(
+            run_name=run_name,
+            action_type="Approved Method",
+            doctype_name=payload["doctype"],
+            document_name=payload["name"],
+            action_summary=file_attach.summary(payload),
+            impact_summary=frappe._("The files will be attached to the document; nothing else in it changes."),
+            payload=payload,
+        )
+    except (PermissionDenied, frappe.ValidationError) as exc:
+        return {"error": str(exc)}
+    return {"approval_required": True, "approval_id": approval.name, "action_summary": approval.action_summary}
 
 
 def handle_request_submit(arguments, permission_context):

@@ -28,6 +28,7 @@ from ai_agent.engine.types import (
 )
 from ai_agent.runtime import access, policy
 from ai_agent.runtime.action_interceptor import KNOWN_ACTION_TOOLS, ActionInterceptor
+from ai_agent.tools import file_attach
 from ai_agent.runtime.approval_engine import ApprovalEngine
 from ai_agent.runtime.exceptions import PermissionDenied, SkillDenied, SkillNotFound, ToolDenied
 from ai_agent.runtime.masking import mask_tool_result
@@ -53,7 +54,7 @@ CORE_TOOLS = {
     "metrics.query", "reports.search", "reports.describe", "reports.run", "analysis.sales",
     "artifacts.create_table", "artifacts.create_chart",
     "memory.search", "memory.store_context", "files.read",
-    "actions.prepare_document", "actions.validate_document", "actions.request_create_draft", "actions.request_update",
+    "actions.prepare_document", "actions.validate_document", "actions.request_create_draft", "actions.request_update", "actions.request_attach_files",
     # plugin tools: always in the list (hidden per user by the access rules), never added mid-conversation
     "export.excel", "export.csv", "export.pdf", "export.image", "export.print", "export.statement", "messaging.request_email",
 }
@@ -578,6 +579,7 @@ def approval_snapshot(approval):
         "action_summary": approval.action_summary,
         "impact_summary": approval.impact_summary,
         "payload": payload,
+        "attach_files": file_attach.names(payload),
         "expires_at": str(approval.expires_at or ""),
         "requested_by": approval.requested_by,
         **_customization_section(approval),

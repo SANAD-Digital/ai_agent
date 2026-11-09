@@ -32,6 +32,7 @@ TOOL_TITLES = {
     "actions.request_create_draft": "Request a draft (needs approval)",
     "actions.request_mapped_draft": "Request a draft from a document (needs approval)",
     "actions.request_update": "Request a document edit (needs approval)",
+    "actions.request_attach_files": "Request to attach files to a document (needs approval)",
     "actions.request_workflow_action": "Request a workflow action (needs approval)",
     "actions.validate_document": "Validate document data",
     "artifacts.create_chart": "Create a chart",
@@ -181,6 +182,7 @@ VIEW_TOOLS = {
     "actions.request_mapped_draft",
     "actions.request_submit",
     "actions.request_update",
+    "actions.request_attach_files",
     "actions.request_workflow_action",
     *_customize_request_tools(),
 }

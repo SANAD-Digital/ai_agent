@@ -160,7 +160,36 @@ def finish(user, pasted):
 	_store(user, client_id, tokens, claims, scopes)
 	if PLAN_SCOPE not in scopes:
 		frappe.throw(_("Signed in, but using your ChatGPT plan was not allowed. Sign in again and allow it."))
+	fill_provider_models(user)
 	return status(user)
+
+
+def fill_provider_models(user):
+	"""The models of `user`'s plan on the ChatGPT providers that answer through this sign-in and have none yet (or are
+	the shared account's), so the chat lists them without a trip to the provider's form. Best effort."""
+	providers = frappe.get_all("AI Provider", filters={"provider_type": "ChatGPT Subscription", "enabled": 1},
+		fields=["name", "chatgpt_account", "chatgpt_shared_user"])
+	targets = [p.name for p in providers if (p.chatgpt_account == "One shared account" and p.chatgpt_shared_user == user)
+		or (p.chatgpt_account != "One shared account" and not frappe.db.count("AI Provider Model", {"parent": p.name}))]
+	if not targets:
+		return
+	try:
+		listed = models(user)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ChatGPT models after sign-in")
+		return
+	for name in targets:
+		doc = frappe.get_doc("AI Provider", name)
+		have = {row.model_name for row in doc.models}
+		for m in listed:
+			if m["slug"] not in have:
+				doc.append("models", {"model_name": m["slug"], "label": m["display_name"], "model_type": "Chat",
+					"supports_tools": 1, "supports_vision": 1, "supports_thinking": 1})
+		if not doc.default_model and doc.models:
+			doc.default_model = doc.models[0].model_name
+		doc.flags.ignore_permissions = True
+		doc.save()
+	frappe.db.commit()
 
 
 def _token_request(data):

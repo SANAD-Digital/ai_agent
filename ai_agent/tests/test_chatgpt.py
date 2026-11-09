@@ -255,8 +255,11 @@ class TestModelsAfterSignIn(IntegrationTestCase):
 
 	def test_the_chat_lists_it_before_sign_in_and_its_models_after(self):
 		from ai_agent.chat.sessions import available_providers
+		from ai_agent.runtime import policy
 
-		listed = {p.name: p for p in available_providers()}
+		# listed whatever the site's provider policy (managed mode allows Anthropic only)
+		with patch.object(policy, "provider_allowed", return_value=True):
+			listed = {p.name: p for p in available_providers()}
 		self.assertIn(self.provider.name, listed, "listed with no model yet: picking it signs in")
 		with patch.object(account, "models", return_value=[{"slug": "gpt-plan-a", "display_name": "GPT Plan A"}]):
 			account.fill_provider_models("Administrator")

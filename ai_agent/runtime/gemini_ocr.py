@@ -63,7 +63,7 @@ class GeminiOCRClient:
         self.settings = settings or _get_settings()
         self.base_url = (self.settings.base_url or DEFAULT_BASE_URL).rstrip("/")
         self.model = self.settings.model or DEFAULT_MODEL
-        self.api_key = self.settings.get_password("api_key")
+        self.api_key = self.settings.get_password("api_key", raise_exception=False)
         self.timeout = cint(self.settings.request_timeout) or 60
         self.max_inline_image_bytes = cint(self.settings.max_inline_image_bytes) or 8000000
         self.max_output_chars = cint(self.settings.max_output_chars) or 4000
@@ -246,7 +246,7 @@ def test_gemini_ocr_connection():
         except Exception as exc:
             return {"ok": False, "message": _("Local OCR Engine test failed: {0}").format(str(exc))}
 
-    if not settings.get_password("api_key"):
+    if not settings.get_password("api_key", raise_exception=False):
         return {"ok": False, "message": _("Gemini API Key is missing.")}
 
     try:

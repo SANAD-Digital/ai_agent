@@ -10,6 +10,7 @@ import "./chat/message.js";
 import "./chat/composer.js";
 import "./chat/sidebar.js";
 import "./chat/memory.js";
+import "./chat/chatgpt.js";
 import "./chat/list.js";
 import "./chat/bubble.js";
 import "./chat/app.js";

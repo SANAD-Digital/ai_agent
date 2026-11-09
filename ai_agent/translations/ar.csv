@@ -3461,3 +3461,46 @@ Attached,أُرفق
 Files to attach,ملفات للإرفاق
 {0} is now the default provider. {1} was the default before; it no longer is.,أصبح {0} المزوّد الافتراضي. كان {1} هو الافتراضي من قبل، وأُلغي ذلك.
 Default provider changed,تغيّر المزوّد الافتراضي
+ChatGPT account,حساب ChatGPT
+ChatGPT: {0},ChatGPT: {0}
+Your chats with the ChatGPT provider use your own ChatGPT plan through this account:,محادثاتك مع مزوّد ChatGPT تستخدم اشتراكك أنت في ChatGPT عبر هذا الحساب:
+"Usage counts against your ChatGPT plan. See it in ChatGPT settings, Usage.",الاستخدام يُحسب من اشتراكك في ChatGPT، وتجده في إعدادات ChatGPT ← الاستخدام.
+Sign out,تسجيل الخروج
+Sign in with another account,الدخول بحساب آخر
+Signed out of ChatGPT,تم تسجيل الخروج من ChatGPT
+Signed out here; ChatGPT did not confirm it. You can disconnect the app in ChatGPT settings.,تم الخروج هنا، لكن ChatGPT لم يؤكد ذلك. يمكنك فصل التطبيق من إعدادات ChatGPT.
+Your ChatGPT sign-in has ended. Sign in again.,انتهى دخولك بحساب ChatGPT. سجّل الدخول من جديد.
+Continue with ChatGPT,المتابعة بحساب ChatGPT
+1. Sign in with your ChatGPT account and allow it.,1. ادخل بحسابك في ChatGPT ووافق على الطلب.
+2. ChatGPT then opens a page that does not load (its address starts with http://127.0.0.1:1455). Copy the whole address from the browser's address bar and paste it here:,2. بعدها يفتح ChatGPT صفحة لا تعمل (عنوانها يبدأ بـ http://127.0.0.1:1455). انسخ العنوان كاملاً من شريط العنوان في المتصفح والصقه هنا:
+Complete sign-in,إتمام الدخول
+"The sign-in page opened in a new tab. Finish there, then paste the address here.",فُتحت صفحة الدخول في تبويب جديد. أكمل هناك، ثم الصق العنوان هنا.
+Signed in to ChatGPT as {0},تم الدخول إلى ChatGPT بحساب {0}
+Sign in first.,سجّل الدخول أولاً.
+No AI provider of type ChatGPT Subscription is enabled on this site.,لا يوجد مزوّد مفعّل من نوع اشتراك ChatGPT في هذا الموقع.
+The sign-in took too long or was not started here. Start the sign-in again.,استغرق الدخول وقتاً طويلاً أو لم يبدأ من هنا. ابدأ الدخول من جديد.
+This address is not from the sign-in you just started. Start the sign-in again and paste the new address.,هذا العنوان ليس من عملية الدخول التي بدأتها الآن. ابدأ الدخول من جديد والصق العنوان الجديد.
+"The sign-in was cancelled in ChatGPT, or using the ChatGPT plan was not allowed.",أُلغي الدخول في ChatGPT، أو لم تُعط الموافقة على استخدام الاشتراك.
+ChatGPT refused the sign-in: {0},رفض ChatGPT الدخول: {0}
+The pasted address has no sign-in code. Paste the whole address shown after signing in.,العنوان الملصق لا يحوي رمز الدخول. الصق العنوان كاملاً كما ظهر بعد الدخول.
+Could not reach ChatGPT's sign-in service: {0},تعذّر الوصول إلى خدمة الدخول في ChatGPT: {0}
+ChatGPT returned no identity for this sign-in. Try again.,لم يُرجع ChatGPT هوية الحساب. حاول مرة أخرى.
+The sign-in could not be verified. Start it again.,تعذّر التحقق من الدخول. ابدأ من جديد.
+"Signed in, but using your ChatGPT plan was not allowed. Sign in again and allow it.",تم الدخول، لكن لم تُعط الموافقة على استخدام اشتراكك. ادخل من جديد ووافق عليها.
+ChatGPT did not list the models: {0},لم يعرض ChatGPT قائمة النماذج: {0}
+"Sign in with your ChatGPT account first (the chat, ChatGPT account), then fetch the models.",ادخل بحسابك في ChatGPT أولاً (من الشات: حساب ChatGPT)، ثم اجلب النماذج.
+Sign in with your ChatGPT account first: «ChatGPT account» at the bottom of the chat's side list.,ادخل بحسابك في ChatGPT أولاً: «حساب ChatGPT» في أسفل القائمة الجانبية للشات.
+"Your ChatGPT plan's usage limit was reached. See ChatGPT settings, Usage, or try again later.",وصلت إلى حد الاستخدام في اشتراك ChatGPT. راجع إعدادات ChatGPT ← الاستخدام، أو حاول لاحقاً.
+Your ChatGPT account or workspace cannot use its plan in other apps. Choose another provider.,حسابك أو مساحة عملك في ChatGPT لا تسمح باستخدام الاشتراك في تطبيقات أخرى. اختر مزوّداً آخر.
+"ChatGPT Subscription: each person signs in with their own ChatGPT account (the chat, ChatGPT account) and their plan answers them; no API key.",اشتراك ChatGPT: كل شخص يدخل بحسابه في ChatGPT (من الشات: حساب ChatGPT) فيرد عليه اشتراكه هو، بلا مفتاح API.
+ChatGPT Subscription,اشتراك ChatGPT
+AI ChatGPT Account,حساب ChatGPT
+ChatGPT Account,حساب ChatGPT
+Signed in,داخل
+Signed out,خارج
+Sign in again,يحتاج دخولاً جديداً
+Signed In On,وقت الدخول
+Access Expires On,انتهاء الصلاحية الحالية
+Registration,التسجيل
+Account Identity,هوية الحساب
+Granted Scopes,الصلاحيات الممنوحة

@@ -48,6 +48,9 @@
         const btnCollapse = h("button.ac-icon-btn.ac-sidebar-collapse", { type: "button", title: __("Collapse sidebar"), aria: { label: __("Collapse sidebar") } }, icon("panel"));
         const btnArchived = h("button.ac-sidebar-foot-btn", { type: "button" }, icon("archive"), h("span", { text: __("Show archived") }));
         const btnMemory = h("button.ac-sidebar-foot-btn.ac-sidebar-memory", { type: "button", title: __("Memory (Ctrl+M)") }, icon("brain"), h("span", { text: __("Memory") }));
+        // shown only when an AI provider of type ChatGPT Subscription is enabled (each person signs in with their own plan)
+        const btnChatGPT = h("button.ac-sidebar-foot-btn.ac-sidebar-chatgpt", { type: "button" }, icon("user"), h("span", { text: __("ChatGPT account") }));
+        btnChatGPT.hidden = true;
         const empty = h("div.ac-sidebar-empty", { text: __("No conversations yet") });
 
         const el = h(
@@ -57,7 +60,7 @@
             h("div.ac-sidebar-new", btnNew),
             h("div.ac-search", icon("search"), search),
             list,
-            h("div.ac-sidebar-foot", btnArchived, btnMemory)
+            h("div.ac-sidebar-foot", btnArchived, btnMemory, btnChatGPT)
         );
         const backdrop = h("div.ac-backdrop");
 
@@ -74,6 +77,16 @@
         btnCollapse.addEventListener("click", () => setOpen(false));
         btnMemory.addEventListener("click", () => {
             if (ctx.onMemory) ctx.onMemory();
+            closeDrawerOnMobile();
+        });
+        const paintChatGPT = () => AIChat.chatgpt && AIChat.chatgpt.status().then((st) => {
+            btnChatGPT.hidden = !st.available;
+            btnChatGPT.lastChild.textContent = st.signed_in ? __("ChatGPT: {0}", [st.email || ""]) : __("ChatGPT account");
+            btnChatGPT.classList.toggle("is-active", !!st.signed_in);
+        }).catch(() => {});
+        paintChatGPT();
+        btnChatGPT.addEventListener("click", () => {
+            AIChat.chatgpt.open(paintChatGPT);
             closeDrawerOnMobile();
         });
         backdrop.addEventListener("click", () => setOpen(false));

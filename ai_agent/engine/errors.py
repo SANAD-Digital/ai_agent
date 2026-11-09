@@ -24,10 +24,16 @@ MESSAGES = {
 	"refusal": "The model declined this request. Rephrase it, or choose another model.",
 	"max_tokens": "The reply reached the maximum length before it finished. Ask for a smaller part, or ask your administrator to raise Max Output Tokens for this model.",
 	"error": "The reply could not be completed. Try again, or choose another model.",
+	"chatgpt_sign_in": "Sign in with your ChatGPT account first: «ChatGPT account» at the bottom of the chat's side list.",
+	"chatgpt_limit": "Your ChatGPT plan's usage limit was reached. See ChatGPT settings, Usage, or try again later.",
+	"chatgpt_not_eligible": "Your ChatGPT account or workspace cannot use its plan in other apps. Choose another provider.",
 }
 
 # Raw provider text that identifies a cause more precisely than the HTTP class.
 PATTERNS = (
+	("chatgpt_sign_in", ("chatgpt_sign_in_required", "subscription_sharing_invalid_user")),
+	("chatgpt_limit", ("subscription_sharing_usage_limit_exceeded",)),
+	("chatgpt_not_eligible", ("subscription_sharing_user_not_eligible",)),
 	("not_chat", ("multiturn chat is not enabled", "not a chat model", "is not supported for generatecontent", "only supported in v1/responses", "does not support chat")),
 	("no_tools", ("function calling is not enabled", "does not support tools", "tools are not supported", "tool use is not supported")),
 	("quota", ("insufficient_quota", "exceeded your current quota", "insufficient balance", "credit balance", "billing")),

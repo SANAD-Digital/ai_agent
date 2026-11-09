@@ -37,11 +37,11 @@
    "fieldname": "provider_type",
    "fieldtype": "Select",
    "label": "Provider Type",
-   "options": "OpenAI\nOpenAI Compatible\nOllama\nAnthropic",
+   "options": "OpenAI\nOpenAI Compatible\nOllama\nAnthropic\nChatGPT Subscription",
    "default": "OpenAI Compatible",
    "reqd": 1,
    "in_list_view": 1,
-   "description": "Anthropic uses the native Messages API (official SDK) with prompt caching; base_url may point to a proxy."
+   "description": "ChatGPT Subscription: each person signs in with their own ChatGPT account (the chat, ChatGPT account) and their plan answers them; no API key."
   },
   {
    "fieldname": "description",
@@ -57,12 +57,14 @@
    "fieldname": "base_url",
    "fieldtype": "Data",
    "label": "Base URL",
-   "description": "e.g. https://api.deepseek.com/v1 or http://localhost:11434/v1 (leave empty for OpenAI)"
+   "description": "e.g. https://api.deepseek.com/v1 or http://localhost:11434/v1 (leave empty for OpenAI)",
+   "depends_on": "eval:doc.provider_type != 'ChatGPT Subscription'"
   },
   {
    "fieldname": "api_key",
    "fieldtype": "Password",
-   "label": "API Key"
+   "label": "API Key",
+   "depends_on": "eval:doc.provider_type != 'ChatGPT Subscription'"
   },
   {
    "fieldname": "cb_connection",
@@ -149,7 +151,7 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-10-11 07:00:00.000000",
+ "modified": "2026-11-09 21:00:00.000000",
  "field_order": [
   "provider_name",
   "enabled",

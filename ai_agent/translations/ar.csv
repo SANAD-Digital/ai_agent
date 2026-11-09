@@ -3440,3 +3440,9 @@ Limit for this connection.,الحد لهذا الاتصال.,AI MCP
 Open AI MCP,فتح اتصالات MCP,AI Settings
 Agent,الوكيل,AI MCP
 Connection,الاتصال,AI MCP
+"Local: reads on this server, needs no key; its models are downloaded once on first use. Cloud: Gemini, needs an API key.",محلي: يقرأ على هذا الخادم ولا يحتاج مفتاحاً، وتُنزَّل نماذجه مرة واحدة عند أول استخدام. سحابي: Gemini ويحتاج مفتاح API.,Gemini OCR Settings
+Local OCR (PaddleOCR) works. Text read: {0},القراءة المحلية (PaddleOCR) تعمل. النص المقروء: {0}
+Local OCR (RapidOCR) works. Text read: {0},القراءة المحلية (RapidOCR) تعمل. النص المقروء: {0}
+"The local OCR engine is not installed on this server. Run bench setup requirements, then restart the bench.","محرك القراءة المحلي غير مثبّت على هذا الخادم. شغّل bench setup requirements ثم أعد تشغيل الخادم."
+"Local OCR (RapidOCR) failed: {0}. On first use it downloads its models from modelscope.cn: check that this server can reach it.","فشلت القراءة المحلية (RapidOCR): {0}. عند أول استخدام تُنزَّل نماذجها من modelscope.cn: تأكد أن الخادم يصل إليه."
+Local OCR (RapidOCR) ran but read no text from the test image.,القراءة المحلية (RapidOCR) عملت لكنها لم تقرأ نصاً من صورة الاختبار.

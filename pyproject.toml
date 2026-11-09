@@ -19,11 +19,8 @@ dependencies = [
     "python-docx>=1.1",
     "beautifulsoup4>=4.12",
     "sqlglot>=25",
-]
-
-[project.optional-dependencies]
-# Local OCR for images and scanned PDFs (runtime/rapid_ocr.py); imported only when used.
-ocr = [
+    # Local OCR (runtime/rapid_ocr.py): PaddleOCR models on onnxruntime, no Paddle. Its models (~15 MB) are
+    # downloaded from modelscope.cn on first use.
     "rapidocr>=3",
     "onnxruntime>=1.18",
     "opencv-python-headless>=4.10",

@@ -163,14 +163,17 @@ def is_gemini_ocr_enabled():
 
 
 def gemini_ocr_image_bytes(data, mime_type="image/png", prompt=None):
+    """The settings choose the engine; local RapidOCR is the fallback whatever they say: it needs no key and nothing
+    leaves the server. Without it, a site whose OCR settings were never saved (or set to Gemini without a key) read
+    no scanned PDF at all."""
     settings = _get_settings_or_none()
     if not settings or not settings.enabled:
-        return ""
+        return _rapid_ocr(data)
 
     ocr_engine = getattr(settings, "ocr_engine", None) or "Cloud API (Gemini OCR)"
     if _uses_cloud_engine(settings) and not _cloud_ocr_allowed():
         _set_last_error("Gemini OCR is disabled by the provider policy (Managed mode or no third-party consent).")
-        return ""
+        return _rapid_ocr(data)
 
     if ocr_engine == "Local Engine (PaddleOCR / PyMuPDF)":
         if not _paddle_runtime_installed():

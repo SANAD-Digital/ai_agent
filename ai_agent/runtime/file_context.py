@@ -19,7 +19,7 @@ MAX_OCR_TEXT_CHARS = 24000
 # to a fixed count: every page read is cached, the next pass (or files.read with `pages`) goes on where it stopped.
 OCR_PDF_SECONDS = 90
 MAX_OCR_PDF_PAGES = 500
-OCR_PAGE_CACHE = "ai_agent:ocr_page:{}:{}:{}"
+OCR_PAGE_CACHE = "ai_agent:ocr_page:{}:{}:{}:{}"  # file, modified, page, reader (vision_ocr.tag)
 FILE_SUMMARY_CACHE_SECONDS = 24 * 3600
 MAX_TABLE_ROWS = 20
 MAX_DETECTED_INVOICE_ROWS = 40
@@ -40,7 +40,14 @@ FINANCIAL_ATTACHMENT_OCR_PROMPT = (
 
 
 class FileContextService:
-    """Build compact model context from files attached to an AI Run."""
+    """Build compact model context from files attached to an AI Run.
+
+    ``vision``: (provider, model) of the conversation when that model reads images but takes no PDF
+    (vision_ocr.reader): scanned pages and images are then read by it, page by page, the configured OCR engine
+    being the fallback."""
+
+    def __init__(self, vision=None):
+        self.vision = vision
 
     def build_context(self, run_name, progress_run=None):
         files = self.get_run_files(run_name)
@@ -118,7 +125,9 @@ class FileContextService:
         return [frappe.get_doc("File", name) for name in names]
 
     def summarize_file(self, file_doc, progress_run=None):
-        cache_key = f"ai_agent:file_summary:{file_doc.name}:{file_doc.modified}"
+        from ai_agent.runtime import vision_ocr
+
+        cache_key = f"ai_agent:file_summary:{file_doc.name}:{file_doc.modified}:{vision_ocr.tag(self.vision)}"
         try:
             cached = frappe.cache.get_value(cache_key)
         except Exception:
@@ -747,7 +756,7 @@ class FileContextService:
             return ""
 
     def _ocr_pdf(self, file_doc, progress_run=None):
-        claude_text = self._claude_pdf(file_doc, progress_run)
+        claude_text = None if self.vision else self._claude_pdf(file_doc, progress_run)
         if claude_text:
             self._ocr_progress = None
             return claude_text
@@ -771,10 +780,13 @@ class FileContextService:
         wanted = [n for n in (pages or range(1, total + 1)) if 1 <= n <= min(total, MAX_OCR_PDF_PAGES)]
         budget = seconds or frappe.utils.cint(frappe.conf.get("ai_agent_ocr_pdf_seconds")) or OCR_PDF_SECONDS
         deadline = time.monotonic() + budget
+        from ai_agent.runtime import vision_ocr
+
+        reader = vision_ocr.tag(self.vision)
         new = 0
         try:
             for n in wanted:
-                key = OCR_PAGE_CACHE.format(file_doc.name, file_doc.modified, n)
+                key = OCR_PAGE_CACHE.format(file_doc.name, file_doc.modified, n, reader)
                 text = frappe.cache.get_value(key)
                 if not text:
                     if new and time.monotonic() > deadline:
@@ -832,6 +844,16 @@ class FileContextService:
         return lines
 
     def _ocr_image_bytes(self, data, mime_type="image/png", allow_claude=True):
+        if self.vision:
+            # the conversation's own model sees images: it reads the page; the OCR engine only if it fails
+            try:
+                from ai_agent.runtime import vision_ocr
+
+                text = vision_ocr.read_image(self.vision, data, mime_type, FINANCIAL_ATTACHMENT_OCR_PROMPT)
+                if text:
+                    return text
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), f"AI vision page reading ({'/'.join(self.vision)})")
         # Route through the configured OCR engine only. A failed cloud request
         # should fail fast instead of silently starting a heavy local OCR pass.
         try:

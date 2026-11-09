@@ -31,8 +31,9 @@ def message_files(message_name):
     return [frappe.get_doc("File", n) for n in names]
 
 
-def blocks_for(message_name, caps):
-    """[Block] for every attachment of a user message, according to provider caps."""
+def blocks_for(message_name, caps, vision=None):
+    """[Block] for every attachment of a user message, according to provider caps. ``vision``: the conversation's
+    model reads the scanned pages of a PDF it cannot take natively (vision_ocr.reader)."""
     blocks = []
     images = 0
     for f in message_files(message_name):
@@ -54,7 +55,7 @@ def blocks_for(message_name, caps):
                 if len(content) <= MAX_PDF_BYTES:
                     blocks.append(Block(kind=DOCUMENT, name=filename, data={"media_type": "application/pdf", "data": base64.b64encode(content).decode()}))
                     continue
-            text = extracted_text(f)
+            text = extracted_text(f, vision)
             blocks.append(Block(kind=DOCUMENT, name=filename, text=f"<<<ATTACHED_FILE name=\"{filename}\">>>\n{text}\n<<<END_ATTACHED_FILE>>>"))
         except Exception:
             frappe.log_error(frappe.get_traceback(), f"AI chat attachment {f.name}")
@@ -62,10 +63,10 @@ def blocks_for(message_name, caps):
     return blocks
 
 
-def extracted_text(file_doc):
+def extracted_text(file_doc, vision=None):
     from ai_agent.runtime.file_context import FileContextService
 
-    summary = FileContextService().summarize_file(file_doc) or ""
+    summary = FileContextService(vision).summarize_file(file_doc) or ""
     return clip(summary, MAX_TEXT_CHARS) or "(no readable text)"
 
 

@@ -52,6 +52,7 @@ class RunSetup:
     def build(self, resume):
         provider, provider_name, model = provider_for(*(getattr(self, "override", None) or (self.session.provider, self.session.model)))
         caps = provider.caps(model)
+        self.provider_name, self.model = provider_name, model  # attachment_blocks reads them before the loop exists
         ctx = PermissionContext(self.user, self.agent.name, self.session.company)
         executor = ToolExecutor(ctx, self.agent, self.run_doc.name if self.run_doc else None, settings=self.settings, session=self.session.name)
 
@@ -177,7 +178,10 @@ class RunSetup:
         )
         if stored:
             return [history_mod.block_from_row(r) for r in stored]
-        blocks = files_mod.blocks_for(message_name, caps)
+        from ai_agent.runtime import vision_ocr
+
+        vision = vision_ocr.reader(getattr(self, "provider_name", None), getattr(self, "model", None)) if caps.supports_vision else None
+        blocks = files_mod.blocks_for(message_name, caps, vision)
         for i, b in enumerate(blocks, start=1):
             native = bool(b.data.get("data"))
             text = b.text if not native else f"[{b.name} was shown to the model as an {'image' if b.kind == 'image' else 'attached PDF'} when it was uploaded; call files__read to read its text again.]"

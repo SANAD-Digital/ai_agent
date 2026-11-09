@@ -2,10 +2,13 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+LOCAL_ENGINE = "Local Engine (PaddleOCR / PyMuPDF)"
+
 
 class GeminiOCRSettings(Document):
     def validate(self):
-        if self.enabled and not self.get_password("api_key"):
+        # the key is for the cloud engine only; raise_exception=False: no key saved yet is "empty", not an error
+        if self.enabled and self.ocr_engine != LOCAL_ENGINE and not self.get_password("api_key", raise_exception=False):
             frappe.throw(_("API Key is required when Gemini OCR is enabled."))
         if not self.model:
             self.model = "gemini-3.5-flash"

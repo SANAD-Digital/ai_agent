@@ -3472,7 +3472,7 @@ Signed out here; ChatGPT did not confirm it. You can disconnect the app in ChatG
 Your ChatGPT sign-in has ended. Sign in again.,انتهى دخولك بحساب ChatGPT. سجّل الدخول من جديد.
 Continue with ChatGPT,المتابعة بحساب ChatGPT
 1. Sign in with your ChatGPT account and allow it.,1. ادخل بحسابك في ChatGPT ووافق على الطلب.
-2. ChatGPT then opens a page that does not load (its address starts with http://127.0.0.1:1455). Copy the whole address from the browser's address bar and paste it here:,2. بعدها يفتح ChatGPT صفحة لا تعمل (عنوانها يبدأ بـ http://127.0.0.1:1455). انسخ العنوان كاملاً من شريط العنوان في المتصفح والصقه هنا:
+2. ChatGPT then opens a page that does not load (its address starts with http://127.0.0.1). Copy the whole address from the browser's address bar and paste it here:,2. بعدها يفتح ChatGPT صفحة لا تعمل (عنوانها يبدأ بـ http://127.0.0.1). انسخ العنوان كاملاً من شريط العنوان في المتصفح والصقه هنا:
 Complete sign-in,إتمام الدخول
 "The sign-in page opened in a new tab. Finish there, then paste the address here.",فُتحت صفحة الدخول في تبويب جديد. أكمل هناك، ثم الصق العنوان هنا.
 Signed in to ChatGPT as {0},تم الدخول إلى ChatGPT بحساب {0}

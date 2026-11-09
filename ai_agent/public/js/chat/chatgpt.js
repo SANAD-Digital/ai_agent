@@ -51,13 +51,13 @@
             const body = $(d.body).empty();
             if (st.status === "Sign in again") body.append($("<p class='text-warning'>").text(__("Your ChatGPT sign-in has ended. Sign in again.")));
             const go = $("<button class='btn btn-primary btn-sm'>").text(__("Continue with ChatGPT"));
-            const address = $("<textarea class='form-control' rows='3' dir='ltr'>").attr("placeholder", "http://127.0.0.1:1455/auth/callback?code=…");
+            const address = $("<textarea class='form-control' rows='3' dir='ltr'>").attr("placeholder", "http://127.0.0.1:48155/auth/callback?code=…");
             const finish = $("<button class='btn btn-primary btn-sm mt-2'>").text(__("Complete sign-in")).prop("disabled", true);
             const note = $("<div class='text-muted small mt-2'>");
             body.append(
                 $("<p>").text(__("1. Sign in with your ChatGPT account and allow it.")),
                 go,
-                $("<p class='mt-3'>").text(__("2. ChatGPT then opens a page that does not load (its address starts with http://127.0.0.1:1455). Copy the whole address from the browser's address bar and paste it here:")),
+                $("<p class='mt-3'>").text(__("2. ChatGPT then opens a page that does not load (its address starts with http://127.0.0.1). Copy the whole address from the browser's address bar and paste it here:")),
                 address,
                 finish,
                 note

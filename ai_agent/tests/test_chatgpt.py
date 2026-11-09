@@ -51,7 +51,7 @@ class TestChatGPTSignIn(IntegrationTestCase):
 		state = parse_qs(urlparse(url).query)["state"][0]
 		with patch.object(account.requests, "post", return_value=tokens(scope=scope)) as post, \
 				patch.object(account, "_verify_id_token", return_value={"sub": "user-sub", "email": "me@chatgpt.test"}):
-			account.finish(USER, f"http://127.0.0.1:1455/auth/callback?code=c0de&scope=x&state={state}&client_id={issued}")
+			account.finish(USER, f"http://127.0.0.1:48155/auth/callback?code=c0de&scope=x&state={state}&client_id={issued}")
 		return url, post
 
 	def test_the_authorize_url_is_the_documented_one(self):
@@ -78,11 +78,11 @@ class TestChatGPTSignIn(IntegrationTestCase):
 	def test_a_wrong_or_refused_callback_is_not_used(self):
 		account.start(USER)
 		with self.assertRaises(frappe.ValidationError):
-			account.finish(USER, "http://127.0.0.1:1455/auth/callback?code=x&state=forged")
+			account.finish(USER, "http://127.0.0.1:48155/auth/callback?code=x&state=forged")
 		url = account.start(USER)
 		state = parse_qs(urlparse(url).query)["state"][0]
 		with self.assertRaises(frappe.ValidationError):
-			account.finish(USER, f"http://127.0.0.1:1455/auth/callback?error=access_denied&state={state}")
+			account.finish(USER, f"http://127.0.0.1:48155/auth/callback?error=access_denied&state={state}")
 
 	def test_without_plan_permission_it_does_not_answer(self):
 		with self.assertRaises(frappe.ValidationError):

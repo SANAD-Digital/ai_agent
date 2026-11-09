@@ -4,8 +4,9 @@
 - the site is the "agent host": one stable `urn:uuid:` host id per site;
 - the first sign-in registers the client (`client_id=dynamic_agent_client`) and OpenAI issues its own client id,
   kept for later sign-ins of that account; PKCE, no client secret;
-- OpenAI only redirects to a loopback address (http://127.0.0.1:1455/auth/callback), which on a server reaches
-  nothing: the person copies the address the browser shows and pastes it back (`finish`);
+- OpenAI only redirects to a loopback address (http://127.0.0.1:<port>/auth/callback), which on a server reaches
+  nothing: the person copies the address the browser shows and pastes it back (`finish`). The port is not Codex's
+  1455: Codex and Cline listen there on the person's own computer, catch the redirect and leave it hanging;
 - access tokens live an hour and are refreshed here (serialized: the refresh token rotates); refresh tokens 30 days;
 - tokens are kept encrypted in Frappe's password store, never in a form field, a log or a URL.
 """
@@ -29,7 +30,7 @@ AUTHORIZE_URL = ISSUER + "/api/accounts/authorize"
 TOKEN_URL = ISSUER + "/api/accounts/oauth/token"
 CONFIG_URL = ISSUER + "/.well-known/openid-configuration"
 RESOURCE = "https://api.openai.com/v1"
-REDIRECT_URI = "http://127.0.0.1:1455/auth/callback"
+REDIRECT_URI = "http://127.0.0.1:48155/auth/callback"  # only the port may vary between sign-ins
 SCOPES = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
 PLAN_SCOPE = "chatgpt.tokens.use.direct"
 NEW_CLIENT = "dynamic_agent_client"
@@ -121,7 +122,8 @@ def start(user):
 			params["id_token_hint"] = _secret(user, "id_token")
 		if doc.email:
 			params["login_hint"] = doc.email
-	frappe.cache.set_value(PENDING_KEY.format(user), {"state": state, "nonce": nonce, "verifier": verifier, "client_id": client_id},
+	frappe.cache.set_value(PENDING_KEY.format(user), {"state": state, "nonce": nonce, "verifier": verifier, "client_id": client_id,
+		"redirect_uri": REDIRECT_URI},
 		expires_in_sec=PENDING_SECONDS)
 	return AUTHORIZE_URL + "?" + urlencode(params)
 
@@ -154,7 +156,7 @@ def finish(user, pasted):
 	frappe.cache.delete_value(PENDING_KEY.format(user))  # a code is used once
 
 	tokens = _token_request({"grant_type": "authorization_code", "client_id": client_id, "code": code,
-		"code_verifier": pending["verifier"], "redirect_uri": REDIRECT_URI, "resource": RESOURCE})
+		"code_verifier": pending["verifier"], "redirect_uri": pending.get("redirect_uri") or REDIRECT_URI, "resource": RESOURCE})
 	scopes = set((tokens.get("scope") or "").split())
 	claims = _verify_id_token(tokens.get("id_token"), client_id, pending["nonce"])
 	_store(user, client_id, tokens, claims, scopes)

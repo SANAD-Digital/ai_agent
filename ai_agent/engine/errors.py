@@ -25,12 +25,14 @@ MESSAGES = {
 	"max_tokens": "The reply reached the maximum length before it finished. Ask for a smaller part, or ask your administrator to raise Max Output Tokens for this model.",
 	"error": "The reply could not be completed. Try again, or choose another model.",
 	"chatgpt_sign_in": "Sign in with your ChatGPT account first: «ChatGPT account» at the bottom of the chat's side list.",
+	"chatgpt_shared_sign_in": "The shared ChatGPT account of this site needs to sign in again. Ask your administrator.",
 	"chatgpt_limit": "Your ChatGPT plan's usage limit was reached. See ChatGPT settings, Usage, or try again later.",
 	"chatgpt_not_eligible": "Your ChatGPT account or workspace cannot use its plan in other apps. Choose another provider.",
 }
 
 # Raw provider text that identifies a cause more precisely than the HTTP class.
 PATTERNS = (
+	("chatgpt_shared_sign_in", ("chatgpt_shared_sign_in_required",)),
 	("chatgpt_sign_in", ("chatgpt_sign_in_required", "subscription_sharing_invalid_user")),
 	("chatgpt_limit", ("subscription_sharing_usage_limit_exceeded",)),
 	("chatgpt_not_eligible", ("subscription_sharing_user_not_eligible",)),

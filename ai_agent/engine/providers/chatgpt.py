@@ -2,7 +2,8 @@
 (developers.openai.com/siwc/token-sharing-open-source/models-and-inference and .../preview-limitations).
 
 - every request carries the person's own OAuth access token (chatgpt/account.py refreshes it); the run is
-  executed as that person, so `frappe.session.user` is whose plan answers;
+  executed as that person, so `frappe.session.user` is whose plan answers; with one shared account (the
+  provider's setting) every request carries that one person's sign-in;
 - `store: false`, `stream: true`, the whole history in `input`, the system prompt in `instructions`; the fields the
   route rejects (temperature, max_output_tokens, user, …) are never sent;
 - the tools go in one namespace ("Group function/custom tools in namespaces"); a server that refuses that gets
@@ -73,10 +74,13 @@ class ChatGPTProvider(Provider):
     def stream(self, request: ModelRequest, cancel: CancelToken):
         from ai_agent.chatgpt import account
 
+        shared = self.config.get("shared_user")
         try:
-            token = account.access_token(frappe.session.user)
+            token = account.access_token(shared or frappe.session.user)
         except account.SignInRequired as exc:
-            yield ProviderError(message=str(exc), kind="error", retryable=False)
+            # with a shared account the user cannot fix it: the person who signs in for everyone does
+            message = f"chatgpt_shared_sign_in_required: {shared}" if shared else str(exc)
+            yield ProviderError(message=message, kind="error", retryable=False)
             return
         except Exception as exc:
             yield _error(exc)

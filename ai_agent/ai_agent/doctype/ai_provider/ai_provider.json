@@ -44,6 +44,24 @@
    "description": "ChatGPT Subscription: each person signs in with their own ChatGPT account (the chat, ChatGPT account) and their plan answers them; no API key."
   },
   {
+   "default": "Each user's own account",
+   "depends_on": "eval:doc.provider_type == 'ChatGPT Subscription'",
+   "fieldname": "chatgpt_account",
+   "fieldtype": "Select",
+   "label": "ChatGPT Account",
+   "options": "Each user's own account\nOne shared account",
+   "description": "Each user's own account: everyone signs in from the chat (ChatGPT account). One shared account: one person signs in and everyone's chats use that account."
+  },
+  {
+   "depends_on": "eval:doc.provider_type == 'ChatGPT Subscription' && doc.chatgpt_account == 'One shared account'",
+   "mandatory_depends_on": "eval:doc.provider_type == 'ChatGPT Subscription' && doc.chatgpt_account == 'One shared account'",
+   "fieldname": "chatgpt_shared_user",
+   "fieldtype": "Link",
+   "label": "Shared Account Signed In By",
+   "options": "User",
+   "description": "This person signs in from the chat (ChatGPT account); every user's chat with this provider then uses that sign-in and its plan limits. OpenAI's terms let only the account's owner use it: a shared account may be suspended."
+  },
+  {
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
@@ -151,13 +169,15 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "modified": "2026-11-09 21:00:00.000000",
+ "modified": "2026-11-09 22:30:00.000000",
  "field_order": [
   "provider_name",
   "enabled",
   "is_default",
   "cb_identity",
   "provider_type",
+  "chatgpt_account",
+  "chatgpt_shared_user",
   "description",
   "section_connection",
   "base_url",

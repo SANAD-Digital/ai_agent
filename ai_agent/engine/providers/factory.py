@@ -73,6 +73,8 @@ def provider_config(provider_doc, model=None):
         "strict_tools": bool(provider_doc.get("strict_tool_calling")),
         "extra_request": extra,
         "default_effort": provider_doc.get("default_reasoning_effort") or settings.get("default_reasoning_effort") or "",
+        # ChatGPT Subscription with one shared account: whose sign-in every user's chat uses
+        "shared_user": provider_doc.get("chatgpt_shared_user") if provider_doc.get("chatgpt_account") == "One shared account" else None,
     }
 
 

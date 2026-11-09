@@ -81,8 +81,9 @@
         });
         const paintChatGPT = () => AIChat.chatgpt && AIChat.chatgpt.status().then((st) => {
             btnChatGPT.hidden = !st.available;
-            btnChatGPT.lastChild.textContent = st.signed_in ? __("ChatGPT: {0}", [st.email || ""]) : __("ChatGPT account");
-            btnChatGPT.classList.toggle("is-active", !!st.signed_in);
+            const sharedOk = st.shared && !st.shared.is_me && st.shared.signed_in;
+            btnChatGPT.lastChild.textContent = st.signed_in ? __("ChatGPT: {0}", [st.email || ""]) : sharedOk ? __("ChatGPT: shared account") : __("ChatGPT account");
+            btnChatGPT.classList.toggle("is-active", !!(st.signed_in || sharedOk));
         }).catch(() => {});
         paintChatGPT();
         btnChatGPT.addEventListener("click", () => {

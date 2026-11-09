@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import re
+import time
 
 import frappe
 from frappe.utils.file_manager import get_file_path
@@ -14,7 +15,11 @@ MAX_FILE_CONTEXT_CHARS = 40000
 MAX_SESSION_FILE_CONTEXT_CHARS = 24000
 MAX_TEXT_CHARS = 4000
 MAX_OCR_TEXT_CHARS = 24000
-MAX_OCR_PDF_PAGES = 10
+# A scanned PDF is read page by page within a time budget per pass (site config ai_agent_ocr_pdf_seconds), not up
+# to a fixed count: every page read is cached, the next pass (or files.read with `pages`) goes on where it stopped.
+OCR_PDF_SECONDS = 90
+MAX_OCR_PDF_PAGES = 500
+OCR_PAGE_CACHE = "ai_agent:ocr_page:{}:{}:{}"
 FILE_SUMMARY_CACHE_SECONDS = 24 * 3600
 MAX_TABLE_ROWS = 20
 MAX_DETECTED_INVOICE_ROWS = 40
@@ -122,7 +127,7 @@ class FileContextService:
         if cached:
             return cached
         summary = self._summarize_file_uncached(file_doc, progress_run=progress_run)
-        if summary and ("extraction: OCR" in summary or "text_preview" in summary):
+        if summary and ("extraction: OCR" in summary or "text_preview" in summary) and "- pages_not_read:" not in summary:
             try:
                 frappe.cache.set_value(cache_key, summary, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
             except Exception:
@@ -269,7 +274,7 @@ class FileContextService:
                     return (
                         f"- pages: {len(reader.pages)}\n"
                         "- extraction: OCR from scanned/image PDF\n"
-                        f"- ocr_pages: {self._ocr_pages_read(len(reader.pages))} of {len(reader.pages)}\n"
+                        f"{self._ocr_progress_lines(file_doc, len(reader.pages), ocr_text)}"
                         f"- text_preview:\n{ocr_text[:MAX_OCR_TEXT_CHARS]}"
                     )
                 diagnostics = self._ocr_diagnostics()
@@ -319,7 +324,11 @@ class FileContextService:
                         "- ocr_preview_for_numbers:\n"
                         f"{ocr_text[:MAX_OCR_TEXT_CHARS]}"
                     )
-            return f"- pages: {len(reader.pages)}\n- text_preview:\n{text[:MAX_TEXT_CHARS]}"
+            more = ""
+            if len(reader.pages) > 5:
+                more = (f"- pages_in_preview: 1-5 of {len(reader.pages)}; read the others with files__read "
+                        f"file=\"{file_doc.name}\" pages=\"6-{len(reader.pages)}\"\n")
+            return f"- pages: {len(reader.pages)}\n{more}- text_preview:\n{text[:MAX_TEXT_CHARS]}"
         except Exception as error:
             frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF): {file_doc.name}")
             return f"- summary: Could not extract PDF content: {str(error)}"
@@ -740,25 +749,87 @@ class FileContextService:
     def _ocr_pdf(self, file_doc, progress_run=None):
         claude_text = self._claude_pdf(file_doc, progress_run)
         if claude_text:
+            self._ocr_progress = None
             return claude_text
+        texts, read, total = self.ocr_pdf_pages(file_doc)
+        self._ocr_progress = (read, total)
+        return "\n\n".join(f"[page {n}]\n{texts[n]}" for n in read if texts.get(n)).strip()
+
+    def ocr_pdf_pages(self, file_doc, pages=None, seconds=None):
+        """OCR of a scanned PDF's pages -> ({page: text}, pages read, page count). ``pages``: page numbers (1-based),
+        all by default. A page already read comes from the cache; new pages are read until ``seconds`` have passed,
+        so a long file never holds the chat past its run limit: the rest is read on the next call."""
+        texts, read = {}, []
         try:
             import fitz
 
-            path = get_file_path(file_doc.name)
-            document = fitz.open(path)
-            total = min(len(document), MAX_OCR_PDF_PAGES)
-            pages = []
-            for page_index in range(total):
-                page = document.load_page(page_index)
-                pixmap = page.get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72), alpha=False)
-                text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png", allow_claude=False)
-                if text:
-                    pages.append(f"[page {page_index + 1}]\n{text}")
-            document.close()
-            return "\n\n".join(pages).strip()
+            document = fitz.open(get_file_path(file_doc.name))
         except Exception:
             frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF OCR): {file_doc.name}")
-            return ""
+            return texts, read, 0
+        total = len(document)
+        wanted = [n for n in (pages or range(1, total + 1)) if 1 <= n <= min(total, MAX_OCR_PDF_PAGES)]
+        budget = seconds or frappe.utils.cint(frappe.conf.get("ai_agent_ocr_pdf_seconds")) or OCR_PDF_SECONDS
+        deadline = time.monotonic() + budget
+        new = 0
+        try:
+            for n in wanted:
+                key = OCR_PAGE_CACHE.format(file_doc.name, file_doc.modified, n)
+                text = frappe.cache.get_value(key)
+                if not text:
+                    if new and time.monotonic() > deadline:
+                        break  # always at least one new page per pass
+                    pixmap = document.load_page(n - 1).get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72), alpha=False)
+                    text = self._ocr_image_bytes(pixmap.tobytes("png"), mime_type="image/png", allow_claude=False) or ""
+                    new += 1
+                    if text:
+                        frappe.cache.set_value(key, text, expires_in_sec=FILE_SUMMARY_CACHE_SECONDS)
+                texts[n] = text
+                read.append(n)
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF OCR): {file_doc.name}")
+        finally:
+            document.close()
+        return texts, read, total
+
+    def read_pdf_pages(self, file_doc, pages):
+        """({page: text}, pages read, page count) for ``pages`` of a PDF: its own text where the page has some,
+        OCR where it is scanned (cached, within one pass's time budget)."""
+        from pypdf import PdfReader
+
+        reader = PdfReader(get_file_path(file_doc.name))
+        total = len(reader.pages)
+        texts, scanned = {}, []
+        for n in pages:
+            if not 1 <= n <= total:
+                continue
+            text = (reader.pages[n - 1].extract_text() or "").strip()
+            if text:
+                texts[n] = text
+            else:
+                scanned.append(n)
+        read = list(texts)
+        if scanned:
+            ocr, ocr_read, _ = self.ocr_pdf_pages(file_doc, scanned)
+            texts.update(ocr)
+            read += ocr_read
+        return texts, sorted(read), total
+
+    def _ocr_progress_lines(self, file_doc, total, ocr_text):
+        """What the model is told about a partial reading: which pages are missing, and how to read them."""
+        progress = getattr(self, "_ocr_progress", None)
+        if not progress:  # read by Claude as one document
+            return f"- ocr_pages: {total} of {total}\n"
+        read, total = progress
+        lines = f"- ocr_pages: {len(read)} of {total}\n"
+        unread = [n for n in range(1, total + 1) if n not in read]
+        if len(ocr_text) > MAX_OCR_TEXT_CHARS:  # the preview below ends inside a page: from there on
+            shown = [n for n in read if f"[page {n}]" in ocr_text[:MAX_OCR_TEXT_CHARS]]
+            unread = sorted(set(unread) | {n for n in read if n >= (shown[-1] if shown else 1)})
+        if unread:
+            lines += (f"- pages_not_read: {_ranges(unread)} (time limit of one pass). Read them with files__read "
+                      f"file=\"{file_doc.name}\" pages=\"{_ranges(unread)}\" before answering about the whole file.\n")
+        return lines
 
     def _ocr_image_bytes(self, data, mime_type="image/png", allow_claude=True):
         # Route through the configured OCR engine only. A failed cloud request
@@ -779,10 +850,6 @@ class FileContextService:
             except Exception:
                 frappe.log_error(frappe.get_traceback(), "AI Claude OCR")
         return ""
-
-    def _ocr_pages_read(self, total):
-        # Claude reads the whole document; page-by-page OCR stops at MAX_OCR_PDF_PAGES
-        return total if getattr(self, "_read_by_claude", False) else min(total, MAX_OCR_PDF_PAGES)
 
     def _claude_pdf(self, file_doc, progress_run=None):
         """A scanned PDF read by Claude in one request, when Gemini OCR cannot be used
@@ -852,6 +919,38 @@ class FileContextService:
         except Exception:
             frappe.log_error(frappe.get_traceback(), f"AI file reading (PDF images): {file_doc.name}")
             return []
+
+
+def _ranges(numbers):
+    """[1, 2, 3, 7, 9, 10] -> "1-3,7,9-10"."""
+    out, start, prev = [], None, None
+    for n in sorted(numbers):
+        if start is None:
+            start = prev = n
+        elif n == prev + 1:
+            prev = n
+        else:
+            out.append(f"{start}-{prev}" if prev != start else str(start))
+            start = prev = n
+    if start is not None:
+        out.append(f"{start}-{prev}" if prev != start else str(start))
+    return ",".join(out)
+
+
+def parse_pages(spec):
+    """\"1-3,7\" -> [1, 2, 3, 7]; None when it is not a page list."""
+    pages = set()
+    for part in str(spec or "").replace(" ", "").split(","):
+        if not part:
+            continue
+        low, _, high = part.partition("-")
+        if not low.isdigit() or (high and not high.isdigit()):
+            return None
+        low, high = int(low), int(high or low)
+        if low < 1 or high < low or high - low > MAX_OCR_PDF_PAGES:
+            return None
+        pages.update(range(low, high + 1))
+    return sorted(pages) or None
 
 
 def cint_safe(value):

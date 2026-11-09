@@ -229,6 +229,7 @@ TOOL_PARAMETER_SCHEMAS = {
             "doctype": {"type": "string", "description": "For a document's file: the document's DocType (narrows a file name)"},
             "document_name": {"type": "string", "description": "For a document's file: the document's name"},
             "refresh": {"type": "boolean", "description": "Read again instead of using the cached extraction"},
+            "pages": {"type": "string", "description": "PDF only: the pages to read, e.g. \"11-21\" or \"1,4,7-9\". Use it for pages_not_read: a long scanned PDF is read in passes"},
         },
     },
     "attachments.list": {
@@ -723,7 +724,7 @@ class ToolRegistry:
             {"name": "data.get_document", "description": "Get a document by name", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_document"},
             {"name": "data.get_child_records", "description": "Get child table records", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_get_child_records"},
             {"name": "data.count", "description": "Count records matching filters", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.data.handle_count"},
-            {"name": "files.read", "description": "Read a file's content (text of PDF/Word/Excel/CSV, OCR of images and scans): one the user attached in this chat, or one attached to an ERP document the user can read (ids from attachments__list). Without `file`, lists this conversation's attachments.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.chat_files.handle_read", "model_result_max_chars": 40000},
+            {"name": "files.read", "description": "Read a file's content (text of PDF/Word/Excel/CSV, OCR of images and scans): one the user attached in this chat, or one attached to an ERP document the user can read (ids from attachments__list). Without `file`, lists this conversation's attachments. For a long PDF give `pages` (e.g. \"11-21\") to read the pages its summary lists as not read yet.", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.chat_files.handle_read", "model_result_max_chars": 40000},
             {"name": "attachments.list", "description": "List safe metadata for files attached to a readable document", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.attachments.handle_list"},
             # Reports
             {"name": "reports.search", "description": "Search available reports", "access_level": "Read", "side_effect": "read_only", "handler": "ai_agent.tools.reports.handle_search"},

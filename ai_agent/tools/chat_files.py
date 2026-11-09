@@ -60,6 +60,31 @@ def _document_file(wanted, arguments, user):
     return name, None
 
 
+def _read_pages(doc, spec):
+    """Some pages of a PDF: a long scanned file is read in passes, each within a time budget."""
+    from ai_agent.runtime.file_context import FileContextService, _ranges, parse_pages
+
+    if not (doc.file_name or "").lower().endswith(".pdf"):
+        return {"error": "`pages` is for PDF files; read other files without it."}
+    pages = parse_pages(spec)
+    if not pages:
+        return {"error": f"`pages` must be page numbers and ranges such as \"11-21\" or \"1,4,7-9\", not {spec!r}."}
+    texts, read, total = FileContextService().read_pdf_pages(doc, pages)
+    content, shown = "", []
+    for n in read:
+        part = f"[page {n}]\n{texts.get(n) or '(no text found on this page)'}\n\n"
+        if shown and len(content) + len(part) > MAX_CHARS:
+            break
+        content += part
+        shown.append(n)
+    out = {"file": doc.name, "file_name": doc.file_name, "page_count": total, "pages_read": _ranges(shown), "content": content.strip()}
+    missing = [n for n in pages if n <= total and n not in shown]
+    if missing:
+        out["pages_not_read"] = _ranges(missing)
+        out["note"] = f"Not read yet (time or size limit of one call): call files__read again with pages=\"{out['pages_not_read']}\"."
+    return out
+
+
 def handle_read(arguments, permission_context):
     user = permission_context.user
     session = _session(permission_context)
@@ -83,6 +108,8 @@ def handle_read(arguments, permission_context):
 
     doc = frappe.get_doc("File", file_name)
     match = {"file": doc.name, "file_name": doc.file_name}
+    if arguments.get("pages"):
+        return _read_pages(doc, arguments["pages"])
     if arguments.get("refresh"):
         frappe.cache.delete_value(f"ai_agent:file_summary:{doc.name}:{doc.modified}")
     text = extracted_text(doc) or ""

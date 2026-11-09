@@ -236,3 +236,29 @@ class TestSharedAccount(IntegrationTestCase):
 		doc.chatgpt_account, doc.chatgpt_shared_user = "Each user's own account", "Administrator"
 		doc.validate()
 		self.assertIsNone(doc.chatgpt_shared_user, "a per-user provider keeps no shared person")
+
+
+class TestModelsAfterSignIn(IntegrationTestCase):
+	"""After the sign-in the plan's models are on the provider, so the chat lists them; before it, the chat still lists the
+	provider (picking it signs in)."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		self.provider = frappe.get_doc({"doctype": "AI Provider", "provider_name": f"ChatGPT Fill {frappe.generate_hash(length=5)}",
+			"provider_type": "ChatGPT Subscription", "enabled": 1}).insert(ignore_permissions=True)
+		self.addCleanup(self.remove)
+
+	def remove(self):
+		# fill_provider_models commits, so the provider is removed and committed too
+		frappe.delete_doc("AI Provider", self.provider.name, force=True, ignore_permissions=True)
+		frappe.db.commit()
+
+	def test_the_chat_lists_it_before_sign_in_and_its_models_after(self):
+		from ai_agent.chat.sessions import available_providers
+
+		listed = {p.name: p for p in available_providers()}
+		self.assertIn(self.provider.name, listed, "listed with no model yet: picking it signs in")
+		with patch.object(account, "models", return_value=[{"slug": "gpt-plan-a", "display_name": "GPT Plan A"}]):
+			account.fill_provider_models("Administrator")
+		doc = frappe.get_doc("AI Provider", self.provider.name)
+		self.assertEqual(([r.model_name for r in doc.models], doc.default_model), (["gpt-plan-a"], "gpt-plan-a"))

@@ -518,6 +518,19 @@
             if (popover.isOpen() && popover.kind() === "model") return popover.close();
             const list = [];
             (getBoot().providers || []).forEach((p) => {
+                // a ChatGPT Subscription provider is listed even before anyone signed in: picking it signs in
+                if (p.chatgpt && (!p.chatgpt.signed_in || !(p.models || []).length)) {
+                    list.push({
+                        label: p.label || p.name,
+                        sub: p.chatgpt.shared && !p.chatgpt.is_me
+                            ? __("The shared ChatGPT account needs to sign in. Ask your administrator.")
+                            : __("Sign in with your ChatGPT account to use it"),
+                        icon: "user",
+                        selected: false,
+                        value: { chatgpt: true },
+                    });
+                    return;
+                }
                 (p.models || []).forEach((m) => {
                     list.push({
                         label: m.label || m.model_name,
@@ -532,6 +545,11 @@
                 kind: "model",
                 title: __("Model"),
                 onPick: (item) => {
+                    if (item.value.chatgpt) {
+                        // after the sign-in the plan's models are on the provider: reload to list them
+                        if (AIChat.chatgpt) AIChat.chatgpt.open(() => setTimeout(() => window.location.reload(), 1200));
+                        return;
+                    }
                     c.provider = item.value.provider;
                     c.model = item.value.model;
                     paintPickers();

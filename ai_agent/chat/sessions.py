@@ -41,7 +41,14 @@ def bootstrap():
     lang = info.get("language") or frappe.local.lang or "en"
     providers = []
     for p in available_providers():
+        chatgpt = None
+        if p.get("provider_type") == "ChatGPT Subscription":
+            from ai_agent.chatgpt import account
+
+            shared = p.get("chatgpt_shared_user") if p.get("chatgpt_account") == "One shared account" else None
+            chatgpt = {"signed_in": account.status(shared or user)["signed_in"], "shared": bool(shared), "is_me": shared == user}
         providers.append({
+            "chatgpt": chatgpt,
             "name": p["name"],
             "label": p.get("provider_name") or p["name"],
             "provider_type": p.get("provider_type"),
@@ -75,7 +82,7 @@ def available_providers():
         for provider in frappe.get_all(
             "AI Provider",
             filters={"enabled": 1},
-            fields=["name", "provider_name", "provider_type", "default_model", "is_default", "description"],
+            fields=["name", "provider_name", "provider_type", "default_model", "is_default", "description", "chatgpt_account", "chatgpt_shared_user"],
             order_by="is_default desc, provider_name asc",
         )
         if policy.provider_allowed(provider.provider_type)
@@ -91,8 +98,9 @@ def available_providers():
         provider["models"] = rows
         if not provider.default_model:
             provider["default_model"] = next((row.model_name for row in rows if row.is_default), rows[0].model_name if rows else "")
-    # a provider enabled before any model was picked would only fail when chosen
-    return [p for p in providers if p["models"] or p["default_model"]]
+    # a provider enabled before any model was picked would only fail when chosen; a ChatGPT one is listed
+    # anyway: picking it signs in, which brings its plan's models (chatgpt/account.fill_provider_models)
+    return [p for p in providers if p["models"] or p["default_model"] or p.provider_type == "ChatGPT Subscription"]
 
 
 @frappe.whitelist()

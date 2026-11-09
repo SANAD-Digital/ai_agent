@@ -108,6 +108,8 @@ def fetch_models(provider):
 	from ai_agent.engine.providers.factory import provider_config
 
 	config = provider_config(doc)
+	if config["type"] == "ChatGPT Subscription":
+		return _chatgpt_models(doc)
 	from ai_agent.engine.providers.base import is_local
 
 	# a local server (Ollama, LM Studio…) may need no key; a cloud provider always does
@@ -130,6 +132,22 @@ def fetch_models(provider):
 	offered = {m["model_name"] for m in models}
 	stale = sorted(name for name in existing | {doc.default_model or ""} if name and name not in offered)
 	return {"models": sorted(models, key=lambda m: m["model_name"]), "stale": stale}
+
+
+def _chatgpt_models(doc):
+	"""The models the signed-in person's ChatGPT plan offers (sign in first, from the chat's ChatGPT account)."""
+	from ai_agent.chatgpt import account
+
+	try:
+		listed = account.models(frappe.session.user)
+	except account.SignInRequired:
+		frappe.throw(_("Sign in with your ChatGPT account first (the chat, ChatGPT account), then fetch the models."))
+	existing = {row.model_name for row in doc.models or []}
+	models = [{"model_name": m["slug"], "label": m["display_name"], "supports_tools": 1, "supports_vision": 1, "supports_thinking": 1,
+		"model_type": "Chat", "exists": m["slug"] in existing} for m in listed]
+	offered = {m["model_name"] for m in models}
+	stale = sorted(name for name in existing | {doc.default_model or ""} if name and name not in offered)
+	return {"models": models, "stale": stale}
 
 
 def _anthropic_models(config):

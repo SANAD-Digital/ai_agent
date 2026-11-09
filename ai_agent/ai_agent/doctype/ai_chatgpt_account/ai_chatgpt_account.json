@@ -1,0 +1,123 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:user",
+ "creation": "2026-11-09 21:00:00.000000",
+ "description": "One person's ChatGPT sign-in: the AI provider of type ChatGPT Subscription answers this person with their own ChatGPT plan. The tokens are kept encrypted outside this form; only the sign-in in the chat changes them.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "email",
+  "status",
+  "column_break_main",
+  "signed_in_at",
+  "expires_at",
+  "section_registration",
+  "client_id",
+  "subject",
+  "column_break_registration",
+  "scopes",
+  "last_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "ChatGPT Account",
+   "read_only": 1
+  },
+  {
+   "default": "Signed out",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Signed in\nSigned out\nSign in again",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "signed_in_at",
+   "fieldtype": "Datetime",
+   "label": "Signed In On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Access Expires On",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_registration",
+   "fieldtype": "Section Break",
+   "label": "Registration"
+  },
+  {
+   "description": "Issued by OpenAI on the first sign-in of this account on this site; kept after signing out.",
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "label": "Account Identity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_registration",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scopes",
+   "fieldtype": "Small Text",
+   "label": "Granted Scopes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_error",
+   "fieldtype": "Small Text",
+   "label": "Last Error",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-09 21:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Agent",
+ "name": "AI ChatGPT Account",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "user",
+ "track_changes": 0
+}

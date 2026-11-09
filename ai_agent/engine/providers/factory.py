@@ -52,6 +52,10 @@ def provider_config(provider_doc, model=None):
         base_url = "http://localhost:11434/v1"
     elif ptype == "Anthropic":
         base_url = anthropic_base_url(base_url)
+    elif ptype == CHATGPT:
+        from ai_agent.chatgpt.account import RESOURCE
+
+        base_url = RESOURCE  # the person's own sign-in pays; no key on the provider
     try:
         api_key = provider_doc.get_password("api_key") if provider_doc.get("api_key") else ""
     except Exception:
@@ -96,6 +100,7 @@ def resolve_provider_doc(provider_name=None):
     return frappe.get_cached_doc("AI Provider", default_name)
 
 
+CHATGPT = "ChatGPT Subscription"  # each person's own ChatGPT plan (ai_agent/chatgpt)
 LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1", "0.0.0.0", "host.docker.internal")
 
 
@@ -103,7 +108,7 @@ def _needs_key(config):
     """Every hosted provider needs a key; Ollama and an OpenAI-compatible server on this machine may not."""
     from urllib.parse import urlparse
 
-    if config["type"] == "Ollama":
+    if config["type"] in ("Ollama", CHATGPT):
         return False
     if config["type"] in ("OpenAI", "Anthropic"):
         return True
@@ -122,6 +127,10 @@ def provider_for(provider_name=None, model=None):
             title=frappe._("No API key"))
     if (doc.provider_type or "") == "Anthropic":
         provider = AnthropicProvider(config)
+    elif (doc.provider_type or "") == CHATGPT:
+        from ai_agent.engine.providers.chatgpt import ChatGPTProvider
+
+        provider = ChatGPTProvider(config)
     else:
         provider = OpenAICompatProvider(config)
     return provider, doc.name, config["model"]
